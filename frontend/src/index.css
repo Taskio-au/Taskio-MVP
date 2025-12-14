@@ -1,0 +1,24 @@
+:root {
+  --taskio-teal: #14C5C5;
+  --taskio-orange: #FF9100;
+  --taskio-deep-blue: #104D7F;
+  --pale-cloud: #F7F9FA;
+  --white: #FFFFFF;
+  --charcoal: #222222;
+  --light-grey: #E0E0E0;
+  --success-green: #28A745;
+  --warning-red: #DC3545;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--pale-cloud);
+  color: var(--charcoal);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+}
