@@ -1,0 +1,54 @@
+'use strict';
+
+function requireNonEmpty(name, value) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`Missing required env var: ${name}`);
+  }
+}
+
+function validateEnv() {
+  const env = process.env.NODE_ENV || 'development';
+
+  // In production, require explicit CORS allowlist (safe-by-default).
+  if (env === 'production') {
+    requireNonEmpty('CORS_ORIGINS', process.env.CORS_ORIGINS);
+    requireNonEmpty('TRUST_PROXY', process.env.TRUST_PROXY);
+    requireNonEmpty('ALERT_WEBHOOK_URL', process.env.ALERT_WEBHOOK_URL);
+    requireNonEmpty('OTP_SALT', process.env.OTP_SALT);
+    if (String(process.env.TASKIO_SHOW_DEV_OTP || '').toLowerCase() === 'true') {
+      throw new Error('TASKIO_SHOW_DEV_OTP must be disabled in production.');
+    }
+  }
+
+  // If Stripe flows are enabled, these keys must exist.
+  // Enable Stripe by setting STRIPE_ENABLED=true
+  if (process.env.STRIPE_ENABLED === 'true') {
+    requireNonEmpty('STRIPE_SECRET_KEY', process.env.STRIPE_SECRET_KEY);
+    requireNonEmpty('STRIPE_WEBHOOK_SECRET', process.env.STRIPE_WEBHOOK_SECRET);
+    // Used for Stripe Connect account link return/refresh URLs
+    requireNonEmpty('FRONTEND_URL', process.env.FRONTEND_URL);
+    if (env === 'production' && !String(process.env.STRIPE_SECRET_KEY).startsWith('sk_live_')) {
+      throw new Error('Production Stripe must use a live secret key.');
+    }
+  }
+
+  // Gemini endpoints already fail with 500 if GEMINI_API_KEY missing; keep as soft requirement.
+
+  // Firebase Admin:
+  // - In many deploys you rely on default credentials (e.g. GCP). So we do NOT hard-require
+  //   GOOGLE_APPLICATION_CREDENTIALS / FIREBASE_SERVICE_ACCOUNT_JSON here.
+  // - If neither is present in development, you'll likely need one; warn (don’t throw).
+  if (env !== 'production') {
+    const hasExplicitCreds =
+      (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_APPLICATION_CREDENTIALS.trim()) ||
+      (process.env.FIREBASE_SERVICE_ACCOUNT_JSON && process.env.FIREBASE_SERVICE_ACCOUNT_JSON.trim());
+    if (!hasExplicitCreds) {
+      // eslint-disable-next-line no-console
+      console.warn('[env] No explicit Firebase credentials found. If you see auth/Firestore errors locally, set GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_SERVICE_ACCOUNT_JSON.');
+    }
+  }
+}
+
+module.exports = { validateEnv };
+
+

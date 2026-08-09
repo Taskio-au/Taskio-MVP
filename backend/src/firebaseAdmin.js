@@ -8,6 +8,11 @@ require('dotenv').config();
 /* -------------------------------------------------------------------------- */
 if (!admin.apps.length) {
   const path = require('path');
+  const isManagedRuntime =
+    Boolean(process.env.K_SERVICE)
+    || Boolean(process.env.FUNCTION_TARGET)
+    || Boolean(process.env.GAE_ENV)
+    || Boolean(process.env.GOOGLE_CLOUD_PROJECT);
 
   // 1) Preferred: explicit file
   const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -25,7 +30,10 @@ if (!admin.apps.length) {
       projectId: sa.project_id,
     });
   } else {
-    // Fallback (can easily point to the wrong project locally)
+    if (process.env.NODE_ENV === 'production' && !isManagedRuntime) {
+      throw new Error('Firebase Admin credentials are not configured for production.');
+    }
+    // Fallback only for local development or managed runtimes using application default credentials.
     admin.initializeApp();
   }
 }
