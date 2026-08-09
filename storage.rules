@@ -1,0 +1,167 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && (
+          request.auth.token.admin == true
+          || (
+            firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+            && (
+              firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.admin == true
+              || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+            )
+          )
+        );
+    }
+
+    function jobDoc(jobId) {
+      return firestore.get(/databases/(default)/documents/jobs/$(jobId)).data;
+    }
+
+    function isParticipant(jobId) {
+      return isSignedIn()
+        && (
+          jobDoc(jobId).homeownerUid == request.auth.uid
+          || jobDoc(jobId).acceptedTradieUid == request.auth.uid
+        );
+    }
+
+    function canViewPostingAssets(jobId) {
+      return isSignedIn()
+        && (
+          jobDoc(jobId).homeownerUid == request.auth.uid
+          || jobDoc(jobId).acceptedTradieUid == request.auth.uid
+          || request.auth.uid in jobDoc(jobId).invitedTradieUids
+        );
+    }
+
+    function allowedContentType() {
+      // Images + PDFs (include common HEIC types)
+      return request.resource.contentType.matches('image/.*')
+        || request.resource.contentType in [
+          'application/pdf',
+          'image/heic',
+          'image/heif'
+        ];
+    }
+    
+    function chatEnabled(jobId) {
+      // Chat is enabled after escrow is funded (FUNDED, IN_PROGRESS, COMPLETED, PAID, DISPUTED)
+      return jobDoc(jobId).status in ['FUNDED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'DISPUTED', 
+                                       'funded', 'in_progress', 'completed', 'paid', 'disputed',
+                                       'in_escrow', 'awaiting_approval'];  // Legacy status support
+    }
+
+    // Chat attachments
+    // Path: job-attachments/{jobId}/{messageId}/{filename}
+    match /job-attachments/{jobId}/{messageId}/{fileName} {
+      allow read: if isParticipant(jobId) || isAdmin();
+
+      allow write: if isParticipant(jobId)
+        // Only allow attachments after escrow is funded (chat enabled)
+        && chatEnabled(jobId)
+        && allowedContentType()
+        && request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    // Variation attachments
+    // Path: job-attachments/{jobId}/variation-{variationId}/{filename}
+    match /job-attachments/{jobId}/variation-{variationId}/{fileName} {
+      allow read: if isParticipant(jobId) || isAdmin();
+
+      // Only allow uploads when escrow is funded and job is underway.
+      allow write: if isParticipant(jobId)
+        && chatEnabled(jobId)
+        && jobDoc(jobId).status in ['FUNDED', 'IN_PROGRESS', 'COMPLETED',
+                                     'funded', 'in_progress', 'in_escrow', 'awaiting_approval', 'completed']
+        && allowedContentType()
+        && request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* Initial job posting photos                                            */
+    /* Path: job-posting-attachments/{jobId}/{filename}                      */
+    /* -------------------------------------------------------------------- */
+    match /job-posting-attachments/{jobId}/{fileName} {
+      allow read: if canViewPostingAssets(jobId) || isAdmin();
+      allow write: if isSignedIn()
+        && jobDoc(jobId).homeownerUid == request.auth.uid
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* Profile photos (legacy path, supports old implementation)             */
+    /* Path: profile-photos/{uid}/{filename}                                 */
+    /* -------------------------------------------------------------------- */
+    match /profile-photos/{uid}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* Profile images (new deterministic path)                               */
+    /* Path: profile-images/{uid}.{ext}                                      */
+    /* Only JPEG and PNG. Max 3MB. Deterministic filename prevents clutter.  */
+    /* -------------------------------------------------------------------- */
+    match /profile-images/{uid}.{ext} {
+      // Allow authenticated users to read (for public profile display)
+      allow read: if isSignedIn();
+      
+      // Only owner can write their own profile image
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        // Only allow jpeg and png
+        && (request.resource.contentType == 'image/jpeg' 
+          || request.resource.contentType == 'image/png')
+        // Max 3MB
+        && request.resource.size <= 3 * 1024 * 1024
+        // Only allow jpg or png extensions
+        && (ext == 'jpg' || ext == 'png');
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* Profile photos (V11 pipeline)                                         */
+    /* Path: profilePhotos/{uid}/{timestamp}.{ext}                           */
+    /* JPEG/PNG/WebP. Max 2MB.                                               */
+    /* -------------------------------------------------------------------- */
+    match /profilePhotos/{uid}/{fileName} {
+      // MVP: allow reads for signed-in users (switch to public read if you show avatars publicly)
+      allow read: if isSignedIn();
+
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && (request.resource.contentType == 'image/jpeg'
+          || request.resource.contentType == 'image/png'
+          || request.resource.contentType == 'image/webp')
+        && request.resource.size <= 2 * 1024 * 1024;
+    }
+
+    /* -------------------------------------------------------------------- */
+    /* Support ticket attachments                                            */
+    /* Path: support-tickets/{uid}/{ticketId}/{filename}                     */
+    /* -------------------------------------------------------------------- */
+    match /support-tickets/{uid}/{ticketId}/{fileName} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && allowedContentType()
+        && request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+

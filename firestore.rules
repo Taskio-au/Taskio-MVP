@@ -1,0 +1,623 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && (
+          request.auth.token.admin == true
+          || (
+            exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.admin == true
+              || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+            )
+          )
+        );
+    }
+
+    function jobDoc(jobId) {
+      return get(/databases/$(database)/documents/jobs/$(jobId)).data;
+    }
+
+    function isHomeowner(jobId) {
+      return isSignedIn() && jobDoc(jobId).homeownerUid == request.auth.uid;
+    }
+
+    function isAcceptedTradie(jobId) {
+      return isSignedIn() && (
+        jobDoc(jobId).acceptedTradieUid == request.auth.uid
+        || (
+          jobDoc(jobId).acceptedQuoteId is string
+          && get(/databases/$(database)/documents/quotes/$(jobDoc(jobId).acceptedQuoteId)).data.tradieUid == request.auth.uid
+        )
+      );
+    }
+
+    function isInvitedTradie(jobId) {
+      return isSignedIn()
+        && (
+          (
+            jobDoc(jobId).invitedTradieUids is list
+            && (request.auth.uid in jobDoc(jobId).invitedTradieUids)
+          )
+          || (
+            jobDoc(jobId).invites is map
+            && jobDoc(jobId).invites[request.auth.uid] is map
+          )
+        );
+    }
+
+    function isParticipant(jobId) {
+      return isHomeowner(jobId) || isAcceptedTradie(jobId);
+    }
+
+    function isChatTradie(jobId) {
+      // Chat should remain available to the selected expert and invited expert records
+      // to avoid stale assignment data blocking legitimate in-job messaging.
+      return isAcceptedTradie(jobId) || isInvitedTradie(jobId);
+    }
+
+    function chatFrozen(jobId) {
+      return jobDoc(jobId).chatFrozen == true;
+    }
+
+    function chatClosed(jobId) {
+      // Chat is closed only for cancelled jobs
+      // Completed, disputed, and paid jobs can still chat
+      return jobDoc(jobId).status in ['CANCELLED', 'cancelled'];
+    }
+    
+    function chatEnabled(jobId) {
+      // Chat is enabled after escrow is funded (FUNDED, IN_PROGRESS, COMPLETED, PAID, DISPUTED)
+      return jobDoc(jobId).status in ['FUNDED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'DISPUTED', 
+                                       'funded', 'in_progress', 'completed', 'paid', 'disputed',
+                                       'IN_ESCROW', 'AWAITING_APPROVAL',
+                                       'in_escrow', 'awaiting_approval'];  // Legacy status support
+    }
+
+    // -----------------------------------------------------------------------
+    // Variation eligibility helpers
+    // -----------------------------------------------------------------------
+
+    function paymentSecuredJob(jobId) {
+      // Payment is secured when Stripe has confirmed and funds are in escrow.
+      // Mirrors isPaymentSecured() in frontend/src/utils/jobStateHelpers.js which also
+      // checks paymentStatus == 'succeeded' as a fallback (e.g. if the webhook fires but
+      // the field update ordering differs slightly).
+      return jobDoc(jobId).paymentState == 'in_escrow'
+        || jobDoc(jobId).paymentStatus == 'succeeded';
+    }
+
+    function jobWorkStarted(jobId) {
+      // True when the Expert has started work on this job.
+      //
+      // Primary signal: job.status == IN_PROGRESS (set atomically by the backend
+      //   POST /api/jobs/:id/progress-status endpoint when the Expert marks work started).
+      //
+      // Legacy/fallback signals (cover edge cases where job.status hasn't yet
+      //   transitioned in Firestore but work has clearly begun):
+      //   - progressStatus == 'work_started' (written by the same endpoint)
+      //   - workStartedAt field exists and is non-null (timestamp set by the backend)
+      return jobDoc(jobId).status in ['IN_PROGRESS', 'in_progress']
+        || jobDoc(jobId).progressStatus == 'work_started'
+        || jobDoc(jobId).workStartedAt != null;
+    }
+
+    function jobAllowsNewVariations(jobId) {
+      // A new variation may be submitted only when:
+      //   1. Payment is in escrow (client has funded the task).
+      //   2. Work has started (Expert is actively working — not just funded).
+      //   3. Job is not in a terminal / read-only state.
+      //
+      // This mirrors canUseVariations() in frontend/src/utils/jobStateHelpers.js.
+      return paymentSecuredJob(jobId)
+        && jobWorkStarted(jobId)
+        && !(jobDoc(jobId).status in [
+               'COMPLETED',     'completed',
+               'PAID',          'paid',
+               'CANCELLED',     'cancelled',
+               'DISPUTED',      'disputed',
+               'REFUNDED',      'refunded',
+               'REFUND_PENDING','refund_pending'
+             ]);
+    }
+
+    function validSenderRole(jobId) {
+      return (isHomeowner(jobId) && request.resource.data.senderRole == 'homeowner')
+        || (isChatTradie(jobId) && request.resource.data.senderRole == 'tradie');
+    }
+
+    function validCommonMessageFields(jobId, messageId) {
+      return request.resource.data.jobId == jobId
+        && request.resource.data.messageId == messageId
+        && request.resource.data.senderUid == request.auth.uid;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Users                                                                    */
+    /* ---------------------------------------------------------------------- */
+    match /users/{uid} {
+      // App needs to read its own profile. Admin can read all.
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+
+      // Users can create/merge only their own doc (supports social login upsert).
+      // No deletes; keep history.
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        // prevent privilege escalation via client writes
+        && !(request.resource.data.keys().hasAny(['admin']))
+        // Users cannot grant themselves admin role.
+        && (
+          !request.resource.data.keys().hasAny(['role'])
+          || request.resource.data.role != 'admin'
+        );
+
+      // Only allow safe self-service edits on profile fields.
+      // Backend/admin writes can still set verification/Stripe fields via Admin SDK.
+      allow update: if isSignedIn()
+        && request.auth.uid == uid
+        && !(request.resource.data.diff(resource.data).changedKeys().hasAny([
+          'admin',
+          'role',
+          'verified',
+          'abnLocked',
+          'stripeAccountId',
+          'stripeChargesEnabled',
+          'stripePayoutsEnabled',
+          'stripeOnboardingStatus',
+          'stripeRequirements',
+          'stripeUpdatedAt'
+        ]))
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'name',
+          'displayName',
+          'phone',
+          'phoneNumber',
+          'phoneNumberE164',
+          'phoneVerified',
+          'photoURL',
+          'photoPath',
+          'profilePhotoURL',
+          'profilePhotoPath',
+          'businessName',
+          'bio',
+          'abn',
+          'abnVerified',
+          'updatedAt'
+        ])
+        && (!request.resource.data.keys().hasAny(['name'])
+          || (request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 80))
+        && (!request.resource.data.keys().hasAny(['displayName'])
+          || (request.resource.data.displayName is string && request.resource.data.displayName.size() >= 2 && request.resource.data.displayName.size() <= 80))
+        && (!request.resource.data.keys().hasAny(['phone'])
+          || (request.resource.data.phone is string && request.resource.data.phone.size() <= 20))
+        && (!request.resource.data.keys().hasAny(['phoneNumber'])
+          || (
+            request.resource.data.phoneNumber is string
+            && request.resource.data.phoneNumber.matches('^\\+61\\d{9}$')
+          ))
+        && (!request.resource.data.keys().hasAny(['phoneNumberE164'])
+          || (
+            request.resource.data.phoneNumberE164 is string
+            && request.resource.data.phoneNumberE164.matches('^\\+61\\d{9}$')
+          ))
+        // Allow phoneVerified=true only when the auth token has a linked phone_number that matches.
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['phoneVerified'])
+          || (
+            request.resource.data.phoneVerified is bool
+            && (
+              request.resource.data.phoneVerified == false
+              || (
+                request.resource.data.phoneVerified == true
+                && request.auth.token.phone_number is string
+                && (
+                  // Prefer phoneNumber if present; also allow legacy phone field
+                  (request.resource.data.keys().hasAny(['phoneNumber']) && request.auth.token.phone_number == request.resource.data.phoneNumber)
+                  || (request.resource.data.keys().hasAny(['phoneNumberE164']) && request.auth.token.phone_number == request.resource.data.phoneNumberE164)
+                  || (request.resource.data.keys().hasAny(['phone']) && request.auth.token.phone_number == request.resource.data.phone)
+                )
+              )
+            )
+          ))
+        && (!request.resource.data.keys().hasAny(['photoURL'])
+          || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 2000))
+        && (!request.resource.data.keys().hasAny(['photoPath'])
+          || (request.resource.data.photoPath is string && request.resource.data.photoPath.size() <= 300))
+        && (!request.resource.data.keys().hasAny(['profilePhotoURL'])
+          || (request.resource.data.profilePhotoURL is string && request.resource.data.profilePhotoURL.size() <= 2000))
+        && (!request.resource.data.keys().hasAny(['profilePhotoPath'])
+          || (request.resource.data.profilePhotoPath is string && request.resource.data.profilePhotoPath.size() <= 300))
+        && (!request.resource.data.keys().hasAny(['businessName'])
+          || (request.resource.data.businessName is string && request.resource.data.businessName.size() <= 120))
+        && (!request.resource.data.keys().hasAny(['bio'])
+          || (request.resource.data.bio is string && request.resource.data.bio.size() <= 250))
+        && (!request.resource.data.keys().hasAny(['abn'])
+          || (request.resource.data.abn is string && request.resource.data.abn.size() <= 30))
+        // Clients may reset abnVerified to false (e.g. when changing ABN), but cannot set it to true.
+        // Verified=true is a server-side operation (Admin SDK) after ABR (official) lookup.
+        && (!request.resource.data.diff(resource.data).changedKeys().hasAny(['abnVerified'])
+          || (
+            request.resource.data.abnVerified is bool
+            && request.resource.data.abnVerified == false
+          ))
+        // If abnLocked is true, prevent ABN changes
+        && (!resource.data.keys().hasAny(['abnLocked'])
+          || resource.data.abnLocked != true
+          || !request.resource.data.diff(resource.data).changedKeys().hasAny(['abn']))
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+
+      /* -------------------------------------------------------------------- */
+      /* Notifications (user-scoped)                                           */
+      /* Path: users/{uid}/notifications/{id}                                  */
+      /* -------------------------------------------------------------------- */
+      match /notifications/{notificationId} {
+        allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+        // Created by backend automation (Admin SDK). Clients cannot create/delete.
+        allow create, delete: if false;
+        // Allow the user to mark notifications read.
+        allow update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['read', 'readAt', 'updatedAt'])
+          && (!request.resource.data.keys().hasAny(['read']) || request.resource.data.read is bool)
+          && (!request.resource.data.keys().hasAny(['readAt']) || request.resource.data.readAt == request.time)
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      /* -------------------------------------------------------------------- */
+      /* Chat thread summaries (user-scoped inbox/unread state)                */
+      /* Path: users/{uid}/chatThreads/{jobId}                                 */
+      /* -------------------------------------------------------------------- */
+      match /chatThreads/{threadId} {
+        allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+        // Created/maintained by backend automation (Admin SDK). Clients cannot create/delete.
+        allow create, delete: if false;
+        // Allow the user to mark a thread as read without mutating summary metadata.
+        allow update: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['unreadCount', 'lastReadAt', 'updatedAt'])
+          && request.resource.data.unreadCount is int
+          && request.resource.data.unreadCount == 0
+          && request.resource.data.lastReadAt == request.time
+          && request.resource.data.updatedAt == request.time;
+      }
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Jobs                                                                     */
+    /* ---------------------------------------------------------------------- */
+    match /jobs/{jobId} {
+      // Homeowner + invited tradies + accepted tradie can read; admin can read all.
+      allow read: if isAdmin()
+        || (isSignedIn()
+          && (
+            resource.data.homeownerUid == request.auth.uid
+            || resource.data.acceptedTradieUid == request.auth.uid
+            || (
+              (resource.data.invitedTradieUids is list)
+              && (request.auth.uid in resource.data.invitedTradieUids)
+            )
+          ));
+
+      // Jobs are created/updated by backend (Admin SDK). We allow a small, controlled set of:
+      // - Admin operational fields (monitoring/freeze/review)
+      // - Tradie progress status (non-payment milestone) to reduce ambiguity
+      allow update: if (
+        // Admin-only operational fields
+        (isAdmin()
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'chatFrozen',
+            'requiresAdminAttention',
+            'reviewedAt',
+            'reviewedByUid',
+            'adminReviewedAt',
+            'adminReviewedBy',
+            'adminNote',
+            'adminNoteUpdatedAt',
+            // Ops: admin tagging + audit touch
+            'adminTags',
+            'lastAdminActionAt',
+            'lastAdminActionBy'
+          ])
+          && (
+            !request.resource.data.keys().hasAny(['reviewedByUid'])
+            || request.resource.data.reviewedByUid == request.auth.uid
+          )
+          && (
+            !request.resource.data.keys().hasAny(['adminReviewedBy'])
+            || request.resource.data.adminReviewedBy == request.auth.uid
+          )
+          && (
+            !request.resource.data.keys().hasAny(['lastAdminActionBy'])
+            || request.resource.data.lastAdminActionBy == request.auth.uid
+          )
+          && (
+            !request.resource.data.keys().hasAny(['lastAdminActionAt'])
+            || request.resource.data.lastAdminActionAt == request.time
+          )
+          && (
+            !request.resource.data.keys().hasAny(['adminNote'])
+            || (request.resource.data.adminNote is string && request.resource.data.adminNote.size() <= 5000)
+          )
+          && (
+            !request.resource.data.keys().hasAny(['adminTags'])
+            || (
+              request.resource.data.adminTags is list
+              && request.resource.data.adminTags.size() <= 20
+            )
+          ))
+        ||
+        // Tradie-only structured progress status (does not replace core job.status used by backend)
+        (isAcceptedTradie(jobId)
+          && !chatFrozen(jobId)
+          && !chatClosed(jobId)
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'progressStatus',
+            'progressStatusUpdatedAt'
+          ])
+          && request.resource.data.progressStatus in ['work_started', 'needs_more_info', 'ready_for_review']
+          && request.resource.data.progressStatusUpdatedAt == request.time)
+        ||
+        // Homeowner can update basic job details before a tradie is accepted.
+        (isSignedIn()
+          && resource.data.homeownerUid == request.auth.uid
+          && (resource.data.acceptedTradieUid == null)
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'title',
+            'description',
+            'location',
+            'timeline',
+            'budget',
+            'updatedAt'
+          ])
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 5
+          && request.resource.data.title.size() <= 140
+          && request.resource.data.description is string
+          && request.resource.data.description.size() >= 10
+          && request.resource.data.description.size() <= 5000)
+      );
+
+      allow create, delete: if false;
+
+      /* -------------------------------------------------------------------- */
+      /* Chat messages (immutable)                                             */
+      /* -------------------------------------------------------------------- */
+      match /messages/{messageId} {
+        // Homeowner + accepted tradie + invited tradies + admin can read chat transcript.
+        // Writes are restricted to homeowner + selected/invited expert below.
+        allow read: if isAdmin() || isHomeowner(jobId) || isAcceptedTradie(jobId) || isInvitedTradie(jobId);
+
+        // Tightened chat create policy: authenticated participant, valid sender role,
+        // and job status gate while preserving compatibility for invited experts.
+        allow create: if isSignedIn()
+          && validCommonMessageFields(jobId, messageId)
+          && request.resource.data.messageType in ['text', 'attachment', 'system']
+          && request.resource.data.senderName is string
+          && request.resource.data.senderName.size() <= 120
+          && (
+            // Text messages
+            (request.resource.data.messageType == 'text'
+              && request.resource.data.text is string
+              && request.resource.data.text.size() >= 1
+              && request.resource.data.text.size() <= 4000
+              && !request.resource.data.keys().hasAny(['attachment']))
+            ||
+            // System messages
+            (request.resource.data.messageType == 'system'
+              && request.resource.data.text is string
+              && request.resource.data.text.size() >= 1
+              && request.resource.data.text.size() <= 1000
+              && !request.resource.data.keys().hasAny(['attachment']))
+            ||
+            // Attachment messages
+            (request.resource.data.messageType == 'attachment'
+              && request.resource.data.attachment is map
+              && request.resource.data.attachment.fileName is string
+              && request.resource.data.attachment.fileName.size() >= 1
+              && request.resource.data.attachment.fileName.size() <= 200
+              && request.resource.data.attachment.mimeType is string
+              && request.resource.data.attachment.mimeType.size() <= 100
+              && request.resource.data.attachment.fileSize is int
+              && request.resource.data.attachment.fileSize > 0
+              && request.resource.data.attachment.fileSize <= 10 * 1024 * 1024
+              && request.resource.data.attachment.storagePath is string
+              && request.resource.data.attachment.storagePath.matches('^job-attachments/' + jobId + '/' + messageId + '/.+$')
+              && request.resource.data.attachment.downloadUrl is string
+              && request.resource.data.attachment.downloadUrl.size() <= 2000
+              && !request.resource.data.keys().hasAny(['text']))
+          );
+
+        // Immutable by users (admin SDK can still mutate for flagging).
+        allow update, delete: if false;
+      }
+
+      /* -------------------------------------------------------------------- */
+      /* Variations (scope/price/time changes)                                 */
+      /* -------------------------------------------------------------------- */
+      match /variations/{variationId} {
+        allow read: if isAdmin() || isParticipant(jobId);
+
+        // Variation creation is handled exclusively by the backend API
+        // (POST /api/jobs/:jobId/variations) using the Firebase Admin SDK, which
+        // bypasses client-side rules. Direct client writes are denied.
+        // This eliminates the surface area for Firestore permission errors and
+        // ensures all business logic (payment/work checks) is enforced server-side.
+        allow create: if false;
+
+        // Only tradie can cancel their own pending variation via direct Firestore.
+        // Homeowner approve/decline is handled by the backend API to enforce the
+        // Stripe payment flow — homeowner cannot set 'approved' directly.
+        allow update: if (
+          isAcceptedTradie(jobId)
+            && resource.data.status == 'pending'
+            && resource.data.createdByUid == request.auth.uid
+            && request.resource.data.status == 'cancelled'
+            && request.resource.data.updatedAt == request.time
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'updatedAt'])
+        );
+
+        allow delete: if false;
+      }
+
+      /* -------------------------------------------------------------------- */
+      /* Admin Notes (admin-only)                                              */
+      /* -------------------------------------------------------------------- */
+      match /adminNotes/{noteId} {
+        allow read: if isAdmin();
+        allow create: if isAdmin()
+          && request.resource.data.createdByUid == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.text is string
+          && request.resource.data.text.size() >= 1
+          && request.resource.data.text.size() <= 5000;
+        allow update, delete: if false;
+      }
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Quotes (backend-owned)                                                  */
+    /* ---------------------------------------------------------------------- */
+    match /quotes/{quoteId} {
+      allow read: if isAdmin()
+        || (isSignedIn()
+          && (
+            resource.data.homeownerUid == request.auth.uid
+            || resource.data.tradieUid == request.auth.uid
+          ));
+      // Client writes go through the backend API (Admin SDK). Disallow direct writes.
+      allow create, update, delete: if false;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Payments records (backend-owned)                                        */
+    /* ---------------------------------------------------------------------- */
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Support tickets                                                         */
+    /* Path: supportTickets/{id}                                               */
+    /* ---------------------------------------------------------------------- */
+    match /supportTickets/{ticketId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && (!request.resource.data.keys().hasAny(['userUid']) || request.resource.data.userUid == request.auth.uid)
+        && request.resource.data.role in ['homeowner', 'tradie', 'admin']
+        && request.resource.data.category in ['payments', 'disputes', 'safety', 'variations', 'other']
+        && request.resource.data.status in ['open', 'new']
+        && (!request.resource.data.keys().hasAny(['priority']) || request.resource.data.priority in ['LOW', 'MED', 'HIGH'])
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 10
+        && request.resource.data.message.size() <= 5000
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && (!request.resource.data.keys().hasAny(['lastUpdatedBy']) || request.resource.data.lastUpdatedBy in ['user', 'admin'])
+        && (!request.resource.data.keys().hasAny(['jobId'])
+          || request.resource.data.jobId == null
+          || (request.resource.data.jobId is string && request.resource.data.jobId.size() <= 80))
+        && (!request.resource.data.keys().hasAny(['attachment'])
+          || request.resource.data.attachment == null
+          || (
+            request.resource.data.attachment is map
+            && request.resource.data.attachment.storagePath is string
+            && request.resource.data.attachment.storagePath.size() <= 400
+            && request.resource.data.attachment.fileName is string
+            && request.resource.data.attachment.fileName.size() <= 200
+            && request.resource.data.attachment.mimeType is string
+            && request.resource.data.attachment.mimeType.size() <= 100
+            && request.resource.data.attachment.size is int
+            && request.resource.data.attachment.size > 0
+            && request.resource.data.attachment.size <= 5 * 1024 * 1024
+          ));
+
+      // Admin can update status and add replies
+      allow update: if isAdmin()
+        && request.resource.data.updatedAt == request.time
+        // Prevent admins from mutating the user-submitted content/identity fields.
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.userUid == resource.data.userUid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.category == resource.data.category
+        && request.resource.data.message == resource.data.message
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.attachment == resource.data.attachment
+        // Allow only operational fields + replies.
+        && request.resource.data.status in ['open', 'new', 'in_progress', 'waiting_on_user', 'resolved', 'closed']
+        && (!request.resource.data.keys().hasAny(['priority']) || request.resource.data.priority in ['LOW', 'MED', 'HIGH'])
+        && (!request.resource.data.keys().hasAny(['lastUpdatedBy']) || request.resource.data.lastUpdatedBy in ['user', 'admin'])
+        && (!request.resource.data.keys().hasAny(['jobId'])
+          || request.resource.data.jobId == null
+          || (request.resource.data.jobId is string && request.resource.data.jobId.size() <= 80));
+
+      // No one can delete tickets
+      allow delete: if false;
+    }
+
+    // Admin-only internal notes under a ticket.
+    match /supportTickets/{ticketId}/adminNotes/{noteId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.createdAt == request.time
+        && (!request.resource.data.keys().hasAny(['createdByUid']) || request.resource.data.createdByUid == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Daily admin checklist (admin-only)                                      */
+    /* Path: adminDailyChecklist/{dateId}                                      */
+    /* ---------------------------------------------------------------------- */
+    match /adminDailyChecklist/{dateId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* V11: user audit logs (server/admin only)                                */
+    /* ---------------------------------------------------------------------- */
+    match /user_audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* V11: profile change requests (server/admin only)                        */
+    /* ---------------------------------------------------------------------- */
+    match /profile_change_requests/{requestId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* V11: phone verification tokens (server only)                            */
+    /* ---------------------------------------------------------------------- */
+    match /phone_verifications/{uid} {
+      allow read, write: if false;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* V11: deletion tokens (server only)                                      */
+    /* ---------------------------------------------------------------------- */
+    match /deletion_tokens/{tokenId} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
+
+ 
