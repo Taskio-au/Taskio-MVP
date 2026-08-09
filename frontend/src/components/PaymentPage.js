@@ -1,154 +1,367 @@
 // src/components/PaymentPage.js
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { ShieldCheck, Smartphone } from 'lucide-react';
 import { auth } from '../firebase';
-import axios from 'axios';
+import { createApiClient } from '../api/createApiClient';
+import { getE2EAuthUser } from '../e2e/authBypass';
+import { BrandLogo } from '../design/components';
+import { CLIENT_PAYMENT_GATE } from '../constants/blockedFlowCopy';
+import { PageLoadingShell } from './ui/AsyncPageStates';
+import PageMain from './ui/PageMain';
 
-// --- TODO: Stripe.js setup ---
-// 1. Install Stripe: npm install @stripe/react-stripe-js @stripe/stripe-js
-// 2. Import Stripe components:
-// import { loadStripe } from '@stripe/stripe-js';
-// import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 
-// 3. Load Stripe with your public key (add to .env file)
-// const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '');
 
-const api = axios.create({
-    baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'
-});
+const api = createApiClient();
 
-// This would be your actual payment form component
-const CheckoutForm = ({ clientSecret }) => {
-    // const stripe = useStripe();
-    // const elements = useElements();
-    const [processing, setProcessing] = useState(false);
-    const [error, setError] = useState(null);
-    const [succeeded, setSucceeded] = useState(false);
-    const navigate = useNavigate();
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        setProcessing(true);
-
-        // --- Placeholder for real Stripe payment confirmation ---
-        console.log("Simulating payment processing...");
-        setTimeout(() => {
-            console.log("Payment successful!");
-            setProcessing(false);
-            setSucceeded(true);
-            setError(null);
-            // Here you would update the job status in your DB via another API call
-            alert("Payment successful! The job is now in progress.");
-            navigate('/dashboard');
-        }, 2000);
-
-        /*
-        // REAL STRIPE LOGIC:
-        if (!stripe || !elements) {
-            return;
-        }
-
-        const payload = await stripe.confirmCardPayment(clientSecret, {
-            payment_method: {
-                card: elements.getElement(CardElement)
-            }
-        });
-
-        if (payload.error) {
-            setError(`Payment failed: ${payload.error.message}`);
-            setProcessing(false);
-        } else {
-            setError(null);
-            setProcessing(false);
-            setSucceeded(true);
-            // Call a backend endpoint to finalize the job status to 'in_progress'
-            navigate('/dashboard', { state: { successMessage: 'Payment successful!' } });
-        }
-        */
-    };
-
-    return (
-        <form onSubmit={handleSubmit} style={styles.form}>
-            <h4>Enter Card Details</h4>
-            <div style={styles.cardElementContainer}>
-                {/* This is where the Stripe CardElement would go */}
-                <p style={{textAlign: 'center', color: '#888'}}>Stripe Card Element would be here.</p>
-            </div>
-            
-            <button 
-                disabled={processing || succeeded} 
-                style={styles.payButton}
-            >
-                {processing ? "Processing..." : `Pay Now`}
-            </button>
-            
-            {error && <div style={{color: 'red', marginTop: '10px'}}>{error}</div>}
-            {succeeded && <div style={{color: 'green', marginTop: '10px'}}>Payment Successful!</div>}
-        </form>
-    );
-};
+/** Narrow screens: spacing, stacked CTAs, readable copy (375–480px). */
+const PAYMENT_PAGE_MOBILE_CSS = `
+@media (max-width: 480px) {
+  .payment-page-shell {
+    padding: 16px 12px !important;
+    align-items: stretch !important;
+    box-sizing: border-box !important;
+  }
+  .payment-page-box {
+    padding: 20px 16px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .payment-page-title {
+    font-size: 22px !important;
+    line-height: 1.25 !important;
+  }
+  .payment-page-shell > p,
+  .payment-page-box p {
+    font-size: 15px;
+    line-height: 1.55;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+  .payment-page-callout-head {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .payment-page-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .payment-page-primary,
+  .payment-page-secondary {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-height: 48px !important;
+    box-sizing: border-box !important;
+  }
+  .payment-pay-cta {
+    min-height: 48px !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+    box-sizing: border-box !important;
+  }
+  .payment-reassurance-card {
+    align-items: flex-start !important;
+  }
+  .payment-reassurance-text {
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+  .payment-page-centered {
+    padding: 36px 16px !important;
+    box-sizing: border-box !important;
+  }
+}
+`;
 
 function PaymentPage() {
     const { jobId, quoteId } = useParams();
     const navigate = useNavigate();
-    const [clientSecret, setClientSecret] = useState('');
+    const location = useLocation();
+    const [sessionId, setSessionId] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [redirecting, setRedirecting] = useState(false);
+    const [needsAccountCompletion, setNeedsAccountCompletion] = useState(false);
+    const backToTaskPath = jobId ? `/job/${jobId}` : '/dashboard';
+    const stripeConfigured = Boolean(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
+
+    const redirectToCheckout = useCallback(async (sid) => {
+        if (!sid) return;
+        try {
+            setRedirecting(true);
+            const stripe = await stripePromise;
+            if (!stripe) {
+                setError('Stripe failed to load. Please refresh and try again.');
+                return;
+            }
+            const { error: stripeErr } = await stripe.redirectToCheckout({ sessionId: sid });
+            if (stripeErr) setError('Payment couldn\'t start. Please try again.');
+        } finally {
+            setRedirecting(false);
+        }
+    }, []);
 
     useEffect(() => {
-        const createPaymentIntent = async () => {
-            const user = auth.currentUser;
+        const createCheckoutSession = async () => {
+            const user = auth.currentUser || getE2EAuthUser();
             if (!user) {
                 navigate('/login');
+                return;
+            }
+            if (!stripeConfigured) {
+                setError('Stripe is not configured in this environment. Please contact support or try again later.');
+                setLoading(false);
                 return;
             }
             try {
                 const token = await user.getIdToken();
                 const config = { headers: { Authorization: `Bearer ${token}` } };
-                const response = await api.post(`/api/jobs/${jobId}/fund`, { quoteId }, config);
-                
-                setClientSecret(response.data.clientSecret);
+                const response = await api.post(`/api/jobs/${jobId}/checkout`, { quoteId }, config);
+                if (response?.data?.paymentAlreadyConfirmed) {
+                    navigate(`/job/${jobId}`, {
+                        replace: true,
+                        state: { taskioBanner: 'Payment is already confirmed. Returning to task…' },
+                    });
+                    return;
+                }
+                const sid = response?.data?.sessionId;
+                if (!sid) {
+                    setError('Payment couldn\'t start. Please try again.');
+                    return;
+                }
+                setSessionId(sid);
             } catch (err) {
-                console.error("Error creating payment intent:", err);
-                setError("Failed to initialize payment. Please go back and try again.");
+                console.error("Error creating checkout session:", err);
+                const code = err?.response?.data?.code;
+                if (err?.response?.status === 403 && code === 'account_completion_required') {
+                    setNeedsAccountCompletion(true);
+                    setError(err?.response?.data?.message || 'Verify your email or continue with Google before you can pay securely.');
+                } else {
+                    setError('Payment couldn\'t start. Please try again.');
+                }
             } finally {
                 setLoading(false);
             }
         };
 
-        createPaymentIntent();
-    }, [jobId, quoteId, navigate]);
+        createCheckoutSession();
+    }, [jobId, quoteId, navigate, stripeConfigured]);
 
-    if (loading) return <div style={styles.centered}>Initializing secure payment...</div>;
-    if (error) return <div style={{...styles.centered, color: '#DC3545'}}>{error}</div>;
+    // Auto-redirect once sessionId is ready.
+    useEffect(() => {
+        if (sessionId) {
+            redirectToCheckout(sessionId);
+        }
+    }, [sessionId, redirectToCheckout]);
 
+    if (loading) {
+        return (
+            <>
+                <style>{PAYMENT_PAGE_MOBILE_CSS}</style>
+                <PageLoadingShell
+                    message="Preparing secure checkout…"
+                    detail="Setting up your payment session with Stripe."
+                />
+            </>
+        );
+    }
+    if (error) {
+        return (
+            <>
+                <style>{PAYMENT_PAGE_MOBILE_CSS}</style>
+                <PageMain label="Secure payment">
+                <div className="payment-page-shell" style={styles.pageContainer}>
+                <div className="payment-page-box" style={styles.paymentBox}>
+                    <div className="payment-page-callout-head" style={styles.calloutHeader}>
+                        <div style={styles.calloutIconWrap} aria-hidden="true">
+                            {needsAccountCompletion ? <Smartphone size={18} /> : <ShieldCheck size={18} />}
+                        </div>
+                        <div>
+                            <div style={styles.calloutTitle}>
+                                {needsAccountCompletion ? CLIENT_PAYMENT_GATE.titleAccount : CLIENT_PAYMENT_GATE.titleGeneric}
+                            </div>
+                            <div style={styles.calloutSubtitle}>
+                                {needsAccountCompletion
+                                    ? 'Verify your email or continue with Google before you can pay securely.'
+                                    : 'Please try again, or return to the task and retry from there.'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={styles.calloutBody}>
+                        <div style={styles.calloutHint}>
+                            {needsAccountCompletion ? (
+                                <>
+                                    <div style={styles.stepsTitle}>What to do next</div>
+                                    <ol style={styles.stepsList}>
+                                        <li>Verify your email or link Google</li>
+                                        <li>Return to this task</li>
+                                        <li>Continue to payment</li>
+                                    </ol>
+                                </>
+                            ) : null}
+                        </div>
+
+                        <div style={styles.calloutErrorText} role="alert">
+                            {error}
+                        </div>
+                    </div>
+
+                    <div className="payment-page-actions" style={styles.actionsRow}>
+                        {needsAccountCompletion ? (
+                            <button
+                                type="button"
+                                className="payment-page-primary"
+                                style={styles.primaryButton}
+                                onClick={() => navigate(`/account/complete?next=${encodeURIComponent(location.pathname)}`)}
+                            >
+                                {CLIENT_PAYMENT_GATE.primaryCta}
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                className="payment-page-primary"
+                                style={styles.primaryButton}
+                                onClick={() => { setError(''); setLoading(true); window.location.reload(); }}
+                            >
+                                {CLIENT_PAYMENT_GATE.tryAgain}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            className="payment-page-secondary"
+                            style={styles.secondaryButton}
+                            onClick={() => navigate(backToTaskPath)}
+                        >
+                            {CLIENT_PAYMENT_GATE.backToTask}
+                        </button>
+                    </div>
+                </div>
+            </div>
+                </PageMain>
+            </>
+        );
+    }
     return (
-        <div style={styles.pageContainer}>
-            <div style={styles.paymentBox}>
-                <h1 style={styles.title}>Fund Escrow</h1>
-                <p>You are about to securely fund the escrow for this job. The funds will be held safely by Taskio and only released to the tradie once you approve the job as complete.</p>
-                
-                {/* This is where the Stripe Elements wrapper would go */}
-                {clientSecret ? (
-                    // <Elements stripe={stripePromise} options={{ clientSecret }}>
-                        <CheckoutForm clientSecret={clientSecret} />
-                    // </Elements>
-                ) : (
-                    <p>Loading payment form...</p>
-                )}
+        <>
+            <style>{PAYMENT_PAGE_MOBILE_CSS}</style>
+            <PageMain label="Secure payment">
+            <div className="payment-page-shell" style={styles.pageContainer}>
+            <div style={styles.headerBar}>
+                <BrandLogo to="/" />
+            </div>
+            <div className="payment-page-box" style={styles.paymentBox}>
+                <h1 className="payment-page-title" style={styles.title}>Secure payment</h1>
+                <p>
+                    You’ll go to <strong>Stripe Checkout</strong> to pay. Taskio doesn’t store your card details.
+                </p>
+                <div className="payment-reassurance-card" style={styles.reassuranceCard}>
+                    <ShieldCheck size={18} color="#0F766E" />
+                    <div className="payment-reassurance-text" style={styles.reassuranceText}>
+                        Your payment is processed securely. Funds are not released to the Expert until you approve the completed work. The Expert’s payout is then
+                        processed by Stripe.
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    className="payment-pay-cta"
+                    onClick={() => redirectToCheckout(sessionId)}
+                    disabled={!sessionId || redirecting}
+                    style={styles.payButton}
+                >
+                    {redirecting ? 'Redirecting to Stripe…' : 'Continue to checkout'}
+                </button>
             </div>
         </div>
+            </PageMain>
+        </>
     );
 }
 
 const styles = {
-    pageContainer: { display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#F7F9FA', fontFamily: 'Inter, sans-serif' },
+    pageContainer: {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: '#F7F9FA',
+        fontFamily: 'Inter, sans-serif',
+        padding: '32px 16px'
+    },
+    headerBar: { width: '100%', maxWidth: 500, marginBottom: 18 },
     paymentBox: { backgroundColor: '#FFFFFF', borderRadius: '12px', padding: '40px', boxShadow: '0 5px 15px rgba(0,0,0,0.1)', width: '100%', maxWidth: '500px' },
     title: { fontFamily: 'Poppins, sans-serif', textAlign: 'center', marginBottom: '15px' },
     centered: { textAlign: 'center', padding: '50px', fontSize: '18px', color: '#555' },
-    form: { marginTop: '30px' },
-    cardElementContainer: { border: '1px solid #E0E0E0', padding: '20px', borderRadius: '8px', margin: '20px 0' },
-    payButton: { width: '100%', backgroundColor: '#FF9100', color: '#FFFFFF', border: 'none', borderRadius: '8px', padding: '15px', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' },
+
+    // Primary payment CTA (Stripe)
+    payButton: { width: '100%', backgroundColor: '#FF9100', color: '#FFFFFF', border: 'none', borderRadius: '10px', padding: '14px', fontSize: '16px', fontWeight: 700, cursor: 'pointer', marginTop: 16 },
+
+    // Error/notice callout UI
+    calloutHeader: { display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 16 },
+    calloutIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: 'rgba(20, 197, 197, 0.12)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#0F766E'
+    },
+    calloutTitle: { fontFamily: 'Poppins, sans-serif', fontSize: 18, fontWeight: 700, color: '#111827', lineHeight: 1.2 },
+    calloutSubtitle: { marginTop: 4, fontSize: 14, color: '#4B5563', lineHeight: 1.5 },
+    calloutBody: {
+        backgroundColor: '#F9FAFB',
+        border: '1px solid #E5E7EB',
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 16
+    },
+    calloutHint: { fontSize: 14, color: '#374151' },
+    stepsTitle: { fontWeight: 700, marginBottom: 8, color: '#111827' },
+    stepsList: { margin: 0, paddingLeft: 18, lineHeight: 1.6, color: '#374151' },
+    calloutErrorText: { marginTop: 12, fontSize: 13, color: '#6B7280' },
+    actionsRow: { display: 'flex', gap: 10, flexWrap: 'wrap' },
+    reassuranceCard: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 10,
+        marginTop: 14,
+        padding: 14,
+        backgroundColor: '#F0FDFA',
+        border: '1px solid #CCFBF1',
+        borderRadius: 12,
+    },
+    reassuranceText: { fontSize: 13, color: '#115E59', lineHeight: 1.5 },
+    primaryButton: {
+        height: 42,
+        padding: '0 14px',
+        borderRadius: 10,
+        border: 'none',
+        backgroundColor: 'var(--taskio-teal, #14C5C5)',
+        color: '#fff',
+        fontWeight: 800,
+        cursor: 'pointer',
+        flex: '1 1 180px'
+    },
+    secondaryButton: {
+        height: 42,
+        padding: '0 14px',
+        borderRadius: 10,
+        border: '1px solid #D1D5DB',
+        backgroundColor: '#fff',
+        color: '#374151',
+        fontWeight: 800,
+        cursor: 'pointer',
+        flex: '1 1 180px'
+    },
 };
 
 export default PaymentPage;

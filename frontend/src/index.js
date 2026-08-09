@@ -2,16 +2,34 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import AppErrorBoundary from './components/AppErrorBoundary';
 import reportWebVitals from './reportWebVitals';
+
+function sendWebVitals(metric) {
+  if (process.env.NODE_ENV !== 'production') return;
+  if (typeof window === 'undefined') return;
+
+  if (typeof window.__TASKIO_REPORT_WEB_VITALS__ === 'function') {
+    window.__TASKIO_REPORT_WEB_VITALS__(metric);
+  }
+
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', metric.name, {
+      event_category: 'Web Vitals',
+      value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
+      event_label: metric.id,
+      non_interaction: true,
+    });
+  }
+}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
   </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+reportWebVitals(sendWebVitals);

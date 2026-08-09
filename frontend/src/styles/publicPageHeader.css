@@ -1,0 +1,55 @@
+/**
+ * Shared public header shell — landing page (marketing) and focused flows (e.g. post-job).
+ * Keeps brand, width rhythm, and sticky bar aligned without duplicating values.
+ */
+
+.public-page-shell,
+.landing-shell {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.public-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.86);
+  border-bottom: 1px solid rgba(209, 213, 219, 0.8);
+}
+
+.public-page-header-inner {
+  min-height: 82px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Right slot (nav on landing; intentionally empty on conversion flows) */
+.public-page-header-actions {
+  min-width: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 720px) {
+  .public-page-shell,
+  .landing-shell {
+    width: min(100% - 28px, 1180px);
+  }
+
+  .public-page-header-inner {
+    min-height: 74px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+  }
+
+  .landing-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

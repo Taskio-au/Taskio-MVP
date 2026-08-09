@@ -1,24 +1,190 @@
 // src/components/JobPostingForm.js
 import React, { useState, useEffect, useMemo, useCallback, useId, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { auth } from '../firebase';
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { Lock } from 'lucide-react';
+import { createApiClient } from '../api/createApiClient';
+import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
+import { auth, storage } from '../firebase';
+import { phase1ExpertiseCatalog } from '../shared/expertiseCatalog';
+import {
+    buildGroupedJobTypesFromCatalog,
+    getTopLevelCategoryId,
+} from '../constants/taskTaxonomy';
+import { melbournePilotLocations } from '../shared/auLocations';
+import BrandLogo from '../design/components/BrandLogo';
+import TaskSummary from './job-posting/TaskSummaryCard';
+import LegalNotice from './LegalNotice';
+import {
+    createInvisibleRecaptcha,
+    normalizeAuMobileToE164,
+    requestPhoneOtpForSignIn,
+    confirmPhoneOtpForSignIn,
+} from '../services/phoneVerification';
+import '../styles/publicPageHeader.css';
+import './JobPostingForm.css';
+import { InlineErrorCardWithNavLinks } from './ui/AsyncPageStates';
+import { getPostJobFlowErrorPresentation } from '../utils/userFacingApiErrors';
 
-// Axios instance for consistent API calls
-const api = axios.create({
-    baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'
-});
+// Shared API client
+const api = createApiClient();
 
-// A custom hook for debouncing
-const useDebounce = (value, delay) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(handler);
-    }, [value, delay]);
-    return debouncedValue;
+const PHASE1_SCOPE_HELP = 'Small indoor jobs only. No electrical, plumbing, gas, or waterproofing.';
+const PHASE1_TEXT_SCOPE_ERROR = 'This job is outside our current scope. Please keep it to a small indoor job only.';
+const durationOptions = [
+    { value: 'under_1_hour', label: 'Under 1 hour', helper: 'Quick single-task jobs.' },
+    { value: 'one_to_two_hours', label: '1 to 2 hours', helper: 'This fits within our current job limit.' },
+];
+const urgencyOptions = [
+    { value: 'Today', label: 'Today', helper: 'Best for urgent same-day jobs.' },
+    { value: 'Tomorrow', label: 'Tomorrow', helper: 'Good if it can wait until the next day.' },
+    { value: 'Within 2 days', label: 'Within 2 days', helper: 'Useful for near-term dispatch.' },
+    { value: 'Flexible', label: 'Flexible', helper: 'Best if timing is not urgent.' },
+    { value: 'On a specific date', label: 'Specific date', helper: 'Choose an exact date next.' },
+];
+const budgetOptions = [
+    { value: 'under_150', label: 'Under $150', helper: 'Good for quick single-item jobs.' },
+    { value: '150_to_300', label: '$150 - $300', helper: 'Current job limit.' },
+    { value: 'not_sure_under_300', label: 'Not sure, but under $300', helper: 'We will keep quotes inside the launch range.' },
+];
+const siteAccessFieldOptions = {
+    propertyType: [
+        { value: 'apartment_unit', label: 'Apartment / unit' },
+        { value: 'house_townhouse', label: 'House / townhouse' },
+    ],
+    liftAvailable: [
+        { value: 'yes', label: 'Yes' },
+        { value: 'no', label: 'No' },
+        { value: 'not_sure', label: 'Not sure' },
+    ],
+    stairs: [
+        { value: 'none', label: 'No stairs (ground floor)' },
+        { value: 'one_flight', label: '1 flight' },
+        { value: 'multiple_flights', label: '2+ flights' },
+        { value: 'not_sure', label: 'Not sure' },
+    ],
+    parking: [
+        { value: 'easy', label: 'Easy parking nearby' },
+        { value: 'limited', label: 'Limited parking' },
+        { value: 'none', label: 'No nearby parking' },
+        { value: 'not_sure', label: 'Not sure' },
+    ],
 };
+const PHOTO_LEVELS = {
+    NONE: 'none',
+    RECOMMENDED: 'recommended',
+    REQUIRED: 'required',
+};
+const photoRequirementByJobType = {
+    mounting_tv: PHOTO_LEVELS.RECOMMENDED,
+    mounting_shelves: PHOTO_LEVELS.RECOMMENDED,
+    mounting_mirrors: PHOTO_LEVELS.RECOMMENDED,
+    hanging_picture_frames: PHOTO_LEVELS.NONE,
+    hanging_artwork: PHOTO_LEVELS.NONE,
+    curtains_blinds_curtain_rods: PHOTO_LEVELS.RECOMMENDED,
+    curtains_blinds_install: PHOTO_LEVELS.RECOMMENDED,
+    curtains_blinds_minor_fixes: PHOTO_LEVELS.RECOMMENDED,
+    furniture_assembly_flat_pack: PHOTO_LEVELS.NONE,
+    furniture_assembly_bed_desk_wardrobe: PHOTO_LEVELS.NONE,
+    minor_repairs_door_hinge: PHOTO_LEVELS.RECOMMENDED,
+    minor_repairs_cabinet_alignment: PHOTO_LEVELS.RECOMMENDED,
+    minor_repairs_handle_replacement: PHOTO_LEVELS.NONE,
+    minor_repairs_small_fixture: PHOTO_LEVELS.RECOMMENDED,
+    wall_patch_touchup_small_holes: PHOTO_LEVELS.RECOMMENDED,
+    wall_patch_touchup_cosmetic: PHOTO_LEVELS.RECOMMENDED,
+    silicone_sealing_cosmetic: PHOTO_LEVELS.RECOMMENDED,
+    silicone_sealing_touchups: PHOTO_LEVELS.RECOMMENDED,
+    apartment_make_good: PHOTO_LEVELS.REQUIRED,
+};
+const blockedScopePattern = /\b(electrical|electrician|plumbing|plumber|gas|waterproofing)\b/i;
+const overDurationPattern = /\b([3-9]|[1-9]\d)\s*(hours?|hrs?)\b|\bhalf[- ]day\b|\bfull[- ]day\b|\ball[- ]day\b/i;
+
+function hasOverBudgetMention(text) {
+    const matches = String(text || '').match(/\$\s*([0-9]{3,4})\b/g) || [];
+    return matches.some((match) => {
+        const amount = Number(String(match).replace(/[^0-9]/g, ''));
+        return Number.isFinite(amount) && amount > 300;
+    });
+}
+
+function getOutOfScopeTextError(title, description) {
+    const combined = `${String(title || '')} ${String(description || '')}`.trim();
+    if (!combined) return '';
+    if (blockedScopePattern.test(combined)) return PHASE1_TEXT_SCOPE_ERROR;
+    if (overDurationPattern.test(combined)) return PHASE1_TEXT_SCOPE_ERROR;
+    if (hasOverBudgetMention(combined)) return PHASE1_TEXT_SCOPE_ERROR;
+    return '';
+}
+
+function toLocationLabel(location) {
+    if (!location || typeof location !== 'object') return '';
+    return `${location.suburb}, ${location.state} ${location.postcode}`;
+}
+
+function toLocationValue(location) {
+    if (!location || typeof location !== 'object') return '';
+    return `${location.suburb}|${location.postcode}`;
+}
+
+function normalizeSelectedLocation(rawLocation) {
+    if (!rawLocation) return null;
+    if (typeof rawLocation === 'string') {
+        return melbournePilotLocations.find(
+            (item) => toLocationValue(item) === rawLocation || toLocationLabel(item) === rawLocation || item.label === rawLocation
+        ) || null;
+    }
+    if (typeof rawLocation === 'object') {
+        const match = melbournePilotLocations.find(
+            (item) => item.suburb === rawLocation.suburb && item.postcode === rawLocation.postcode
+        );
+        if (!match) return null;
+        return {
+            ...match,
+            country: 'AU',
+            coordinates: {
+                latitude: match.latitude,
+                longitude: match.longitude,
+            },
+            label: toLocationLabel(match),
+        };
+    }
+    return null;
+}
+
+/** Title-case suburb for stored title (aligned with shared/paymentDisplayTaskTitle.formatLocality). */
+function formatLocalityTitleCase(suburb) {
+    const s = String(suburb || '').trim();
+    if (!s) return '';
+    return s
+        .split(/\s+/)
+        .map((w) => {
+            if (!w) return '';
+            if (/^[A-Za-z]+-[A-Za-z]+$/.test(w)) {
+                return w
+                    .split('-')
+                    .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : ''))
+                    .join('-');
+            }
+            return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+        })
+        .join(' ');
+}
+
+/** Matches shared/paymentDisplayTaskTitle.buildPostedJobTitleFromPhase1Row — catalogue expertLabel + locality. */
+function buildPostedJobTitleFromCatalogRow(row, location) {
+    const phrase = String(row?.expertLabel || row?.label || '').trim();
+    if (!phrase) return 'Task';
+    const suburbRaw = String(location?.suburb || '').trim();
+    if (!suburbRaw) return phrase;
+    return `${phrase} in ${formatLocalityTitleCase(suburbRaw)}`;
+}
+
+function getPhotoRequirement(jobType, mirrorSize) {
+    const base = photoRequirementByJobType[jobType] || PHOTO_LEVELS.NONE;
+    if (jobType === 'mounting_mirrors' && mirrorSize === 'large_heavy') {
+        return PHOTO_LEVELS.REQUIRED;
+    }
+    return base;
+}
 
 // --- Helper Components ---
 
@@ -33,10 +199,6 @@ const visuallyHiddenStyle = {
     width: '1px',
 };
 
-const VisuallyHiddenLabel = ({ htmlFor, children }) => (
-    <label htmlFor={htmlFor} style={visuallyHiddenStyle}>{children}</label>
-);
-
 const GeminiInspiredIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '6px' }}>
         <path d="M12 2L13.66 8.34L20 10L13.66 11.66L12 18L10.34 11.66L4 10L10.34 8.34L12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -46,7 +208,6 @@ const GeminiInspiredIcon = () => (
         <path d="M17 10H20" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
 );
-
 
 const Calendar = ({ selectedDate, onDateSelect, onClose }) => {
     const [date, setDate] = useState(new Date());
@@ -156,93 +317,6 @@ const Calendar = ({ selectedDate, onDateSelect, onClose }) => {
 };
 
 
-const TaskSummary = ({ formData }) => {
-    const summaryStyle = { padding: '20px', border: '1px solid var(--light-grey, #E0E0E0)', borderRadius: '8px', backgroundColor: 'var(--white, #FFFFFF)', minWidth: '300px', height: 'fit-content' };
-    const headingStyle = { fontFamily: 'Poppins, sans-serif', color: 'var(--charcoal, #222222)', borderBottom: '1px solid var(--light-grey, #E0E0E0)', paddingBottom: '10px', marginBottom: '15px' };
-    const itemStyle = { marginBottom: '15px' };
-    const labelStyle = { fontWeight: 'bold', display: 'block', marginBottom: '4px', fontSize: '14px' };
-    const valueStyle = { fontSize: '14px', color: '#555' };
-    return (
-        <div style={summaryStyle}>
-            <h3 style={headingStyle}>Task Summary</h3>
-            <div style={itemStyle}><span style={labelStyle}>Title:</span><span style={valueStyle}>{formData.title || 'Not specified'}</span></div>
-            <div style={itemStyle}><span style={labelStyle}>Timeline:</span><span style={valueStyle}>{(formData.timeline === 'On a specific date' ? formData.specificDate : formData.timeline) || 'Not specified'}</span></div>
-            <div style={itemStyle}><span style={labelStyle}>Budget:</span><span style={valueStyle}>{formData.budget || 'Not specified'}</span></div>
-            <div style={itemStyle}><span style={labelStyle}>Location:</span><span style={valueStyle}>{formData.location || 'Not specified'}</span></div>
-        </div>
-    );
-};
-
-const PasswordStrengthMeter = ({ password }) => {
-    const criteria = useMemo(() => [
-        { label: "At least 8 characters", regex: /.{8,}/ },
-        { label: "An uppercase letter", regex: /[A-Z]/ },
-        { label: "A lowercase letter", regex: /[a-z]/ },
-        { label: "A number", regex: /\d/ },
-        { label: "A special character", regex: /[^A-Za-z0-9]/ }
-    ], []);
-
-    const score = useMemo(() => {
-        if (!password) return 0;
-        return criteria.reduce((acc, criterion) => acc + (criterion.regex.test(password) ? 1 : 0), 0);
-    }, [password, criteria]);
-
-    const barWidth = `${(score / criteria.length) * 100}%`;
-    const barColor = useMemo(() => {
-        if (score <= 2) return 'var(--warning-red, #DC3545)';
-        if (score <= 4) return '#FFC107';
-        return 'var(--success-green, #28A745)';
-    }, [score]);
-
-    return (
-        <div style={{ marginTop: '10px' }}>
-            <div style={{ height: '5px', backgroundColor: 'var(--light-grey, #E0E0E0)', borderRadius: '2px', overflow: 'hidden', marginBottom: '8px' }}>
-                <div style={{ height: '100%', width: barWidth, backgroundColor: barColor, transition: 'width 0.3s ease-in-out, background-color 0.3s ease-in-out' }}></div>
-            </div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '12px', color: '#666' }}>
-                {criteria.map((item, index) => (
-                    <li key={index} style={{ marginBottom: '4px', opacity: item.regex.test(password) ? 1 : 0.6 }}>
-                        {item.regex.test(password) ? '✓' : '✗'} {item.label}
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
-};
-
-const EyeIcon = ({ visible }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        {visible ? (<><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" x2="22" y1="2" y2="22"></line></>) : (<><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></>)}
-    </svg>
-);
-
-const PasswordField = ({ name, value, onChange, placeholder, error, isVisible, onToggleVisibility, autoComplete, inputId }) => {
-    const errorId = useId();
-    return (
-        <div style={{ position: 'relative', marginTop: '10px' }}>
-            <VisuallyHiddenLabel htmlFor={inputId}>{placeholder}</VisuallyHiddenLabel>
-            <input
-                id={inputId}
-                type={isVisible ? 'text' : 'password'}
-                name={name}
-                value={value}
-                onChange={onChange}
-                placeholder={placeholder}
-                required
-                minLength="8"
-                autoComplete={autoComplete}
-                aria-invalid={!!error}
-                aria-describedby={error ? errorId : undefined}
-                style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }}
-            />
-            <button type="button" onClick={onToggleVisibility} style={{ position: 'absolute', right: '10px', top: '0', bottom: '0', margin: 'auto 0', height: '100%', cursor: 'pointer', color: '#555', background: 'none', border: 'none', display: 'flex', alignItems: 'center' }} aria-label={isVisible ? "Hide password" : "Show password"}>
-                <EyeIcon visible={!isVisible} />
-            </button>
-            {error && <p id={errorId} style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', margin: '5px 0 10px 0' }}>{error}</p>}
-        </div>
-    );
-};
-
 // --- Main Task Posting Form Component ---
 function JobPostingForm() {
     const [currentStep, setCurrentStep] = useState(1);
@@ -250,15 +324,20 @@ function JobPostingForm() {
         try {
             const savedDraft = sessionStorage.getItem('taskio_job_draft');
             const parsed = savedDraft ? JSON.parse(savedDraft) : {};
+            const normalizedLocation = normalizeSelectedLocation(parsed?.location);
             return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? {
-                title: '', description: '', location: '', timeline: '', specificDate: '', budget: '',
-                firstName: '', lastName: '', email: '', ...parsed, password: '', confirmPassword: ''
+                jobType: '', description: '', timeline: '', specificDate: '', estimatedDuration: '', budget: '',
+                propertyType: '', liftAvailable: '', stairs: '', parking: '', mirrorSize: '',
+                firstName: '', phone: '',
+                ...parsed,
+                location: normalizedLocation,
             } : {};
         } catch (error) {
             console.error("Failed to parse draft from sessionStorage", error);
             return {
-                title: '', description: '', location: '', timeline: '', specificDate: '', budget: '',
-                firstName: '', lastName: '', email: '', password: '', confirmPassword: ''
+                jobType: '', description: '', location: null, timeline: '', specificDate: '', estimatedDuration: '', budget: '',
+                propertyType: '', liftAvailable: '', stairs: '', parking: '', mirrorSize: '',
+                firstName: '', phone: ''
             };
         }
     });
@@ -266,184 +345,213 @@ function JobPostingForm() {
     const navigate = useNavigate();
     const [user, setUser] = useState(auth.currentUser);
     const [formErrors, setFormErrors] = useState({});
-    const [showPassword, setShowPassword] = useState({ main: false, confirm: false });
-    const [isLoginMode, setIsLoginMode] = useState(false);
+    /** Structured post errors (never raw API text for permission / leaked messages). */
+    const [postSubmitBlocked, setPostSubmitBlocked] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [acceptedLegal, setAcceptedLegal] = useState(false);
     const [liveRegionMessage, setLiveRegionMessage] = useState('');
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
-    const previousSearchTerm = useRef('');
-    const justSelectedTitle = useRef(false);
+    const [photos, setPhotos] = useState([]); // [{ id, file, url }]
+    const photoInputRef = useRef(null);
+    const lastAiDescriptionRef = useRef(''); // for Undo
+    const [aiUndoVisible, setAiUndoVisible] = useState(false);
+    const [showContactWarning, setShowContactWarning] = useState(false);
+    const [photoUploadBusy, setPhotoUploadBusy] = useState(false);
+    const [otpCode, setOtpCode] = useState('');
+    const [otpRequested, setOtpRequested] = useState(false);
+    const [otpBusy, setOtpBusy] = useState(false);
+    const [otpMessage, setOtpMessage] = useState('');
+    const confirmationResultRef = useRef(null);
+    const recaptchaVerifierRef = useRef(null);
+    const testAppVerifierRef = useRef(null);
+    const recaptchaContainerId = useRef(`taskio-post-job-phone-recaptcha-${Math.random().toString(36).slice(2)}`);
     
-    const totalSteps = user && !isLoginMode ? 4 : 5;
-
-    // State for location search
-    const [locationQuery, setLocationQuery] = useState(formData.location || '');
-    const [locationSuggestions, setLocationSuggestions] = useState([]);
-    const [isFetchingLocations, setIsFetchingLocations] = useState(false);
-    const [highlightedLocationIndex, setHighlightedLocationIndex] = useState(-1);
-    const debouncedLocationSearch = useDebounce(locationQuery, 750);
-
-    // State for Title Suggestions
-    const [titleSuggestions, setTitleSuggestions] = useState([]);
-    const [isFetchingTitles, setIsFetchingTitles] = useState(false);
-    const [highlightedTitleIndex, setHighlightedTitleIndex] = useState(-1);
-    const debouncedTitleSearch = useDebounce(formData.title, 800);
-    const [isTitleInputFocused, setIsTitleInputFocused] = useState(false);
+    const totalSteps = user ? 4 : 5;
+    const [selectedTopLevelCategory, setSelectedTopLevelCategory] = useState(() => getTopLevelCategoryId(formData.jobType));
+    const groupedJobTypes = useMemo(
+        () => buildGroupedJobTypesFromCatalog(phase1ExpertiseCatalog),
+        []
+    );
+    const selectedJobType = useMemo(
+        () => phase1ExpertiseCatalog.find((item) => item.key === formData.jobType) || null,
+        [formData.jobType]
+    );
+    const selectedTopLevelGroup = useMemo(
+        () => groupedJobTypes.find((group) => group.id === selectedTopLevelCategory) || null,
+        [groupedJobTypes, selectedTopLevelCategory]
+    );
+    const phase1TextScopeError = useMemo(
+        () => getOutOfScopeTextError(selectedJobType?.label || '', formData.description),
+        [formData.description, selectedJobType]
+    );
+    const photoRequirement = useMemo(
+        () => getPhotoRequirement(formData.jobType, formData.mirrorSize),
+        [formData.jobType, formData.mirrorSize]
+    );
     
     // Move all useId calls to the top level
-    const titleId = useId(), descId = useId(), firstNameId = useId(), lastNameId = useId(), emailId = useId(), passwordId = useId(), confirmPasswordId = useId();
-    const emailErrorId = useId();
+    const descId = useId(), firstNameId = useId(), phoneId = useId(), otpId = useId();
+    const aiUndoId = useId();
     const locationHeadingId = useId();
+    const locationSelectId = useId();
 
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(newUser => {
             setUser(newUser);
-            if (newUser && currentStep === 5) {
+            if (newUser && currentStep === 5 && !isSubmitting && !otpBusy) {
                 setCurrentStep(4);
             }
         });
         return unsubscribe;
-    }, [currentStep]);
+    }, [currentStep, isSubmitting, otpBusy]);
+
+    useEffect(() => () => {
+        try {
+            recaptchaVerifierRef.current?.clear?.();
+        } catch (error) {
+            // ignore cleanup failures
+        }
+    }, []);
 
     useEffect(() => {
         const draftData = { ...formData };
-        delete draftData.password;
-        delete draftData.confirmPassword;
         sessionStorage.setItem('taskio_job_draft', JSON.stringify(draftData));
     }, [formData]);
 
-    // Effect for fetching location suggestions
+    // Cleanup object URLs for photo previews
     useEffect(() => {
-        const searchTerm = debouncedLocationSearch.trim();
-        const controller = new AbortController();
+        return () => {
+            photos.forEach(p => {
+                try { URL.revokeObjectURL(p.url); } catch (e) {}
+            });
+        };
+    }, [photos]);
 
-        if (searchTerm.length >= 3 && searchTerm !== previousSearchTerm.current) {
-            previousSearchTerm.current = searchTerm;
-            setIsFetchingLocations(true);
-            setLiveRegionMessage('Searching for locations...');
-            setLocationSuggestions([]);
-            setHighlightedLocationIndex(-1);
-            api.get(`/api/suburb-search?q=${searchTerm}`, { signal: controller.signal })
-                .then(res => {
-                    const filteredSuggestions = res.data.filter(s => s && s.name && s.state);
-                    setLocationSuggestions(filteredSuggestions);
-                })
-                .catch(err => {
-                    if (err.name !== 'CanceledError') {
-                        setFormErrors(prev => ({...prev, location: "Could not fetch locations."}));
-                    }
-                })
-                .finally(() => {
-                    setIsFetchingLocations(false);
-                    setLiveRegionMessage('');
-                });
-        } else if (searchTerm.length < 3) {
-            setLocationSuggestions([]);
-            previousSearchTerm.current = '';
-        }
-
-        return () => controller.abort();
-    }, [debouncedLocationSearch]);
-
-    // Effect for fetching title suggestions
-    useEffect(() => {
-        if (justSelectedTitle.current) {
-            justSelectedTitle.current = false;
-            return;
-        }
-        const searchTerm = debouncedTitleSearch.trim();
-        if (searchTerm.length > 5 && isTitleInputFocused) { // Only fetch if input is focused
-            setIsFetchingTitles(true);
-            api.post('/api/title-suggestions', { title: searchTerm })
-                .then(response => {
-                    if (response.data && Array.isArray(response.data.suggestions)) {
-                        setTitleSuggestions(response.data.suggestions);
-                    }
-                })
-                .catch(error => console.error("Error fetching title suggestions:", error))
-                .finally(() => setIsFetchingTitles(false));
-        } else {
-            setTitleSuggestions([]);
-        }
-    }, [debouncedTitleSearch, isTitleInputFocused]);
-
-    const handleLocationSelect = useCallback((suburb) => {
-        if (!suburb) return;
-        const fullLocation = `${suburb.name}, ${suburb.state.abbreviation} ${suburb.postcode}`;
-        setFormData(prev => ({ ...prev, location: fullLocation }));
-        setLocationQuery(fullLocation);
-        setLocationSuggestions([]);
-        setHighlightedLocationIndex(-1);
-        previousSearchTerm.current = '';
+    const addPhotos = useCallback((fileList) => {
+        const files = Array.from(fileList || []).filter(f => f && f.type && f.type.startsWith('image/'));
+        if (files.length === 0) return;
+        setFormErrors(prev => ({ ...prev, photos: '' }));
+        setPhotos(prev => {
+            const next = [...prev];
+            for (const file of files) {
+                const id = `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(16).slice(2)}`;
+                next.push({ id, file, url: URL.createObjectURL(file) });
+            }
+            // cap to prevent huge memory usage
+            return next.slice(0, 12);
+        });
     }, []);
 
-    // Handler for selecting a title suggestion
-    const handleTitleSelect = useCallback((title) => {
-        justSelectedTitle.current = true;
-        setFormData(prev => ({ ...prev, title }));
-        setTitleSuggestions([]); // Immediately clear suggestions
-        setHighlightedTitleIndex(-1);
-        setIsTitleInputFocused(false); // Mark as not focused to prevent re-fetching
+    const removePhoto = useCallback((id) => {
+        setPhotos(prev => {
+            const target = prev.find(p => p.id === id);
+            if (target?.url) {
+                try { URL.revokeObjectURL(target.url); } catch (e) {}
+            }
+            return prev.filter(p => p.id !== id);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!formData.jobType) return;
+        const categoryId = getTopLevelCategoryId(formData.jobType);
+        if (categoryId && categoryId !== selectedTopLevelCategory) {
+            setSelectedTopLevelCategory(categoryId);
+        }
+    }, [formData.jobType, selectedTopLevelCategory]);
+
+    const handleLocationChange = useCallback((e) => {
+        const nextLocation = normalizeSelectedLocation(e.target.value);
+        setFormData(prev => ({ ...prev, location: nextLocation }));
+        setFormErrors(prev => ({ ...prev, location: nextLocation ? '' : 'Please choose one of the supported suburbs.' }));
+    }, []);
+
+    const handleTopLevelCategorySelect = useCallback((categoryId) => {
+        setSelectedTopLevelCategory(categoryId);
+        setFormData((prev) => {
+            const next = { ...prev };
+            if (getTopLevelCategoryId(prev.jobType) !== categoryId) {
+                next.jobType = '';
+                next.mirrorSize = '';
+            }
+            return next;
+        });
     }, []);
     
-    const validateField = useCallback((name, value) => {
-        let error = '';
-        if (name === 'email' && value && !/\S+@\S+\.\S+/.test(value)) {
-            error = 'Please enter a valid email address.';
-        }
-        if (name === 'password' && value && value.length < 8) {
-            error = 'Password must be at least 8 characters.';
-        }
-        if (name === 'confirmPassword') {
-            error = value !== formData.password ? 'Passwords do not match.' : '';
-        }
-        setFormErrors(prev => ({...prev, [name]: error}));
-    }, [formData.password]);
-
     const handleChange = useCallback((e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-        if (['email', 'password', 'confirmPassword'].includes(name)) {
-            validateField(name, value);
+        setFormData(prev => ({
+            ...prev,
+            [name]: value,
+            ...(name === 'timeline' && value !== 'On a specific date' ? { specificDate: '' } : {}),
+            ...(name === 'jobType' && value !== 'mounting_mirrors' ? { mirrorSize: '' } : {}),
+        }));
+        // If the user starts editing after an AI rewrite, hide the Undo banner to reduce clutter.
+        if (name === 'description' && aiUndoVisible) {
+            setAiUndoVisible(false);
         }
-        if (formErrors.submit) {
+        // Check for contact info patterns in description
+        if (name === 'description') {
+            const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+            const phonePattern = /\b(\+?61|0)4\d{2}[\s-]?\d{3}[\s-]?\d{3}\b|\b\d[\d\s-]{7,11}\d\b/;
+            const hasContactInfo = emailPattern.test(value) || phonePattern.test(value);
+            setShowContactWarning(hasContactInfo);
+        }
+        if (['propertyType', 'liftAvailable', 'stairs', 'parking', 'jobType', 'mirrorSize', 'timeline'].includes(name)) {
+            setFormErrors(prev => ({ ...prev, [name]: '' }));
+        }
+        if (name === 'phone') {
+            setFormErrors(prev => ({ ...prev, phone: '', otp: '', submit: '' }));
+            setPostSubmitBlocked(null);
+            setOtpRequested(false);
+            setOtpCode('');
+            setOtpMessage('');
+            confirmationResultRef.current = null;
+        }
+        if (formErrors.submit || postSubmitBlocked) {
             setFormErrors(prev => ({ ...prev, submit: '' }));
+            setPostSubmitBlocked(null);
         }
-    }, [validateField, formErrors.submit]);
+    }, [formErrors.submit, postSubmitBlocked, aiUndoVisible]);
     
     const handleBlur = useCallback((e) => {
         const { name, value } = e.target;
         const trimmedValue = value.trim();
-        if (['firstName', 'lastName'].includes(name)) {
+        if (['firstName'].includes(name)) {
             setFormData(prev => ({...prev, [name]: trimmedValue.replace(/\s+/g, ' ')}));
-        }
-        if (name === 'email') {
-            setFormData(prev => ({...prev, email: trimmedValue }));
         }
     }, []);
 
-    const handleGenerateDescription = useCallback(async (mode, answers = {}) => {
-        if (!formData.title.trim()) {
-            setFormErrors(prev => ({ ...prev, description: 'Please enter a title first.' }));
+    const handleGenerateDescription = useCallback(async ({ enableUndo = false } = {}) => {
+        if (!formData.jobType) {
+            setFormErrors(prev => ({ ...prev, description: 'Please choose a supported job type first.' }));
+            return;
+        }
+        if (!formData.description.trim()) {
+            setFormErrors(prev => ({ ...prev, description: 'Please add a short description first.' }));
             return;
         }
         setIsGenerating(true);
-        setIsAiMenuOpen(false);
         setFormErrors(prev => ({ ...prev, description: '' }));
 
         try {
+            if (enableUndo) {
+                lastAiDescriptionRef.current = formData.description;
+            }
             const response = await api.post('/api/generate-description', {
-                title: formData.title,
+                jobType: formData.jobType,
+                jobTypeLabel: selectedJobType?.label || '',
                 description: formData.description,
-                mode: mode,
-                answers: answers
+                mode: 'clarify',
             });
 
             if (response.data && response.data.description) {
                 setFormData(prev => ({ ...prev, description: response.data.description }));
+                if (enableUndo) {
+                    setAiUndoVisible(true);
+                }
             } else {
                 throw new Error("Invalid response structure from server.");
             }
@@ -453,7 +561,15 @@ function JobPostingForm() {
         } finally {
             setIsGenerating(false);
         }
-    }, [formData.title, formData.description]);
+    }, [formData.description, formData.jobType, selectedJobType]);
+
+    const undoAiDescription = useCallback(() => {
+        const prev = lastAiDescriptionRef.current;
+        if (typeof prev === 'string') {
+            setFormData((p) => ({ ...p, description: prev }));
+        }
+        setAiUndoVisible(false);
+    }, []);
 
     const handleDateSelect = useCallback((date) => {
         setFormData(prev => ({...prev, specificDate: date}));
@@ -462,48 +578,172 @@ function JobPostingForm() {
 
     const stepValid = useMemo(() => {
         switch (currentStep) {
-            case 1: return formData.title.trim().length >= 5 && formData.description.trim().length >= 10;
-            case 2: return formData.timeline === 'On a specific date' ? formData.specificDate.trim() !== '' : !!formData.timeline;
+            case 1:
+                return !!formData.jobType
+                    && (formData.jobType !== 'mounting_mirrors' || !!formData.mirrorSize)
+                    && formData.description.trim().length >= 10
+                    && !phase1TextScopeError
+                    && (photoRequirement !== PHOTO_LEVELS.REQUIRED || photos.length > 0);
+            case 2: return !!formData.estimatedDuration && (formData.timeline === 'On a specific date' ? formData.specificDate.trim() !== '' : !!formData.timeline);
             case 3: return !!formData.budget;
-            case 4: return formData.location.trim() !== '';
-            case 5:
-                const isEmailValid = /\S+@\S+\.\S+/.test(formData.email);
-                const isPasswordValid = formData.password.length >= 8;
-                if (isLoginMode) {
-                    return isEmailValid && formData.password.trim() !== '';
+            case 4: return !!formData.location && !!formData.propertyType && !!formData.liftAvailable && !!formData.stairs && !!formData.parking && !formErrors.location;
+            case 5: {
+                try {
+                    normalizeAuMobileToE164(formData.phone);
+                } catch (error) {
+                    return false;
                 }
-                return (formData.firstName.trim() !== '' && formData.lastName.trim() !== '' && isEmailValid && isPasswordValid && formData.password === formData.confirmPassword && !formErrors.email && !formErrors.password && !formErrors.confirmPassword);
+                return acceptedLegal && (!otpRequested || /^\d{6}$/.test(otpCode.trim()));
+            }
             default: return false;
         }
-    }, [currentStep, formData, isLoginMode, formErrors]);
+    }, [acceptedLegal, currentStep, formData, formErrors.location, otpCode, otpRequested, phase1TextScopeError, photoRequirement, photos.length]);
 
     const nextStep = useCallback(() => setCurrentStep(prev => Math.min(prev + 1, totalSteps)), [totalSteps]);
     const prevStep = useCallback(() => setCurrentStep(prev => Math.max(1, prev - 1)), []);
 
     const handleFormKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && e.target.tagName !== 'TEXTAREA' && currentStep < totalSteps && stepValid) {
-            if (!e.target.closest('#suburb-suggestions') && !e.target.closest('#title-suggestions')) {
-                e.preventDefault();
-                nextStep();
-            }
+            e.preventDefault();
+            nextStep();
         }
     };
 
-    const handleLocationKeyDown = (e) => {
-        if (locationSuggestions.length === 0) return;
-        if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedLocationIndex(prev => (prev + 1) % locationSuggestions.length); } 
-        else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedLocationIndex(prev => (prev - 1 + locationSuggestions.length) % locationSuggestions.length); } 
-        else if (e.key === 'Enter') { e.preventDefault(); if (highlightedLocationIndex > -1) { handleLocationSelect(locationSuggestions[highlightedLocationIndex]); } } 
-        else if (e.key === 'Escape') { e.preventDefault(); setLocationSuggestions([]); }
-    };
+    const buildTaskData = useCallback(() => {
+        const generatedTitle = buildPostedJobTitleFromCatalogRow(selectedJobType, formData.location);
+        return {
+            jobType: formData.jobType,
+            title: generatedTitle,
+            description: formData.description.trim().replace(/\s+/g, ' '), 
+            location: formData.location,
+            estimatedDuration: formData.estimatedDuration,
+            timeline: formData.timeline === 'On a specific date' ? formData.specificDate : formData.timeline,
+            budget: formData.budget,
+            siteAccess: {
+                propertyType: formData.propertyType,
+                liftAvailable: formData.liftAvailable,
+                stairs: formData.stairs,
+                parking: formData.parking,
+            },
+            details: {
+                mirrorSize: formData.jobType === 'mounting_mirrors' ? formData.mirrorSize : '',
+            },
+        };
+    }, [formData, selectedJobType]);
 
-    const handleTitleKeyDown = (e) => {
-        if (titleSuggestions.length === 0) return;
-        if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedTitleIndex(prev => (prev + 1) % titleSuggestions.length); } 
-        else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedTitleIndex(prev => (prev - 1 + titleSuggestions.length) % titleSuggestions.length); } 
-        else if (e.key === 'Enter') { e.preventDefault(); if (highlightedTitleIndex > -1) { handleTitleSelect(titleSuggestions[highlightedTitleIndex]); } } 
-        else if (e.key === 'Escape') { e.preventDefault(); setTitleSuggestions([]); }
-    };
+    const uploadPhotosForJob = useCallback(async (jobId) => {
+        if (!jobId || photos.length === 0) return [];
+
+        const uploadedPhotos = [];
+        for (const photo of photos) {
+            const extension = String(photo.file?.name || 'jpg').split('.').pop()?.toLowerCase() || 'jpg';
+            const path = `job-posting-attachments/${jobId}/${Date.now()}-${photo.id}.${extension}`;
+            const photoRef = storageRef(storage, path);
+            const task = uploadBytesResumable(photoRef, photo.file, { contentType: photo.file?.type || undefined });
+            await new Promise((resolve, reject) => {
+                task.on('state_changed', undefined, reject, resolve);
+            });
+            const downloadUrl = await getDownloadURL(photoRef);
+            uploadedPhotos.push({
+                fileName: photo.file.name,
+                fileSize: photo.file.size,
+                mimeType: photo.file.type || 'application/octet-stream',
+                storagePath: path,
+                downloadUrl,
+            });
+        }
+
+        return uploadedPhotos;
+    }, [photos]);
+
+    const createAndFinalizeTask = useCallback(async (token) => {
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        const createRes = await api.post(`/api/jobs`, buildTaskData(), config);
+        const jobId = createRes?.data?.jobId;
+        if (!jobId) {
+            throw new Error('Missing created job ID.');
+        }
+        if (photos.length > 0) {
+            setPhotoUploadBusy(true);
+            try {
+                const uploadedPhotos = await uploadPhotosForJob(jobId);
+                await api.post(`/api/jobs/${jobId}/photos`, { photos: uploadedPhotos }, config);
+            } finally {
+                setPhotoUploadBusy(false);
+            }
+        }
+        sessionStorage.removeItem('taskio_job_draft');
+        navigate(`/job-posted/${jobId}`);
+    }, [buildTaskData, navigate, photos.length, uploadPhotosForJob]);
+
+    const ensureRecaptchaVerifier = useCallback(() => {
+        try {
+            if (auth?.settings?.appVerificationDisabledForTesting) {
+                if (!testAppVerifierRef.current) {
+                    if (process.env.NODE_ENV !== 'production') {
+                        console.info('[Taskio] Phone verification test bypass is active; using fake app verifier.');
+                    }
+                    testAppVerifierRef.current = {
+                        type: 'recaptcha',
+                        verify: async () => 'test',
+                        clear: () => {},
+                        reset: () => {},
+                        _reset: () => {},
+                    };
+                }
+                return testAppVerifierRef.current;
+            }
+        } catch (error) {
+            // ignore
+        }
+
+        if (recaptchaVerifierRef.current) {
+            return recaptchaVerifierRef.current;
+        }
+        recaptchaVerifierRef.current = createInvisibleRecaptcha(auth, recaptchaContainerId.current);
+        return recaptchaVerifierRef.current;
+    }, []);
+
+    const activateQuoteAccess = useCallback(async (token) => {
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        await api.post('/api/me/homeowner/activate-quote-access', {
+            firstName: formData.firstName.trim().replace(/\s+/g, ' '),
+        }, config);
+    }, [formData.firstName]);
+
+    const requestPostingOtp = useCallback(async () => {
+        let phoneNumberE164 = '';
+        try {
+            phoneNumberE164 = normalizeAuMobileToE164(formData.phone);
+        } catch (err) {
+            setFormErrors(prev => ({ ...prev, phone: err.message || 'Enter a valid phone number.' }));
+            throw err;
+        }
+
+        const verifier = ensureRecaptchaVerifier();
+        const confirmation = await requestPhoneOtpForSignIn({
+            auth,
+            phoneNumberE164,
+            recaptchaVerifier: verifier,
+        });
+
+        confirmationResultRef.current = confirmation;
+        setOtpRequested(true);
+        setOtpMessage("We sent a 6-digit code to your phone.");
+    }, [ensureRecaptchaVerifier, formData.phone]);
+
+    const verifyOtpAndPostTask = useCallback(async () => {
+        if (!confirmationResultRef.current) {
+            throw new Error('Please request a verification code first.');
+        }
+        const result = await confirmPhoneOtpForSignIn({
+            confirmationResult: confirmationResultRef.current,
+            code: otpCode,
+        });
+        const token = await result.user.getIdToken();
+        await activateQuoteAccess(token);
+        await createAndFinalizeTask(token);
+    }, [activateQuoteAccess, createAndFinalizeTask, otpCode]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -511,70 +751,56 @@ function JobPostingForm() {
 
         setIsSubmitting(true);
         setFormErrors({});
+        setPostSubmitBlocked(null);
         setLiveRegionMessage('');
-        
-        const taskData = {
-            title: formData.title.trim().replace(/\s+/g, ' '), 
-            description: formData.description.trim().replace(/\s+/g, ' '), 
-            location: formData.location.trim(),
-            timeline: formData.timeline === 'On a specific date' ? formData.specificDate : formData.timeline,
-            budget: formData.budget
-        };
 
         try {
-            let token;
             if (user) {
-                try {
-                    token = await user.getIdToken();
-                } catch (tokenError) {
-                    const errorMsg = "Your session has expired. Please log in again.";
+                const token = await user.getIdToken();
+                await createAndFinalizeTask(token);
+            } else {
+                if (!acceptedLegal) {
+                    const errorMsg = 'Please accept the Terms of Use and Privacy Policy to continue.';
                     setFormErrors({ submit: errorMsg });
                     setLiveRegionMessage(errorMsg);
-                    setIsLoginMode(true);
-                    await signOut(auth);
-                    setCurrentStep(5);
-                    throw tokenError;
+                    return;
                 }
-            } else {
-                const email = formData.email.trim().toLowerCase();
-                const password = formData.password;
-
-                if (isLoginMode) {
-                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                    token = await userCredential.user.getIdToken();
-                } else {
-                    await api.post(`/api/users/register`, {
-                        email: email, password: password,
-                        firstName: formData.firstName.trim().replace(/\s+/g, ' '), 
-                        lastName: formData.lastName.trim().replace(/\s+/g, ' '),
-                        role: 'homeowner'
-                    });
-                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                    token = await userCredential.user.getIdToken();
+                if (!otpRequested) {
+                    setOtpBusy(true);
+                    await requestPostingOtp();
+                    setLiveRegionMessage('Verification code sent.');
+                    return;
                 }
+                setOtpBusy(true);
+                await verifyOtpAndPostTask();
             }
-            
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            await api.post(`/api/jobs`, taskData, config);
-            
-            sessionStorage.removeItem('taskio_job_draft');
-            navigate('/dashboard', { state: { successMessage: 'Task posted successfully!' } });
-
         } catch (err) {
-            if (err.name !== 'CanceledError' && !formErrors.submit) {
-                let errorMsg = err.response?.data?.message || "An error occurred. Please check your details and try again.";
-                if (err.code === 'auth/email-already-in-use') {
-                    errorMsg = "This email is already registered. Please log in to continue.";
-                    setIsLoginMode(true);
-                } else if (err.code === 'auth/invalid-credential') {
-                     errorMsg = "Invalid email or password. Please try again.";
+            if (err.name !== 'CanceledError') {
+                const presentation = getPostJobFlowErrorPresentation(err);
+                setLiveRegionMessage(presentation.liveRegion);
+                if (presentation.kind === 'blocked_permission') {
+                    setPostSubmitBlocked({
+                        kind: 'blocked_permission',
+                        title: presentation.title,
+                        body: presentation.body,
+                    });
+                    setFormErrors({});
+                } else if (presentation.kind === 'blocked_generic') {
+                    setPostSubmitBlocked({
+                        kind: 'blocked_generic',
+                        title: presentation.title,
+                        body: presentation.body,
+                    });
+                    setFormErrors({});
+                } else {
+                    setPostSubmitBlocked(null);
+                    setFormErrors({ submit: presentation.body });
                 }
-                setFormErrors({ submit: errorMsg });
-                setLiveRegionMessage(errorMsg);
             }
             console.error(err);
         } finally {
             setIsSubmitting(false);
+            setOtpBusy(false);
         }
     };
 
@@ -582,100 +808,473 @@ function JobPostingForm() {
         switch (currentStep) {
             case 1: return (
                 <div>
-                    <h2>Step 1: What needs to be done?</h2>
-                    <div style={{ position: 'relative', marginBottom: '15px' }}>
-                        <VisuallyHiddenLabel htmlFor={titleId}>Task Title</VisuallyHiddenLabel>
-                        <input id={titleId} type="text" name="title" value={formData.title} onChange={handleChange} onKeyDown={handleTitleKeyDown} onFocus={() => setIsTitleInputFocused(true)} onBlur={() => setTimeout(() => setIsTitleInputFocused(false), 200)} placeholder="e.g., Fix leaky kitchen tap" required minLength="5" style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }} autoComplete="off" />
-                        {(isFetchingTitles || titleSuggestions.length > 0) && (
-                            <ul id="title-suggestions" role="listbox" style={{ listStyle: 'none', padding: '0', margin: '0', border: '1px solid #E0E0E0', borderRadius: '4px', position: 'absolute', width: '100%', backgroundColor: '#fff', zIndex: 20 }}>
-                                {isFetchingTitles ? (
-                                    <li style={{ padding: '10px', color: '#888' }}>Loading suggestions...</li>
-                                ) : (
-                                    titleSuggestions.map((suggestion, i) => (
-                                        <li key={i} id={`title-option-${i}`} role="option" aria-selected={i === highlightedTitleIndex} onClick={() => handleTitleSelect(suggestion)} onMouseEnter={() => setHighlightedTitleIndex(i)} style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #E0E0E0', backgroundColor: i === highlightedTitleIndex ? '#F7F9FA' : 'transparent' }}>
-                                            {suggestion}
-                                        </li>
-                                    ))
-                                )}
-                            </ul>
-                        )}
+                    <div style={{ marginBottom: '32px' }}>
+                        <h2 style={{ 
+                            fontFamily: 'Poppins, sans-serif', 
+                            marginBottom: '0',
+                            fontSize: '22px'
+                        }}>
+                            What needs to be done?
+                        </h2>
                     </div>
-                    
-                    <div style={{ position: 'relative' }}>
-                        <VisuallyHiddenLabel htmlFor={descId}>Task Description</VisuallyHiddenLabel>
-                        <textarea id={descId} name="description" value={formData.description} onChange={handleChange} onBlur={handleBlur} placeholder="Describe the task in detail..." required minLength="10" rows="8" style={{ width: '100%', padding: '10px', boxSizing: 'border-box' }} />
-                        <div style={{ position: 'absolute', bottom: '15px', right: '10px' }}>
-                            <button 
-                                type="button" 
-                                onClick={() => setIsAiMenuOpen(prev => !prev)} 
-                                disabled={isGenerating || !formData.title.trim()} 
-                                style={{ 
-                                    padding: '8px 14px', 
-                                    cursor: 'pointer', 
-                                    background: 'linear-gradient(45deg, #6a11cb 0%, #2575fc 100%)', 
-                                    color: 'white', 
-                                    border: 'none', 
-                                    borderRadius: '6px', 
-                                    opacity: isGenerating || !formData.title.trim() ? 0.6 : 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    fontSize: '14px',
-                                    fontWeight: '500'
-                                }}
-                            >
-                                <GeminiInspiredIcon />
-                                {isGenerating ? 'Generating...' : 'AI Assist'}
-                            </button>
-                            {isAiMenuOpen && (
-                                <div style={{ position: 'absolute', bottom: '100%', right: 0, backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '6px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', zIndex: 30, marginBottom: '5px', width: '160px' }}>
-                                    <ul style={{ listStyle: 'none', margin: 0, padding: '5px 0' }}>
-                                        <li onClick={() => handleGenerateDescription('draft')} style={{ padding: '8px 12px', cursor: 'pointer' }}>Draft from title</li>
-                                        <li onClick={() => handleGenerateDescription('clarify')} style={{ padding: '8px 12px', cursor: 'pointer' }}>Tighten & clarify</li>
-                                    </ul>
+                    <div style={{ marginBottom: '22px' }}>
+                        <div className="taskio-fieldLabel">Choose a category *</div>
+                        <div style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+                            {groupedJobTypes.map((group) => (
+                                <button
+                                    key={group.id}
+                                    type="button"
+                                    aria-pressed={selectedTopLevelCategory === group.id}
+                                    className={`taskio-radioCard taskio-categoryCard ${selectedTopLevelCategory === group.id ? 'taskio-radioCardActive' : ''}`}
+                                    onClick={() => handleTopLevelCategorySelect(group.id)}
+                                    style={{ width: '100%' }}
+                                >
+                                    <strong className="taskio-categoryCardLabel" style={{ fontSize: '16px', display: 'block' }}>{group.label}</strong>
+                                </button>
+                            ))}
+                        </div>
+                        <div style={{ marginTop: '16px' }} />
+                        <div className="taskio-fieldLabel">{selectedTopLevelGroup ? `${selectedTopLevelGroup.question} *` : 'Choose the exact job *'}</div>
+                        {selectedTopLevelGroup ? (
+                            <div style={{ display: 'grid', gap: '10px' }}>
+                                {selectedTopLevelGroup.items.map((option) => (
+                                    <label key={option.key} className={`taskio-radioCard taskio-radioCardDetailed ${formData.jobType === option.key ? 'taskio-radioCardActive' : ''}`}>
+                                        <input
+                                            type="radio"
+                                            name="jobType"
+                                            value={option.key}
+                                            checked={formData.jobType === option.key}
+                                            onChange={handleChange}
+                                            style={{ marginRight: '8px' }}
+                                        />
+                                        <span>
+                                            <strong>{option.label}</strong>
+                                            <span style={{ display: formData.jobType === option.key ? 'block' : 'none', fontSize: '13px', color: '#666', fontWeight: 400, marginTop: '4px', lineHeight: 1.45 }}>
+                                                {option.summary}
+                                            </span>
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ padding: '12px 14px', borderRadius: '12px', backgroundColor: '#F8FAFC', color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>
+                                Choose a category above to see job types.
+                            </div>
+                        )}
+                        <div style={{ marginTop: '10px', fontSize: '12px', color: '#666', lineHeight: 1.45 }}>
+                            {PHASE1_SCOPE_HELP}
+                        </div>
+                    </div>
+
+                    {formData.jobType === 'mounting_mirrors' && (
+                        <div style={{ marginBottom: '22px' }}>
+                            <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>Mirror size *</div>
+                            <div style={{ display: 'grid', gap: '10px' }}>
+                                {[
+                                    { value: 'standard', label: 'Standard mirror', helper: 'Smaller mirror that is easy to carry and position.' },
+                                    { value: 'large_heavy', label: 'Large or heavy mirror', helper: 'Oversized, heavier, or awkward mirrors need at least one photo.' },
+                                ].map((option) => (
+                                    <label key={option.value} className={`taskio-radioCard taskio-radioCardDetailed ${formData.mirrorSize === option.value ? 'taskio-radioCardActive' : ''}`}>
+                                        <input
+                                            type="radio"
+                                            name="mirrorSize"
+                                            value={option.value}
+                                            checked={formData.mirrorSize === option.value}
+                                            onChange={handleChange}
+                                            style={{ marginRight: '8px' }}
+                                        />
+                                        <span>
+                                            <strong>{option.label}</strong>
+                                            <span style={{ display: 'block', fontSize: '13px', color: '#666', fontWeight: 400, marginTop: '2px' }}>
+                                                {option.helper}
+                                            </span>
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={{ marginBottom: '28px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <label className="taskio-fieldLabel" htmlFor={descId} style={{ margin: 0 }}>Description *</label>
+                            <div className="taskio-aiAssistInline">
+                                <span className="taskio-aiAssistMicrocopy">Clarity only</span>
+                                <button
+                                    type="button"
+                                    className="taskio-aiAssistSecondaryBtn"
+                                    onClick={() => handleGenerateDescription({ enableUndo: true })}
+                                    disabled={isGenerating || !formData.jobType || !formData.description.trim()}
+                                >
+                                    <GeminiInspiredIcon />
+                                    {isGenerating ? 'Tidying…' : 'Tidy description'}
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <textarea
+                                id={descId}
+                                className="taskio-textarea taskio-textareaStep1"
+                                name="description"
+                                value={formData.description}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                placeholder="Describe the job, key measurements, access details, and anything the expert should know."
+                                required
+                                minLength="10"
+                                rows="6"
+                            />
+                        </div>
+                        {aiUndoVisible && (
+                            <div id={aiUndoId} className="taskio-aiInlineFeedback" role="status" aria-live="polite">
+                                <span>Description updated</span>
+                                <span className="taskio-aiInlineDot">·</span>
+                                <button type="button" className="taskio-aiUndoBtn" onClick={undoAiDescription}>
+                                    Undo
+                                </button>
+                            </div>
+                        )}
+
+                        {showContactWarning && (
+                            <div className="taskio-contactWarning" role="alert">
+                                💡 Don't include phone/email — Taskio chat keeps you protected
+                            </div>
+                        )}
+                        {phase1TextScopeError && <p style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', marginTop: '8px' }}>{phase1TextScopeError}</p>}
+                        {formErrors.description && <p style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', marginTop: '8px' }}>{formErrors.description}</p>}
+                    </div>
+
+                    <div style={{ marginBottom: '28px' }}>
+                        <div className="taskio-fieldLabel">
+                            Photos{photoRequirement === PHOTO_LEVELS.REQUIRED ? ' *' : ' (optional)'}
+                        </div>
+                        {photoRequirement === PHOTO_LEVELS.RECOMMENDED && (
+                            <p className="taskio-fieldHint" style={{ marginTop: 0, marginBottom: '10px', color: '#64748B' }}>
+                                Add a photo for faster, more accurate quotes
+                            </p>
+                        )}
+                        {photoRequirement === PHOTO_LEVELS.REQUIRED && (
+                            <p style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', marginTop: 0, marginBottom: '10px' }}>
+                                Please upload at least 1 photo so experts can quote this job
+                            </p>
+                        )}
+                        <div
+                            className="taskio-dropzone"
+                            role="button"
+                            tabIndex={0}
+                            style={{
+                                borderColor: photoRequirement === PHOTO_LEVELS.REQUIRED ? '#DC3545' : (photoRequirement === PHOTO_LEVELS.RECOMMENDED ? '#CBD5E1' : undefined),
+                                backgroundColor: photoRequirement === PHOTO_LEVELS.RECOMMENDED ? '#F8FAFC' : undefined,
+                            }}
+                            onClick={() => photoInputRef.current?.click()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    photoInputRef.current?.click();
+                                }
+                            }}
+                            onDragOver={(e) => { e.preventDefault(); }}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                addPhotos(e.dataTransfer?.files);
+                            }}
+                            aria-label={photoRequirement === PHOTO_LEVELS.REQUIRED ? 'Upload required photos' : 'Upload photos'}
+                        >
+                            <p className="taskio-dropzoneSub">Drag & drop images or click to choose</p>
+                            <input
+                                ref={photoInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                style={{ display: 'none' }}
+                                onChange={(e) => addPhotos(e.target.files)}
+                            />
+
+                            {photos.length > 0 && (
+                                <div className="taskio-photoGrid" aria-label="Uploaded photo previews">
+                                    {photos.map(p => (
+                                        <div key={p.id} className="taskio-photoThumb">
+                                            <img src={p.url} alt="Uploaded preview" />
+                                            <button type="button" className="taskio-photoRemove" onClick={(e) => { e.stopPropagation(); removePhoto(p.id); }} aria-label="Remove photo">
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
+                        {formErrors.photos && <p style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', marginTop: '8px' }}>{formErrors.photos}</p>}
                     </div>
-                    {formErrors.description && <p style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', marginTop: '5px' }}>{formErrors.description}</p>}
                 </div>
             );
-            case 2: return (<fieldset><legend><h2>Step 2: When do you need this done?</h2></legend>{['Urgent (1-2 days)', 'Within 2 weeks', 'Flexible', 'On a specific date'].map(o => (<div key={o}><label style={{display: 'block', padding: '10px', border: '1px solid var(--light-grey, #ccc)', borderRadius: '4px', marginBottom: '10px', cursor: 'pointer', backgroundColor: formData.timeline === o ? 'var(--pale-cloud, #F7F9FA)' : 'transparent'}}><input type="radio" name="timeline" value={o} checked={formData.timeline === o} onChange={handleChange} style={{marginRight: '8px'}}/> {o}</label></div>))} {formData.timeline === 'On a specific date' && (<div style={{position: 'relative', marginTop: '10px'}}><button type="button" onClick={() => setIsCalendarOpen(prev => !prev)} style={{ width: '100%', padding: '10px', textAlign: 'left', backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}>{formData.specificDate || 'Select a date'}</button>{isCalendarOpen && <Calendar selectedDate={formData.specificDate} onDateSelect={handleDateSelect} onClose={() => setIsCalendarOpen(false)} />}</div>)}</fieldset>);
-            case 3: return (<fieldset><legend><h2>Step 3: What is your estimated budget?</h2></legend>{['Under $500', '$500 - $1000', '$1000 - $2000', 'Over $2000', 'Not sure'].map(o => (<div key={o}><label style={{display: 'block', padding: '10px', border: '1px solid var(--light-grey, #ccc)', borderRadius: '4px', marginBottom: '10px', cursor: 'pointer', backgroundColor: formData.budget === o ? 'var(--pale-cloud, #F7F9FA)' : 'transparent'}}><input type="radio" name="budget" value={o} checked={formData.budget === o} onChange={handleChange} style={{marginRight: '8px'}}/> {o}</label></div>))}</fieldset>);
-            case 4: return (<div style={{ position: 'relative' }}><h2 id={locationHeadingId}>Step 4: Where is the task located?</h2><input type="text" name="location" role="combobox" aria-haspopup="listbox" aria-autocomplete="list" aria-labelledby={locationHeadingId} aria-expanded={locationSuggestions.length > 0} aria-controls="suburb-suggestions" aria-activedescendant={highlightedLocationIndex > -1 ? `option-${highlightedLocationIndex}` : undefined} value={locationQuery} onChange={(e) => { setLocationQuery(e.target.value); handleChange(e); }} onKeyDown={handleLocationKeyDown} onBlur={() => setTimeout(() => setLocationSuggestions([]), 200)} placeholder="Enter suburb or postcode" required style={{ width: '100%', padding: '10px' }} autoComplete="off" />{formErrors.location && <p style={{ color: 'var(--warning-red, #DC3545)' }}>{formErrors.location}</p>}{locationSuggestions.length > 0 && (<ul id="suburb-suggestions" role="listbox" style={{ listStyle: 'none', padding: '0', margin: '0', border: '1px solid #E0E0E0', borderRadius: '4px', position: 'absolute', width: '100%', backgroundColor: '#fff', zIndex: 10 }}>{locationSuggestions.map((s, i) => (<li key={`${s.name}-${s.postcode}`} id={`option-${i}`} role="option" aria-selected={i === highlightedLocationIndex} onMouseEnter={() => setHighlightedLocationIndex(i)} onClick={() => handleLocationSelect(s)} style={{ padding: '10px', cursor: 'pointer', borderBottom: '1px solid #E0E0E0', backgroundColor: i === highlightedLocationIndex ? '#F7F9FA' : 'transparent' }}>{s.name}, {s.state.abbreviation} {s.postcode}</li>))}</ul>)}</div>);
-            case 5: 
-                const namesAreFilled = !isLoginMode && formData.firstName.trim() !== '' && formData.lastName.trim() !== '';
+            case 2: return (
+                <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                    <legend style={{ padding: 0 }}>
+                        <h2 style={{ 
+                            fontFamily: 'Poppins, sans-serif', 
+                            marginBottom: '0',
+                            fontSize: '22px'
+                        }}>
+                            Timing
+                        </h2>
+                    </legend>
+                    <div style={{ marginBottom: '20px' }}>
+                        <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>How long will it take? *</div>
+                        {durationOptions.map((option) => (
+                            <div key={option.value}>
+                                <label className={`taskio-radioCard ${formData.estimatedDuration === option.value ? 'taskio-radioCardActive' : ''}`}>
+                                    <input type="radio" name="estimatedDuration" value={option.value} checked={formData.estimatedDuration === option.value} onChange={handleChange} style={{ marginRight: '8px' }} /> {option.label}
+                                    <span style={{ display: 'block', fontSize: '13px', color: '#64748B', marginTop: '6px', marginLeft: '24px', lineHeight: 1.45 }}>{option.helper}</span>
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                        <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>When do you need it? *</div>
+                        {urgencyOptions.map((option) => (
+                            <div key={option.value}>
+                                <label className={`taskio-radioCard ${formData.timeline === option.value ? 'taskio-radioCardActive' : ''}`}>
+                                    <input type="radio" name="timeline" value={option.value} checked={formData.timeline === option.value} onChange={handleChange} style={{marginRight: '8px'}}/> {option.label}
+                                    <span style={{ display: 'block', fontSize: '13px', color: '#64748B', marginTop: '6px', marginLeft: '24px', lineHeight: 1.45 }}>{option.helper}</span>
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                    {formData.timeline === 'On a specific date' && (
+                        <div style={{position: 'relative', marginTop: '10px'}}>
+                            <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>Specific date *</div>
+                            <button type="button" onClick={() => setIsCalendarOpen(prev => !prev)} className="taskio-input" style={{ textAlign: 'left', cursor: 'pointer', color: formData.specificDate ? '#222' : '#999' }}>
+                                {formData.specificDate ? new Date(formData.specificDate).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : 'Select a date'}
+                            </button>
+                            {isCalendarOpen && <Calendar selectedDate={formData.specificDate} onDateSelect={handleDateSelect} onClose={() => setIsCalendarOpen(false)} />}
+                        </div>
+                    )}
+                </fieldset>
+            );
+            case 3: return (
+                <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                    <legend style={{ padding: 0 }}>
+                        <h2 style={{ 
+                            fontFamily: 'Poppins, sans-serif', 
+                            marginBottom: '8px',
+                            fontSize: '22px'
+                        }}>
+                            What's your budget range? *
+                        </h2>
+                        <p style={{ 
+                            fontSize: '14px', 
+                            color: '#666',
+                            margin: '0 0 20px 0',
+                            lineHeight: '1.5',
+                            fontFamily: 'Inter, sans-serif'
+                        }}>
+                            Jobs currently listed on Taskio must stay under $300.
+                        </p>
+                    </legend>
+                    {budgetOptions.map((o) => (
+                        <div key={o.value}>
+                            <label className={`taskio-radioCard ${formData.budget === o.value ? 'taskio-radioCardActive' : ''}`}>
+                                <input type="radio" name="budget" value={o.value} checked={formData.budget === o.value} onChange={handleChange} style={{marginRight: '8px'}}/> {o.label}
+                                <span style={{ display: 'block', fontSize: '13px', color: '#666', marginTop: '4px', marginLeft: '24px' }}>{o.helper}</span>
+                            </label>
+                        </div>
+                    ))}
+                </fieldset>
+            );
+            case 4: return (
+                <div style={{ position: 'relative' }}>
+                    <h2 
+                        id={locationHeadingId} 
+                        style={{ 
+                            fontFamily: 'Poppins, sans-serif', 
+                            marginBottom: '8px',
+                            fontSize: '22px'
+                        }}
+                    >
+                        Where is the task?
+                    </h2>
+                    <p style={{ 
+                        fontSize: '14px', 
+                        color: '#555',
+                        margin: '0 0 16px 0',
+                        lineHeight: '1.5',
+                        fontFamily: 'Inter, sans-serif',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                    }}>
+                        <Lock aria-hidden="true" size={16} strokeWidth={2.2} />
+                        <span>Just your suburb — we never share your street address until you choose an expert</span>
+                    </p>
+                    <p style={{ fontSize: '13px', color: '#666', margin: '0 0 12px 0', fontFamily: 'Inter, sans-serif' }}>
+                        Inner Melbourne only for launch: Melbourne, Southbank, Docklands, South Yarra, Prahran, St Kilda, Richmond, and Carlton.
+                    </p>
+                    <div className="taskio-locationField">
+                    <label className="taskio-fieldLabel taskio-fieldLabel--location" htmlFor={locationSelectId}>Choose your suburb *</label>
+                    <select
+                        id={locationSelectId}
+                        className="taskio-input taskio-locationSelect"
+                        value={formData.location ? toLocationValue(formData.location) : ''}
+                        onChange={handleLocationChange}
+                        required
+                    >
+                        <option value="">Select a supported suburb</option>
+                        {melbournePilotLocations.map((item) => (
+                            <option key={toLocationValue(item)} value={toLocationValue(item)}>
+                                {toLocationLabel(item)}
+                            </option>
+                        ))}
+                    </select>
+                    {formData.location && (
+                        <div className="taskio-locationMeta">
+                            <strong className="taskio-locationMetaStrong">{toLocationLabel(formData.location)}</strong>
+                            <span className="taskio-locationMetaHint">
+                                Structured suburb, postcode, and map coordinates will be saved for matching.
+                            </span>
+                        </div>
+                    )}
+                    {formErrors.location && <p className="taskio-fieldError">{formErrors.location}</p>}
+                    </div>
+
+                    <div style={{ marginTop: '24px' }}>
+                        <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>Access details</div>
+                        <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>What type of property is this? *</div>
+                        {siteAccessFieldOptions.propertyType.map((option) => (
+                            <div key={option.value}>
+                                <label className={`taskio-radioCard ${formData.propertyType === option.value ? 'taskio-radioCardActive' : ''}`}>
+                                    <input type="radio" name="propertyType" value={option.value} checked={formData.propertyType === option.value} onChange={handleChange} style={{ marginRight: '8px' }} /> {option.label}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ marginTop: '20px' }}>
+                        <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>Is there a lift available? *</div>
+                        {siteAccessFieldOptions.liftAvailable.map((option) => (
+                            <div key={option.value}>
+                                <label className={`taskio-radioCard ${formData.liftAvailable === option.value ? 'taskio-radioCardActive' : ''}`}>
+                                    <input type="radio" name="liftAvailable" value={option.value} checked={formData.liftAvailable === option.value} onChange={handleChange} style={{ marginRight: '8px' }} /> {option.label}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ marginTop: '20px' }}>
+                        <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>How many stairs to access the job? *</div>
+                        {siteAccessFieldOptions.stairs.map((option) => (
+                            <div key={option.value}>
+                                <label className={`taskio-radioCard ${formData.stairs === option.value ? 'taskio-radioCardActive' : ''}`}>
+                                    <input type="radio" name="stairs" value={option.value} checked={formData.stairs === option.value} onChange={handleChange} style={{ marginRight: '8px' }} /> {option.label}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ marginTop: '20px' }}>
+                        <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>Parking availability *</div>
+                        {siteAccessFieldOptions.parking.map((option) => (
+                            <div key={option.value}>
+                                <label className={`taskio-radioCard ${formData.parking === option.value ? 'taskio-radioCardActive' : ''}`}>
+                                    <input type="radio" name="parking" value={option.value} checked={formData.parking === option.value} onChange={handleChange} style={{ marginRight: '8px' }} /> {option.label}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+            case 5:
                 return (
-                    <div>
-                        <h2>{isLoginMode ? 'Welcome back! Log in to post' : 'Step 5: Create your account to post'}</h2>
-                        {isLoginMode ? (
-                            <>
-                                {formErrors.submit && <p style={{ color: 'var(--warning-red, #DC3545)' }}>{formErrors.submit}</p>}
-                                <VisuallyHiddenLabel htmlFor={emailId}>Email Address</VisuallyHiddenLabel>
-                                <input id={emailId} type="email" name="email" value={formData.email} onChange={handleChange} onBlur={handleBlur} placeholder="Email Address" required autoComplete="email" aria-invalid={!!formErrors.email} aria-describedby={formErrors.email ? emailErrorId : undefined} style={{ width: '100%', padding: '10px', marginBottom: '10px', boxSizing: 'border-box' }} />
-                                {formErrors.email && <p id={emailErrorId} style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', margin: '-5px 0 10px 0' }}>{formErrors.email}</p>}
-                                <PasswordField inputId={passwordId} name="password" value={formData.password} onChange={handleChange} placeholder="Password" error={formErrors.password} isVisible={showPassword.main} onToggleVisibility={() => setShowPassword(p => ({...p, main: !p.main}))} autoComplete="current-password" />
-                            </>
-                        ) : (
-                            <>
-                                <p>This allows you to manage your task and receive quotes.</p>
-                                <VisuallyHiddenLabel htmlFor={firstNameId}>First Name</VisuallyHiddenLabel>
-                                <input id={firstNameId} type="text" name="firstName" value={formData.firstName} onChange={handleChange} onBlur={handleBlur} placeholder="First Name" required autoComplete="given-name" style={{ width: '100%', padding: '10px', marginBottom: '10px', boxSizing: 'border-box' }} />
-                                <VisuallyHiddenLabel htmlFor={lastNameId}>Last Name</VisuallyHiddenLabel>
-                                <input id={lastNameId} type="text" name="lastName" value={formData.lastName} onChange={handleChange} onBlur={handleBlur} placeholder="Last Name" required autoComplete="family-name" style={{ width: '100%', padding: '10px', marginBottom: '10px', boxSizing: 'border-box' }} />
-                                
-                                {namesAreFilled && (
-                                    <div>
-                                        <VisuallyHiddenLabel htmlFor={emailId}>Email Address</VisuallyHiddenLabel>
-                                        <input id={emailId} type="email" name="email" value={formData.email} onChange={handleChange} onBlur={handleBlur} placeholder="Email Address" required autoComplete="email" aria-invalid={!!formErrors.email} aria-describedby={formErrors.email ? emailErrorId : undefined} style={{ width: '100%', padding: '10px', marginBottom: '10px', boxSizing: 'border-box' }} />
-                                        {formErrors.email && <p id={emailErrorId} style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', margin: '-5px 0 10px 0' }}>{formErrors.email}</p>}
-                                        <PasswordField inputId={passwordId} name="password" value={formData.password} onChange={handleChange} placeholder="Password" error={formErrors.password} isVisible={showPassword.main} onToggleVisibility={() => setShowPassword(p => ({...p, main: !p.main}))} autoComplete="new-password" />
-                                        <PasswordStrengthMeter password={formData.password} />
-                                        <PasswordField inputId={confirmPasswordId} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="Confirm Password" error={formErrors.confirmPassword} isVisible={showPassword.confirm} onToggleVisibility={() => setShowPassword(p => ({...p, confirm: !p.confirm}))} autoComplete="new-password" />
-                                    </div>
-                                )}
-                            </>
+                    <div className="taskio-stepFive">
+                        <div style={{ marginBottom: '24px' }}>
+                            <h2 style={{ 
+                                fontFamily: 'Poppins, sans-serif', 
+                                marginBottom: '8px',
+                                fontSize: '22px'
+                            }}>
+                                Get quotes from local experts
+                            </h2>
+                            <p style={{ 
+                                fontSize: '14px', 
+                                color: '#666',
+                                margin: '0',
+                                lineHeight: '1.5',
+                                fontFamily: 'Inter, sans-serif'
+                            }}>
+                                Enter your phone number to receive quotes and updates about your task.
+                            </p>
+                        </div>
+
+                        <div className="taskio-stepFiveStack">
+                            <div className="taskio-stepFiveField">
+                                <label className="taskio-fieldLabel" htmlFor={phoneId}>Phone number *</label>
+                                <input
+                                    id={phoneId}
+                                    className="taskio-input taskio-stepFiveInput"
+                                    type="tel"
+                                    name="phone"
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    placeholder="04xx xxx xxx"
+                                    required
+                                    autoComplete="tel"
+                                />
+                                {formErrors.phone && <p style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', margin: '6px 0 0' }}>{formErrors.phone}</p>}
+                            </div>
+
+                            <div className="taskio-stepFiveField">
+                                <label className="taskio-fieldLabel" htmlFor={firstNameId}>First name (optional)</label>
+                                <input
+                                    id={firstNameId}
+                                    className="taskio-input taskio-stepFiveInput"
+                                    type="text"
+                                    name="firstName"
+                                    value={formData.firstName}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    placeholder="First name"
+                                    autoComplete="given-name"
+                                />
+                            </div>
+                        </div>
+
+                        {otpRequested && (
+                            <div className="taskio-stepFiveOtpBox">
+                                <label className="taskio-fieldLabel" htmlFor={otpId}>Enter 6-digit code *</label>
+                                <input
+                                    id={otpId}
+                                    className="taskio-input taskio-stepFiveInput"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={otpCode}
+                                    onChange={(e) => {
+                                        const nextValue = String(e.target.value || '').replace(/\D/g, '').slice(0, 6);
+                                        setOtpCode(nextValue);
+                                        setFormErrors(prev => ({ ...prev, otp: '', submit: '' }));
+                                        setPostSubmitBlocked(null);
+                                    }}
+                                    placeholder="123456"
+                                    autoComplete="one-time-code"
+                                />
+                                {otpMessage && <p className="taskio-fieldHint" style={{ marginTop: '8px' }}>{otpMessage}</p>}
+                                {formErrors.otp && <p style={{ color: 'var(--warning-red, #DC3545)', fontSize: '12px', margin: '6px 0 0' }}>{formErrors.otp}</p>}
+                            </div>
                         )}
-                        <p style={{fontSize: '12px', marginTop: '15px'}}>{isLoginMode ? "Don't have an account? " : "Already have an account? "}<span onClick={() => { setIsLoginMode(!isLoginMode); }} style={{color: 'var(--taskio-teal, #14C5C5)', cursor: 'pointer', textDecoration: 'underline'}}>{isLoginMode ? 'Sign Up' : 'Log In'}</span></p>
+
+                        <div className="taskio-stepFiveLegal">
+                            <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>Terms & privacy *</div>
+                            <LegalNotice
+                                requireAcceptance
+                                checked={acceptedLegal}
+                                onChange={setAcceptedLegal}
+                                compact
+                                style={{ marginTop: 12 }}
+                            />
+                        </div>
+
+                        <p className="taskio-fieldHint taskio-stepFiveReassurance">
+                            We&apos;ll send a verification code to confirm your number. No spam.
+                        </p>
+                        <div id={recaptchaContainerId.current} />
                     </div>
                 );
             default: return null;
@@ -683,31 +1282,97 @@ function JobPostingForm() {
     };
 
     return (
-        <div style={{ display: 'flex', gap: '40px', padding: '40px', maxWidth: '1200px', margin: 'auto' }}>
-            <div style={{ flex: 1 }}>
-                <TaskSummary formData={formData} />
-            </div>
-            <div style={{ flex: 2 }}>
+        <div className="taskio-postJobPage">
+            <header className="public-page-header">
+                <div className="public-page-shell public-page-header-inner">
+                    <BrandLogo to={user ? "/dashboard" : "/"} style={{ textDecoration: 'none' }} />
+                    <div className="public-page-header-actions" aria-hidden="true" />
+                </div>
+            </header>
+            <div className="public-page-shell taskio-postTaskShell">
+            <div className="taskio-postTaskLayout">
+                <div className="taskio-summaryCol">
+                    <TaskSummary
+                        formData={formData}
+                        categoryLabel={selectedTopLevelGroup?.label ?? null}
+                    />
+                </div>
+                <div className="taskio-formCol">
                 <div role="status" aria-live="polite" aria-atomic="true" style={visuallyHiddenStyle}>
                     {liveRegionMessage}
                 </div>
-                <h1 style={{ fontFamily: 'Poppins, sans-serif' }}>Post a New Task</h1>
+                <div style={{ marginBottom: '30px' }}>
+                    <h1 style={{ fontFamily: 'Poppins, sans-serif', marginBottom: '8px' }}>Post a Task</h1>
+                    <p style={{ 
+                        fontSize: '15px', 
+                        color: '#666', 
+                        margin: '0',
+                        fontFamily: 'Inter, sans-serif'
+                    }}>
+                        Free to post • No obligation • Only pay if you accept a quote
+                    </p>
+                    <p style={{ fontSize: '13px', color: '#666', margin: '8px 0 0', fontFamily: 'Inter, sans-serif' }}>
+                        Currently available for small indoor jobs across inner Melbourne only.
+                    </p>
+                </div>
                 <div style={{ marginBottom: '20px' }}>
                     <p>Step {currentStep} of {totalSteps}</p>
-                    <div style={{ width: '100%', backgroundColor: 'var(--light-grey, #E0E0E0)', borderRadius: '4px' }}>
-                        <div style={{ width: `${(currentStep / totalSteps) * 100}%`, backgroundColor: 'var(--taskio-teal, #14C5C5)', height: '10px', borderRadius: '4px', transition: 'width 0.3s ease-in-out' }}></div>
+                    <div 
+                        role="progressbar" 
+                        aria-valuenow={currentStep} 
+                        aria-valuemin="1" 
+                        aria-valuemax={totalSteps}
+                        aria-label={`Step ${currentStep} of ${totalSteps}`}
+                        style={{ width: '100%', backgroundColor: '#E0E0E0', borderRadius: '4px' }}
+                    >
+                        <div style={{ width: `${(currentStep / totalSteps) * 100}%`, backgroundColor: '#14C5C5', height: '10px', borderRadius: '4px', transition: 'width 0.3s ease-in-out' }}></div>
                     </div>
                 </div>
                 <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown}>
-                    {renderStep()}
-                    {formErrors.submit && !isLoginMode && <p style={{ color: 'var(--warning-red, #DC3545)', marginTop: '15px' }}>{formErrors.submit}</p>}
-                    <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between' }}>
-                        {currentStep > 1 && (<button type="button" onClick={prevStep} style={{ padding: '10px 20px' }}>Back</button>)}
-                        {currentStep < totalSteps && (<button type="button" onClick={nextStep} disabled={!stepValid || isSubmitting || (currentStep === 4 && isFetchingLocations)} style={{ padding: '10px 20px', marginLeft: 'auto', backgroundColor: 'var(--taskio-orange, #FF9100)', color: 'white', border: 'none', borderRadius: '4px', cursor: !stepValid || isSubmitting ? 'not-allowed' : 'pointer', opacity: !stepValid || isSubmitting ? 0.6 : 1 }}>{isSubmitting ? 'Submitting...' : 'Next'}</button>)}
-                        {currentStep === totalSteps && (<button type="submit" disabled={!stepValid || isSubmitting} style={{ padding: '10px 20px', marginLeft: 'auto', backgroundColor: 'var(--taskio-orange, #FF9100)', color: 'white', border: 'none', borderRadius: '4px', cursor: !stepValid || isSubmitting ? 'not-allowed' : 'pointer', opacity: !stepValid || isSubmitting ? 0.6 : 1 }}>{isSubmitting ? 'Submitting...' : (user ? 'Submit Task' : (isLoginMode ? 'Log In & Submit' : 'Sign Up & Submit'))}</button>)}
+                    {/* Keyed wrapper ensures previous step content unmounts cleanly when navigating Back/Next */}
+                    <div key={currentStep}>
+                        {renderStep()}
+                    </div>
+                    {(postSubmitBlocked || formErrors.submit) && (
+                        <div style={{ marginTop: '15px' }}>
+                            {postSubmitBlocked?.kind === 'blocked_permission' && (
+                                <InlineErrorCardWithNavLinks
+                                    title={postSubmitBlocked.title}
+                                    message={postSubmitBlocked.body}
+                                    primaryLabel="Go to log in"
+                                    primaryTo="/login"
+                                    secondaryLabel="Back to home"
+                                    secondaryTo="/"
+                                />
+                            )}
+                            {postSubmitBlocked?.kind === 'blocked_generic' && (
+                                <InlineErrorCardWithNavLinks
+                                    title={postSubmitBlocked.title}
+                                    message={postSubmitBlocked.body}
+                                    primaryLabel="Back to home"
+                                    primaryTo="/"
+                                />
+                            )}
+                            {formErrors.submit && !postSubmitBlocked && (
+                                <p style={{ color: 'var(--warning-red, #DC3545)', margin: 0 }}>{formErrors.submit}</p>
+                            )}
+                        </div>
+                    )}
+                    <div style={{ marginTop: '30px', display: 'flex', justifyContent: currentStep > 1 ? 'space-between' : 'flex-end' }}>
+                        {currentStep > 1 && (<button type="button" onClick={prevStep} className="taskio-btnSecondary">Back</button>)}
+                        {currentStep < totalSteps && (<button type="button" onClick={nextStep} className="taskio-btnPrimary" disabled={!stepValid || isSubmitting || photoUploadBusy}>{isSubmitting ? 'Submitting...' : 'Next'}</button>)}
+                        {currentStep === totalSteps && (
+                            <button type="submit" className="taskio-btnPrimary" disabled={!stepValid || isSubmitting || photoUploadBusy || otpBusy}>
+                                {(isSubmitting || photoUploadBusy || otpBusy)
+                                    ? (user ? 'Posting...' : (otpRequested ? 'Verifying...' : 'Sending code...'))
+                                    : (user ? 'Post Task' : (otpRequested ? 'Verify & get quotes' : 'Get quotes'))}
+                            </button>
+                        )}
                     </div>
                 </form>
+                </div>
             </div>
+        </div>
         </div>
     );
 }

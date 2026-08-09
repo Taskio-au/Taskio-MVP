@@ -1,24 +1,175 @@
 :root {
-  --taskio-teal: #14C5C5;
-  --taskio-orange: #FF9100;
-  --taskio-deep-blue: #104D7F;
-  --pale-cloud: #F7F9FA;
-  --white: #FFFFFF;
-  --charcoal: #222222;
-  --light-grey: #E0E0E0;
-  --success-green: #28A745;
-  --warning-red: #DC3545;
+  --color-primary: #14c5c5;
+  --color-primary-hover: #0ea5a5;
+  --color-accent: #ff9100;
+  --color-accent-hover: #ea7a00;
+  --color-page: #f9fafb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f9fafb;
+  --color-text: #111827;
+  --color-text-muted: #4b5563;
+  --color-text-subtle: #6b7280;
+  --color-border: #d1d5db;
+  --color-border-strong: #9ca3af;
+  --color-success: #198754;
+  --color-danger: #dc3545;
+  --color-danger-soft: #fef2f2;
+  --color-info: #2563eb;
+  --color-overlay: rgba(15, 23, 42, 0.52);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 24px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 18px 42px rgba(15, 23, 42, 0.16);
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 14px;
+  --space-lg: 18px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+  --font-base: 'Inter', sans-serif;
+  --font-heading: 'Poppins', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  scroll-behavior: smooth;
+  background-color: #f9fafb;
+  background-image: none;
 }
 
 body {
+  height: 100%;
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  padding: 0;
+  font-family: var(--font-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--pale-cloud);
-  color: var(--charcoal);
+  background-color: #f9fafb;
+  background-image: none;
+  color: var(--color-text);
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Poppins', sans-serif;
+#root {
+  height: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #f9fafb;
+  background-image: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
+/* Keyboard focus — visible contrast for interactive controls */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[role='tab']:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 2px;
+}
+
+#main-content:focus {
+  outline: none;
+}
+
+/* Skip to main (paired with #main-content landmark) */
+.taskio-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.taskio-skip-link:focus {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  width: auto;
+  height: auto;
+  clip: auto;
+  overflow: visible;
+  padding: 10px 16px;
+  background: #111827;
+  color: #f9fafb;
+  z-index: 10050;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  font-family: var(--font-base);
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+}
+
+/* Visually hidden helper text / live regions */
+.taskio-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  margin-top: 0;
+}
+
+p {
+  margin-top: 0;
 }

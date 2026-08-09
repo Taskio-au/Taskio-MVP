@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@stripe/react-stripe-js": "^3.9.0",
+    "@stripe/stripe-js": "^6.1.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.11.0",
     "firebase": "^12.0.0",
+    "lucide-react": "^1.7.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-firebase-hooks": "^5.1.1",
@@ -17,9 +20,17 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "prestart": "node scripts/syncShared.js",
     "start": "react-scripts start",
+    "prebuild": "node scripts/syncShared.js",
     "build": "react-scripts build",
+    "pretest": "node scripts/syncShared.js",
     "test": "react-scripts test",
+    "check:maintainability": "node scripts/check-maintainability.js",
+    "verify": "npm run check:maintainability && npm run test -- --watchAll=false",
+    "e2e:install": "playwright install chromium",
+    "e2e": "playwright test -c e2e/playwright.config.js",
+    "e2e:headed": "playwright test -c e2e/playwright.config.js --headed",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -39,5 +50,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
   }
 }
