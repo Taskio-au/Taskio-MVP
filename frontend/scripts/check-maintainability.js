@@ -18,7 +18,7 @@ const legacyLineBudget = {
   'components/ExpertSignUpPage.jsx': 1073,
   'components/HomeownerDashboard.js': 1023,
   'components/HomeownerJobDetail.js': 1872,
-  'components/JobChatPanel.js': 1040,
+  'components/JobChatPanel.js': 1027,
   'components/JobPostingForm.js': 1550,
   'components/LandingPage.js': 650,
   'components/MessagesPage.js': 539,

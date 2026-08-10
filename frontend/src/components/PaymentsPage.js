@@ -762,7 +762,7 @@ function ExpertPaymentsContent({
             <h3 className="pp-pay-secondary-fin-title">Payout setup</h3>
             <p className="pp-pay-setup-strip-subline">{payoutSetupHeadline}</p>
           </header>
-          <ul className="pp-pay-setup-strip-items" role="list">
+          <ul className="pp-pay-setup-strip-items">
             <li className="pp-pay-setup-strip-cell">
               <span className="pp-pay-setup-strip-label">Stripe account</span>
               <span

@@ -423,19 +423,6 @@ export default function JobChatPanel({ jobId, fallbackJob, alwaysListen = false,
     });
   };
 
-  const sendSystemMessage = async (systemText) => {
-    setSendBusy(true);
-    setError('');
-    try {
-      await postSystemMessage(systemText);
-    } catch (e) {
-      console.error('Send system message failed:', e);
-      setError(e?.message || 'Failed to post update.');
-    } finally {
-      setSendBusy(false);
-    }
-  };
-
   const setProgressStatus = async (next) => {
     if (!job || !me) return;
     if (myRole !== 'tradie') return;
