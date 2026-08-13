@@ -4,9 +4,9 @@ import { getAuth, GoogleAuthProvider, FacebookAuthProvider } from 'firebase/auth
 import { getFirestore } from 'firebase/firestore';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { resolveFirebaseConfig } from './config/firebaseConfig';
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
+const productionFirebaseConfig = {
   apiKey: 'AIzaSyAVmOP2j8VIMHWRz9o49JHKqyiszQ5qMOg',
   authDomain: 'taskio-v2.firebaseapp.com',
   projectId: 'taskio-v2',
@@ -16,6 +16,8 @@ const firebaseConfig = {
   messagingSenderId: '848916998874',
   appId: '1:848916998874:web:718d57c9621cb15461d3e3',
 };
+
+const firebaseConfig = resolveFirebaseConfig(process.env, productionFirebaseConfig);
 
 const app = initializeApp(firebaseConfig);
 
@@ -81,5 +83,4 @@ try {
 
 export const googleProvider = new GoogleAuthProvider();
 export const facebookProvider = new FacebookAuthProvider();
-
 

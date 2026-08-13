@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "taskio-v2"
+    "default": "taskio-v2",
+    "staging": "taskio-v2-staging"
   }
 }
