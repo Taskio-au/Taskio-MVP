@@ -44,6 +44,7 @@ test('rejects an environment override without an expected project ID', () => {
 
 test('rejects a partial Firebase environment configuration', () => {
   expect(() => resolveFirebaseConfig({
+    REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: 'taskio-v2-staging',
     REACT_APP_FIREBASE_PROJECT_ID: 'taskio-v2-staging',
   }, productionConfig)).toThrow('Incomplete Firebase configuration');
 });
