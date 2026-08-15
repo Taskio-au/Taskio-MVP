@@ -65,6 +65,9 @@ service firebase.storage {
       allow read: if isParticipant(jobId) || isAdmin();
 
       allow create: if isParticipant(jobId)
+        // Storage treats a repeated upload as a create request, so also
+        // require that no object already exists at this path.
+        && resource == null
         // Only allow attachments after escrow is funded (chat enabled)
         && chatEnabled(jobId)
         && !chatFrozen(jobId)
@@ -155,6 +158,7 @@ service firebase.storage {
       allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
       allow create: if isSignedIn()
         && request.auth.uid == uid
+        && resource == null
         && allowedContentType()
         && request.resource.size <= 5 * 1024 * 1024;
     }
