@@ -7,16 +7,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn()
-        && (
-          request.auth.token.admin == true
-          || (
-            exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            && (
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.admin == true
-              || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
-            )
-          )
-        );
+        && request.auth.token.admin == true;
     }
 
     function jobDoc(jobId) {
@@ -149,12 +140,34 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.auth.uid == uid
         // prevent privilege escalation via client writes
-        && !(request.resource.data.keys().hasAny(['admin']))
-        // Users cannot grant themselves admin role.
-        && (
-          !request.resource.data.keys().hasAny(['role'])
-          || request.resource.data.role != 'admin'
-        );
+        && !(request.resource.data.keys().hasAny([
+          'admin',
+          'abnLocked',
+          'stripeAccountId',
+          'stripeChargesEnabled',
+          'stripePayoutsEnabled',
+          'stripeOnboardingStatus',
+          'stripeRequirements',
+          'stripeUpdatedAt'
+        ]))
+        // Client-side profile bootstrap is homeowner-only. Expert/admin roles
+        // are assigned by trusted backend flows using the Admin SDK.
+        && request.resource.data.role == 'homeowner'
+        && (!request.resource.data.keys().hasAny(['uid'])
+          || request.resource.data.uid == request.auth.uid)
+        && (!request.resource.data.keys().hasAny(['email'])
+          || (
+            request.auth.token.email is string
+            && request.resource.data.email == request.auth.token.email
+          ))
+        && (!request.resource.data.keys().hasAny(['status'])
+          || request.resource.data.status == 'active')
+        && (!request.resource.data.keys().hasAny(['verified'])
+          || request.resource.data.verified == false)
+        && (!request.resource.data.keys().hasAny(['abnVerified'])
+          || request.resource.data.abnVerified == false)
+        && (!request.resource.data.keys().hasAny(['phoneVerified'])
+          || request.resource.data.phoneVerified == false);
 
       // Only allow safe self-service edits on profile fields.
       // Backend/admin writes can still set verification/Stripe fields via Admin SDK.
@@ -396,6 +409,10 @@ service cloud.firestore {
         // Tightened chat create policy: authenticated participant, valid sender role,
         // and job status gate while preserving compatibility for invited experts.
         allow create: if isSignedIn()
+          && validSenderRole(jobId)
+          && chatEnabled(jobId)
+          && !chatFrozen(jobId)
+          && !chatClosed(jobId)
           && validCommonMessageFields(jobId, messageId)
           && request.resource.data.messageType in ['text', 'attachment', 'system']
           && request.resource.data.senderName is string
@@ -512,7 +529,7 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid
         && (!request.resource.data.keys().hasAny(['userUid']) || request.resource.data.userUid == request.auth.uid)
-        && request.resource.data.role in ['homeowner', 'tradie', 'admin']
+        && request.resource.data.role in ['homeowner', 'tradie']
         && request.resource.data.category in ['payments', 'disputes', 'safety', 'variations', 'other']
         && request.resource.data.status in ['open', 'new']
         && (!request.resource.data.keys().hasAny(['priority']) || request.resource.data.priority in ['LOW', 'MED', 'HIGH'])
@@ -617,7 +634,3 @@ service cloud.firestore {
     }
   }
 }
-
-
-
- 

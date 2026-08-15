@@ -7,16 +7,7 @@ service firebase.storage {
 
     function isAdmin() {
       return isSignedIn()
-        && (
-          request.auth.token.admin == true
-          || (
-            firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-            && (
-              firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.admin == true
-              || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
-            )
-          )
-        );
+        && request.auth.token.admin == true;
     }
 
     function jobDoc(jobId) {
@@ -36,7 +27,10 @@ service firebase.storage {
         && (
           jobDoc(jobId).homeownerUid == request.auth.uid
           || jobDoc(jobId).acceptedTradieUid == request.auth.uid
-          || request.auth.uid in jobDoc(jobId).invitedTradieUids
+          || (
+            jobDoc(jobId).invitedTradieUids is list
+            && request.auth.uid in jobDoc(jobId).invitedTradieUids
+          )
         );
     }
 
@@ -57,14 +51,27 @@ service firebase.storage {
                                        'in_escrow', 'awaiting_approval'];  // Legacy status support
     }
 
+    function chatFrozen(jobId) {
+      return jobDoc(jobId).chatFrozen == true;
+    }
+
+    function chatClosed(jobId) {
+      return jobDoc(jobId).status in ['CANCELLED', 'cancelled'];
+    }
+
     // Chat attachments
     // Path: job-attachments/{jobId}/{messageId}/{filename}
     match /job-attachments/{jobId}/{messageId}/{fileName} {
       allow read: if isParticipant(jobId) || isAdmin();
 
-      allow write: if isParticipant(jobId)
+      allow create: if isParticipant(jobId)
+        // Variation paths are governed by the stricter rule below. Storage
+        // rules OR overlapping matches, so explicitly exclude them here.
+        && !messageId.matches('^variation-.+$')
         // Only allow attachments after escrow is funded (chat enabled)
         && chatEnabled(jobId)
+        && !chatFrozen(jobId)
+        && !chatClosed(jobId)
         && allowedContentType()
         && request.resource.size <= 10 * 1024 * 1024;
     }
@@ -75,8 +82,10 @@ service firebase.storage {
       allow read: if isParticipant(jobId) || isAdmin();
 
       // Only allow uploads when escrow is funded and job is underway.
-      allow write: if isParticipant(jobId)
+      allow create: if isParticipant(jobId)
         && chatEnabled(jobId)
+        && !chatFrozen(jobId)
+        && !chatClosed(jobId)
         && jobDoc(jobId).status in ['FUNDED', 'IN_PROGRESS', 'COMPLETED',
                                      'funded', 'in_progress', 'in_escrow', 'awaiting_approval', 'completed']
         && allowedContentType()
@@ -151,7 +160,7 @@ service firebase.storage {
     /* -------------------------------------------------------------------- */
     match /support-tickets/{uid}/{ticketId}/{fileName} {
       allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
-      allow write: if isSignedIn()
+      allow create: if isSignedIn()
         && request.auth.uid == uid
         && allowedContentType()
         && request.resource.size <= 5 * 1024 * 1024;
@@ -163,5 +172,3 @@ service firebase.storage {
     }
   }
 }
-
-
