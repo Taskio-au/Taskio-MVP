@@ -65,31 +65,23 @@ service firebase.storage {
       allow read: if isParticipant(jobId) || isAdmin();
 
       allow create: if isParticipant(jobId)
-        // Variation paths are governed by the stricter rule below. Storage
-        // rules OR overlapping matches, so explicitly exclude them here.
-        && !messageId.matches('^variation-.+$')
         // Only allow attachments after escrow is funded (chat enabled)
         && chatEnabled(jobId)
         && !chatFrozen(jobId)
         && !chatClosed(jobId)
         && allowedContentType()
-        && request.resource.size <= 10 * 1024 * 1024;
-    }
-
-    // Variation attachments
-    // Path: job-attachments/{jobId}/variation-{variationId}/{filename}
-    match /job-attachments/{jobId}/variation-{variationId}/{fileName} {
-      allow read: if isParticipant(jobId) || isAdmin();
-
-      // Only allow uploads when escrow is funded and job is underway.
-      allow create: if isParticipant(jobId)
-        && chatEnabled(jobId)
-        && !chatFrozen(jobId)
-        && !chatClosed(jobId)
-        && jobDoc(jobId).status in ['FUNDED', 'IN_PROGRESS', 'COMPLETED',
-                                     'funded', 'in_progress', 'in_escrow', 'awaiting_approval', 'completed']
-        && allowedContentType()
-        && request.resource.size <= 10 * 1024 * 1024;
+        && request.resource.size <= 10 * 1024 * 1024
+        // A wildcard must occupy the whole path segment in Storage rules.
+        // Keep variation uploads on the same path while applying their
+        // stricter status policy when the message segment starts "variation-".
+        && (
+          !messageId.matches('^variation-.+$')
+          || jobDoc(jobId).status in [
+            'FUNDED', 'IN_PROGRESS', 'COMPLETED',
+            'funded', 'in_progress', 'in_escrow',
+            'awaiting_approval', 'completed'
+          ]
+        );
     }
 
     /* -------------------------------------------------------------------- */
@@ -121,20 +113,21 @@ service firebase.storage {
     /* Path: profile-images/{uid}.{ext}                                      */
     /* Only JPEG and PNG. Max 3MB. Deterministic filename prevents clutter.  */
     /* -------------------------------------------------------------------- */
-    match /profile-images/{uid}.{ext} {
+    match /profile-images/{fileName} {
       // Allow authenticated users to read (for public profile display)
       allow read: if isSignedIn();
       
       // Only owner can write their own profile image
       allow write: if isSignedIn()
-        && request.auth.uid == uid
+        && (
+          fileName == request.auth.uid + '.jpg'
+          || fileName == request.auth.uid + '.png'
+        )
         // Only allow jpeg and png
         && (request.resource.contentType == 'image/jpeg' 
           || request.resource.contentType == 'image/png')
         // Max 3MB
-        && request.resource.size <= 3 * 1024 * 1024
-        // Only allow jpg or png extensions
-        && (ext == 'jpg' || ext == 'png');
+        && request.resource.size <= 3 * 1024 * 1024;
     }
 
     /* -------------------------------------------------------------------- */

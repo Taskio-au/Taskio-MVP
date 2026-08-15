@@ -299,6 +299,11 @@ describe('Storage authorization', () => {
       new Uint8Array([1, 2, 3]),
       { contentType: 'image/png' },
     ));
+    await assertSucceeds(uploadBytes(
+      ref(storageFor('homeowner-1'), 'job-attachments/job-funded/variation-1/evidence.png'),
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'image/png' },
+    ));
   });
 
   test('denies stranger, frozen, cancelled, unsafe-type, and oversized uploads', async () => {
