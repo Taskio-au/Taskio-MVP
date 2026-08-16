@@ -1,6 +1,7 @@
 'use strict';
 
 const { db } = require('../firebaseAdmin');
+const { isReviewPublished } = require('./reviewPolicy');
 
 /**
  * Compute true lifetime rating aggregate for a single expert.
@@ -18,7 +19,7 @@ async function getExpertRatingAggregate(tradieUid) {
     .collection('users')
     .doc(id)
     .collection('reviews')
-    .select('rating')
+    .select('rating', 'visibleAfterMs', 'doubleBlindComplete')
     .get();
 
   if (allRatingsSnap.empty) return { averageRating: null, reviewCount: 0 };
@@ -27,7 +28,7 @@ async function getExpertRatingAggregate(tradieUid) {
   let reviewCount = 0;
   allRatingsSnap.docs.forEach((docSnap) => {
     const r = docSnap.data() || {};
-    if (typeof r.rating === 'number' && r.rating >= 1 && r.rating <= 5) {
+    if (isReviewPublished(r) && typeof r.rating === 'number' && r.rating >= 1 && r.rating <= 5) {
       ratingSum += r.rating;
       reviewCount++;
     }

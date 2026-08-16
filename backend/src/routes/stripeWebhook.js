@@ -4,7 +4,7 @@ const express = require('express');
 
 const { admin, db } = require('../firebaseAdmin');
 const { constructWebhookEvent, getExpectedStripeLivemode, retrievePaymentIntent } = require('../services/stripe');
-const { JOB_STATUSES, normalizeStatus } = require('../constants/jobStatuses');
+const { JOB_STATUSES, normalizeStatus, isValidTransition } = require('../constants/jobStatuses');
 const { updateJobStatus } = require('../services/jobStatusUpdates');
 const { evaluateJobRiskById } = require('../services/riskAutomationPipeline');
 const { applyVariationPaymentSuccess, isVariationPaymentMetadata } = require('../services/variationPaymentCompletion');
@@ -17,6 +17,7 @@ const {
   foundingExpertAutoEnrollEnabled,
   scheduleMaybeAutoEnrollFoundingExpert,
 } = require('../services/foundingExpertAutoEnrollmentService');
+const { upsertWorkItemFromAutomation } = require('../services/adminWorkItemService');
 
 const router = express.Router();
 
@@ -47,11 +48,110 @@ function sanitizeEventForStorage(event) {
   };
 }
 
+async function findFirstByField(collectionName, field, value) {
+  if (!value) return null;
+  const snap = await db.collection(collectionName).where(field, '==', value).limit(1).get();
+  return snap.empty ? null : snap.docs[0];
+}
+
+async function flagJobPaymentIncident(jobDoc, incident) {
+  if (!jobDoc) return;
+  const job = jobDoc.data() || {};
+  const incidentType = String(incident.type || 'payment_incident');
+  const fields = {
+    requiresAdminAttention: true,
+    flagTypes: admin.firestore.FieldValue.arrayUnion('PAYMENT_ISSUE'),
+    highestFlagSeverity: 'HIGH',
+    paymentIncidentType: incidentType,
+    paymentIncidentId: incident.id || null,
+    paymentIncidentStatus: incident.status || null,
+    paymentUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  const current = normalizeStatus(job.status);
+  if (current !== JOB_STATUSES.DISPUTED && isValidTransition(current, JOB_STATUSES.DISPUTED)) {
+    await updateJobStatus(db, admin, jobDoc.ref, JOB_STATUSES.DISPUTED, {
+      ...fields,
+      preDisputeStatus: current,
+      disputedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } else {
+    await jobDoc.ref.set(fields, { merge: true });
+  }
+
+  await upsertWorkItemFromAutomation({
+    entityType: 'job',
+    entityId: jobDoc.id,
+    category: 'payment',
+    priority: 'critical',
+    source: 'stripe_webhook',
+    sourceReasonCodes: [incidentType.toUpperCase()],
+    context: { stripeIncidentId: incident.id || null },
+  });
+}
+
+async function handleOperationalStripeEvent(event) {
+  const object = event?.data?.object || {};
+  if (event.type === 'charge.dispute.created'
+      || event.type === 'charge.dispute.updated'
+      || event.type === 'charge.dispute.closed') {
+    const pi = object.payment_intent;
+    const paymentIntentId = typeof pi === 'string' ? pi : pi?.id;
+    const jobDoc = await findFirstByField('jobs', 'paymentIntentId', paymentIntentId);
+    await flagJobPaymentIncident(jobDoc, {
+      type: event.type,
+      id: object.id,
+      status: object.status,
+    });
+    return true;
+  }
+
+  if (event.type === 'transfer.reversed' || event.type === 'transfer.failed') {
+    const jobId = String(object?.metadata?.jobId || '').trim();
+    const jobDoc = jobId ? await db.collection('jobs').doc(jobId).get() : null;
+    await flagJobPaymentIncident(jobDoc?.exists ? jobDoc : null, {
+      type: event.type,
+      id: object.id,
+      status: object.reversed === true ? 'reversed' : object.status,
+    });
+    return true;
+  }
+
+  if (event.type === 'payout.failed') {
+    const accountId = String(event.account || object.destination || '').trim();
+    const userDoc = await findFirstByField('users', 'stripeAccountId', accountId);
+    if (userDoc) {
+      await userDoc.ref.set({
+        stripePayoutStatus: 'failed',
+        stripePayoutFailureCode: object.failure_code || null,
+        stripePayoutFailureMessage: object.failure_message || null,
+        requiresAdminAttention: true,
+        stripeUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      await upsertWorkItemFromAutomation({
+        entityType: 'expert',
+        entityId: userDoc.id,
+        category: 'payment',
+        priority: 'critical',
+        source: 'stripe_webhook',
+        sourceReasonCodes: ['PAYOUT_FAILED'],
+        context: { payoutId: object.id || null },
+      });
+    }
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Central handler body. Idempotent where it touches jobs; throws on unexpected errors so Stripe retries.
  * @param {import('stripe').Stripe.Event} event
  */
 async function dispatchStripeEventHandlers(event) {
+  if (await handleOperationalStripeEvent(event)) return;
+
   if (event.type === 'account.updated') {
     const account = event.data?.object;
     const uid = account?.metadata?.taskioUid;
@@ -356,3 +456,8 @@ router.post(
 );
 
 module.exports = router;
+module.exports._test = {
+  dispatchStripeEventHandlers,
+  handleOperationalStripeEvent,
+  sanitizeEventForStorage,
+};

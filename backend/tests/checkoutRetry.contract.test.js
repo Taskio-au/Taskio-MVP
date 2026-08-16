@@ -6,7 +6,8 @@
  *  - First-time checkout (QUOTED job) → AWAITING_FUNDING transition, new session created.
  *  - Retry after abandoned checkout (job already AWAITING_FUNDING, same quoteId):
  *      - Reuses the existing Stripe session when it is still open/unpaid.
- *      - Creates a fresh session when the existing session is expired or unusable.
+ *      - Creates a fresh session when the existing session is confirmed expired.
+ *      - Fails closed when Stripe cannot confirm the stored session state.
  *      - Creates a fresh session when no previous session was saved.
  *  - Already-funded job → 409 (prevents double payment).
  *  - Different quote already accepted → 409.
@@ -264,6 +265,9 @@ describe('POST /api/jobs/:jobId/checkout', () => {
       expect(job.acceptedTradieUid).toBe('tradie-1');
       expect(job.paymentCheckoutSessionId).toBe('cs_new_abc');
       expect(job.paymentIntentId).toBe('pi_new_abc');
+      expect(mockCreateCheckoutSession.mock.calls[0][0].idempotencyKey).toBe(
+        'taskio_checkout_job-1_quote-1_g1',
+      );
       // paymentState must NOT be in_escrow until webhook fires
       expect(job.paymentState).not.toBe('in_escrow');
     });
@@ -313,9 +317,12 @@ describe('POST /api/jobs/:jobId/checkout', () => {
       expect(res.body.sessionId).toBe('cs_fresh_456');
       expect(res.body.reused).toBeFalsy();
       expect(mockCreateCheckoutSession).toHaveBeenCalledTimes(1);
+      expect(mockCreateCheckoutSession.mock.calls[0][0].idempotencyKey).toBe(
+        'taskio_checkout_job-1_quote-1_g2',
+      );
     });
 
-    it('creates a fresh session when retrieveCheckoutSession throws', async () => {
+    it('fails closed when retrieveCheckoutSession throws', async () => {
       seedAwaitingFundingJob();
       mockRetrieveCheckoutSession.mockRejectedValue(new Error('stripe_fetch_error'));
       mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_fallback_789' });
@@ -324,9 +331,9 @@ describe('POST /api/jobs/:jobId/checkout', () => {
         .post('/api/jobs/job-1/checkout')
         .send({ quoteId: 'quote-1' });
 
-      expect(res.status).toBe(200);
-      expect(res.body.sessionId).toBe('cs_fallback_789');
-      expect(mockCreateCheckoutSession).toHaveBeenCalledTimes(1);
+      expect(res.status).toBe(202);
+      expect(res.body.pending).toBe(true);
+      expect(mockCreateCheckoutSession).not.toHaveBeenCalled();
     });
 
     it('creates a fresh session when no previous session was saved on the job', async () => {
@@ -353,6 +360,30 @@ describe('POST /api/jobs/:jobId/checkout', () => {
 
       const job = readDoc('jobs', 'job-1');
       expect(job.status).toBe('AWAITING_FUNDING');
+    });
+
+    it('uses one Stripe idempotency family for simultaneous two-tab checkout', async () => {
+      seedAwaitingFundingJob({ paymentCheckoutSessionId: null });
+      let arrivals = 0;
+      let releaseBoth;
+      const bothArrived = new Promise((resolve) => { releaseBoth = resolve; });
+      mockCreateCheckoutSession.mockImplementation(async () => {
+        arrivals += 1;
+        if (arrivals === 2) releaseBoth();
+        await bothArrived;
+        return { id: 'cs_shared', payment_intent: 'pi_shared' };
+      });
+
+      const makeRequest = () => request(app)
+        .post('/api/jobs/job-1/checkout')
+        .send({ quoteId: 'quote-1' });
+      const [first, second] = await Promise.all([makeRequest(), makeRequest()]);
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(mockCreateCheckoutSession).toHaveBeenCalledTimes(2);
+      const keys = mockCreateCheckoutSession.mock.calls.map(([args]) => args.idempotencyKey);
+      expect(new Set(keys)).toEqual(new Set(['taskio_checkout_job-1_quote-1_g1']));
     });
   });
 

@@ -314,6 +314,32 @@ describe('admin job route contracts', () => {
     expect(res.body.riskCriticalJobs).toBe(0);
   });
 
+  it('POST /chat/reopen records a bounded audited support override', async () => {
+    writeCollectionDoc('jobs', 'job-chat', {
+      status: 'PAID',
+      paymentState: 'released',
+      chatFrozen: true,
+    });
+
+    const res = await request(app)
+      .post('/api/admin/jobs/job-chat/chat/reopen')
+      .send({ reason: 'Support case requires final attachment exchange.', days: 7 });
+
+    expect(res.status).toBe(200);
+    const job = readCollectionDoc('jobs', 'job-chat');
+    expect(job.chatFrozen).toBe(false);
+    expect(job.chatReopenedBy).toBe('admin-uid');
+    expect(job.chatReopenedUntilMs).toBeGreaterThan(Date.now());
+    expect(mockLogAdminJobAction).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 'job-chat',
+      action: 'REOPEN_CHAT',
+    }));
+    expect(mockLogJobEvent).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 'job-chat',
+      action: 'ADMIN_REOPEN_CHAT',
+    }));
+  });
+
   it('POST /retry-payment recreates checkout when funding failed', async () => {
     writeCollectionDoc('quotes', 'q1', { amount: 100, jobId: 'rj1', tradieUid: 't1' });
     writeCollectionDoc('jobs', 'rj1', {

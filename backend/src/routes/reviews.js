@@ -4,11 +4,17 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 
 const { admin, db } = require('../firebaseAdmin');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const { safeToMillis } = require('../utils/firestore');
 const { isNonEmptyString, isStringMax, toSafeNumber } = require('../utils/validation');
-const { JOB_STATUSES, normalizeStatus } = require('../constants/jobStatuses');
 const { getExpertRatingAggregate } = require('../services/reviewAggregationService');
+const {
+  buildReviewSubmission,
+  isReviewPublished,
+  legacyAwareSubmissions,
+  reviewDeadlineMs,
+  reviewPartyForUid,
+} = require('../services/reviewPolicy');
 
 const router = express.Router();
 
@@ -36,29 +42,40 @@ function clampInt(n, min, max) {
  * GET /api/jobs/:jobId/review (homeowner-only)
  * Returns the review for this job if it exists.
  */
-router.get('/api/jobs/:jobId/review', requireAuth, requireRole('homeowner'), async (req, res) => {
+router.get('/api/jobs/:jobId/review', requireAuth, async (req, res) => {
   try {
     const { jobId } = req.params;
-    const homeownerUid = req.user.uid;
+    const uid = req.user.uid;
 
     const jobDoc = await db.collection('jobs').doc(jobId).get();
     if (!jobDoc.exists) return res.status(404).send({ message: 'Task not found.' });
     const job = jobDoc.data() || {};
-    if (job.homeownerUid !== homeownerUid) return res.status(403).send({ message: 'Forbidden: You do not own this task.' });
+    const party = reviewPartyForUid(job, uid);
+    if (!party) return res.status(403).send({ message: 'Forbidden: You are not a participant in this task.' });
 
     const reviewDoc = await db.collection('reviews').doc(jobId).get();
-    if (!reviewDoc.exists) return res.status(200).send({ review: null });
+    if (!reviewDoc.exists) {
+      return res.status(200).send({
+        review: null,
+        reviewerRole: party,
+        reviewDeadlineMs: reviewDeadlineMs(job) || null,
+        published: false,
+      });
+    }
     const r = reviewDoc.data() || {};
+    const submission = legacyAwareSubmissions(r)[party] || null;
 
     return res.status(200).send({
-      review: {
+      review: submission ? {
         id: reviewDoc.id,
         jobId: r.jobId || jobId,
-        tradieUid: r.tradieUid || null,
-        rating: typeof r.rating === 'number' ? r.rating : null,
-        text: r.text || '',
-        createdAt: safeToMillis(r.createdAt),
-      },
+        rating: typeof submission.rating === 'number' ? submission.rating : null,
+        text: submission.text || '',
+        createdAt: safeToMillis(submission.createdAt) || Number(submission.createdAtMs || 0),
+      } : null,
+      reviewerRole: party,
+      reviewDeadlineMs: Number(r.publishAtMs || reviewDeadlineMs(job) || 0) || null,
+      published: isReviewPublished(r),
     });
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -74,10 +91,10 @@ router.get('/api/jobs/:jobId/review', requireAuth, requireRole('homeowner'), asy
  * Body: { rating: 1..5, text?: string }
  * Idempotent: one review per jobId (review doc id = jobId)
  */
-router.post('/api/jobs/:jobId/review', requireAuth, requireRole('homeowner'), writeLimiter, async (req, res) => {
+router.post('/api/jobs/:jobId/review', requireAuth, writeLimiter, async (req, res) => {
   try {
     const { jobId } = req.params;
-    const homeownerUid = req.user.uid;
+    const uid = req.user.uid;
     const { rating, text } = req.body || {};
 
     const r = clampInt(toSafeNumber(rating), 1, 5);
@@ -96,22 +113,6 @@ router.post('/api/jobs/:jobId/review', requireAuth, requireRole('homeowner'), wr
       }
 
       const job = jobDoc.data() || {};
-      if (job.homeownerUid !== homeownerUid) {
-        const err = new Error('forbidden');
-        err.code = 'forbidden';
-        throw err;
-      }
-
-      // Only allow after escrow release (completed)
-      const normalizedStatus = normalizeStatus(job.status);
-      if (![JOB_STATUSES.COMPLETED, JOB_STATUSES.PAID].includes(normalizedStatus) || job.paymentState !== 'released') {
-        const err = new Error('bad_state');
-        err.code = 'bad_state';
-        err.status = job.status;
-        err.paymentState = job.paymentState;
-        throw err;
-      }
-
       const tradieUid = job.acceptedTradieUid;
       if (!tradieUid) {
         const err = new Error('missing_tradie');
@@ -119,39 +120,65 @@ router.post('/api/jobs/:jobId/review', requireAuth, requireRole('homeowner'), wr
         throw err;
       }
 
-      if (existingReview.exists) {
-        const err = new Error('already_exists');
-        err.code = 'already_exists';
+      const result = buildReviewSubmission({
+        job,
+        existing: existingReview.exists ? existingReview.data() : null,
+        uid,
+        rating: r,
+        text: isNonEmptyString(text) ? String(text).trim() : '',
+      });
+      if (result.error) {
+        const err = new Error(result.error);
+        err.code = result.error;
+        err.status = job.status;
+        err.paymentState = job.paymentState;
+        err.deadlineMs = result.deadlineMs;
         throw err;
       }
 
-      const payload = {
+      const canonical = {
         jobId,
-        homeownerUid,
+        homeownerUid: job.homeownerUid,
         tradieUid,
-        rating: r,
-        text: isNonEmptyString(text) ? String(text).trim() : '',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        submissions: result.submissions,
+        publishAtMs: result.deadlineMs,
+        doubleBlindComplete: result.doubleBlindComplete,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
+      tx.set(reviewRef, canonical, { merge: true });
 
-      // Store canonical review (docId = jobId)
-      tx.set(reviewRef, payload);
-
-      // Also write under tradie subcollection to enable ordering without composite indexes
-      // (Query: users/{tradieUid}/reviews orderBy createdAt)
-      const tradieReviewRef = db.collection('users').doc(tradieUid).collection('reviews').doc(jobId);
-      tx.set(tradieReviewRef, payload);
+      if (result.party === 'homeowner') {
+        const tradieReviewRef = db.collection('users').doc(tradieUid).collection('reviews').doc(jobId);
+        tx.set(tradieReviewRef, {
+          jobId,
+          homeownerUid: job.homeownerUid,
+          tradieUid,
+          rating: result.submission.rating,
+          text: result.submission.text,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          visibleAfterMs: result.deadlineMs,
+          doubleBlindComplete: result.doubleBlindComplete,
+        }, { merge: true });
+      } else if (result.doubleBlindComplete) {
+        const tradieReviewRef = db.collection('users').doc(tradieUid).collection('reviews').doc(jobId);
+        tx.set(tradieReviewRef, {
+          doubleBlindComplete: true,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
     });
 
     return res.status(201).send({ message: 'Review submitted.' });
   } catch (error) {
     if (error?.code === 'not_found') return res.status(404).send({ message: 'Task not found.' });
-    if (error?.code === 'forbidden') return res.status(403).send({ message: 'Forbidden: You do not own this task.' });
+    if (error?.code === 'forbidden') return res.status(403).send({ message: 'Forbidden: You are not a participant in this task.' });
     if (error?.code === 'bad_state') {
       return res.status(409).send({ message: `Cannot review yet (status: ${error.status}, paymentState: ${error.paymentState}).` });
     }
     if (error?.code === 'missing_tradie') return res.status(409).send({ message: 'Cannot review: task is missing the assigned expert.' });
     if (error?.code === 'already_exists') return res.status(409).send({ message: 'Review already submitted for this task.' });
+    if (error?.code === 'missing_release_anchor') return res.status(409).send({ message: 'Cannot review until payment release has a recorded timestamp.' });
+    if (error?.code === 'window_closed') return res.status(409).send({ message: 'The 14-day review window has closed.', deadlineMs: error.deadlineMs });
     // eslint-disable-next-line no-console
     console.error('Error creating review:', error);
     return res.status(500).send({ message: 'Failed to submit review.' });
@@ -190,7 +217,9 @@ router.get('/api/tradies/:tradieUid/reviews', publicReadLimiter, async (req, res
     ]);
 
     // Build the public review list (no homeowner PII)
-    const reviews = pageSnap.empty ? [] : pageSnap.docs.map((docSnap) => {
+    const reviews = pageSnap.empty ? [] : pageSnap.docs.filter((docSnap) => (
+      isReviewPublished(docSnap.data() || {})
+    )).map((docSnap) => {
       const r = docSnap.data() || {};
       return {
         id: docSnap.id,
@@ -219,6 +248,4 @@ router.get('/api/tradies/:tradieUid/reviews', publicReadLimiter, async (req, res
 });
 
 module.exports = router;
-
-
 

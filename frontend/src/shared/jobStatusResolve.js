@@ -16,10 +16,6 @@ export function resolveJobStatus(raw) {
     return { status: JOB_STATUSES.OPEN, unknown: false, rawInput };
   }
 
-  if (cleaned === 'completed') {
-    return { status: JOB_STATUSES.PAID, unknown: false, rawInput };
-  }
-
   const upperStatus = cleaned.toUpperCase();
   if (VALID_STATUSES.includes(upperStatus)) {
     return { status: upperStatus, unknown: false, rawInput };

@@ -13,7 +13,7 @@ describe('jobStatuses', () => {
     expect(normalizeStatus('awaiting_approval')).toBe(JOB_STATUSES.COMPLETED);
     expect(normalizeStatus('awaiting_quotes')).toBe(JOB_STATUSES.OPEN);
     expect(normalizeStatus('payment_required')).toBe(JOB_STATUSES.AWAITING_FUNDING);
-    expect(normalizeStatus('completed')).toBe(JOB_STATUSES.PAID);
+    expect(normalizeStatus('completed')).toBe(JOB_STATUSES.COMPLETED);
     expect(normalizeStatus('COMPLETED')).toBe(JOB_STATUSES.COMPLETED);
   });
 

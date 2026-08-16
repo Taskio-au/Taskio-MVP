@@ -42,6 +42,10 @@ function ExpertJobDetail() {
     const [foundingExpertFeeProfile, setFoundingExpertFeeProfile] = useState(null);
     const [refreshingStripe, setRefreshingStripe] = useState(false);
     const [ageGateModal, setAgeGateModal] = useState({ open: false, type: '' }); // 'dob_missing' | 'underage'
+    const [clientReview, setClientReview] = useState(null);
+    const [clientReviewForm, setClientReviewForm] = useState({ rating: 5, text: '' });
+    const [clientReviewBusy, setClientReviewBusy] = useState(false);
+    const [clientReviewError, setClientReviewError] = useState('');
 
     const loadQuotePage = useCallback(async ({ forceStripeRefresh = false, preserveLoading = false } = {}) => {
         try {
@@ -137,6 +141,25 @@ function ExpertJobDetail() {
             active = false;
         };
     }, [loadQuotePage, location.pathname, location.search, navigate]);
+
+    useEffect(() => {
+        if (!jobId || job?.paymentState !== 'released') return undefined;
+        let active = true;
+        (async () => {
+            try {
+                const user = auth.currentUser;
+                if (!user) return;
+                const token = await user.getIdToken();
+                const res = await api.get(`/api/jobs/${jobId}/review`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (active) setClientReview(res.data?.review || null);
+            } catch (e) {
+                if (active) setClientReviewError(e?.response?.data?.message || 'Could not load your review status.');
+            }
+        })();
+        return () => { active = false; };
+    }, [job?.paymentState, jobId]);
 
     const handleQuoteChange = (e) => {
         const { name, value } = e.target;
@@ -278,6 +301,24 @@ function ExpertJobDetail() {
             setError(e?.response?.data?.message || 'Failed to mark task complete.');
         } finally {
             setMarkingComplete(false);
+        }
+    };
+
+    const submitClientReview = async () => {
+        setClientReviewBusy(true);
+        setClientReviewError('');
+        try {
+            const user = auth.currentUser;
+            if (!user) return navigate('/');
+            const token = await user.getIdToken();
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            await api.post(`/api/jobs/${jobId}/review`, clientReviewForm, config);
+            const res = await api.get(`/api/jobs/${jobId}/review`, config);
+            setClientReview(res.data?.review || null);
+        } catch (e) {
+            setClientReviewError(e?.response?.data?.message || 'Could not submit your review.');
+        } finally {
+            setClientReviewBusy(false);
         }
     };
     
@@ -823,6 +864,63 @@ function ExpertJobDetail() {
                                     </button>
                                 </div>
                             </div>
+                        )}
+
+                        {normalizedStatus === JOB_STATUSES.PAID && job.paymentState === 'released' && (
+                            <section className="tradie-detail-card tradie-detail-body" aria-label="Client review">
+                                <div className="tradie-detail-body-inner">
+                                    <h2 style={styles.sectionTitle}>Review the Client</h2>
+                                    <p style={styles.jobText}>
+                                        Reviews are immutable and remain private until both parties submit or the 14-day window ends.
+                                    </p>
+                                    {clientReview ? (
+                                        <p style={{ ...styles.jobText, fontWeight: 700 }}>
+                                            Review submitted: {clientReview.rating}/5
+                                            {clientReview.text ? ` — ${clientReview.text}` : ''}
+                                        </p>
+                                    ) : (
+                                        <div style={{ display: 'grid', gap: 12 }}>
+                                            <label>
+                                                Rating
+                                                <select
+                                                    value={clientReviewForm.rating}
+                                                    onChange={(event) => setClientReviewForm((prev) => ({
+                                                        ...prev,
+                                                        rating: Number(event.target.value),
+                                                    }))}
+                                                    style={{ display: 'block', marginTop: 6, minHeight: 44, width: 120 }}
+                                                >
+                                                    {[5, 4, 3, 2, 1].map((rating) => (
+                                                        <option key={rating} value={rating}>{rating}/5</option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                            <label>
+                                                Feedback (optional)
+                                                <textarea
+                                                    value={clientReviewForm.text}
+                                                    maxLength={1000}
+                                                    rows={4}
+                                                    onChange={(event) => setClientReviewForm((prev) => ({
+                                                        ...prev,
+                                                        text: event.target.value,
+                                                    }))}
+                                                    style={{ display: 'block', marginTop: 6, width: '100%', boxSizing: 'border-box' }}
+                                                />
+                                            </label>
+                                            {clientReviewError && <div role="alert" style={{ color: '#b91c1c' }}>{clientReviewError}</div>}
+                                            <button
+                                                type="button"
+                                                onClick={submitClientReview}
+                                                disabled={clientReviewBusy}
+                                                style={styles.completeButton}
+                                            >
+                                                {clientReviewBusy ? 'Submitting...' : 'Submit immutable review'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
                         )}
                     </div>
 

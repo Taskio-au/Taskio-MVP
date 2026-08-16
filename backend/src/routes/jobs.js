@@ -31,6 +31,7 @@ const {
   isAlreadyFundingComplete,
 } = require('../services/baseQuoteFundingCompletion');
 const { buildPostedJobTitleFromPhase1Row } = require('../../../shared/paymentDisplayTaskTitle');
+const { refundFundedVariationsForCancellation } = require('../services/cancellationRefundService');
 
 const router = express.Router();
 
@@ -654,8 +655,9 @@ async function reconcileBaseQuoteStripeBeforeNewCheckout(jobRef) {
             return { kind: 'already_confirmed' };
           }
         }
+        return { kind: 'continue', replaceSessionId: sid };
       } catch (_) {
-        /* fall through — create a replacement session below */
+        return { kind: 'retry_later' };
       }
     }
 
@@ -1244,6 +1246,37 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
     if (reco.kind === 'reuse_open') {
       return res.status(200).send({ sessionId: reco.sessionId, reused: true });
     }
+    if (reco.kind === 'retry_later') {
+      return res.status(202).send({
+        pending: true,
+        message: 'Payment status is still being checked. Please try again shortly.',
+      });
+    }
+
+    const checkoutGeneration = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(jobRef);
+      if (!snap.exists) {
+        const err = new Error('not_found');
+        err.code = 'not_found';
+        throw err;
+      }
+      const current = snap.data() || {};
+      const existingGeneration = Math.max(1, Math.floor(Number(current.paymentCheckoutGeneration || 1)));
+      const replacing = String(reco.replaceSessionId || '');
+      if (!replacing || String(current.paymentCheckoutSessionId || '') !== replacing) {
+        return existingGeneration;
+      }
+      if (current.paymentCheckoutReplacementFor === replacing) {
+        return existingGeneration;
+      }
+      const nextGeneration = existingGeneration + 1;
+      tx.update(jobRef, {
+        paymentCheckoutGeneration: nextGeneration,
+        paymentCheckoutReplacementFor: replacing,
+        paymentUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return nextGeneration;
+    });
 
     const frontend = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
     const successUrl = `${frontend}/job/${jobId}?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
@@ -1258,7 +1291,7 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
       successUrl,
       cancelUrl,
       metadata: { jobId, quoteId, homeownerUid },
-      idempotencyKey: `taskio_checkout_${jobId}_${quoteId}_${Date.now()}`,
+      idempotencyKey: `taskio_checkout_${jobId}_${quoteId}_g${checkoutGeneration}`,
       customerEmail: req.user?.email || undefined,
     });
 
@@ -1313,6 +1346,8 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
 
     await jobRef.update({
       paymentCheckoutSessionId: session.id,
+      paymentCheckoutGeneration: checkoutGeneration,
+      paymentCheckoutReplacementFor: null,
       ...intentPatch,
       paymentState: 'pending_payment',
       paymentStatus: 'requires_payment_method',
@@ -2470,6 +2505,12 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
         return res.status(400).send({ message: 'Refunds require Stripe on this server.' });
       }
       if (!job.paymentIntentId) return res.status(400).send({ message: 'No payment to refund.' });
+      const variationRefundIds = await refundFundedVariationsForCancellation({
+        jobRef,
+        jobId,
+        createRefund,
+        serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+      });
       const refund = await createRefund({
         paymentIntentId: job.paymentIntentId,
         amountInCents: null,
@@ -2479,6 +2520,7 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
       await updateJobStatus(db, admin, jobRef, JOB_STATUSES.REFUND_PENDING, {
         paymentState: 'refund_pending',
         refundId: refund.id,
+        variationRefundIds,
         refundRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       await logJobEvent({
@@ -2486,7 +2528,7 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
         actorId: homeownerUid,
         actorRole: 'homeowner',
         action: 'HOMEOWNER_REQUEST_REFUND_CANCEL',
-        metadata: { refundId: refund.id },
+        metadata: { refundId: refund.id, variationRefundIds },
       });
       return res.status(200).send({ message: 'Refund started.', status: JOB_STATUSES.REFUND_PENDING, refundId: refund.id });
     }
@@ -2496,6 +2538,12 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
         return res.status(400).send({ message: 'Refunds require Stripe on this server.' });
       }
       if (!job.paymentIntentId) return res.status(400).send({ message: 'No payment to refund.' });
+      const variationRefundIds = await refundFundedVariationsForCancellation({
+        jobRef,
+        jobId,
+        createRefund,
+        serverTimestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+      });
       const refund = await createRefund({
         paymentIntentId: job.paymentIntentId,
         amountInCents: null,
@@ -2505,6 +2553,7 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
       await updateJobStatus(db, admin, jobRef, JOB_STATUSES.REFUND_PENDING, {
         paymentState: 'refund_pending',
         refundId: refund.id,
+        variationRefundIds,
         refundRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       await logJobEvent({
@@ -2512,13 +2561,20 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
         actorId: homeownerUid,
         actorRole: 'homeowner',
         action: 'HOMEOWNER_REQUEST_REFUND_CANCEL',
-        metadata: { refundId: refund.id },
+        metadata: { refundId: refund.id, variationRefundIds },
       });
       return res.status(200).send({ message: 'Refund started.', status: JOB_STATUSES.REFUND_PENDING, refundId: refund.id });
     }
 
     return res.status(409).send({ message: 'This task cannot be cancelled in its current state.' });
   } catch (error) {
+    if (error?.code === 'variation_already_released') {
+      return res.status(409).send({
+        message: 'A funded variation has already been released. Use the admin dispute workflow.',
+        code: error.code,
+        variationId: error.variationId,
+      });
+    }
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
     }

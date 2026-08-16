@@ -27,14 +27,16 @@ This ledger records current evidence without erasing the historical baseline in 
 | A02 | COMPLETED | Firestore message creation requires a valid participant role and open, funded, unfrozen chat; demo-project rules suite passes. |
 | A06 | COMPLETED | Production E2E bypass guard and tests added; CI explicitly builds with bypass disabled. |
 | A09 | COMPLETED | Risk flags and counters are written by retry-safe server automation; duplicate emulator delivery is idempotent. |
+| A11 | COMPLETED | Mocked Stripe operational handlers cover charge disputes, payout failures, and transfer reversals/failures; they flag internal state and create deterministic admin work items. Live webhook registration remains PENDING FINAL DEPLOYMENT APPROVAL. |
 | A12 | COMPLETED | Demo-only Firestore/Storage emulator suite passes 17/17, including privilege, chat, attachment, and profile-photo cases. |
 | A13 | COMPLETED | Firebase web configuration remains environment-driven and project-ID guarded; focused tests pass. |
 | A16 | BLOCKED | Rules now limit profile-photo reads to owner/admin. Existing tokenized download URLs require a repository migration plus later token rotation and rules deployment before acceptance can be claimed. |
+| A32 | COMPLETED | Pre-release cancellation refunds the base payment and every funded unreleased variation with stable idempotency keys; partial retries resume exactly once and released funds require the admin dispute flow. |
 | A33 | COMPLETED | Storage rules use the same list/map invitation representations as Firestore and permit valid invited-expert chat attachments; emulator coverage passes. |
 | A34 | COMPLETED | Registration responses map Firebase/internal failures to safe messages and request IDs; raw errors are logged structurally and regression-tested. |
 | A40 | COMPLETED | Functions tests run under a demo Firestore emulator and are wired into CI with Node 24 and Java 21. |
 | A51 | COMPLETED | Production API URL resolver rejects missing, local, HTTP, credentialed, and malformed endpoints; CI/build configuration and tests added. |
-| A52 | COMPLETED | Every case variant of `completed` now normalises to `COMPLETED`; only explicit legacy paid values map to `PAID`; parity tests pass. |
+| A52 | COMPLETED | Backend and frontend now normalise every case variant of `completed` to `COMPLETED`; `PAID` remains explicit, with release-evidence compatibility for genuine legacy paid records; parity tests pass. |
 | A53 | COMPLETED | Per owner decision, stale refresh is an authenticated claims-admin manual action; permissive cron-secret handling was removed. |
 | A54 | COMPLETED | Backend test entry points no longer load developer `.env` files when `NODE_ENV=test`; focused suites pass without external calls. |
 | A55 | COMPLETED | Backend and rules administrator checks trust Firebase custom claims only; mutable-profile escalation tests pass. |
@@ -42,6 +44,8 @@ This ledger records current evidence without erasing the historical baseline in 
 | A57 | COMPLETED | Draft-to-submitted quote updates create the same deterministic homeowner notification as submitted-on-create; transition tests pass. |
 | A58 | COMPLETED | Chat email HTML escapes all untrusted fields; hostile-markup tests pass and SMTP was not used. |
 | A59 | BLOCKED | Scaffold export is removed from source and syntax checks pass. The already-deployed function remains unchanged until a separately approved production Functions deployment/deletion. |
+| U04 | COMPLETED | Both parties can submit one immutable review within 14 days; publication is double-blind or deadline-based. Chat remains writable for 30 days after release, then rules/UI make it read-only; claims-admin support can reopen it through an audited bounded endpoint. |
+| U05 | COMPLETED | Mock matrix covers simultaneous tabs, abandoned/open/expired sessions, unavailable Stripe status, failed card, delayed success, duplicate webhook, and already-funded recovery. Stable checkout generations prevent multiple Stripe idempotency families for one attempt. No live Stripe call was made. |
 
 The original spreadsheet was last reconciled around commit `88ab54a`. Therefore, statuses below are a baseline. Codex must inspect commits `5038a24`, `7d1d521`, `551fd77`, and `e736581`, the current files, and test evidence before changing any status. Never mark an item Done from a commit title alone.
 
@@ -1270,6 +1274,7 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | Date | Branch / commit | IDs | Work completed | Verification | Cloud/external actions | Remaining/blockers |
 |---|---|---|---|---|---|---|
 | 2026-08-16 | `develop` / `e736581` | A02, A10, A12, A13, A16 and related security work require reconciliation | Security-rule hardening and CI restoration were committed and pushed; staging configuration was established locally | GitHub Actions green; frontend 392/392; backend 391/391; rules 16/16; frontend production build passed; backend readiness `ok: true` against staging | Firestore and Storage rules deployed to `taskio-v2-staging`; Email/Password enabled in staging Auth; no production deployment | Inspect exact diffs and acceptance criteria before marking individual IDs Done; Gemini model retirement remains unresolved; complete the remaining tracker in dependency order |
+| 2026-08-16 | `develop` / `6e683fc` | A11, A32, A52, U04, U05 | Added mocked operational Stripe handling, stable checkout generations, exactly-once variation cancellation refunds, explicit completion/payment semantics, double-blind reviews, and 30-day post-release chat with audited support reopen | Backend focused 108/108; frontend focused 8/8; demo rules 18/18; production-mode frontend build passed | None; no Firebase project, Stripe account, or other live service accessed or modified | All deployment/runtime portions remain pending approval |
 
 ## Required final report template
 

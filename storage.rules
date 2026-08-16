@@ -75,7 +75,20 @@ service firebase.storage {
     }
 
     function chatClosed(jobId) {
-      return jobDoc(jobId).status in ['CANCELLED', 'cancelled'];
+      return jobDoc(jobId).status in ['CANCELLED', 'cancelled']
+        || (
+          jobDoc(jobId).status in ['PAID', 'paid']
+          && !(
+            jobDoc(jobId).keys().hasAll(['chatReopenedUntil'])
+            && jobDoc(jobId).chatReopenedUntil is timestamp
+            && request.time < jobDoc(jobId).chatReopenedUntil
+          )
+          && (
+            !jobDoc(jobId).keys().hasAll(['releasedAt'])
+            || !(jobDoc(jobId).releasedAt is timestamp)
+            || request.time >= jobDoc(jobId).releasedAt + duration.value(30, 'd')
+          )
+        );
     }
 
     // Chat attachments

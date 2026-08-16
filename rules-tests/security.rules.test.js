@@ -111,6 +111,19 @@ beforeEach(async () => {
     ['jobs/job-frozen', job({ chatFrozen: true })],
     ['jobs/job-cancelled', job({ status: 'CANCELLED' })],
     ['jobs/job-paid', job({ status: 'PAID' })],
+    ['jobs/job-paid-recent', job({
+      status: 'PAID',
+      releasedAt: new Date(Date.now() - (29 * 24 * 60 * 60 * 1000)),
+    })],
+    ['jobs/job-paid-expired', job({
+      status: 'PAID',
+      releasedAt: new Date(Date.now() - (31 * 24 * 60 * 60 * 1000)),
+    })],
+    ['jobs/job-paid-reopened', job({
+      status: 'PAID',
+      releasedAt: new Date(Date.now() - (31 * 24 * 60 * 60 * 1000)),
+      chatReopenedUntil: new Date(Date.now() + (24 * 60 * 60 * 1000)),
+    })],
   ]);
 });
 
@@ -394,6 +407,22 @@ describe('Storage authorization', () => {
       ref(storageFor('homeowner-1'), 'profile-images/homeowner-1.gif'),
       new Uint8Array([1, 2, 3]),
       { contentType: 'image/gif' },
+    ));
+  });
+
+  test('keeps released chat writable for 30 days, then read-only unless support reopened it', async () => {
+    const db = firestoreFor('homeowner-1');
+    await assertSucceeds(setDoc(
+      doc(db, 'jobs/job-paid-recent/messages/recent-message'),
+      message('recent-message', { jobId: 'job-paid-recent' }),
+    ));
+    await assertFails(setDoc(
+      doc(db, 'jobs/job-paid-expired/messages/expired-message'),
+      message('expired-message', { jobId: 'job-paid-expired' }),
+    ));
+    await assertSucceeds(setDoc(
+      doc(db, 'jobs/job-paid-reopened/messages/reopened-message'),
+      message('reopened-message', { jobId: 'job-paid-reopened' }),
     ));
   });
 

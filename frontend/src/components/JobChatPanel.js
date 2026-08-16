@@ -25,6 +25,7 @@ import { getMessageLayoutType, getPreferredSenderName, getRenderedSenderName } f
 import { resolveThreadJobId } from '../utils/chatThreads';
 import { markMessageNotificationsReadForJob } from '../utils/markMessageNotificationsReadForJob';
 import { CLIENT_CHAT_ACCOUNT_GATE } from '../constants/blockedFlowCopy';
+import { isChatReadOnly } from '../utils/chatAccess';
 
 const MAX_TEXT_CHARS = 4000;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -116,10 +117,7 @@ export default function JobChatPanel({ jobId, fallbackJob, alwaysListen = false,
   }, [alwaysListen, chatEnabled, job]);
 
   const chatReadOnly = useMemo(() => {
-    const status = job?.status;
-    const frozen = job?.chatFrozen === true;
-    const closed = status === 'cancelled' || status === 'completed' || status === 'disputed';
-    return frozen || closed;
+    return isChatReadOnly(job);
   }, [job]);
 
   const shouldBlockClientMessaging = myRole === 'homeowner'

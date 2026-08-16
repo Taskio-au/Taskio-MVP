@@ -58,9 +58,20 @@ service cloud.firestore {
     }
 
     function chatClosed(jobId) {
-      // Chat is closed only for cancelled jobs
-      // Completed, disputed, and paid jobs can still chat
-      return jobDoc(jobId).status in ['CANCELLED', 'cancelled'];
+      return jobDoc(jobId).status in ['CANCELLED', 'cancelled']
+        || (
+          jobDoc(jobId).status in ['PAID', 'paid']
+          && !(
+            jobDoc(jobId).keys().hasAll(['chatReopenedUntil'])
+            && jobDoc(jobId).chatReopenedUntil is timestamp
+            && request.time < jobDoc(jobId).chatReopenedUntil
+          )
+          && (
+            !jobDoc(jobId).keys().hasAll(['releasedAt'])
+            || !(jobDoc(jobId).releasedAt is timestamp)
+            || request.time >= jobDoc(jobId).releasedAt + duration.value(30, 'd')
+          )
+        );
     }
     
     function chatEnabled(jobId) {

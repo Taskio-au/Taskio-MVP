@@ -216,6 +216,20 @@ describe('GET /api/tradies/:tradieUid/reviews', () => {
     expect(review.text).toBe('Excellent');
   });
 
+  it('keeps a one-sided review private until its visibility deadline', async () => {
+    seedReviews('expert-1', [{
+      ...makeReview('job-hidden', 5, 'Not public yet'),
+      visibleAfterMs: Date.now() + 60_000,
+      doubleBlindComplete: false,
+    }]);
+
+    const res = await request(app).get('/api/tradies/expert-1/reviews');
+
+    expect(res.status).toBe(200);
+    expect(res.body.reviews).toEqual([]);
+    expect(res.body.reviewCount).toBe(0);
+  });
+
   it('page is capped at limit even when more reviews exist', async () => {
     const all = [];
     for (let i = 0; i < 25; i++) all.push(makeReview(`job-${i}`, 4));

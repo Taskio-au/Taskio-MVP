@@ -229,6 +229,120 @@ beforeEach(() => {
   process.env.FRONTEND_URL = 'http://localhost:3000';
 });
 
+describe('Stripe payment interruption and duplicate-delivery matrix', () => {
+  beforeEach(() => {
+    resetState();
+    process.env.STRIPE_ENABLED = 'true';
+  });
+
+  test('duplicate delivery of one variation event is acknowledged without reprocessing', async () => {
+    seedDoc('jobs', 'job-dup', {
+      homeownerUid: 'homeowner-1',
+      acceptedTradieUid: 'expert-1',
+      status: 'IN_PROGRESS',
+      paymentState: 'in_escrow',
+      securedVariationTotalInCents: 0,
+    });
+    seedPendingVariation('job-dup', 'var-dup', {
+      status: 'awaiting_payment',
+      paymentState: 'pending_payment',
+      priceChangeCents: 5000,
+    });
+    const evt = {
+      id: 'evt_duplicate_delivery',
+      type: 'payment_intent.succeeded',
+      livemode: false,
+      data: {
+        object: {
+          id: 'pi_dup',
+          status: 'succeeded',
+          amount: 5000,
+          currency: 'aud',
+          metadata: {
+            paymentType: 'variation',
+            jobId: 'job-dup',
+            variationId: 'var-dup',
+          },
+        },
+      },
+    };
+    const { constructWebhookEvent } = require('../src/services/stripe');
+    constructWebhookEvent.mockReturnValue(evt);
+    const app = buildWebhookApp();
+    const send = () => request(app)
+      .post('/api/stripe/webhook')
+      .set('stripe-signature', 'sig')
+      .set('Content-Type', 'application/json')
+      .send(Buffer.from(JSON.stringify(evt)));
+
+    const first = await send();
+    const second = await send();
+
+    expect(first.status).toBe(200);
+    expect(second.body).toEqual({ received: true, duplicate: true });
+    expect(getVariation('job-dup', 'var-dup').paymentState).toBe('in_escrow');
+    expect(mockState.collections.get('jobs').get('job-dup').securedVariationTotalInCents).toEqual({
+      __increment: 5000,
+    });
+  });
+
+  test('failed card remains unfunded while a delayed success can recover without browser state', async () => {
+    seedDoc('jobs', 'job-interrupted', {
+      homeownerUid: 'homeowner-1',
+      acceptedTradieUid: 'expert-1',
+      status: 'AWAITING_FUNDING',
+      paymentState: 'pending_payment',
+      paymentIntentId: 'pi_interrupted',
+    });
+    const { constructWebhookEvent } = require('../src/services/stripe');
+    const failed = {
+      id: 'evt_failed_card',
+      type: 'payment_intent.payment_failed',
+      livemode: false,
+      data: { object: {
+        id: 'pi_interrupted',
+        status: 'requires_payment_method',
+        metadata: { jobId: 'job-interrupted' },
+      } },
+    };
+    constructWebhookEvent.mockReturnValueOnce(failed);
+    const failedRes = await request(buildWebhookApp())
+      .post('/api/stripe/webhook')
+      .set('stripe-signature', 'sig')
+      .set('Content-Type', 'application/json')
+      .send(Buffer.from(JSON.stringify(failed)));
+    expect(failedRes.status).toBe(200);
+    expect(mockState.collections.get('jobs').get('job-interrupted')).toMatchObject({
+      status: 'AWAITING_FUNDING',
+      paymentState: 'payment_failed',
+    });
+
+    const succeeded = {
+      id: 'evt_delayed_success',
+      type: 'payment_intent.succeeded',
+      livemode: false,
+      data: { object: {
+        id: 'pi_interrupted',
+        status: 'succeeded',
+        amount: 10000,
+        currency: 'aud',
+        metadata: { jobId: 'job-interrupted' },
+      } },
+    };
+    constructWebhookEvent.mockReturnValueOnce(succeeded);
+    const successRes = await request(buildWebhookApp())
+      .post('/api/stripe/webhook')
+      .set('stripe-signature', 'sig')
+      .set('Content-Type', 'application/json')
+      .send(Buffer.from(JSON.stringify(succeeded)));
+    expect(successRes.status).toBe(200);
+    expect(mockState.collections.get('jobs').get('job-interrupted')).toMatchObject({
+      status: 'FUNDED',
+      paymentState: 'in_escrow',
+    });
+  });
+});
+
 // =============================================================================
 // DECLINE
 // =============================================================================

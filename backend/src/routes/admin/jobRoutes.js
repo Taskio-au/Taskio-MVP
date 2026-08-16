@@ -438,6 +438,58 @@ router.post('/api/admin/jobs/:jobId/invites/:tradieUid/nudge', requireAuth, requ
   }
 });
 
+router.post('/api/admin/jobs/:jobId/chat/reopen', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const reason = String(req.body?.reason || '').trim();
+    const days = Math.floor(Number(req.body?.days || 7));
+    if (reason.length < 5 || reason.length > 500) {
+      return res.status(400).send({ message: 'A reopening reason between 5 and 500 characters is required.' });
+    }
+    if (!Number.isInteger(days) || days < 1 || days > 30) {
+      return res.status(400).send({ message: 'Reopen days must be an integer from 1 to 30.' });
+    }
+
+    const jobRef = db.collection('jobs').doc(jobId);
+    const jobDoc = await jobRef.get();
+    if (!jobDoc.exists) return res.status(404).send({ message: 'Task not found.' });
+    const reopenedUntilMs = Date.now() + (days * 24 * 60 * 60 * 1000);
+    await jobRef.set({
+      chatFrozen: false,
+      chatReopenedUntil: new Date(reopenedUntilMs),
+      chatReopenedUntilMs: reopenedUntilMs,
+      chatReopenedReason: reason,
+      chatReopenedBy: req.user.uid,
+      chatReopenedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastAdminActionAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastAdminActionBy: req.user.uid,
+    }, { merge: true });
+
+    await logAdminJobAction({
+      req,
+      jobId,
+      action: 'REOPEN_CHAT',
+      metadata: { reason, days, reopenedUntilMs },
+    });
+    await logJobEvent({
+      jobId,
+      actorId: req.user.uid,
+      actorRole: 'admin',
+      action: 'ADMIN_REOPEN_CHAT',
+      metadata: { reason, days, reopenedUntilMs },
+    });
+
+    return res.status(200).send({
+      message: 'Chat reopened for a limited support window.',
+      chatReopenedUntilMs: reopenedUntilMs,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error reopening chat:', error);
+    return res.status(500).send({ message: 'Failed to reopen chat.' });
+  }
+});
+
 router.post('/api/admin/jobs/:jobId/flag-dispute', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { jobId } = req.params;
