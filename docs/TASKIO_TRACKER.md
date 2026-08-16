@@ -10,10 +10,12 @@
 - Working branch: `develop`
 - Starting local/remote commit for this run: `e736581 fix(ci): restore frontend verification`
 - Starting working tree: untracked owner-authored `docs/TASKIO_TRACKER.md`; otherwise clean
-- GitHub Actions: all four jobs green (`security-rules`, `frontend`, `backend`, `functions`)
-- Frontend: 53 suites / 392 tests passed; production build compiled successfully
-- Backend: 38 suites / 391 tests passed
-- Firebase rules: 16/16 emulator tests passed
+- GitHub Actions: all five jobs green at `13a22e3` (`security-rules`, `frontend`, `backend`, `functions`, `browser-smoke`)
+- Frontend: 59 suites / 410 tests passed; maintainability and production build passed
+- Backend: 44 suites / 421 tests passed; syntax checks passed
+- Firebase rules: 18/18 demo-project emulator tests passed
+- Functions: 4/4 demo-project emulator tests plus syntax/lint passed
+- Playwright: 4/4 Chromium tests passed against the compiled demo-only/local harness
 - Historical staging actions below pre-date the revised authorization. Staging is now frozen and must not be accessed.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
@@ -59,7 +61,79 @@ This ledger records current evidence without erasing the historical baseline in 
 | U04 | COMPLETED | Both parties can submit one immutable review within 14 days; publication is double-blind or deadline-based. Chat remains writable for 30 days after release, then rules/UI make it read-only; claims-admin support can reopen it through an audited bounded endpoint. |
 | U05 | COMPLETED | Mock matrix covers simultaneous tabs, abandoned/open/expired sessions, unavailable Stripe status, failed card, delayed success, duplicate webhook, and already-funded recovery. Stable checkout generations prevent multiple Stripe idempotency families for one attempt. No live Stripe call was made. |
 
-The original spreadsheet was last reconciled around commit `88ab54a`. Therefore, statuses below are a baseline. Codex must inspect commits `5038a24`, `7d1d521`, `551fd77`, and `e736581`, the current files, and test evidence before changing any status. Never mark an item Done from a commit title alone.
+## Final repository reconciliation (2026-08-17)
+
+This table supersedes the intermediate ledger above. `COMPLETED` means the repository acceptance criteria were demonstrated locally and/or in CI. It does not imply deployment. Items needing a real-project write or live/manual verification remain pending or blocked as required by the owner authorization.
+
+| ID | Final status | Evidence / exact remaining requirement |
+|---|---|---|
+| A01 | COMPLETED | Seven intentional commits through `13a22e3` were reviewed, pushed to `origin/develop`, and GitHub CI run `31955663683` passed all five jobs. |
+| A02 | COMPLETED | Participant, sender-role, funded/open-chat, freeze, cancellation, and 30-day release rules are covered by the 18-test demo rules suite. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Node 24 Cloud Run container, health checks, environment inventory, CORS settings, no-traffic rollout, verification, and rollback commands are prepared in `docs/TASKIO_RELEASE_PLAN.md`; production identity, secrets, deployment, and live verification remain. |
+| A04 | BLOCKED | Both reported key files remained uninspected and untouched. Owner must identify, disable, verify, delete the cloud keys, then securely remove the local files using the documented procedure. |
+| A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced; current queries require no composites. An approved production deploy and representative live-query verification remain. |
+| A06 | COMPLETED | Production bypass tests fail closed; the production E2E harness exception requires an explicit flag, demo project ID, and loopback API. Standard production CI builds with bypass disabled. |
+| A07 | COMPLETED | Maintainability gate, generated-source parity, `git diff --check`, 410 frontend tests, 421 backend tests, builds, emulators, browser tests, and GitHub CI pass. |
+| A08 | COMPLETED | Monitoring review and chat freeze/unfreeze route through audited claims-admin API endpoints; backend contract tests pass. |
+| A09 | COMPLETED | Retry-safe Functions persist risk flags and exactly-once counters/notifications; duplicate-delivery emulator test passes. |
+| A10 | COMPLETED | Firestore rules deny expert/admin self-bootstrap and allow normal homeowner creation; demo rules tests pass. |
+| A11 | PENDING FINAL DEPLOYMENT APPROVAL | Mocked handlers cover disputes, payout failures, and transfer reversals/failures with deterministic admin work items. Production webhook registration and live event verification remain prohibited. |
+| A12 | COMPLETED | Demo-only Firestore/Storage emulator suite passes 18/18 without addressing a real Firebase project. |
+| A13 | COMPLETED | Firebase web configuration is environment-driven and guarded by the expected project ID; configuration tests pass. |
+| A14 | PENDING FINAL DEPLOYMENT APPROVAL | App Check-compatible code rejects production debug tokens and missing enabled keys; tests and rollout instructions pass. Registration, monitoring, and enforcement remain unperformed. |
+| A15 | COMPLETED | Homeowner/admin header navigation has responsive collapse rules and tests; shared public headers and the 320px browser overflow check pass. |
+| A16 | BLOCKED | New uploads persist an owned storage path, quote APIs no longer return token URLs, and owner/admin storage rules pass. Owner must migrate existing records/rotate tokens and approve rules/API deployment before relationship-safe photos can be accepted. |
+| A17 | COMPLETED | Local admin/debug scripts remain ignored and hardcoded identity is absent from tracked bootstrap tooling. |
+| A18 | COMPLETED | Native browser prompt/confirm usages are zero; accessible in-app confirm/reason modals preserve the workflows and the maintainability budget is now zero. |
+| A19 | COMPLETED | Pre-launch testimonials are not rendered and every sample job is visibly labelled “Illustrative example”; Chromium verifies both conditions. |
+| A20 | BLOCKED | Exact deploy order and rollback are documented, but owner-approved GitHub identity/settings, production credentials, and a deployment decision are required. No deployment workflow was activated. |
+| A21 | COMPLETED | CI builds the production frontend and runs Playwright Chromium against a compiled demo-only/local harness; GitHub browser-smoke passes. |
+| A22 | PENDING FINAL DEPLOYMENT APPROVAL | Public routes have route-specific title, description, canonical, Open Graph metadata, and private noindex behavior; tests pass. Deployed crawler/link-preview verification remains. |
+| A23 | PENDING FINAL DEPLOYMENT APPROVAL | `sitemap.xml` and the absolute robots discovery line are tracked. Hosting deployment and Search Console acceptance remain. |
+| A24 | COMPLETED | Shared modal traps focus, closes on Escape, and restores trigger focus; interaction tests pass. |
+| A25 | COMPLETED | Login/signup error summaries are live alerts and affected fields use `aria-invalid`/`aria-describedby`; frontend suite passes. |
+| A26 | COMPLETED | Global skip link and route main-landmark targeting cover public routes; metadata/route tests pass. |
+| A27 | COMPLETED | Expert signup uses keyed, adjacent accessible field errors for simultaneous validation failures. |
+| A28 | COMPLETED | Admin session, dashboard, detail, monitoring, support, checklist, password, and profile-review loading states use shared accessible components. |
+| A29 | COMPLETED | Landing, post-task, login, get-started, and Expert signup share `PublicPageHeader` and one responsive CSS contract. |
+| A30 | COMPLETED | Admin task detail renders `AppHeader` above its breadcrumb, retaining global navigation. |
+| A31 | COMPLETED | Public header and page breakpoints cover 720/480px layouts; the Chromium 320px no-overflow assertion passes. |
+| A32 | COMPLETED | Cancellation refunds the base and every funded unreleased variation exactly once; released funds require dispute workflow; contract tests pass. |
+| A33 | COMPLETED | Firestore/Storage invitation representations align and valid invited-expert attachment uploads pass emulator coverage. |
+| A34 | COMPLETED | Registration maps internal failures to safe client messages/request IDs and logs structured server detail; tests pass. |
+| A35 | COMPLETED | Rules deny ordinary users creating admin-role support tickets; emulator coverage passes. |
+| A36 | COMPLETED | Confirmed-unused auth/drawer/action files and unused frontend/backend dependencies were removed; full tests/build pass. |
+| A37 | COMPLETED | Unused payment-intent service/export and deprecated `/fund` stub were removed; backend suite and syntax pass. |
+| A38 | COMPLETED | Status/security/readme claims now match the repository-only, undeployed state and current verification architecture. |
+| A39 | COMPLETED | CRA boilerplate was replaced with Taskio setup, commands, environment safety, generated-source, build, and E2E documentation. |
+| A40 | COMPLETED | Functions syntax/lint plus the four-test demo Firestore emulator suite run locally and in green CI. |
+| A41 | COMPLETED | `.nvmrc`, package engines, Dockerfile, Functions, all CI jobs, and v5 GitHub actions align with Node 24. |
+| A42 | COMPLETED | Playwright output, Firebase local state/logs, builds, dependencies, and local credential artifacts remain ignored. |
+| A43 | COMPLETED | Ignored `login-tester.html` was deleted without opening it; no equivalent token-logging page is tracked. |
+| A44 | DEFERRED | Owner explicitly deferred the large `jobs.js`/`me.js` router split until after release; security and behavior around both modules were completed now. |
+| A45 | COMPLETED | Frontend README identifies the repository `shared/` files as source of truth and the generated copies; parity check passes. |
+| A46 | COMPLETED | The one-off mojibake repair script was removed after reference and need checks. |
+| A47 | COMPLETED | Express release-audit paths use the structured request logger; Functions errors are structured/rethrown through idempotent handlers without sensitive message data. |
+| A48 | COMPLETED | Playwright expanded from two to four tests, covering account payment gating, combined lifecycle/risk flow, launch truth/metadata/responsiveness, and multi-item task briefs; local and CI runs pass. |
+| A49 | SUPERSEDED | Staging is excluded by owner decision; no staging access or modification occurred during revised-authority implementation. |
+| A50 | PENDING FINAL DEPLOYMENT APPROVAL | No-store/noindex maintenance artifact, exact Hosting-only command, public checks, and console rollback are prepared and labelled NOT DEPLOYED. |
+| A51 | COMPLETED | Production API resolver rejects missing, malformed, credentialed, HTTP, and loopback endpoints; isolated demo harness exception is triple-guarded; tests/build pass. |
+| A52 | COMPLETED | All `completed` case variants normalize to `COMPLETED`; `PAID` stays explicit with a release-evidence path for genuine legacy paid records; parity tests pass. |
+| A53 | COMPLETED | Stale refresh is claims-admin manual-only and the permissive cron-secret design/secret is removed. |
+| A54 | COMPLETED | Backend tests do not load developer `.env` files and the full 421-test suite runs with `NODE_ENV=test` and mocks. |
+| A55 | COMPLETED | Backend middleware/routes, frontend admin routing/post-auth, and rules use custom claims only for admin authority; escalation tests pass. |
+| A56 | COMPLETED | Function delivery markers, transactions, counters, and notifications are idempotent and retry-safe; duplicate emulator delivery passes. |
+| A57 | COMPLETED | Draft-to-submitted and submitted-on-create quotes use the same deterministic homeowner notification; transition tests pass. |
+| A58 | COMPLETED | Outbound chat HTML escapes every untrusted field; hostile-markup tests pass and SMTP was not accessed. |
+| A59 | BLOCKED | The scaffold export is removed and Functions checks pass. The already-deployed function remains unchanged until an explicitly approved production Functions deletion/deploy. |
+| U01 | COMPLETED | Every category offers a bounded custom item with required description; frontend/backend tests pass. |
+| U02 | COMPLETED | Jobs support one category plus 1–20 unique items with quantities 1–99, legacy reads, and one whole-job quote; tests/browser flow pass. |
+| U03 | BLOCKED | Safe profile enrichment suppresses low-volume rates and private/contact/financial fields, and quote APIs suppress token photo URLs. A16 migration plus approved deployment is required to deliver relationship-safe existing photos. |
+| U04 | COMPLETED | Immutable double-blind 14-day reviews, explicit completion/payment states, 30-day chat, and audited claims-admin reopen are implemented and tested. |
+| U05 | COMPLETED | Mock matrix covers repeated/interrupted checkout, failed/delayed/duplicate events, and funded recovery with stable idempotency; no Stripe account was accessed. |
+| U06 | COMPLETED | Approved current logo and icon assets remain integrated; rejected old branding is absent and frontend build/CI pass. |
+
+The original spreadsheet was last reconciled around commit `88ab54a`. Therefore, statuses below are a historical baseline. Never infer current state from a historical commit title; use the final reconciliation table above and its test evidence.
 
 ## Codex operating contract
 
@@ -1289,6 +1363,8 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-16 | `develop` / `6e683fc` | A11, A32, A52, U04, U05 | Added mocked operational Stripe handling, stable checkout generations, exactly-once variation cancellation refunds, explicit completion/payment semantics, double-blind reviews, and 30-day post-release chat with audited support reopen | Backend focused 108/108; frontend focused 8/8; demo rules 18/18; production-mode frontend build passed | None; no Firebase project, Stripe account, or other live service accessed or modified | All deployment/runtime portions remain pending approval |
 | 2026-08-16 | `develop` / U01-U02 batch | U01, U02 | Added category-scoped multi-item briefs, quantity bounds, custom items, server canonicalisation, and backward-compatible legacy payload reads; quote remains one whole-job amount | Backend focused 12/12; frontend focused 4/4; syntax and diff checks passed | None | Include in full-suite verification before push |
 | 2026-08-16 | `develop` / release-prep batch | A03, A04, A05, A14, A20, A21, A41, A42, A49, A50 | Prepared a Node 24 API container, index manifest, App Check guards, CI browser smoke job, maintenance artifact, secret-name inventory, exact production order/verification/rollback, key-rotation instructions, and local configuration checklist | JSON manifests parsed; App Check/Firebase config tests 11/11; no deployment command executed | Production credentials/settings/approvals; A04 owner-operated key rotation | Run full verification; review and commit artifacts; deployment statuses remain pending/blocked |
+| 2026-08-17 | `develop` / `158ad23` | A07, A08, A15, A18-A19, A22-A31, A36-A39, A43, A45-A48, U03 | Finished audited admin operations, claims-only client routing, safe photo metadata, accessible dialogs/errors/loading, shared public headers, launch truth labels, metadata/sitemap, cleanup, docs, and four-test compiled browser harness | Frontend 410/410; backend 421/421; rules 18/18; Functions 4/4; Playwright 4/4; production build, syntax, lint, maintainability and diff checks passed | Seven repository commits pushed; no cloud/service deployment or account access | Deployment/manual-only items remain pending or blocked in final reconciliation |
+| 2026-08-17 | `develop` / `13a22e3` | A01, A07, A21, A40-A42 | Repaired root clean-install lock resolution after first CI run identified missing `picomatch@4.0.5`; pinned the compatible root dev dependency | Root `npm ci` passed; both demo emulator suites re-passed; GitHub Actions run `31955663683` passed all five jobs | Pushed only to `origin/develop`; no PR/settings/deployment writes | Final v5 Actions maintenance and tracker-only commit requires its own green CI confirmation |
 
 ## Required final report template
 
