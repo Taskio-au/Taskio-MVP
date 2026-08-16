@@ -14,6 +14,7 @@ import {
 import { fullTaskDisplayTitle, getJobDisplayLayers } from '../../../utils/jobDisplayFromJob';
 import { dashboardStyles } from '../../../styles/dashboardStyles';
 import { adminReleaseStatusLabel } from '../job-detail/PaymentFeeBreakdownPanel';
+import ConfirmDialog from '../../../design/components/ConfirmDialog';
 
 function formatMoneyCents(cents) {
   if (cents == null || !Number.isFinite(Number(cents))) return '—';
@@ -50,6 +51,8 @@ export default function TaskDetailsDrawer({
   const [err, setErr] = useState('');
   const [bundle, setBundle] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
+  const [statusOverride, setStatusOverride] = useState('');
 
   const load = useCallback(async () => {
     const id = String(drawerJobId || '').trim();
@@ -134,7 +137,19 @@ export default function TaskDetailsDrawer({
     return { ageH, health, invites, offers };
   })() : null;
 
+  const confirmAction = () => {
+    if (confirmation?.statusInput) {
+      setConfirmation(null);
+      runAction((id) => api.put(`/api/admin/jobs/${id}/status`, { status: statusOverride.trim() }));
+      return;
+    }
+    const action = confirmation?.action;
+    setConfirmation(null);
+    action?.();
+  };
+
   return (
+    <>
     <div style={styles.drawerOverlay} onMouseDown={onClose}>
       <div style={styles.drawerPanel} onMouseDown={(e) => e.stopPropagation()}>
         <div style={styles.drawerHeader}>
@@ -381,10 +396,12 @@ export default function TaskDetailsDrawer({
                       type="button"
                       style={styles.button}
                       disabled={actionBusy}
-                      onClick={() => {
-                        if (!window.confirm('Release payment to the expert?')) return;
-                        runAction((id) => api.post(`/api/admin/jobs/${id}/resolve-dispute`, { resolution: 'expert' }));
-                      }}
+                      onClick={() => setConfirmation({
+                        title: 'Release payment to the expert?',
+                        message: 'This resolves the dispute in favour of the expert.',
+                        confirmLabel: 'Release payment',
+                        action: () => runAction((id) => api.post(`/api/admin/jobs/${id}/resolve-dispute`, { resolution: 'expert' })),
+                      })}
                     >
                       Resolve dispute → Pay expert
                     </button>
@@ -392,10 +409,13 @@ export default function TaskDetailsDrawer({
                       type="button"
                       style={{ ...styles.buttonSecondary, borderColor: '#fecdd3', color: '#9f1239' }}
                       disabled={actionBusy}
-                      onClick={() => {
-                        if (!window.confirm('Issue full refund to the client?')) return;
-                        runAction((id) => api.post(`/api/admin/jobs/${id}/resolve-dispute`, { resolution: 'refund' }));
-                      }}
+                      onClick={() => setConfirmation({
+                        title: 'Refund the client?',
+                        message: 'This issues the approved full refund and resolves the dispute.',
+                        confirmLabel: 'Refund client',
+                        danger: true,
+                        action: () => runAction((id) => api.post(`/api/admin/jobs/${id}/resolve-dispute`, { resolution: 'refund' })),
+                      })}
                     >
                       Resolve dispute → Refund client
                     </button>
@@ -407,9 +427,13 @@ export default function TaskDetailsDrawer({
                     style={styles.buttonSecondary}
                     disabled={actionBusy}
                     onClick={() => {
-                      const next = window.prompt('Override status (canonical enum, e.g. FUNDED):', normalizeStatus(job.status));
-                      if (!next) return;
-                      runAction((id) => api.put(`/api/admin/jobs/${id}/status`, { status: next.trim() }));
+                      setStatusOverride(normalizeStatus(job.status));
+                      setConfirmation({
+                        title: 'Override task status?',
+                        message: 'Choose a canonical status. The server validates and audits the transition.',
+                        confirmLabel: 'Apply status',
+                        statusInput: true,
+                      });
                     }}
                   >
                     Override status
@@ -438,5 +462,25 @@ export default function TaskDetailsDrawer({
         ) : null}
       </div>
     </div>
+    <ConfirmDialog
+      open={Boolean(confirmation)}
+      title={confirmation?.title || 'Confirm action'}
+      message={confirmation?.message}
+      confirmLabel={confirmation?.confirmLabel}
+      danger={confirmation?.danger}
+      busy={actionBusy}
+      onCancel={() => setConfirmation(null)}
+      onConfirm={confirmAction}
+    >
+      {confirmation?.statusInput ? (
+        <label style={{ display: 'grid', gap: 6 }}>
+          Canonical status
+          <select value={statusOverride} onChange={(event) => setStatusOverride(event.target.value)}>
+            {Object.values(JOB_STATUSES).map((status) => <option key={status} value={status}>{status}</option>)}
+          </select>
+        </label>
+      ) : null}
+    </ConfirmDialog>
+    </>
   );
 }

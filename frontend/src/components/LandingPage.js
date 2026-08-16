@@ -4,13 +4,14 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { ArrowRight, BadgeCheck, CreditCard, MapPin, MessageSquareText, ShieldCheck, Sparkles } from 'lucide-react';
 import { auth } from '../firebase';
 import {
-  BrandLogo,
   Button,
   Card,
   PageHeader,
 } from '../design/components';
 import { colors, spacing } from '../design/tokens';
 import '../styles/publicPageHeader.css';
+import PublicPageHeader from './PublicPageHeader';
+import BrandLogo from '../design/components/BrandLogo';
 import './LandingPage.css';
 
 const heroImage = 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80';
@@ -159,10 +160,11 @@ function LandingPage() {
 
   return (
     <div className="landing-page">
-      <header className="public-page-header">
-        <div className="landing-shell public-page-header-inner">
-          <BrandLogo to={homeHref} />
-          <nav className="landing-nav public-page-header-actions" aria-label="Primary">
+      <PublicPageHeader
+        homeTo={homeHref}
+        actionsClassName="landing-nav"
+        actions={
+          <nav className="landing-nav" aria-label="Primary">
             <Link className="landing-nav-link landing-nav-link--expert-secondary" to="/tradie/signup">
               Become an Expert
             </Link>
@@ -170,8 +172,8 @@ function LandingPage() {
               Log in
             </Button>
           </nav>
-        </div>
-      </header>
+        }
+      />
 
       <main className="landing-shell">
         <section className="landing-hero">
@@ -306,10 +308,18 @@ function LandingPage() {
         </section>
 
         <section className="landing-section">
+          {false && (
           <PageHeader
-            eyebrow="Recent examples"
+            eyebrow="Illustrative examples"
             title="Inner Melbourne · indoor jobs"
             description="Real tasks from local homes—post yours next."
+            style={{ marginBottom: spacing.xl }}
+          />
+          )}
+          <PageHeader
+            eyebrow="Illustrative examples"
+            title="Inner Melbourne · indoor jobs"
+            description="Illustrative examples only—Taskio has not launched and these are not real customer tasks."
             style={{ marginBottom: spacing.xl }}
           />
           <div className="landing-jobs-grid">
@@ -323,7 +333,7 @@ function LandingPage() {
                   <>
                     <img className="landing-job-showcase-image" src={job.image} alt={job.title} loading="lazy" />
                     <div className="landing-job-showcase-overlay">
-                      <div className="landing-job-topline">Popular this week</div>
+                      <div className="landing-job-topline">Illustrative example</div>
                       <h3 className="landing-job-showcase-title">{job.title}</h3>
                       <div className="landing-job-showcase-meta">
                         <span>{job.suburb}</span>
@@ -334,7 +344,7 @@ function LandingPage() {
                   </>
                 ) : (
                   <>
-                    <div className="landing-job-topline">Example</div>
+                    <div className="landing-job-topline">Illustrative example</div>
                     <h3 className="landing-job-showcase-title">{job.title}</h3>
                     <div className="landing-job-summary-line">{job.suburb}</div>
                     <div className="landing-job-summary-line">{job.detail}</div>
@@ -346,6 +356,7 @@ function LandingPage() {
           </div>
         </section>
 
+        {false && (
         <section className="landing-section landing-section-proof">
           <PageHeader
             eyebrow="People using Taskio"
@@ -372,6 +383,7 @@ function LandingPage() {
             ))}
           </div>
         </section>
+        )}
 
         <section className="landing-cta-band">
           <div className="landing-grid-2 landing-cta-band-grid">

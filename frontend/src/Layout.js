@@ -2,12 +2,13 @@ import React from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from './firebase';
+import { PageLoadingShell } from './components/ui/AsyncPageStates';
 
 const Layout = () => {
     const [user, loading] = useAuthState(auth);
 
     if (loading) {
-        return <div style={styles.centered}>Loading admin session...</div>;
+        return <PageLoadingShell message="Loading admin session…" detail="Verifying your administrator access." />;
     }
 
     if (!user) {
@@ -22,15 +23,4 @@ const Layout = () => {
     );
 };
 
-const styles = {
-    centered: {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontFamily: 'Inter, sans-serif',
-    }
-};
-
 export default Layout;
-

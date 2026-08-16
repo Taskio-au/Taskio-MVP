@@ -12,7 +12,11 @@ import PageMain from './ui/PageMain';
 
 import { loadStripe } from '@stripe/stripe-js';
 
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '');
+// The browser harness must never load Stripe.js or contact Stripe. It exercises
+// the local API gate only; real checkout redirects remain covered by mocks.
+const stripePromise = process.env.REACT_APP_E2E_AUTH_BYPASS === 'true'
+    ? Promise.resolve(null)
+    : loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '');
 
 const api = createApiClient();
 

@@ -7,7 +7,7 @@ import { auth, googleProvider } from '../firebase';
 import { expertCategoryOrder, phase1ExpertiseCatalog } from '../shared/expertiseCatalog';
 import { getCanonicalJobTypeLabel } from '../constants/taskTaxonomy';
 import { melbournePilotLocations } from '../shared/auLocations';
-import BrandLogo from '../design/components/BrandLogo';
+import PublicPageHeader from './PublicPageHeader';
 import BenefitsCard from './tradie-signup/BenefitsCard';
 import LegalNotice from './LegalNotice';
 import { GoogleActionButton } from './profile/GoogleBrand';
@@ -76,6 +76,7 @@ export default function ExpertSignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [signupComplete, setSignupComplete] = useState(false);
   const [createdAccountEmail, setCreatedAccountEmail] = useState('');
@@ -88,6 +89,7 @@ export default function ExpertSignUpPage() {
   const handleFieldChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
   const handleLocationChange = (event) => {
@@ -98,6 +100,7 @@ export default function ExpertSignUpPage() {
       primaryServiceSuburb: nextLocation?.suburb || '',
       primaryServicePostcode: nextLocation?.postcode || '',
     }));
+    setFieldErrors((prev) => ({ ...prev, serviceLocation: '' }));
   };
 
   const handleExpertiseToggle = (key) => {
@@ -108,6 +111,7 @@ export default function ExpertSignUpPage() {
         expertise: exists ? prev.expertise.filter((item) => item !== key) : [...prev.expertise, key],
       };
     });
+    setFieldErrors((prev) => ({ ...prev, expertise: '' }));
   };
 
   const validateAccountStep = () => {
@@ -117,13 +121,16 @@ export default function ExpertSignUpPage() {
     const password = String(formData.password || '');
     const confirmPassword = String(formData.confirmPassword || '');
 
-    if (!firstName) return 'First name is required.';
-    if (!lastName) return 'Last name is required.';
-    if (!email || !isValidEmail(email)) return 'Enter a valid email address.';
+    const errors = {};
+    if (!firstName) errors.firstName = 'First name is required.';
+    if (!lastName) errors.lastName = 'Last name is required.';
+    if (!email || !isValidEmail(email)) errors.email = 'Enter a valid email address.';
     if (signupMethod !== 'google') {
-      if (password.length < 8) return 'Password must be at least 8 characters.';
-      if (password !== confirmPassword) return 'Passwords do not match. Please re-enter them.';
+      if (password.length < 8) errors.password = 'Password must be at least 8 characters.';
+      if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match. Please re-enter them.';
     }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) return 'Correct the highlighted account fields.';
 
     setFormData((prev) => ({
       ...prev,
@@ -135,9 +142,12 @@ export default function ExpertSignUpPage() {
   };
 
   const validatePreferencesStep = () => {
-    if (!formData.serviceLocation?.postcode) return 'Choose your primary service suburb.';
-    if (formData.expertise.length === 0) return 'Select at least one type of job.';
-    if (!acceptedLegal) return 'Please accept the Terms of Use and Privacy Policy to continue.';
+    const errors = {};
+    if (!formData.serviceLocation?.postcode) errors.serviceLocation = 'Choose your primary service suburb.';
+    if (formData.expertise.length === 0) errors.expertise = 'Select at least one type of job.';
+    if (!acceptedLegal) errors.legal = 'Accept the Terms of Use and Privacy Policy to continue.';
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) return 'Correct the highlighted work preference fields.';
     return '';
   };
 
@@ -304,7 +314,10 @@ export default function ExpertSignUpPage() {
             placeholder="John"
             style={styles.input}
             autoComplete="given-name"
+            aria-invalid={Boolean(fieldErrors.firstName)}
+            aria-describedby={fieldErrors.firstName ? 'expert-first-name-error' : undefined}
           />
+          {fieldErrors.firstName ? <div id="expert-first-name-error" role="alert" style={styles.fieldError}>{fieldErrors.firstName}</div> : null}
         </div>
         <div style={styles.inputWrapper}>
           <label style={styles.label} htmlFor="expert-last-name">Last name</label>
@@ -317,7 +330,10 @@ export default function ExpertSignUpPage() {
             placeholder="Smith"
             style={styles.input}
             autoComplete="family-name"
+            aria-invalid={Boolean(fieldErrors.lastName)}
+            aria-describedby={fieldErrors.lastName ? 'expert-last-name-error' : undefined}
           />
+          {fieldErrors.lastName ? <div id="expert-last-name-error" role="alert" style={styles.fieldError}>{fieldErrors.lastName}</div> : null}
         </div>
       </div>
 
@@ -333,7 +349,10 @@ export default function ExpertSignUpPage() {
           style={styles.input}
           autoComplete="email"
           disabled={signupMethod === 'google'}
+          aria-invalid={Boolean(fieldErrors.email)}
+          aria-describedby={fieldErrors.email ? 'expert-email-error' : undefined}
         />
+        {fieldErrors.email ? <div id="expert-email-error" role="alert" style={styles.fieldError}>{fieldErrors.email}</div> : null}
       </div>
 
       {signupMethod === 'google' ? (
@@ -355,6 +374,8 @@ export default function ExpertSignUpPage() {
                 placeholder="Minimum 8 characters"
                 style={{ ...styles.input, ...styles.passwordInput }}
                 autoComplete="new-password"
+                aria-invalid={Boolean(fieldErrors.password)}
+                aria-describedby={fieldErrors.password ? 'expert-password-error' : undefined}
               />
               <button
                 type="button"
@@ -365,6 +386,7 @@ export default function ExpertSignUpPage() {
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
+            {fieldErrors.password ? <div id="expert-password-error" role="alert" style={styles.fieldError}>{fieldErrors.password}</div> : null}
           </div>
 
           <div style={styles.inputWrapper}>
@@ -379,6 +401,8 @@ export default function ExpertSignUpPage() {
                 placeholder="Re-enter your password"
                 style={{ ...styles.input, ...styles.passwordInput }}
                 autoComplete="new-password"
+                aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                aria-describedby={fieldErrors.confirmPassword ? 'expert-confirm-password-error' : undefined}
               />
               <button
                 type="button"
@@ -389,6 +413,7 @@ export default function ExpertSignUpPage() {
                 {showConfirmPassword ? 'Hide' : 'Show'}
               </button>
             </div>
+            {fieldErrors.confirmPassword ? <div id="expert-confirm-password-error" role="alert" style={styles.fieldError}>{fieldErrors.confirmPassword}</div> : null}
           </div>
         </>
       )}
@@ -436,6 +461,8 @@ export default function ExpertSignUpPage() {
             value={selectedLocationValue}
             onChange={handleLocationChange}
             style={styles.select}
+            aria-invalid={Boolean(fieldErrors.serviceLocation)}
+            aria-describedby={fieldErrors.serviceLocation ? 'expert-service-location-error' : undefined}
           >
             <option value="">Choose a suburb and postcode</option>
             {melbournePilotLocations.map((location) => (
@@ -445,6 +472,7 @@ export default function ExpertSignUpPage() {
             ))}
           </select>
         </div>
+        {fieldErrors.serviceLocation ? <div id="expert-service-location-error" role="alert" style={styles.fieldError}>{fieldErrors.serviceLocation}</div> : null}
       </div>
 
       <div style={styles.expertiseSection}>
@@ -478,6 +506,7 @@ export default function ExpertSignUpPage() {
             </div>
           </div>
         ))}
+        {fieldErrors.expertise ? <div role="alert" style={styles.fieldError}>{fieldErrors.expertise}</div> : null}
       </div>
 
       <div style={styles.readinessNote}>
@@ -488,9 +517,13 @@ export default function ExpertSignUpPage() {
       <LegalNotice
         requireAcceptance
         checked={acceptedLegal}
-        onChange={setAcceptedLegal}
+        onChange={(checked) => {
+          setAcceptedLegal(checked);
+          setFieldErrors((prev) => ({ ...prev, legal: '' }));
+        }}
         style={{ marginTop: 8 }}
       />
+      {fieldErrors.legal ? <div role="alert" style={styles.fieldError}>{fieldErrors.legal}</div> : null}
 
       <div style={styles.actionsRow}>
         <button type="button" onClick={() => setCurrentStep(1)} style={styles.secondaryButton}>
@@ -550,17 +583,18 @@ export default function ExpertSignUpPage() {
           }
         }
       `}</style>
-      <header style={styles.header}>
-        <div style={styles.headerContent}>
-          <BrandLogo to="/" style={styles.logoLink} />
+      <PublicPageHeader
+        homeTo="/"
+        logoStyle={styles.logoLink}
+        actions={
           <div style={styles.headerRight}>
             <span style={styles.headerText}>Already have an account?</span>
             <Link to="/login" style={styles.loginButton}>
               Log In
             </Link>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main style={styles.container} className="expert-signup-layout">
         <div style={styles.formCard}>
@@ -573,7 +607,7 @@ export default function ExpertSignUpPage() {
           {!signupComplete ? (
             <form onSubmit={handleSubmit} style={styles.form}>
               {error ? (
-                <div style={styles.errorBanner}>
+                <div style={styles.errorBanner} role="alert" aria-live="assertive">
                   <AlertTriangle size={18} />
                   <span>{error}</span>
                 </div>
@@ -765,6 +799,12 @@ const styles = {
   inputWrapper: {
     display: 'grid',
     gap: 8,
+  },
+  fieldError: {
+    marginTop: 6,
+    color: '#b91c1c',
+    fontSize: 13,
+    lineHeight: 1.4,
   },
   label: {
     fontSize: 14,

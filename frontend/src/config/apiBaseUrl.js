@@ -19,10 +19,15 @@ export function resolveApiBaseUrl(env = process.env) {
   }
 
   if (isProductionBuild) {
-    if (parsed.protocol !== 'https:') {
+    const safeHarnessBuild = env.REACT_APP_E2E_HARNESS_BUILD === 'true'
+      && env.REACT_APP_E2E_AUTH_BYPASS === 'true'
+      && env.REACT_APP_FIREBASE_PROJECT_ID === 'demo-taskio-e2e'
+      && parsed.protocol === 'http:'
+      && LOCAL_HOSTS.has(parsed.hostname.toLowerCase());
+    if (parsed.protocol !== 'https:' && !safeHarnessBuild) {
       throw new Error('Production API URL must use HTTPS.');
     }
-    if (LOCAL_HOSTS.has(parsed.hostname.toLowerCase())) {
+    if (LOCAL_HOSTS.has(parsed.hostname.toLowerCase()) && !safeHarnessBuild) {
       throw new Error('Production API URL must not use a local or loopback host.');
     }
   }

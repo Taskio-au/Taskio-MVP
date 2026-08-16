@@ -263,12 +263,12 @@ export default function useClientAccountState({
       const url = await getDownloadURL(ref);
       const token = await user.getIdToken();
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const res = await api.put('/api/me/profile', { photoURL: url }, config);
+      const res = await api.put('/api/me/profile', { photoURL: url, profilePhotoPath: path }, config);
       const updatedProfile = res?.data?.profile || null;
       if (updatedProfile) {
         setProfile(updatedProfile);
       } else {
-        setProfile((prev) => ({ ...(prev || {}), photoURL: url }));
+        setProfile((prev) => ({ ...(prev || {}), photoURL: url, profilePhotoPath: path }));
       }
       setSaved('Photo updated successfully!');
       setTimeout(() => setSaved(''), 3000);

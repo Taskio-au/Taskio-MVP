@@ -4,7 +4,7 @@ import { upsertUserProfileFromAuth } from '../../utils/upsertUserProfileFromAuth
 const api = createApiClient({ forceRefreshToken: true });
 
 function getRouteForRole(role, claims = {}) {
-  if (claims?.admin === true || role === 'admin') return '/admin/dashboard';
+  if (claims?.admin === true || claims?.role === 'admin') return '/admin/dashboard';
   if (role === 'tradie') return '/tradie/dashboard';
   return '/dashboard';
 }

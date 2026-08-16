@@ -6,7 +6,6 @@
     "node": ">=24 <25"
   },
   "dependencies": {
-    "@stripe/react-stripe-js": "^3.9.0",
     "@stripe/stripe-js": "^6.1.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -32,6 +31,7 @@
     "check:maintainability": "node scripts/check-maintainability.js",
     "verify": "npm run check:maintainability && npm run test -- --watchAll=false",
     "e2e:install": "playwright install chromium",
+    "pree2e": "node e2e/build-frontend.js",
     "e2e": "playwright test -c e2e/playwright.config.js",
     "e2e:headed": "playwright test -c e2e/playwright.config.js --headed",
     "eject": "react-scripts eject"

@@ -15,9 +15,9 @@ const legacyLineBudget = {
   'components/AdminDailyChecklist.js': 526,
   'components/AdminSupportTickets.js': 902,
   'components/AppHeader.js': 892,
-  'components/ExpertSignUpPage.jsx': 1073,
+  'components/ExpertSignUpPage.jsx': 1113,
   'components/HomeownerDashboard.js': 1023,
-  'components/HomeownerJobDetail.js': 1872,
+  'components/HomeownerJobDetail.js': 1916,
   'components/JobChatPanel.js': 1027,
   'components/JobPostingForm.js': 1550,
   'components/LandingPage.js': 650,
@@ -28,8 +28,8 @@ const legacyLineBudget = {
   'components/ProfilePage.js': 2700,
   'components/SupportPage.js': 720,
   'components/TradieDashboard.js': 1250,
-  'components/TradieJobDetail.js': 1054,
-  'components/VariationPanel.js': 575,
+  'components/TradieJobDetail.js': 1152,
+  'components/VariationPanel.js': 576,
   'components/VariationPanel.test.jsx': 638,
   'components/profile/PrivateDetailsVerificationCard.jsx': 760,
   'components/tradie-job-detail/QuoteSubmissionCard.jsx': 550,
@@ -39,9 +39,9 @@ const legacyLineBudget = {
 // Exact current combined counts of window.prompt( + window.confirm(.
 // Budgeted files fail only if the combined count increases.
 const legacyDialogBudget = {
-  'components/HomeownerJobDetail.js': 3,
-  'features/admin/dashboard/TaskDetailsDrawer.jsx': 3,
-  'features/admin/job-detail/AdminJobOpsExtras.jsx': 4,
+  'components/HomeownerJobDetail.js': 0,
+  'features/admin/dashboard/TaskDetailsDrawer.jsx': 0,
+  'features/admin/job-detail/AdminJobOpsExtras.jsx': 0,
 };
 
 function walk(dir) {

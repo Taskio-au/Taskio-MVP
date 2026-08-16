@@ -8,6 +8,7 @@ import AdminEntityNotesSection from '../features/admin/components/AdminEntityNot
 import AdminWorkflowSection from '../features/admin/components/AdminWorkflowSection';
 import ExpertTrustChips from '../features/admin/components/ExpertTrustChips';
 import { dashboardStyles } from '../styles/dashboardStyles';
+import { InlineLoadingCard } from './ui/AsyncPageStates';
 
 function fmt(ms) {
   if (!ms) return '—';
@@ -254,7 +255,7 @@ export default function AdminProfileChangeRequests() {
           </div>
 
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#555' }}>Loading…</div>
+            <InlineLoadingCard message="Loading profile change requests…" detail="Getting the current review queue." />
           ) : sorted.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>No requests found.</div>
           ) : (

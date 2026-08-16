@@ -10,7 +10,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from './firebase';
 import { createApiClient } from './api/createApiClient';
-import BrandLogo from './design/components/BrandLogo';
+import PublicPageHeader from './components/PublicPageHeader';
 import OtpCodeInput from './components/auth/OtpCodeInput';
 import { GoogleActionButton } from './components/profile/GoogleBrand';
 import {
@@ -109,7 +109,7 @@ function PasswordResetModal({
               autoFocus
             />
           </div>
-          {error ? <div style={styles.errorBanner}><AlertTriangle size={18} />{error}</div> : null}
+          {error ? <div style={styles.errorBanner} role="alert" aria-live="assertive"><AlertTriangle size={18} />{error}</div> : null}
           {success ? <div style={styles.successBanner}><CheckCircle2 size={18} />{success}</div> : null}
           <div style={styles.modalActions}>
             <button type="button" style={styles.secondaryButton} onClick={onClose} disabled={loading}>
@@ -498,7 +498,7 @@ export default function Login({ adminMode = false }) {
             autoComplete="username"
           />
         </div>
-        {error ? <div style={styles.errorBanner}><AlertTriangle size={18} />{error}</div> : null}
+        {error ? <div style={styles.errorBanner} role="alert" aria-live="assertive"><AlertTriangle size={18} />{error}</div> : null}
         {info ? <div style={styles.infoBanner}><CheckCircle2 size={18} />{info}</div> : null}
         <button type="submit" style={{ ...styles.primaryButton, ...(loading ? styles.buttonDisabled : {}) }} disabled={loading}>
           {loading ? 'Continuing…' : 'Continue'}
@@ -547,7 +547,7 @@ export default function Login({ adminMode = false }) {
             autoComplete="current-password"
           />
         </div>
-        {error ? <div style={styles.errorBanner}><AlertTriangle size={18} />{error}</div> : null}
+        {error ? <div style={styles.errorBanner} role="alert" aria-live="assertive"><AlertTriangle size={18} />{error}</div> : null}
         <button type="submit" style={{ ...styles.primaryButton, ...(loading ? styles.buttonDisabled : {}) }} disabled={loading}>
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
@@ -571,7 +571,7 @@ export default function Login({ adminMode = false }) {
         </p>
       </div>
       {info ? <div style={styles.infoBanner}><CheckCircle2 size={18} />{info}</div> : null}
-      {error ? <div style={styles.errorBanner}><AlertTriangle size={18} />{error}</div> : null}
+      {error ? <div style={styles.errorBanner} role="alert" aria-live="assertive"><AlertTriangle size={18} />{error}</div> : null}
       <div style={styles.stackActions}>
         {emailStepVariant === 'google' ? (
           <GoogleActionButton style={styles.googleButton} onClick={handleGoogleContinue} disabled={loading}>
@@ -603,7 +603,7 @@ export default function Login({ adminMode = false }) {
       <form onSubmit={handlePhoneOtpSubmit} style={styles.form}>
         <OtpCodeInput value={otpCode} onChange={setOtpCode} disabled={loading} />
         {info ? <div style={styles.infoBanner}><CheckCircle2 size={18} />{info}</div> : null}
-        {error ? <div style={styles.errorBanner}><AlertTriangle size={18} />{error}</div> : null}
+        {error ? <div style={styles.errorBanner} role="alert" aria-live="assertive"><AlertTriangle size={18} />{error}</div> : null}
         <button type="submit" style={{ ...styles.primaryButton, ...(loading ? styles.buttonDisabled : {}) }} disabled={loading}>
           {loading ? 'Verifying…' : 'Continue'}
         </button>
@@ -641,7 +641,7 @@ export default function Login({ adminMode = false }) {
                 disabled={loading}
               />
             </div>
-            {error ? <div style={styles.errorBanner}><AlertTriangle size={18} />{error}</div> : null}
+            {error ? <div style={styles.errorBanner} role="alert" aria-live="assertive"><AlertTriangle size={18} />{error}</div> : null}
             <button type="submit" style={{ ...styles.primaryButton, ...(loading ? styles.buttonDisabled : {}) }} disabled={loading}>
               {loading ? 'Continuing…' : 'Continue'}
             </button>
@@ -659,9 +659,7 @@ export default function Login({ adminMode = false }) {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header}>
-        <BrandLogo to="/" style={styles.logoLink} />
-      </header>
+      <PublicPageHeader homeTo="/" logoStyle={styles.logoLink} />
       <main style={styles.container}>
         <div style={styles.card}>
           {content}

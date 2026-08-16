@@ -3,6 +3,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import AppHeader from './AppHeader';
+import { PageLoadingShell } from './ui/AsyncPageStates';
 
 export default function AdminPasswordPage() {
   const [user, loading] = useAuthState(auth);
@@ -58,7 +59,7 @@ export default function AdminPasswordPage() {
   };
 
   if (loading || !user) {
-    return <div style={{ padding: 40, color: '#666' }}>Loading…</div>;
+    return <PageLoadingShell message="Loading password settings…" detail="Verifying your administrator session." />;
   }
 
   return (

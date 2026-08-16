@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { auth, db } from './firebase';
 import AppHeader from './components/AppHeader';
+import { InlineLoadingCard } from './components/ui/AsyncPageStates';
 import adminApi from './api/adminApi';
 import {
   addDoc,
@@ -154,15 +155,7 @@ export default function AdminMonitoring() {
     if (!u) return;
     setBusyJobId(jobId);
     try {
-      await updateDoc(doc(db, 'jobs', jobId), {
-        requiresAdminAttention: false,
-        monitoringReviewedAt: serverTimestamp(),
-        monitoringReviewedBy: u.uid,
-        reviewedAt: serverTimestamp(), // backward compat
-        reviewedByUid: u.uid, // backward compat
-        lastAdminActionAt: serverTimestamp(),
-        lastAdminActionBy: u.uid,
-      });
+      await adminApi.post(`/api/admin/jobs/${jobId}/monitoring/review`, {});
     } catch (e) {
       console.error('Mark reviewed failed:', e);
       setError(e?.message || 'Failed to mark reviewed.');
@@ -203,14 +196,7 @@ export default function AdminMonitoring() {
         setError('Please provide a reason to freeze chat.');
         return;
       }
-      await updateDoc(doc(db, 'jobs', jobId), {
-        chatFrozen: true,
-        frozenAt: serverTimestamp(),
-        frozenBy: u.uid,
-        frozenReason: txt.slice(0, 300),
-        lastAdminActionAt: serverTimestamp(),
-        lastAdminActionBy: u.uid,
-      });
+      await adminApi.post(`/api/admin/jobs/${jobId}/chat/freeze`, { frozen: true, reason: txt });
       closeFreezeModal();
     } catch (e) {
       console.error('Freeze chat failed:', e);
@@ -286,7 +272,7 @@ export default function AdminMonitoring() {
         </div>
 
         {loading ? (
-          <div style={styles.centered}>Loading…</div>
+          <InlineLoadingCard message="Loading monitoring queue…" detail="Getting flagged tasks and risk signals." />
         ) : sortedJobs.length === 0 ? (
           <div style={styles.empty}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
@@ -482,8 +468,6 @@ const styles = {
   modalCard: { width: '100%', maxWidth: 520, background: '#fff', borderRadius: 12, padding: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.18)' },
   modalTextarea: { width: '100%', borderRadius: 10, border: '1px solid #E0E0E0', padding: 10, fontFamily: 'Inter, sans-serif', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' },
 };
-
-
 
 
 

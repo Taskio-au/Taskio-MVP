@@ -77,8 +77,8 @@ const server = http.createServer(async (req, res) => {
 
       if (quoteId === 'phone-gate') {
         return send(res, 403, {
-          message: 'Please verify your phone number to continue.',
-          code: 'phone_not_verified',
+          message: 'Verify your email or continue with Google before paying.',
+          code: 'account_completion_required',
         });
       }
 
@@ -134,7 +134,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`E2E mock API listening on ${PORT}`);
-});
+module.exports = { server, PORT };
+
+if (require.main === module) {
+  server.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`E2E mock API listening on ${PORT}`);
+  });
+}

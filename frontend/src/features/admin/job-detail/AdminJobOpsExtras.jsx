@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { JOB_STATUSES, normalizeStatus } from '../../../constants/jobStatuses';
+import ConfirmDialog from '../../../design/components/ConfirmDialog';
 
 const STATUS_OPTIONS = [
   JOB_STATUSES.OPEN,
@@ -26,6 +27,14 @@ export default function AdminJobOpsExtras({
   canResolveDispute = true,
 }) {
   const [statusPick, setStatusPick] = useState(JOB_STATUSES.OPEN);
+  const [confirmation, setConfirmation] = useState(null);
+
+  const requestConfirmation = (details) => setConfirmation(details);
+  const confirmAction = () => {
+    const action = confirmation?.action;
+    setConfirmation(null);
+    action?.();
+  };
 
   useEffect(() => {
     if (job?.status) setStatusPick(normalizeStatus(job.status));
@@ -55,10 +64,12 @@ export default function AdminJobOpsExtras({
               type="button"
               style={S.buttonSecondary}
               disabled={busy}
-              onClick={() => {
-                if (!window.confirm('Mark as REFUNDED without a new Stripe call? Only if webhook failed but funds already refunded.')) return;
-                onMarkRefunded();
-              }}
+              onClick={() => requestConfirmation({
+                title: 'Mark payment refunded?',
+                message: 'Use this fallback only when Stripe already refunded the funds but the webhook did not update Taskio.',
+                confirmLabel: 'Mark refunded',
+                action: onMarkRefunded,
+              })}
             >
               {busy ? 'Processing...' : 'Mark refunded (fallback)'}
             </button>
@@ -84,10 +95,12 @@ export default function AdminJobOpsExtras({
                   type="button"
                   style={S.primaryButton}
                   disabled={busy}
-                  onClick={() => {
-                    if (!window.confirm('Release payment to the expert and close dispute?')) return;
-                    onResolveDispute('expert');
-                  }}
+                  onClick={() => requestConfirmation({
+                    title: 'Release payment to the expert?',
+                    message: 'This closes the dispute in favour of the expert.',
+                    confirmLabel: 'Release payment',
+                    action: () => onResolveDispute('expert'),
+                  })}
                 >
                   {busy ? 'Processing...' : 'Resolve in favour of expert'}
                 </button>
@@ -95,10 +108,13 @@ export default function AdminJobOpsExtras({
                   type="button"
                   style={S.dangerButton}
                   disabled={busy}
-                  onClick={() => {
-                    if (!window.confirm('Issue full refund to the client?')) return;
-                    onResolveDispute('refund');
-                  }}
+                  onClick={() => requestConfirmation({
+                    title: 'Refund the client?',
+                    message: 'This issues the approved full refund and closes the dispute.',
+                    confirmLabel: 'Refund client',
+                    danger: true,
+                    action: () => onResolveDispute('refund'),
+                  })}
                 >
                   {busy ? 'Processing...' : 'Refund client'}
                 </button>
@@ -135,15 +151,27 @@ export default function AdminJobOpsExtras({
             type="button"
             style={S.buttonSecondary}
             disabled={busy || statusPick === n}
-            onClick={() => {
-              if (!window.confirm(`Set task status to ${statusPick}?`)) return;
-              onStatusOverride(statusPick);
-            }}
+            onClick={() => requestConfirmation({
+              title: `Set task status to ${statusPick}?`,
+              message: 'The server will validate the requested lifecycle transition and record the administrator action.',
+              confirmLabel: 'Apply status',
+              action: () => onStatusOverride(statusPick),
+            })}
           >
             {busy ? 'Processing...' : 'Apply'}
           </button>
         </div>
       </div>
+      <ConfirmDialog
+        open={Boolean(confirmation)}
+        title={confirmation?.title || 'Confirm action'}
+        message={confirmation?.message}
+        confirmLabel={confirmation?.confirmLabel}
+        danger={confirmation?.danger}
+        busy={busy}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={confirmAction}
+      />
     </>
   );
 }

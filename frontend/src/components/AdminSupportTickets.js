@@ -11,6 +11,7 @@ import { dashboardStyles } from '../styles/dashboardStyles';
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { toMillis } from '../utils/adminOps';
 import { jobIdsMatchingWorkflowFilters } from '../features/admin/utils/workflowQueueFilters';
+import { PageLoadingShell } from './ui/AsyncPageStates';
 
 const supportNotesStyles = {
   ...dashboardStyles,
@@ -345,7 +346,7 @@ export default function AdminSupportTickets() {
     }
   };
 
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
+  if (loading) return <PageLoadingShell message="Loading support tickets…" detail="Getting the current support queue." />;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F7F9FA' }}>
@@ -898,4 +899,3 @@ export default function AdminSupportTickets() {
     </div>
   );
 }
-

@@ -6,6 +6,7 @@ import AppHeader from './AppHeader';
 import adminApi from '../api/adminApi';
 import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { toMillis } from '../utils/adminOps';
+import { PageLoadingShell } from './ui/AsyncPageStates';
 import {
   PROFILE_REQUEST_STALE_HOURS,
   STALE_OPEN_HOURS,
@@ -397,7 +398,7 @@ export default function AdminDailyChecklist() {
     }
   };
 
-  if (loading) return <div style={styles.centered}>Loading session…</div>;
+  if (loading) return <PageLoadingShell message="Loading daily checklist…" detail="Getting the current operations summary." />;
 
   return (
     <div style={{ minHeight: '100vh', background: '#F7F9FA' }}>
@@ -522,4 +523,3 @@ const styles = {
   btn: { height: 36, borderRadius: 10, border: 'none', background: '#111827', padding: '0 12px', fontWeight: 900, cursor: 'pointer', color: '#fff', fontSize: 13 },
   primaryBtn: { height: 40, display: 'inline-flex', alignItems: 'center', borderRadius: 10, border: 'none', background: '#FF9100', padding: '0 14px', fontWeight: 900, cursor: 'pointer', color: '#fff', fontSize: 13, textDecoration: 'none' },
 };
-

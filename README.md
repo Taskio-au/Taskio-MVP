@@ -15,8 +15,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-- **Frontend and backend:** Node.js **20** (matches GitHub Actions CI)
-- **Cloud Functions:** Node.js **24** (required by `functions/package.json` and used in CI)
+- **Frontend, backend and Cloud Functions:** Node.js **24** (see `.nvmrc` and package engines)
 
 You can download Node.js from [nodejs.org](https://nodejs.org/).
 
@@ -104,7 +103,7 @@ node --check index.js
 npm run lint
 ```
 
-There is currently **no** Functions unit/integration test suite in this repository.
+Functions have a demo-project emulator suite. Run `npm test` from `functions/`; it cannot address either real Taskio Firebase project.
 
 ### Project standards / checklists
 

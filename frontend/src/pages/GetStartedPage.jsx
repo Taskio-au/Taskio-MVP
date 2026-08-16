@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Briefcase, Home } from 'lucide-react';
-import BrandLogo from '../design/components/BrandLogo';
+import PublicPageHeader from '../components/PublicPageHeader';
 
 const styles = {
   page: {
@@ -107,9 +107,7 @@ const styles = {
 export default function GetStartedPage() {
   return (
     <div style={styles.page}>
-      <header style={styles.header}>
-        <BrandLogo to="/" />
-      </header>
+      <PublicPageHeader homeTo="/" />
       <main style={styles.container}>
         <div style={styles.card}>
           <div style={styles.headerBlock}>

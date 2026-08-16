@@ -17,6 +17,8 @@ import AttachmentsSection from './features/admin/job-detail/AttachmentsSection';
 import VariationsSection from './features/admin/job-detail/VariationsSection';
 import PaymentFeeBreakdownPanel from './features/admin/job-detail/PaymentFeeBreakdownPanel';
 import SelectedExpertSection from './features/admin/job-detail/SelectedExpertSection';
+import AppHeader from './components/AppHeader';
+import { PageLoadingShell } from './components/ui/AsyncPageStates';
 import { addDoc, collection, doc as fsDoc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { phase1ExpertiseCatalog } from './shared/expertiseCatalog';
 import { getJobDisplayLayers } from './utils/jobDisplayFromJob';
@@ -300,14 +302,7 @@ function JobDetail() {
                 setMonitorBusy(false);
                 return;
             }
-            await updateDoc(fsDoc(db, 'jobs', jobId), {
-                chatFrozen: true,
-                frozenAt: serverTimestamp(),
-                frozenBy: auth.currentUser?.uid || null,
-                frozenReason: txt.slice(0, 300),
-                lastAdminActionAt: serverTimestamp(),
-                lastAdminActionBy: auth.currentUser?.uid || null,
-            });
+            await api.post(`/api/admin/jobs/${jobId}/chat/freeze`, { frozen: true, reason: txt });
             setJob((p) => (p ? { ...p, chatFrozen: true } : p));
             closeFreezeChatModal();
         } catch (e) {
@@ -321,13 +316,7 @@ function JobDetail() {
         setMonitorErr('');
         setMonitorBusy(true);
         try {
-            await updateDoc(fsDoc(db, 'jobs', jobId), {
-                chatFrozen: false,
-                unfrozenAt: serverTimestamp(),
-                unfrozenBy: auth.currentUser?.uid || null,
-                lastAdminActionAt: serverTimestamp(),
-                lastAdminActionBy: auth.currentUser?.uid || null,
-            });
+            await api.post(`/api/admin/jobs/${jobId}/chat/freeze`, { frozen: false });
             setJob((p) => (p ? { ...p, chatFrozen: false } : p));
         } catch (e) {
             setMonitorErr(e?.message || 'Failed to unfreeze chat.');
@@ -340,15 +329,7 @@ function JobDetail() {
         setMonitorErr('');
         setMonitorBusy(true);
         try {
-            await updateDoc(fsDoc(db, 'jobs', jobId), {
-                requiresAdminAttention: false,
-                reviewedAt: serverTimestamp(),
-                reviewedByUid: auth.currentUser?.uid || null,
-                adminReviewedAt: serverTimestamp(),
-                adminReviewedBy: auth.currentUser?.uid || null,
-                lastAdminActionAt: serverTimestamp(),
-                lastAdminActionBy: auth.currentUser?.uid || null,
-            });
+            await api.post(`/api/admin/jobs/${jobId}/monitoring/review`, {});
             setJob((p) => (p ? { ...p, requiresAdminAttention: false, reviewedByUid: auth.currentUser?.uid || null, adminReviewedBy: auth.currentUser?.uid || null } : p));
         } catch (e) {
             setMonitorErr(e?.message || 'Failed to mark reviewed.');
@@ -630,7 +611,7 @@ function JobDetail() {
         }
     };
 
-    if (authLoading || loading) return <div style={styles.centered}>Loading task details...</div>;
+    if (authLoading || loading) return <PageLoadingShell message="Loading task details…" detail="Getting the latest task and operations history." />;
     if (authError) return <div style={styles.centered}>Authentication Error: {authError.message}</div>;
     if (error) return <div style={styles.centered}>Error: {error}</div>;
     if (!job) return <div style={styles.centered}>Task not found.</div>;
@@ -688,6 +669,8 @@ function JobDetail() {
     const adminJobDisplay = getJobDisplayLayers(job);
 
     return (
+        <>
+        <AppHeader userRole="admin" userName={user?.displayName || ''} userEmail={user?.email || ''} />
         <div style={styles.container}>
              <nav style={styles.breadcrumb}>
                 <Link to="/admin/dashboard" style={styles.breadcrumbLink}>Dashboard</Link>
@@ -911,6 +894,7 @@ function JobDetail() {
             />
 
         </div>
+        </>
     );
 }
 

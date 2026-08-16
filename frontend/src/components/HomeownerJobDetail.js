@@ -26,6 +26,7 @@ import { getJobDisplayLayers } from '../utils/jobDisplayFromJob';
 import { PageLoadingShell, PageErrorShell } from './ui/AsyncPageStates';
 import PageMain from './ui/PageMain';
 import { canRequestCancellationAfterStart } from '../utils/jobStateHelpers';
+import ConfirmDialog from '../design/components/ConfirmDialog';
 
 const api = createApiClient();
 
@@ -60,6 +61,8 @@ function ClientJobDetail() {
     const [refetchKey, setRefetchKey] = useState(0);
     const [releaseError, setReleaseError] = useState('');
     const [confirmingPayment, setConfirmingPayment] = useState(false);
+    const [actionDialog, setActionDialog] = useState(null);
+    const [issueReason, setIssueReason] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -371,7 +374,10 @@ function ClientJobDetail() {
     };
 
     const handleCancelTask = () => {
-        if (!window.confirm('Are you sure you want to cancel this task?')) return;
+        setActionDialog({ type: 'cancel' });
+    };
+
+    const performCancelTask = () => {
         setCancellingTask(true);
         setError('');
         setSuccess('');
@@ -394,9 +400,11 @@ function ClientJobDetail() {
     };
 
     const handleReportIssue = () => {
-        if (!window.confirm('Report an issue? We will pause payment release while we review.')) return;
-        const reason = window.prompt('Add a short note (optional):');
-        if (reason === null) return;
+        setIssueReason('');
+        setActionDialog({ type: 'report' });
+    };
+
+    const performReportIssue = () => {
         setReportingIssue(true);
         setError('');
         setSuccess('');
@@ -406,7 +414,7 @@ function ClientJobDetail() {
                 if (!user) return navigate('/login');
                 const token = await user.getIdToken();
                 const config = { headers: { Authorization: `Bearer ${token}` } };
-                await api.post(`/api/jobs/${jobId}/report-issue`, { reason: String(reason || '').trim() }, config);
+                await api.post(`/api/jobs/${jobId}/report-issue`, { reason: String(issueReason || '').trim() }, config);
                 const jobResponse = await api.get(`/api/jobs/${jobId}`, config);
                 setJob(jobResponse.data);
                 setSuccess('Issue reported.');
@@ -1135,6 +1143,42 @@ function ClientJobDetail() {
                         onClose={closeRevisionModal}
                         onSubmit={submitRevisionRequest}
                     />
+                    <ConfirmDialog
+                        open={actionDialog?.type === 'cancel'}
+                        title="Cancel this task?"
+                        message="If payment is funded but unreleased, Taskio will begin the applicable refund workflow. Released funds require support review."
+                        confirmLabel="Cancel task"
+                        danger
+                        busy={cancellingTask}
+                        onCancel={() => setActionDialog(null)}
+                        onConfirm={() => {
+                            setActionDialog(null);
+                            performCancelTask();
+                        }}
+                    />
+                    <ConfirmDialog
+                        open={actionDialog?.type === 'report'}
+                        title="Report an issue?"
+                        message="Taskio will pause payment release while support reviews the issue."
+                        confirmLabel="Report issue"
+                        danger
+                        busy={reportingIssue}
+                        onCancel={() => setActionDialog(null)}
+                        onConfirm={() => {
+                            setActionDialog(null);
+                            performReportIssue();
+                        }}
+                    >
+                        <label style={{ display: 'grid', gap: 6 }}>
+                            Short note (optional)
+                            <textarea
+                                value={issueReason}
+                                maxLength={1000}
+                                rows={4}
+                                onChange={(event) => setIssueReason(event.target.value)}
+                            />
+                        </label>
+                    </ConfirmDialog>
                 </div>
             </div>
             </div>

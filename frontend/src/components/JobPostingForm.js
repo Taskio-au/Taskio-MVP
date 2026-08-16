@@ -11,7 +11,6 @@ import {
     getTopLevelCategoryId,
 } from '../constants/taskTaxonomy';
 import { melbournePilotLocations } from '../shared/auLocations';
-import BrandLogo from '../design/components/BrandLogo';
 import TaskSummary from './job-posting/TaskSummaryCard';
 import LegalNotice from './LegalNotice';
 import {
@@ -21,6 +20,7 @@ import {
     confirmPhoneOtpForSignIn,
 } from '../services/phoneVerification';
 import '../styles/publicPageHeader.css';
+import PublicPageHeader from './PublicPageHeader';
 import './JobPostingForm.css';
 import { InlineErrorCardWithNavLinks } from './ui/AsyncPageStates';
 import { getPostJobFlowErrorPresentation } from '../utils/userFacingApiErrors';
@@ -331,7 +331,7 @@ function JobPostingForm() {
             return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? {
                 jobType: '', description: '', timeline: '', specificDate: '', estimatedDuration: '', budget: '',
                 propertyType: '', liftAvailable: '', stairs: '', parking: '', mirrorSize: '',
-                firstName: '', phone: '', primaryCategoryId: '', items: [],
+                firstName: '', phone: '', primaryCategoryId: '',
                 ...parsed,
                 items: draftItems,
                 location: normalizedLocation,
@@ -1371,12 +1371,7 @@ function JobPostingForm() {
 
     return (
         <div className="taskio-postJobPage">
-            <header className="public-page-header">
-                <div className="public-page-shell public-page-header-inner">
-                    <BrandLogo to={user ? "/dashboard" : "/"} style={{ textDecoration: 'none' }} />
-                    <div className="public-page-header-actions" aria-hidden="true" />
-                </div>
-            </header>
+            <PublicPageHeader homeTo={user ? "/dashboard" : "/"} logoStyle={{ textDecoration: 'none' }} />
             <div className="public-page-shell taskio-postTaskShell">
             <div className="taskio-postTaskLayout">
                 <div className="taskio-summaryCol">

@@ -15,7 +15,8 @@ import { canUseVariations, isVariationReadOnly, isPaymentSecured } from '../util
 import { createApiClient } from '../api/createApiClient';
 import { getVariationStatusLabel } from '../utils/variationStatusLabels';
 
-const stripePromise = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY
+const stripePromise = process.env.REACT_APP_E2E_AUTH_BYPASS !== 'true'
+  && process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY)
   : null;
 

@@ -20,6 +20,7 @@ import { buildDashboardTabUrl } from './features/admin/utils/adminDashboardTabUr
 import { phase1ExpertiseCatalog } from './shared/expertiseCatalog';
 import { dashboardStyles } from './styles/dashboardStyles';
 import { createApiClient, API_BASE_URL } from './api/createApiClient';
+import { PageLoadingShell } from './components/ui/AsyncPageStates';
 import {
   healthLabelForTask,
   formatAgeShort,
@@ -916,8 +917,8 @@ function Dashboard({ variant = 'default' }) {
     }
   };
 
-  if (!authReady) return <div style={styles.centered}>Initialising session…</div>;
-  if (loading) return <div style={styles.centered}>Loading dashboard…</div>;
+  if (!authReady) return <PageLoadingShell message="Initialising admin session…" detail="Verifying your administrator access." />;
+  if (loading) return <PageLoadingShell message="Loading admin dashboard…" detail="Getting the current task and account queues." />;
 
   return (
     <>

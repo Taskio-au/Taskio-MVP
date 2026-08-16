@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { colors, radii, shadows, spacing } from '../tokens';
 
 /**
@@ -12,13 +12,47 @@ export default function Modal({
   ariaLabel,
   ariaLabelledBy,
 }) {
+  const dialogRef = useRef(null);
+  const restoreFocusRef = useRef(null);
+
   useEffect(() => {
     if (!open) return undefined;
+    restoreFocusRef.current = document.activeElement;
+    const dialog = dialogRef.current;
+    const focusable = dialog?.querySelector(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    (focusable || dialog)?.focus();
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose?.();
+        return;
+      }
+      if (e.key !== 'Tab' || !dialog) return;
+      const nodes = Array.from(dialog.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ));
+      if (!nodes.length) {
+        e.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      restoreFocusRef.current?.focus?.();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -41,10 +75,12 @@ export default function Modal({
       role="presentation"
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={dialogAriaLabel}
         aria-labelledby={ariaLabelledBy || undefined}
+        tabIndex={-1}
         style={{
           width: '100%',
           maxWidth,

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 import { getE2EAuthUser, isE2EAdminUser } from '../e2e/authBypass';
+import { PageLoadingShell } from './ui/AsyncPageStates';
 
 function hasAdminClaims(tokenResult) {
   const claims = tokenResult?.claims || {};
@@ -36,11 +36,7 @@ export default function AdminRoute({ children }) {
           return;
         }
 
-        // Backward-compatible fallback while some sessions/users may lack claims.
-        const snap = await getDoc(doc(db, 'users', user.uid));
-        const data = snap.exists() ? snap.data() : null;
-        const adminFromProfile = data?.admin === true || data?.role === 'admin';
-        if (!cancelled) setIsAdmin(!!adminFromProfile);
+        if (!cancelled) setIsAdmin(false);
       } catch (err) {
         if (!cancelled) setIsAdmin(false);
       } finally {
@@ -59,7 +55,7 @@ export default function AdminRoute({ children }) {
     return children;
   }
 
-  if (authLoading || checking) return <div>Loading admin session...</div>;
+  if (authLoading || checking) return <PageLoadingShell message="Loading admin session…" detail="Verifying your administrator access." />;
   if (!user) return <Navigate to="/login" replace />;
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 

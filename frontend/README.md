@@ -1,70 +1,33 @@
-# Getting Started with Create React App
+# Taskio frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The frontend is a Create React App application for Taskio's public, client, Expert, and administrator experiences.
 
-## Available Scripts
+## Requirements and setup
 
-In the project directory, you can run:
+- Node.js 24 (see the repository `.nvmrc`)
+- `npm ci` from this directory
+- a local environment file based on `env.example`; never commit local values
 
-### `npm start`
+The development server uses port 3000 by default. The Express API uses port 8000 by default. Firebase web values are environment-driven and the expected-project guard prevents accidental project mismatch. See `docs/TASKIO_RELEASE_PLAN.md` for the manual environment-switch checklist. Do not use the retired staging template.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Commands
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```sh
+npm start
+npm run check:maintainability
+npm test -- --watchAll=false
+npm run verify
+npm run build
+npm run e2e:install
+npm run e2e
+```
 
-### `npm test`
+`npm run e2e` starts a local mock API and a frontend configured only with the Firebase demo project ID `demo-taskio-e2e`. The browser harness blocks non-local network requests.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Generated shared files
 
-### `npm run build`
+`src/shared/auLocations.js`, `src/shared/expertiseCatalog.js`, and `src/shared/jobStatusesConstants.generated.js` are generated from the repository-level `shared/` source files. The `prestart`, `pretest`, and `prebuild` scripts run `scripts/syncShared.js`; do not edit generated copies directly.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Production build safety
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Production builds require an HTTPS API origin, a matching expected Firebase project ID, and E2E bypass disabled. App Check configuration fails closed when it is enabled without a site key and rejects production debug tokens. Deployment is a separate, owner-approved operation; a successful build does not deploy anything.

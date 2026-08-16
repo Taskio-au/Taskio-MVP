@@ -43,6 +43,7 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsPage from './pages/TermsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import GetStartedPage from './pages/GetStartedPage';
+import RouteMetadata from './components/RouteMetadata';
 
 import ExpertReviewsPage from './components/ExpertReviewsPage';
 import './App.css';
@@ -60,6 +61,7 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <BrowserRouter>
+      <RouteMetadata />
       <Routes>
         {/* --- Public Routes --- */}
         <Route path="/auth/action" element={<AuthAction />} />
@@ -125,5 +127,4 @@ function App() {
 }
 
 export default App;
-
 
