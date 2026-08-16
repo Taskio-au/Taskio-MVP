@@ -5,7 +5,7 @@ const axios = require('axios');
 function buildApiUrl({ apiKey, model, apiVersion }) {
   const version = String(apiVersion || 'v1').trim() || 'v1';
   const m = String(model || '').trim();
-  const safeModel = m || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const safeModel = m || process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   // The REST API expects "models/<modelName>" in the path.
   return `https://generativelanguage.googleapis.com/${version}/models/${safeModel}:generateContent?key=${apiKey}`;
 }
@@ -53,7 +53,7 @@ async function generateContent({ apiKey, prompt, timeoutMs = 15000 }) {
     return textResponse;
   } catch (e) {
     // Add a bit of context without leaking secrets.
-    const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
     const version = process.env.GEMINI_API_VERSION || 'v1';
     const details = e?.response?.data || e?.message;
     const err = new Error(`Gemini generateContent failed (model=${model}, apiVersion=${version}).`);
@@ -62,6 +62,4 @@ async function generateContent({ apiKey, prompt, timeoutMs = 15000 }) {
   }
 }
 
-module.exports = { extractJsonArray, extractJsonObject, generateContent };
-
-
+module.exports = { buildApiUrl, extractJsonArray, extractJsonObject, generateContent };

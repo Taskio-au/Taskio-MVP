@@ -494,13 +494,7 @@ router.get('/api/jobs/:id', requireAuth, async (req, res) => {
     if (!jobDoc.exists) return res.status(404).send({ message: 'Task not found' });
 
     const jobData = await recoverAcceptedTradieUid(jobRef, jobDoc.data());
-    let isAdmin = req.user.admin === true;
-    if (!isAdmin) {
-      // Firestore fallback admin check (consistent with requireAdmin)
-      const userDoc = await db.collection('users').doc(req.user.uid).get();
-      const u = userDoc.exists ? userDoc.data() : null;
-      isAdmin = u?.admin === true || u?.role === 'admin';
-    }
+    const isAdmin = req.user.admin === true;
 
     if (jobData.homeownerUid !== req.user.uid && !isAdmin) {
       return res.status(403).send({ message: 'Forbidden: You do not have access to this task.' });

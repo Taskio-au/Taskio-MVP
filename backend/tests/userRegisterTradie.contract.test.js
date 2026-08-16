@@ -39,6 +39,11 @@ jest.mock('../src/firebaseAdmin', () => ({
           error.code = 'auth/email-already-exists';
           throw error;
         }
+        if (payload.email === 'unsafe-error@example.com') {
+          const error = new Error('Firebase internal tenant and credential details');
+          error.code = 'auth/internal-error';
+          throw error;
+        }
         mockState.createdUsers.push(payload);
         return {
           uid: 'tradie-1',
@@ -214,6 +219,23 @@ describe('tradie registration contracts', () => {
     expect(response.status).toBe(400);
     expect(response.body.code).toBe('auth/email-already-exists');
     expect(response.body.message).toMatch(/already registered/i);
+  });
+
+  it('does not expose Firebase internals in registration errors', async () => {
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .set('x-request-id', 'registration-test-request')
+      .send({
+        role: 'homeowner',
+        firstName: 'Safe',
+        lastName: 'Error',
+        email: 'unsafe-error@example.com',
+        password: 'hunter22',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('We could not create the account with those details.');
+    expect(JSON.stringify(response.body)).not.toMatch(/tenant|credential|Firebase internal/i);
   });
 
   it('completes Google expert signup for an authenticated account', async () => {

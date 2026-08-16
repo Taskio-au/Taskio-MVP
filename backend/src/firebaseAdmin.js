@@ -1,7 +1,9 @@
 'use strict';
 
 const admin = require('firebase-admin');
-require('dotenv').config();
+if (process.env.NODE_ENV !== 'test') {
+  require('dotenv').config();
+}
 
 /* -------------------------------------------------------------------------- */
 /* Firebase Admin Init                                                        */
@@ -41,5 +43,4 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 module.exports = { admin, db };
-
 

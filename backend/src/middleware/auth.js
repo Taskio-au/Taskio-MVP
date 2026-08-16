@@ -66,27 +66,14 @@ async function requireAuth(req, res, next) {
 
 async function requireAdmin(req, res, next) {
   const user = req.user;
-  if (user && user.admin === true) return next(); // existing mechanism: custom claim
-
-  // Fallback: enforce admin from Firestore user doc (privacy-by-design: server-side only)
-  if (user?.uid) {
-    try {
-      const adminDoc = await db.collection('users').doc(user.uid).get();
-      const adminData = adminDoc.exists ? adminDoc.data() : null;
-      if (adminData?.admin === true || adminData?.role === 'admin') {
-        return next();
-      }
-    } catch (e) {
-      // ignore and fall through
-    }
-  }
+  if (user && user.admin === true) return next();
 
   return res.status(403).send({ message: 'Forbidden: Requires admin privileges' });
 }
 
 /**
- * Destructive payment / dispute resolution. Allowed for Firebase claim `super_admin`
- * or Firestore users/{uid}.role === 'super_admin'.
+ * Destructive payment / dispute resolution. Allowed only for the Firebase
+ * custom claim `super_admin`; profile documents are not an authority source.
  */
 async function requireSuperAdmin(req, res, next) {
   const user = req.user;
@@ -94,13 +81,6 @@ async function requireSuperAdmin(req, res, next) {
     return res.status(403).send({ message: 'Forbidden: Requires super admin privileges' });
   }
   if (user.super_admin === true) return next();
-  try {
-    const adminDoc = await db.collection('users').doc(user.uid).get();
-    const role = adminDoc.exists ? adminDoc.data()?.role : null;
-    if (role === 'super_admin') return next();
-  } catch (e) {
-    // fall through
-  }
   return res.status(403).send({ message: 'Forbidden: Requires super admin privileges' });
 }
 
@@ -139,5 +119,4 @@ function requireRole(role) {
 }
 
 module.exports = { requireAuth, requireAdmin, requireSuperAdmin, requireRole, ensureUserProfile };
-
 

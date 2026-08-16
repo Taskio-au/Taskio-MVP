@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { auth } from '../firebase';
 import { getE2EAuthUser } from '../e2e/authBypass';
+import { resolveApiBaseUrl } from '../config/apiBaseUrl';
 
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+export const API_BASE_URL = resolveApiBaseUrl(process.env);
 
 export function createApiClient({ forceRefreshToken = false } = {}) {
   const client = axios.create({ baseURL: API_BASE_URL });

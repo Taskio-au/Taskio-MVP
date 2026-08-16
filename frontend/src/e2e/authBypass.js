@@ -1,4 +1,6 @@
-const E2E_AUTH_ENABLED = process.env.REACT_APP_E2E_AUTH_BYPASS === 'true';
+import { resolveE2EAuthEnabled } from '../config/e2eAuthConfig';
+
+const E2E_AUTH_ENABLED = resolveE2EAuthEnabled(process.env);
 const E2E_USER_STORAGE_KEY = 'taskio.e2e.user';
 
 function safeReadRawUser() {

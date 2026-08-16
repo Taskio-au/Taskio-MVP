@@ -226,11 +226,6 @@ router.post('/api/admin/work-items/:id/resolve', requireAuth, requireAdmin, asyn
 
 router.post('/api/admin/workflow/refresh-stale', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const secret = String(req.headers['x-cron-secret'] || '').trim();
-    const expected = String(process.env.CRON_SECRET || '').trim();
-    if (expected && secret !== expected) {
-      return res.status(403).send({ message: 'Forbidden.' });
-    }
     const out = await runStaleWorkflowRefresh();
     return res.status(200).send(out);
   } catch (e) {

@@ -8,8 +8,44 @@ const { requireAuth } = require('../middleware/auth');
 const { isNonEmptyString, isStringMax } = require('../utils/validation');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
 const { isSupportedMelbournePilotLocation, INNER_MELBOURNE_LAUNCH_MESSAGE } = require('../../../shared/auLocations');
+const { logger } = require('../observability/logger');
 
 const router = express.Router();
+
+function registrationErrorResponse(error, requestId) {
+  const code = String(error?.code || '');
+  if (code === 'auth/email-already-exists') {
+    return {
+      status: 400,
+      body: {
+        message: 'This email is already registered. Please log in or use a different email address.',
+        code,
+        requestId: requestId || null,
+      },
+    };
+  }
+  if (code === 'auth/invalid-email') {
+    return {
+      status: 400,
+      body: { message: 'Please enter a valid email address.', code, requestId: requestId || null },
+    };
+  }
+  if (code === 'auth/invalid-password' || code === 'auth/weak-password') {
+    return {
+      status: 400,
+      body: { message: 'The password does not meet the account security requirements.', code, requestId: requestId || null },
+    };
+  }
+  return {
+    status: code.startsWith('auth/') ? 400 : 500,
+    body: {
+      message: code.startsWith('auth/')
+        ? 'We could not create the account with those details.'
+        : 'Error creating user. Please try again.',
+      requestId: requestId || null,
+    },
+  };
+}
 
 // User Registration
 const authLimiter = rateLimit({
@@ -186,29 +222,13 @@ router.post('/api/users/register', authLimiter, async (req, res) => {
 
     return res.status(201).send({ message: 'User created successfully', uid: userRecord.uid });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error in user registration:', error);
-
-    // Handle duplicate email error
-    if (error.code === 'auth/email-already-exists') {
-      return res.status(400).send({
-        message: 'This email is already registered. Please log in or use a different email address.',
-        code: 'auth/email-already-exists',
-      });
-    }
-
-    // Handle other Firebase Auth errors
-    if (error.code && error.code.startsWith('auth/')) {
-      return res.status(400).send({
-        message: error.message || 'Authentication error occurred.',
-        code: error.code,
-      });
-    }
-
-    return res.status(400).send({
-      message: 'Error creating user. Please try again.',
-      error: error.message,
+    logger.warn('user_registration_failed', {
+      requestId: req.requestId || null,
+      errorCode: String(error?.code || 'unknown'),
     });
+
+    const safeError = registrationErrorResponse(error, req.requestId);
+    return res.status(safeError.status).send(safeError.body);
   }
 });
 
@@ -268,18 +288,18 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, async
 
     return res.status(200).send({ message: 'Expert profile completed.', uid });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error completing Google expert signup:', error);
-    return res.status(400).send({
+    logger.warn('google_expert_registration_failed', {
+      requestId: req.requestId || null,
+      errorCode: String(error?.code || 'unknown'),
+    });
+    return res.status(500).send({
       message: 'Error completing expert signup. Please try again.',
-      error: error.message,
+      requestId: req.requestId || null,
     });
   }
 });
 
 module.exports = router;
-
-
 
 
 

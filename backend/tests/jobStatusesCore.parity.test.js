@@ -15,4 +15,11 @@ describe('jobStatuses parity (shared vs backend wrapper)', () => {
       expect(backend.normalizeStatus(s)).toBe(r.status);
     }
   });
+
+  it('keeps completed distinct from paid for every case variant', () => {
+    expect(core.resolveJobStatus('completed').status).toBe(core.JOB_STATUSES.COMPLETED);
+    expect(core.resolveJobStatus('Completed').status).toBe(core.JOB_STATUSES.COMPLETED);
+    expect(core.resolveJobStatus('COMPLETED').status).toBe(core.JOB_STATUSES.COMPLETED);
+    expect(core.resolveJobStatus('paid').status).toBe(core.JOB_STATUSES.PAID);
+  });
 });

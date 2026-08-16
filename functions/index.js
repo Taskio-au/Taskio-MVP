@@ -1,25 +1,15 @@
-const {onRequest} = require("firebase-functions/v2/https");
 const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
+const logger = require("firebase-functions/logger");
 
 admin.initializeApp();
 
 const CHAT_EMAIL_THROTTLE_MS = 15 * 60 * 1000;
 let cachedMailTransporter = null;
-
-exports.helloTaskio = onRequest(
-  {region: "australia-southeast1"},
-  (req, res) => {
-    res.json({
-      message: "Hello from Taskio Cloud Functions",
-      status: "ok",
-    });
-  },
-);
 
 /**
  * Returns flag reasons (categories) for a text message.
@@ -108,6 +98,32 @@ function trimText(value, maxLen) {
 }
 
 /**
+ * Escape untrusted text before interpolation into an HTML email.
+ * @param {any} value
+ * @return {string}
+ */
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * @param {Object<string, any>} values
+ * @return {string}
+ */
+function buildChatEmailHtml({senderName, jobTitle, preview, openUrl}) {
+  return `<p><strong>${escapeHtml(senderName)}</strong> ` +
+    "sent you a message about " +
+    `<strong>${escapeHtml(jobTitle || "your task")}</strong>.</p>` +
+    `<p>${escapeHtml(preview)}</p>` +
+    `<p><a href="${escapeHtml(openUrl)}">Open chat</a></p>`;
+}
+
+/**
  * @param {Object<string, any>} message
  * @return {string}
  */
@@ -149,6 +165,26 @@ function timestampToMillis(timestamp) {
  */
 function isTimestampLike(timestamp) {
   return timestampToMillis(timestamp) > 0;
+}
+
+/**
+ * @param {Object<string, any>} before
+ * @param {Object<string, any>} after
+ * @return {boolean}
+ */
+function isQuoteSubmissionTransition(before = {}, after = {}) {
+  return before.status !== "submitted" && after.status === "submitted";
+}
+
+/**
+ * @param {Object<string, any>} before
+ * @param {Object<string, any>} after
+ * @return {boolean}
+ */
+function isEscrowFundedTransition(before = {}, after = {}) {
+  return (before.paymentState !== "in_escrow" &&
+      after.paymentState === "in_escrow") ||
+    (before.status !== "FUNDED" && after.status === "FUNDED");
 }
 
 /**
@@ -275,11 +311,7 @@ async function maybeSendChatEmail(args) {
       `${senderName} sent you a message about ${jobTitle || "your task"}.\n\n` +
       `${preview}\n\n` +
       `Open chat: ${openUrl}`,
-    html:
-      `<p><strong>${senderName}</strong> sent you a message about ` +
-      `<strong>${jobTitle || "your task"}</strong>.</p>` +
-      `<p>${preview}</p>` +
-      `<p><a href="${openUrl}">Open chat</a></p>`,
+    html: buildChatEmailHtml({senderName, jobTitle, preview, openUrl}),
   });
 
   await recipientThreadRef.set(
@@ -296,88 +328,67 @@ async function maybeSendChatEmail(args) {
  * - Triggers on new message creation: jobs/{jobId}/messages/{messageId}
  * - Flags risky text messages for admin review (does not block)
  * - Updates job aggregate counters for monitoring UI
+ * @param {Object<string, any>} event
+ * @return {Promise<void>}
  */
-exports.flagRiskyJobMessages = onDocumentCreated(
-  {
-    region: "australia-southeast1",
-    document: "jobs/{jobId}/messages/{messageId}",
-  },
-  async (event) => {
-    const snap = event.data;
-    if (!snap) return;
+async function processRiskyJobMessage(event) {
+  const snap = event.data;
+  if (!snap) return;
+  const {jobId, messageId} = event.params || {};
+  if (!jobId || !messageId) return;
 
-    const {jobId} = event.params || {};
-    const data = snap.data() || {};
-    const firestore = admin.firestore();
-    const messagePreview = getMessagePreview(data);
-    const messageTimestamp = isTimestampLike(data.createdAt) ?
-      data.createdAt :
-      admin.firestore.FieldValue.serverTimestamp();
+  const data = snap.data() || {};
+  const firestore = admin.firestore();
+  const jobRef = firestore.collection("jobs").doc(jobId);
+  const markerRef = firestore.collection("automation_events")
+    .doc(`message_${jobId}_${messageId}`);
+  const messagePreview = getMessagePreview(data);
+  const messageTimestamp = isTimestampLike(data.createdAt) ?
+    data.createdAt : admin.firestore.FieldValue.serverTimestamp();
+  let job = {};
+  let delivery = null;
+  let alreadyProcessed = false;
 
-    let job = {};
-    try {
-      const jobDoc = await firestore.collection("jobs").doc(jobId).get();
-      job = jobDoc.exists ? (jobDoc.data() || {}) : {};
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to load job for message trigger:", e);
-    }
+  try {
+    await firestore.runTransaction(async (transaction) => {
+      const [markerSnap, jobSnap] = await Promise.all([
+        transaction.get(markerRef),
+        transaction.get(jobRef),
+      ]);
+      job = jobSnap.exists ? (jobSnap.data() || {}) : {};
+      if (markerSnap.exists) {
+        alreadyProcessed = true;
+        return;
+      }
 
-    // Always update last message timestamp for monitoring
-    try {
-      await firestore
-        .collection("jobs")
-        .doc(jobId)
-        .set(
-          {
-            lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          {merge: true},
-        );
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to update lastMessageAt:", e);
-    }
+      const homeownerUid = String(job.homeownerUid || "").trim();
+      const expertUid = String(job.acceptedTradieUid || "").trim();
+      const senderUid = String(data.senderUid || "").trim();
+      const participant = senderUid && homeownerUid && expertUid &&
+        (senderUid === homeownerUid || senderUid === expertUid);
 
-    const homeownerUid = String(job.homeownerUid || "").trim();
-    const expertUid = String(job.acceptedTradieUid || "").trim();
-    const senderUid = String(data.senderUid || "").trim();
+      transaction.set(jobRef, {
+        lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
 
-    if (jobId && senderUid && homeownerUid && expertUid &&
-        (senderUid === homeownerUid || senderUid === expertUid)) {
-      const recipientUid =
-        senderUid === homeownerUid ? expertUid : homeownerUid;
-      const senderRole = senderUid === homeownerUid ? "homeowner" : "tradie";
-      const recipientRole =
-        recipientUid === homeownerUid ? "homeowner" : "tradie";
-
-      try {
-        const [sender, recipient] = await Promise.all([
-          getUserIdentity(senderUid, senderRole),
-          getUserIdentity(recipientUid, recipientRole),
-        ]);
-        const senderName =
-          trimText(
-            sender.displayName ||
-              (!isLikelyEmail(data.senderName) ? data.senderName : ""),
-            120,
-          ) ||
-          getRoleLabel(senderRole);
-        const recipientName = trimText(recipient.displayName, 120) ||
-          getRoleLabel(recipientRole);
-        const threadCollection = (uid) =>
-          firestore.collection("users").doc(uid).collection("chatThreads");
-        const senderThreadRef = threadCollection(senderUid).doc(jobId);
-        const recipientThreadRef = threadCollection(recipientUid).doc(jobId);
-        const recipientThreadSnap = await recipientThreadRef.get();
-        const recipientThreadData =
-          recipientThreadSnap.exists ? (recipientThreadSnap.data() || {}) : {};
-        const notificationRef = firestore
-          .collection("users")
+      if (participant) {
+        const recipientUid = senderUid === homeownerUid ?
+          expertUid : homeownerUid;
+        const senderRole = senderUid === homeownerUid ? "homeowner" : "tradie";
+        const recipientRole = recipientUid === homeownerUid ?
+          "homeowner" : "tradie";
+        const senderName = trimText(
+          !isLikelyEmail(data.senderName) ? data.senderName : "",
+          120,
+        ) || getRoleLabel(senderRole);
+        const recipientName = getRoleLabel(recipientRole);
+        const senderThreadRef = firestore.collection("users").doc(senderUid)
+          .collection("chatThreads").doc(jobId);
+        const recipientThreadRef = firestore.collection("users")
           .doc(recipientUid)
-          .collection("notifications")
-          .doc(`message_${jobId}_${event.params.messageId}`);
-        const batch = firestore.batch();
+          .collection("chatThreads").doc(jobId);
+        const notificationRef = firestore.collection("users").doc(recipientUid)
+          .collection("notifications").doc(`message_${jobId}_${messageId}`);
         const sharedFields = {
           jobId,
           jobTitle: trimText(job.title || "Taskio task", 140),
@@ -388,86 +399,116 @@ exports.flagRiskyJobMessages = onDocumentCreated(
           lastSenderUid: senderUid,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
-
-        batch.set(
-          senderThreadRef,
-          {
-            ...sharedFields,
-            otherParticipantUid: recipientUid,
-            otherParticipantName: recipientName,
-            unreadCount: 0,
-            lastReadAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          {merge: true},
-        );
-        batch.set(
-          recipientThreadRef,
-          {
-            ...sharedFields,
-            otherParticipantUid: senderUid,
-            otherParticipantName: senderName,
-            unreadCount: admin.firestore.FieldValue.increment(1),
-          },
-          {merge: true},
-        );
-        batch.set(
-          notificationRef,
-          {
-            type: "message_received",
-            title:
-              `New message about ${trimText(job.title || "your task", 80)}`,
-            body: `${senderName}: ${getNotificationPreview(data)}`,
-            jobId,
-            messageId: event.params.messageId,
-            read: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          {merge: true},
-        );
-        await batch.commit();
-
-        await maybeSendChatEmail({
-          recipientThreadRef,
-          recipientThreadData,
-          recipient,
-          senderName,
+        transaction.set(senderThreadRef, {
+          ...sharedFields,
+          otherParticipantUid: recipientUid,
+          otherParticipantName: recipientName,
+          unreadCount: 0,
+          lastReadAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+        transaction.set(recipientThreadRef, {
+          ...sharedFields,
+          otherParticipantUid: senderUid,
+          otherParticipantName: senderName,
+          unreadCount: admin.firestore.FieldValue.increment(1),
+        }, {merge: true});
+        transaction.set(notificationRef, {
+          type: "message_received",
+          title: `New message about ${trimText(job.title || "your task", 80)}`,
+          body: `${senderName}: ${getNotificationPreview(data)}`,
           jobId,
-          jobTitle: job.title || "your task",
-          message: data,
-        });
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error("Failed to update chat thread summaries:", e);
+          messageId,
+          read: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+        delivery = {
+          recipientUid, recipientRole, senderUid, senderRole, senderName,
+          recipientThreadRef};
       }
-    }
 
-    if (data.messageType !== "text") return;
-
-    const reasons = matchKeywordSets(data.text || "");
-    if (reasons.length === 0) return;
-
-    const jobRef = firestore.collection("jobs").doc(jobId);
-
-    await Promise.all([
-      snap.ref.set(
-        {
+      const reasons = data.messageType === "text" ?
+        matchKeywordSets(data.text || "") : [];
+      if (reasons.length > 0) {
+        transaction.set(snap.ref, {
           flagged: true,
           flagReasons: reasons,
           flaggedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      ),
-      jobRef.set(
-        {
+        }, {merge: true});
+        transaction.set(jobRef, {
           requiresAdminAttention: true,
           flaggedMessageCount: admin.firestore.FieldValue.increment(1),
           flaggedUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      ),
-    ]);
+        }, {merge: true});
+      }
+
+      transaction.set(markerRef, {
+        type: "message_created",
+        jobId,
+        messageId,
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    if (!delivery && !alreadyProcessed) {
+      const homeownerUid = String(job.homeownerUid || "").trim();
+      const expertUid = String(job.acceptedTradieUid || "").trim();
+      const senderUid = String(data.senderUid || "").trim();
+      if (senderUid && homeownerUid && expertUid &&
+          (senderUid === homeownerUid || senderUid === expertUid)) {
+        const recipientUid = senderUid === homeownerUid ?
+          expertUid : homeownerUid;
+        const senderRole = senderUid === homeownerUid ? "homeowner" : "tradie";
+        const recipientRole = recipientUid === homeownerUid ?
+          "homeowner" : "tradie";
+        delivery = {
+          recipientUid,
+          recipientRole,
+          senderUid,
+          senderRole,
+          senderName: trimText(
+            !isLikelyEmail(data.senderName) ? data.senderName : "",
+            120,
+          ) || getRoleLabel(senderRole),
+          recipientThreadRef: firestore.collection("users").doc(recipientUid)
+            .collection("chatThreads").doc(jobId),
+        };
+      }
+    }
+
+    if (!alreadyProcessed && delivery && getMailConfig()) {
+      const [recipient, recipientThreadSnap] = await Promise.all([
+        getUserIdentity(delivery.recipientUid, delivery.recipientRole),
+        delivery.recipientThreadRef.get(),
+      ]);
+      await maybeSendChatEmail({
+        recipientThreadRef: delivery.recipientThreadRef,
+        recipientThreadData: recipientThreadSnap.exists ?
+          (recipientThreadSnap.data() || {}) : {},
+        recipient,
+        senderName: delivery.senderName,
+        jobId,
+        jobTitle: job.title || "your task",
+        message: data,
+      });
+    }
+  } catch (error) {
+    logger.error("flag_risky_job_message_failed", {
+      jobId,
+      messageId,
+      error: error && error.message ? error.message : "unknown",
+    });
+    throw error;
+  }
+}
+
+exports.flagRiskyJobMessages = onDocumentCreated(
+  {
+    region: "australia-southeast1",
+    document: "jobs/{jobId}/messages/{messageId}",
+    retry: true,
   },
+  processRiskyJobMessage,
 );
 
 /**
@@ -482,6 +523,7 @@ exports.notifyHomeownerOnQuoteSubmitted = onDocumentCreated(
   {
     region: "australia-southeast1",
     document: "quotes/{quoteId}",
+    retry: true,
   },
   async (event) => {
     const snap = event.data;
@@ -522,9 +564,55 @@ exports.notifyHomeownerOnQuoteSubmitted = onDocumentCreated(
         },
         {merge: true},
       );
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("notifyHomeownerOnQuoteSubmitted failed:", e);
+    } catch (error) {
+      logger.error("quote_submitted_notification_failed", {
+        quoteId: event.params && event.params.quoteId,
+        error: error && error.message ? error.message : "unknown",
+      });
+      throw error;
+    }
+  },
+);
+
+exports.notifyHomeownerOnQuoteSubmittedUpdate = onDocumentUpdated(
+  {
+    region: "australia-southeast1",
+    document: "quotes/{quoteId}",
+    retry: true,
+  },
+  async (event) => {
+    const beforeSnap = event.data && event.data.before;
+    const afterSnap = event.data && event.data.after;
+    const before = beforeSnap ? (beforeSnap.data() || {}) : {};
+    const after = afterSnap ? (afterSnap.data() || {}) : {};
+    if (!isQuoteSubmissionTransition(before, after)) return;
+    const homeownerUid = after.homeownerUid;
+    const jobId = after.jobId;
+    const quoteId = event.params && event.params.quoteId;
+    if (!homeownerUid || !jobId || !quoteId) return;
+
+    try {
+      const firestore = admin.firestore();
+      const jobDoc = await firestore.collection("jobs").doc(jobId).get();
+      const job = jobDoc.exists ? (jobDoc.data() || {}) : {};
+      await firestore.collection("users").doc(homeownerUid)
+        .collection("notifications").doc(`quote_${quoteId}`).set({
+          type: "quote_submitted",
+          title: "New quote received",
+          body: `You received a new quote for "${job.title || "your job"}".`,
+          jobId,
+          quoteId,
+          read: false,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+    } catch (error) {
+      logger.error("quote_submitted_update_notification_failed", {
+        jobId,
+        quoteId,
+        error: error && error.message ? error.message : "unknown",
+      });
+      throw error;
     }
   },
 );
@@ -533,6 +621,7 @@ exports.notifyTradieOnEscrowFunded = onDocumentUpdated(
   {
     region: "australia-southeast1",
     document: "jobs/{jobId}",
+    retry: true,
   },
   async (event) => {
     const params = event.params || {};
@@ -544,10 +633,7 @@ exports.notifyTradieOnEscrowFunded = onDocumentUpdated(
     const after = afterSnap ? (afterSnap.data() || {}) : {};
     if (!jobId) return;
 
-    const fundedNow =
-      (before.paymentState !== "in_escrow" &&
-        after.paymentState === "in_escrow") ||
-      (before.status !== "FUNDED" && after.status === "FUNDED");
+    const fundedNow = isEscrowFundedTransition(before, after);
     if (!fundedNow) return;
 
     const tradieUid = after.acceptedTradieUid || null;
@@ -576,9 +662,24 @@ exports.notifyTradieOnEscrowFunded = onDocumentUpdated(
         },
         {merge: true},
       );
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("notifyTradieOnEscrowFunded failed:", e);
+    } catch (error) {
+      logger.error("escrow_funded_notification_failed", {
+        jobId,
+        error: error && error.message ? error.message : "unknown",
+      });
+      throw error;
     }
   },
 );
+
+exports._test = {
+  buildChatEmailHtml,
+  escapeHtml,
+  getMessagePreview,
+  getNotificationPreview,
+  isEscrowFundedTransition,
+  isQuoteSubmissionTransition,
+  matchKeywordSets,
+  processRiskyJobMessage,
+  trimText,
+};

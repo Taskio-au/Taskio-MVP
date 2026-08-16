@@ -304,6 +304,11 @@ describe('Storage authorization', () => {
       new Uint8Array([1, 2, 3]),
       { contentType: 'image/png' },
     ));
+    await assertSucceeds(uploadBytes(
+      ref(storageFor('invited-1'), 'job-attachments/job-funded/invited-message/photo.png'),
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'image/png' },
+    ));
   });
 
   test('denies stranger, frozen, cancelled, unsafe-type, and oversized uploads', async () => {
@@ -390,6 +395,23 @@ describe('Storage authorization', () => {
       new Uint8Array([1, 2, 3]),
       { contentType: 'image/gif' },
     ));
+  });
+
+  test('limits profile-photo reads to the owner or an admin claim', async () => {
+    await seedStorage('profilePhotos/homeowner-1/avatar.png');
+
+    await assertSucceeds(getBytes(ref(
+      storageFor('homeowner-1'),
+      'profilePhotos/homeowner-1/avatar.png',
+    )));
+    await assertFails(getBytes(ref(
+      storageFor('stranger-1'),
+      'profilePhotos/homeowner-1/avatar.png',
+    )));
+    await assertSucceeds(getBytes(ref(
+      storageFor('claims-admin', { admin: true }),
+      'profilePhotos/homeowner-1/avatar.png',
+    )));
   });
 
   test('does not trust Firestore admin fields for protected file reads', async () => {

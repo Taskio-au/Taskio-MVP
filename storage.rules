@@ -7,11 +7,26 @@ service firebase.storage {
 
     function isAdmin() {
       return isSignedIn()
+        && request.auth.token.keys().hasAll(['admin'])
         && request.auth.token.admin == true;
     }
 
     function jobDoc(jobId) {
       return firestore.get(/databases/(default)/documents/jobs/$(jobId)).data;
+    }
+
+    function isInvitedTradie(jobId) {
+      return isSignedIn()
+        && (
+          (
+            jobDoc(jobId).invitedTradieUids is list
+            && request.auth.uid in jobDoc(jobId).invitedTradieUids
+          )
+          || (
+            jobDoc(jobId).invites is map
+            && jobDoc(jobId).invites[request.auth.uid] is map
+          )
+        );
     }
 
     function isParticipant(jobId) {
@@ -20,6 +35,10 @@ service firebase.storage {
           jobDoc(jobId).homeownerUid == request.auth.uid
           || jobDoc(jobId).acceptedTradieUid == request.auth.uid
         );
+    }
+
+    function isChatParticipant(jobId) {
+      return isParticipant(jobId) || isInvitedTradie(jobId);
     }
 
     function canViewPostingAssets(jobId) {
@@ -62,9 +81,9 @@ service firebase.storage {
     // Chat attachments
     // Path: job-attachments/{jobId}/{messageId}/{filename}
     match /job-attachments/{jobId}/{messageId}/{fileName} {
-      allow read: if isParticipant(jobId) || isAdmin();
+      allow read: if isChatParticipant(jobId) || isAdmin();
 
-      allow create: if isParticipant(jobId)
+      allow create: if isChatParticipant(jobId)
         // Storage treats a repeated upload as a create request, so also
         // require that no object already exists at this path.
         && resource == null
@@ -104,7 +123,7 @@ service firebase.storage {
     /* Path: profile-photos/{uid}/{filename}                                 */
     /* -------------------------------------------------------------------- */
     match /profile-photos/{uid}/{fileName} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
       allow write: if isSignedIn()
         && request.auth.uid == uid
         && request.resource.contentType.matches('image/.*')
@@ -117,8 +136,10 @@ service firebase.storage {
     /* Only JPEG and PNG. Max 3MB. Deterministic filename prevents clutter.  */
     /* -------------------------------------------------------------------- */
     match /profile-images/{fileName} {
-      // Allow authenticated users to read (for public profile display)
-      allow read: if isSignedIn();
+      allow read: if isAdmin()
+        || (isSignedIn()
+          && (fileName == request.auth.uid + '.jpg'
+            || fileName == request.auth.uid + '.png'));
       
       // Only owner can write their own profile image
       allow write: if isSignedIn()
@@ -139,8 +160,7 @@ service firebase.storage {
     /* JPEG/PNG/WebP. Max 2MB.                                               */
     /* -------------------------------------------------------------------- */
     match /profilePhotos/{uid}/{fileName} {
-      // MVP: allow reads for signed-in users (switch to public read if you show avatars publicly)
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
 
       allow write: if isSignedIn()
         && request.auth.uid == uid
