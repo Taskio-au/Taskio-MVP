@@ -14,7 +14,7 @@ This review captures what is already enforced in Taskio and what must be complet
   - Additional AI endpoint limiter added to reduce abuse/cost risk.
 - **Authentication and authorization**
   - Firebase ID token verification in `requireAuth`.
-  - Role checks and admin fallback via Firestore in middleware.
+  - Administrator authority comes only from Firebase custom claims; mutable Firestore profile fields do not grant privilege.
 - **Payment safety**
   - Admin payment routes enforce state transitions and Stripe preconditions.
   - Contract tests cover dispute, clear-dispute, release, refund paths.
@@ -61,5 +61,5 @@ Before opening to higher traffic, require:
 
 1. `frontend`: `npm run verify` passes.
 2. `backend`: `npm test` passes.
-3. Production env has explicit `CORS_ORIGINS`, `TRUST_PROXY=true`, monitored `ALERT_WEBHOOK_URL`, and a non-default `OTP_SALT`.
+3. Production env has explicit `CORS_ORIGINS`, `TRUST_PROXY=true`, monitored `ALERT_WEBHOOK_URL`, and a newly provisioned non-default `OTP_SALT` (none was generated during repository-only preparation).
 4. Review and sign-off on this checklist by engineering and operations.

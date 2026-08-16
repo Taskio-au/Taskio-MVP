@@ -5,6 +5,7 @@ import { getFirestore } from 'firebase/firestore';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { resolveFirebaseConfig } from './config/firebaseConfig';
+import { resolveAppCheckConfig } from './config/appCheckConfig';
 
 const productionFirebaseConfig = {
   apiKey: 'AIzaSyAVmOP2j8VIMHWRz9o49JHKqyiszQ5qMOg',
@@ -27,22 +28,23 @@ const app = initializeApp(firebaseConfig);
 // - REACT_APP_APPCHECK_SITE_KEY=<reCAPTCHA v3 site key>
 // For local dev you can use a debug token:
 // - REACT_APP_APPCHECK_DEBUG_TOKEN=true (or a specific debug token string)
+const appCheckConfig = resolveAppCheckConfig(process.env);
 try {
-  if (process.env.REACT_APP_APPCHECK_DEBUG_TOKEN) {
+  if (appCheckConfig.debugToken) {
     const g = typeof window !== 'undefined' ? window : {};
     g.FIREBASE_APPCHECK_DEBUG_TOKEN =
-      process.env.REACT_APP_APPCHECK_DEBUG_TOKEN === 'true'
+      appCheckConfig.debugToken === 'true'
         ? true
-        : process.env.REACT_APP_APPCHECK_DEBUG_TOKEN;
+        : appCheckConfig.debugToken;
   }
-  if (process.env.REACT_APP_APPCHECK_ENABLED === 'true' && process.env.REACT_APP_APPCHECK_SITE_KEY) {
+  if (appCheckConfig.enabled) {
     initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(process.env.REACT_APP_APPCHECK_SITE_KEY),
+      provider: new ReCaptchaV3Provider(appCheckConfig.siteKey),
       isTokenAutoRefreshEnabled: true,
     });
   }
 } catch (e) {
-  // In dev/test we prefer not to block the app if App Check isn't configured.
+  if (process.env.NODE_ENV === 'production') throw e;
 }
 
 export const auth = getAuth(app);

@@ -1,48 +1,32 @@
 # Taskio status
 
-This is a dynamic project handoff status file. Update it whenever a phase is completed.
+**Last updated:** 16 August 2026
 
-**Last updated:** 13 August 2026
+## Active scope
 
-## Repository baseline
+- Development branch: `develop`.
+- Canonical public origin: `https://taskio.com.au`.
+- Eventual launch Firebase project: `taskio-v2`.
+- `taskio-v2-staging` is frozen, dormant, and excluded by owner decision. Do not inspect, test, configure, deploy, seed, or delete it.
+- Current work is repository-only. No Firebase, Google Cloud, Stripe, SMTP, DNS, or other live-service changes are authorised.
 
-- Current branch: `develop`
-- Baseline HEAD: `88ab54afb8a6a348e0a74d1bd5208e30b8419e8d`
+## Repository state
 
-## Firebase environments
+- Security rules are covered by Firestore/Storage emulator tests using demo project IDs only.
+- Cloud Functions have emulator-backed retry/idempotency tests.
+- Frontend and backend have isolated local suites; CI builds the production frontend and runs browser smoke tests against a local mock server.
+- The Express API has a Node 24 container definition and health/readiness routes, but it has not been deployed under the current authorization.
+- Production deployment artifacts and rollback steps are in `docs/TASKIO_RELEASE_PLAN.md`; every command there is **NOT EXECUTED**.
+- The maintenance-only Hosting artifact is prepared in `maintenance/` with `firebase.maintenance.json`; it is **NOT DEPLOYED**.
 
-- Production project: `taskio-v2`
-- Production URL: <https://taskio-v2.web.app>
-- Production Firestore and Functions region: `australia-southeast1`
-- Staging project: `taskio-v2-staging`
-- Staging display name: Taskio Staging
-- `.firebaserc` keeps `default` → `taskio-v2` and adds the explicit alias `staging` → `taskio-v2-staging`.
-- The default alias remains production for compatibility. Never deploy without selecting and confirming the exact project ID and resources.
-- `frontend/env.staging.example` defines safe placeholders for a staging-only frontend build. Supply them through the staging build environment (or an ignored `.env.production.local` for a deliberate local staging build). The app rejects partial Firebase overrides and project-ID mismatches.
+## External blockers
 
-## Phase and environment status
+- `taskio-v2` requires a new exact production approval before any resource change.
+- Required runtime credentials, alerting, OTP salt, IAM/service identity, and integration settings have not been provisioned during this run.
+- Existing local service-account files remain uninspected and untouched; A04 requires the owner-operated rotation/deletion procedure in the release plan.
+- App Check code is prepared but registration, monitoring, and enforcement require a separate production gate.
+- Stripe and SMTP remain disabled; all payment/email verification in this run is mocked or local rendering only.
 
-- Phase 2V-A: complete (staging project creation).
-- Phase 2V-B: complete (staging foundation only).
-- Blaze billing is linked to `taskio-v2-staging`.
-- One staging Web App is registered without Firebase Hosting.
-- Firestore `(default)` and the default Storage bucket exist in `australia-southeast1` (Sydney) with deny-all production-mode rules and no data/files.
-- Authentication is initialized with no sign-in providers enabled.
-- Hosting and Functions remain uninitialized. No Express backend or frontend has been deployed.
-- No staging secrets, CORS, App Check, Stripe webhook, rules/index deployment, or seed data have been configured.
-- Production remains unchanged.
+## Next release decision
 
-## Main staging blockers
-
-- The remote Express staging API is not deployed.
-- The frontend build can fall back to `http://localhost:8000`.
-- Staging secrets, CORS, App Check, and the Stripe test webhook are not configured.
-- Firestore/Storage security concerns must be resolved before production.
-
-## Next approved action
-
-Review these repository-only staging configuration changes. Commit and push require separate approval.
-
-After that, define the isolated staging backend and deployment plan before creating or deploying any service. Enabling Authentication providers also remains blocked pending matching app configuration and security review.
-
-Production deployment remains prohibited.
+Complete repository verification and CI first. Then review the production release plan and approve, postpone, or narrow one exact `taskio-v2` resource batch. Do not combine maintenance Hosting, backend traffic, rules, Functions, Stripe, or App Check into an implicit blanket approval.

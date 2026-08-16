@@ -24,17 +24,27 @@ This ledger records current evidence without erasing the historical baseline in 
 
 | ID | Current status | Evidence / exact remaining requirement |
 |---|---|---|
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Node 24 Cloud Run container, health endpoints, environment inventory, exact no-traffic deployment/verification/rollback commands are prepared. Acceptance still requires production credentials, an approved service identity, deployment, HTTPS/CORS and live-flow verification. |
+| A04 | BLOCKED | Both reported key files remained uninspected and untouched. Exact manual identify/disable/verify/delete instructions are documented; owner confirmation of rotation and local deletion is required. |
+| A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced. Current queries avoid composite indexes; only an approved production deploy and representative live query verification can close acceptance. |
 | A02 | COMPLETED | Firestore message creation requires a valid participant role and open, funded, unfrozen chat; demo-project rules suite passes. |
 | A06 | COMPLETED | Production E2E bypass guard and tests added; CI explicitly builds with bypass disabled. |
 | A09 | COMPLETED | Risk flags and counters are written by retry-safe server automation; duplicate emulator delivery is idempotent. |
 | A11 | COMPLETED | Mocked Stripe operational handlers cover charge disputes, payout failures, and transfer reversals/failures; they flag internal state and create deterministic admin work items. Live webhook registration remains PENDING FINAL DEPLOYMENT APPROVAL. |
 | A12 | COMPLETED | Demo-only Firestore/Storage emulator suite passes 17/17, including privilege, chat, attachment, and profile-photo cases. |
 | A13 | COMPLETED | Firebase web configuration remains environment-driven and project-ID guarded; focused tests pass. |
+| A14 | PENDING FINAL DEPLOYMENT APPROVAL | App Check configuration now rejects production debug tokens and enabled-without-key builds; focused tests and rollout documentation pass. Registration, monitoring and enforcement were not performed. |
 | A16 | BLOCKED | Rules now limit profile-photo reads to owner/admin. Existing tokenized download URLs require a repository migration plus later token rotation and rules deployment before acceptance can be claimed. |
 | A32 | COMPLETED | Pre-release cancellation refunds the base payment and every funded unreleased variation with stable idempotency keys; partial retries resume exactly once and released funds require the admin dispute flow. |
 | A33 | COMPLETED | Storage rules use the same list/map invitation representations as Firestore and permit valid invited-expert chat attachments; emulator coverage passes. |
 | A34 | COMPLETED | Registration responses map Firebase/internal failures to safe messages and request IDs; raw errors are logged structurally and regression-tested. |
 | A40 | COMPLETED | Functions tests run under a demo Firestore emulator and are wired into CI with Node 24 and Java 21. |
+| A20 | BLOCKED | Exact ordered production commands and rollback are documented, but deployment automation needs owner-approved GitHub identity/settings, production credentials and a deployment decision. No deployment workflow that could write externally was activated. |
+| A21 | COMPLETED | CI runs production frontend build plus Playwright Chromium smoke tests against a local mock server; no real Firebase project is addressable by the harness. |
+| A41 | COMPLETED | `.nvmrc`, package engines, Dockerfile, Functions and all CI jobs align on Node 24. |
+| A42 | COMPLETED | Playwright reports/results, Firebase local state, emulator/debug logs, builds and dependencies are ignored. |
+| A49 | SUPERSEDED | Staging excluded by owner decision; `taskio-v2-staging` remains frozen and was not accessed or modified. |
+| A50 | PENDING FINAL DEPLOYMENT APPROVAL | Maintenance-only no-store/noindex Hosting artifact, explicit Hosting-only command, public checks and console rollback procedure are prepared. It was not deployed. |
 | A51 | COMPLETED | Production API URL resolver rejects missing, local, HTTP, credentialed, and malformed endpoints; CI/build configuration and tests added. |
 | A52 | COMPLETED | Backend and frontend now normalise every case variant of `completed` to `COMPLETED`; `PAID` remains explicit, with release-evidence compatibility for genuine legacy paid records; parity tests pass. |
 | A53 | COMPLETED | Per owner decision, stale refresh is an authenticated claims-admin manual action; permissive cron-secret handling was removed. |
@@ -1278,6 +1288,7 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-16 | `develop` / `e736581` | A02, A10, A12, A13, A16 and related security work require reconciliation | Security-rule hardening and CI restoration were committed and pushed; staging configuration was established locally | GitHub Actions green; frontend 392/392; backend 391/391; rules 16/16; frontend production build passed; backend readiness `ok: true` against staging | Firestore and Storage rules deployed to `taskio-v2-staging`; Email/Password enabled in staging Auth; no production deployment | Inspect exact diffs and acceptance criteria before marking individual IDs Done; Gemini model retirement remains unresolved; complete the remaining tracker in dependency order |
 | 2026-08-16 | `develop` / `6e683fc` | A11, A32, A52, U04, U05 | Added mocked operational Stripe handling, stable checkout generations, exactly-once variation cancellation refunds, explicit completion/payment semantics, double-blind reviews, and 30-day post-release chat with audited support reopen | Backend focused 108/108; frontend focused 8/8; demo rules 18/18; production-mode frontend build passed | None; no Firebase project, Stripe account, or other live service accessed or modified | All deployment/runtime portions remain pending approval |
 | 2026-08-16 | `develop` / U01-U02 batch | U01, U02 | Added category-scoped multi-item briefs, quantity bounds, custom items, server canonicalisation, and backward-compatible legacy payload reads; quote remains one whole-job amount | Backend focused 12/12; frontend focused 4/4; syntax and diff checks passed | None | Include in full-suite verification before push |
+| 2026-08-16 | `develop` / release-prep batch | A03, A04, A05, A14, A20, A21, A41, A42, A49, A50 | Prepared a Node 24 API container, index manifest, App Check guards, CI browser smoke job, maintenance artifact, secret-name inventory, exact production order/verification/rollback, key-rotation instructions, and local configuration checklist | JSON manifests parsed; App Check/Firebase config tests 11/11; no deployment command executed | Production credentials/settings/approvals; A04 owner-operated key rotation | Run full verification; review and commit artifacts; deployment statuses remain pending/blocked |
 
 ## Required final report template
 
