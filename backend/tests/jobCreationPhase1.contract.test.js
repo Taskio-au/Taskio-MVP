@@ -159,6 +159,36 @@ describe('job creation Phase 1 contract', () => {
     });
     expect(jobs[0].details).toEqual({ mirrorSize: '' });
     expect(jobs[0].postingPhotos).toEqual([]);
+    expect(jobs[0].items).toEqual([{ type: 'mounting_shelves', quantity: 1, customDescription: '' }]);
+  });
+
+  it('stores a multi-item whole-job brief while retaining primary legacy fields', async () => {
+    const res = await request(app)
+      .post('/api/jobs')
+      .send({
+        primaryCategory: 'Mounting',
+        items: [
+          { type: 'mounting_shelves', quantity: 3, customDescription: '' },
+          { type: 'mounting_tv', quantity: 1, customDescription: '' },
+          { type: 'custom', quantity: 2, customDescription: 'Small wall-mounted planters' },
+        ],
+        description: 'Install all listed items on internal walls in the living room.',
+        location: { suburb: 'Richmond', state: 'VIC', postcode: '3121' },
+        estimatedDuration: 'one_to_two_hours',
+        timeline: 'Flexible',
+        budget: '150_to_300',
+        siteAccess: {
+          propertyType: 'apartment_unit', liftAvailable: 'yes', stairs: 'none', parking: 'easy',
+        },
+        details: { mirrorSize: '' },
+      });
+
+    expect(res.status).toBe(201);
+    const [job] = readDocs('jobs');
+    expect(job.primaryCategory).toBe('Mounting');
+    expect(job.jobType).toBe('mounting_shelves');
+    expect(job.items).toHaveLength(3);
+    expect(job.items[2]).toEqual({ type: 'custom', quantity: 2, customDescription: 'Small wall-mounted planters' });
   });
 
   it('rejects jobs outside the inner Melbourne allowlist with the exact launch message', async () => {

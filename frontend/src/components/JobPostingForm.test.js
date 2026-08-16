@@ -163,4 +163,23 @@ describe('JobPostingForm', () => {
 
     expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
   });
+
+  it('supports multiple quantity items and a custom item in one primary category', () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('button', { name: /mounting/i }));
+    fireEvent.click(screen.getByLabelText(/tv mounting/i));
+    fireEvent.click(screen.getByLabelText(/^shelves/i));
+    fireEvent.change(screen.getByLabelText(/shelves quantity/i), { target: { value: '3' } });
+    fireEvent.click(screen.getByLabelText(/something else within this category/i));
+    fireEvent.change(screen.getByLabelText(/custom task item description/i), {
+      target: { value: 'Small wall-mounted planters' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /^description \*/i }), {
+      target: { value: 'Install all listed items on internal walls in the living room.' },
+    });
+
+    expect(screen.getByText(/3 x Shelves/)).toBeInTheDocument();
+    expect(screen.getByText(/Small wall-mounted planters/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next/i })).not.toBeDisabled();
+  });
 });

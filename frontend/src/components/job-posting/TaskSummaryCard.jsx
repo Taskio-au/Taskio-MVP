@@ -45,7 +45,17 @@ export default function TaskSummaryCard({ formData, categoryLabel }) {
 
   const summaryItems = [
     hasCategoryBlock ? { label: 'Task', value: resolvedCategory } : null,
-    hasCategoryBlock ? { label: 'Job type', value: jobTypeDisplayValue } : null,
+    hasCategoryBlock ? {
+      label: 'Items',
+      value: Array.isArray(formData.items) && formData.items.length > 0
+        ? formData.items.map((item) => {
+          const label = item.type === 'custom'
+            ? (item.customDescription || 'Custom item')
+            : getCanonicalJobTypeLabel(item.type);
+          return `${Number(item.quantity) || 1} x ${label}`;
+        }).join(', ')
+        : jobTypeDisplayValue,
+    } : null,
     (formData.timeline || formData.specificDate)
       ? { label: 'Timeline', value: formData.timeline === 'On a specific date' ? formData.specificDate : formData.timeline }
       : null,

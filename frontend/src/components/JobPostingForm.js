@@ -325,11 +325,15 @@ function JobPostingForm() {
             const savedDraft = sessionStorage.getItem('taskio_job_draft');
             const parsed = savedDraft ? JSON.parse(savedDraft) : {};
             const normalizedLocation = normalizeSelectedLocation(parsed?.location);
+            const draftItems = Array.isArray(parsed?.items)
+                ? parsed.items
+                : (parsed?.jobType ? [{ type: parsed.jobType, quantity: 1, customDescription: '' }] : []);
             return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? {
                 jobType: '', description: '', timeline: '', specificDate: '', estimatedDuration: '', budget: '',
                 propertyType: '', liftAvailable: '', stairs: '', parking: '', mirrorSize: '',
-                firstName: '', phone: '',
+                firstName: '', phone: '', primaryCategoryId: '', items: [],
                 ...parsed,
+                items: draftItems,
                 location: normalizedLocation,
             } : {};
         } catch (error) {
@@ -337,7 +341,7 @@ function JobPostingForm() {
             return {
                 jobType: '', description: '', location: null, timeline: '', specificDate: '', estimatedDuration: '', budget: '',
                 propertyType: '', liftAvailable: '', stairs: '', parking: '', mirrorSize: '',
-                firstName: '', phone: ''
+                firstName: '', phone: '', primaryCategoryId: '', items: []
             };
         }
     });
@@ -368,7 +372,9 @@ function JobPostingForm() {
     const recaptchaContainerId = useRef(`taskio-post-job-phone-recaptcha-${Math.random().toString(36).slice(2)}`);
     
     const totalSteps = user ? 4 : 5;
-    const [selectedTopLevelCategory, setSelectedTopLevelCategory] = useState(() => getTopLevelCategoryId(formData.jobType));
+    const [selectedTopLevelCategory, setSelectedTopLevelCategory] = useState(
+        () => formData.primaryCategoryId || getTopLevelCategoryId(formData.jobType)
+    );
     const groupedJobTypes = useMemo(
         () => buildGroupedJobTypesFromCatalog(phase1ExpertiseCatalog),
         []
@@ -385,10 +391,13 @@ function JobPostingForm() {
         () => getOutOfScopeTextError(selectedJobType?.label || '', formData.description),
         [formData.description, selectedJobType]
     );
-    const photoRequirement = useMemo(
-        () => getPhotoRequirement(formData.jobType, formData.mirrorSize),
-        [formData.jobType, formData.mirrorSize]
-    );
+    const photoRequirement = useMemo(() => {
+        const rank = { [PHOTO_LEVELS.NONE]: 0, [PHOTO_LEVELS.RECOMMENDED]: 1, [PHOTO_LEVELS.REQUIRED]: 2 };
+        return (formData.items || []).reduce((highest, item) => {
+            const next = getPhotoRequirement(item.type, formData.mirrorSize);
+            return rank[next] > rank[highest] ? next : highest;
+        }, PHOTO_LEVELS.NONE);
+    }, [formData.items, formData.mirrorSize]);
     
     // Move all useId calls to the top level
     const descId = useId(), firstNameId = useId(), phoneId = useId(), otpId = useId();
@@ -455,12 +464,12 @@ function JobPostingForm() {
     }, []);
 
     useEffect(() => {
-        if (!formData.jobType) return;
+        if (!formData.jobType || formData.primaryCategoryId) return;
         const categoryId = getTopLevelCategoryId(formData.jobType);
         if (categoryId && categoryId !== selectedTopLevelCategory) {
             setSelectedTopLevelCategory(categoryId);
         }
-    }, [formData.jobType, selectedTopLevelCategory]);
+    }, [formData.jobType, formData.primaryCategoryId, selectedTopLevelCategory]);
 
     const handleLocationChange = useCallback((e) => {
         const nextLocation = normalizeSelectedLocation(e.target.value);
@@ -471,13 +480,40 @@ function JobPostingForm() {
     const handleTopLevelCategorySelect = useCallback((categoryId) => {
         setSelectedTopLevelCategory(categoryId);
         setFormData((prev) => {
-            const next = { ...prev };
-            if (getTopLevelCategoryId(prev.jobType) !== categoryId) {
+            const next = { ...prev, primaryCategoryId: categoryId };
+            if (prev.primaryCategoryId !== categoryId && getTopLevelCategoryId(prev.jobType) !== categoryId) {
                 next.jobType = '';
+                next.items = [];
                 next.mirrorSize = '';
             }
             return next;
         });
+    }, []);
+
+    const toggleJobItem = useCallback((type, checked) => {
+        setFormData((prev) => {
+            const current = Array.isArray(prev.items) ? prev.items : [];
+            const nextItems = checked
+                ? [...current, { type, quantity: 1, customDescription: '' }]
+                : current.filter((item) => item.type !== type);
+            return {
+                ...prev,
+                items: nextItems,
+                jobType: nextItems.find((item) => item.type !== 'custom')?.type || '',
+                ...(type === 'mounting_mirrors' && !checked ? { mirrorSize: '' } : {}),
+            };
+        });
+        setFormErrors((prev) => ({ ...prev, items: '' }));
+    }, []);
+
+    const updateJobItem = useCallback((type, patch) => {
+        setFormData((prev) => ({
+            ...prev,
+            items: (Array.isArray(prev.items) ? prev.items : []).map((item) => (
+                item.type === type ? { ...item, ...patch } : item
+            )),
+        }));
+        setFormErrors((prev) => ({ ...prev, items: '' }));
     }, []);
     
     const handleChange = useCallback((e) => {
@@ -579,8 +615,15 @@ function JobPostingForm() {
     const stepValid = useMemo(() => {
         switch (currentStep) {
             case 1:
-                return !!formData.jobType
-                    && (formData.jobType !== 'mounting_mirrors' || !!formData.mirrorSize)
+                return Array.isArray(formData.items)
+                    && formData.items.length > 0
+                    && formData.items.every((item) => (
+                        Number.isInteger(Number(item.quantity))
+                        && Number(item.quantity) >= 1
+                        && Number(item.quantity) <= 99
+                        && (item.type !== 'custom' || String(item.customDescription || '').trim().length >= 3)
+                    ))
+                    && (!formData.items.some((item) => item.type === 'mounting_mirrors') || !!formData.mirrorSize)
                     && formData.description.trim().length >= 10
                     && !phase1TextScopeError
                     && (photoRequirement !== PHOTO_LEVELS.REQUIRED || photos.length > 0);
@@ -613,6 +656,12 @@ function JobPostingForm() {
         const generatedTitle = buildPostedJobTitleFromCatalogRow(selectedJobType, formData.location);
         return {
             jobType: formData.jobType,
+            primaryCategory: selectedTopLevelGroup?.sourceCategory || '',
+            items: (formData.items || []).map((item) => ({
+                type: item.type,
+                quantity: Number(item.quantity),
+                customDescription: String(item.customDescription || '').trim(),
+            })),
             title: generatedTitle,
             description: formData.description.trim().replace(/\s+/g, ' '), 
             location: formData.location,
@@ -626,10 +675,10 @@ function JobPostingForm() {
                 parking: formData.parking,
             },
             details: {
-                mirrorSize: formData.jobType === 'mounting_mirrors' ? formData.mirrorSize : '',
+                mirrorSize: formData.items?.some((item) => item.type === 'mounting_mirrors') ? formData.mirrorSize : '',
             },
         };
-    }, [formData, selectedJobType]);
+    }, [formData, selectedJobType, selectedTopLevelGroup]);
 
     const uploadPhotosForJob = useCallback(async (jobId) => {
         if (!jobId || photos.length === 0) return [];
@@ -834,27 +883,66 @@ function JobPostingForm() {
                             ))}
                         </div>
                         <div style={{ marginTop: '16px' }} />
-                        <div className="taskio-fieldLabel">{selectedTopLevelGroup ? `${selectedTopLevelGroup.question} *` : 'Choose the exact job *'}</div>
+                        <div className="taskio-fieldLabel">{selectedTopLevelGroup ? `${selectedTopLevelGroup.question} (choose one or more) *` : 'Choose task items *'}</div>
                         {selectedTopLevelGroup ? (
                             <div style={{ display: 'grid', gap: '10px' }}>
-                                {selectedTopLevelGroup.items.map((option) => (
-                                    <label key={option.key} className={`taskio-radioCard taskio-radioCardDetailed ${formData.jobType === option.key ? 'taskio-radioCardActive' : ''}`}>
+                                {[...selectedTopLevelGroup.items, {
+                                    key: 'custom',
+                                    label: 'Something else within this category',
+                                    summary: 'Describe another small indoor task in this category.',
+                                }].map((option) => {
+                                    const item = (formData.items || []).find((entry) => entry.type === option.key);
+                                    return (
+                                    <div key={option.key} className={`taskio-radioCard taskio-radioCardDetailed ${item ? 'taskio-radioCardActive' : ''}`}>
+                                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                                         <input
-                                            type="radio"
-                                            name="jobType"
+                                            type="checkbox"
+                                            name={`jobItem-${option.key}`}
                                             value={option.key}
-                                            checked={formData.jobType === option.key}
-                                            onChange={handleChange}
+                                            checked={Boolean(item)}
+                                            onChange={(event) => toggleJobItem(option.key, event.target.checked)}
                                             style={{ marginRight: '8px' }}
                                         />
                                         <span>
                                             <strong>{option.label}</strong>
-                                            <span style={{ display: formData.jobType === option.key ? 'block' : 'none', fontSize: '13px', color: '#666', fontWeight: 400, marginTop: '4px', lineHeight: 1.45 }}>
+                                            <span style={{ display: item ? 'block' : 'none', fontSize: '13px', color: '#666', fontWeight: 400, marginTop: '4px', lineHeight: 1.45 }}>
                                                 {option.summary}
                                             </span>
                                         </span>
-                                    </label>
-                                ))}
+                                      </label>
+                                      {item && (
+                                        <div style={{ display: 'grid', gridTemplateColumns: option.key === 'custom' ? '1fr 110px' : '110px', gap: 10, marginTop: 10 }}>
+                                          {option.key === 'custom' && (
+                                            <label>
+                                              <span className="taskio-fieldLabel">Item description</span>
+                                              <input
+                                                aria-label="Custom task item description"
+                                                value={item.customDescription || ''}
+                                                maxLength={200}
+                                                onChange={(event) => updateJobItem(option.key, { customDescription: event.target.value })}
+                                                className="taskio-input"
+                                              />
+                                            </label>
+                                          )}
+                                          <label>
+                                            <span className="taskio-fieldLabel">Quantity</span>
+                                            <input
+                                              aria-label={`${option.label} quantity`}
+                                              type="number"
+                                              min="1"
+                                              max="99"
+                                              step="1"
+                                              value={item.quantity}
+                                              onChange={(event) => updateJobItem(option.key, { quantity: Number(event.target.value) })}
+                                              className="taskio-input"
+                                            />
+                                          </label>
+                                        </div>
+                                      )}
+                                    </div>
+                                    );
+                                })}
+                                {formErrors.items && <div role="alert" style={{ color: '#b91c1c' }}>{formErrors.items}</div>}
                             </div>
                         ) : (
                             <div style={{ padding: '12px 14px', borderRadius: '12px', backgroundColor: '#F8FAFC', color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>
@@ -866,7 +954,7 @@ function JobPostingForm() {
                         </div>
                     </div>
 
-                    {formData.jobType === 'mounting_mirrors' && (
+                    {formData.items?.some((item) => item.type === 'mounting_mirrors') && (
                         <div style={{ marginBottom: '22px' }}>
                             <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>Mirror size *</div>
                             <div style={{ display: 'grid', gap: '10px' }}>

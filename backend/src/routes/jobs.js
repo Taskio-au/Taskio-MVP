@@ -16,7 +16,7 @@ const {
 } = require('../services/stripe');
 const { JOB_STATUSES, isValidStatus, normalizeStatus, isValidTransition } = require('../constants/jobStatuses');
 const { updateJobStatus, validateJobTransitionOrThrow } = require('../services/jobStatusUpdates');
-const { phase1ExpertiseCatalog, phase1KeysSet } = require('../shared/expertiseCatalog');
+const { phase1ExpertiseCatalog } = require('../shared/expertiseCatalog');
 const { melbournePilotLocations, isSupportedMelbournePilotLocation, normalizeLocationLabel, INNER_MELBOURNE_LAUNCH_MESSAGE } = require('../../../shared/auLocations');
 const { defaultPlatformFeePercentFromEnv } = require('../../../shared/feePlans');
 const { getExpertRatingAggregate } = require('../services/reviewAggregationService');
@@ -32,6 +32,7 @@ const {
 } = require('../services/baseQuoteFundingCompletion');
 const { buildPostedJobTitleFromPhase1Row } = require('../../../shared/paymentDisplayTaskTitle');
 const { refundFundedVariationsForCancellation } = require('../services/cancellationRefundService');
+const { itemScopeText, normalizeJobItems } = require('../services/jobItems');
 
 const router = express.Router();
 
@@ -357,12 +358,14 @@ function hasCompletedHomeownerAccount(profile, decodedToken) {
 // Create Job Endpoint - PROTECTED (Homeowner)
 router.post('/api/jobs', requireAuth, ensureUserProfile({ defaultRole: 'homeowner' }), requireRole('homeowner'), async (req, res) => {
   try {
-    const { jobType, title, description, location, timeline, budget, estimatedDuration, siteAccess, details } = req.body;
+    const {
+      jobType, primaryCategory, items, title, description, location, timeline,
+      budget, estimatedDuration, siteAccess, details,
+    } = req.body;
     const homeownerUid = req.user.uid;
 
-    if (!isNonEmptyString(jobType) || !phase1KeysSet.has(String(jobType).trim())) {
-      return res.status(400).send({ message: 'Please choose a supported job type.' });
-    }
+    const normalizedItems = normalizeJobItems({ jobType, primaryCategory, items });
+    if (normalizedItems.error) return res.status(400).send({ message: normalizedItems.error });
     if (!isNonEmptyString(description)) {
       return res.status(400).send({ message: 'Description is required.' });
     }
@@ -386,14 +389,20 @@ router.post('/api/jobs', requireAuth, ensureUserProfile({ defaultRole: 'homeowne
     if (!normalizedSiteAccess) {
       return res.status(400).send({ message: 'Please confirm lift, stairs, and parking details.' });
     }
-    const normalizedDetails = validateJobDetails(jobType, details);
+    const includesMirror = normalizedItems.items.some((item) => item.type === 'mounting_mirrors');
+    const normalizedDetails = validateJobDetails(includesMirror ? 'mounting_mirrors' : normalizedItems.primaryJobType, details);
     if (!normalizedDetails) {
       return res.status(400).send({ message: 'Please confirm whether the mirror is standard or large/heavy.' });
     }
-    const selectedJobTypeRow = phase1CatalogMap.get(String(jobType).trim());
-    const generatedTitle = buildPostedJobTitleFromPhase1Row(selectedJobTypeRow, normalizedLocation);
-    const normalizedTitle = isNonEmptyString(title) ? String(title).trim() : generatedTitle;
-    if (isOutOfPhase1Scope({ title: normalizedTitle, description })) {
+    const selectedJobTypeRow = normalizedItems.primaryRow;
+    const customLead = normalizedItems.items.find((item) => item.type === 'custom')?.customDescription || '';
+    const generatedTitle = selectedJobTypeRow
+      ? buildPostedJobTitleFromPhase1Row(selectedJobTypeRow, normalizedLocation)
+      : `${customLead} in ${normalizedLocation.suburb}`.trim().slice(0, 140);
+    const normalizedTitle = isNonEmptyString(title) && String(title).trim() !== 'Task'
+      ? String(title).trim()
+      : generatedTitle;
+    if (isOutOfPhase1Scope({ title: normalizedTitle, description: `${description} ${itemScopeText(normalizedItems.items)}` })) {
       return res.status(400).send({ message: PHASE1_SCOPE_MESSAGE });
     }
 
@@ -423,9 +432,11 @@ router.post('/api/jobs', requireAuth, ensureUserProfile({ defaultRole: 'homeowne
 
     const jobData = {
       homeownerUid,
-      jobType: selectedJobType.key,
-      jobTypeLabel: selectedJobType.label,
-      jobTypeCategory: selectedJobType.category,
+      jobType: normalizedItems.primaryJobType,
+      jobTypeLabel: selectedJobType?.label || customLead,
+      jobTypeCategory: normalizedItems.primaryCategory,
+      primaryCategory: normalizedItems.primaryCategory,
+      items: normalizedItems.items,
       title: normalizedTitle,
       description: description.trim(),
       location: normalizedLocation.label,
