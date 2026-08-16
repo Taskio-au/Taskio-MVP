@@ -249,6 +249,7 @@ describe('GET /api/jobs/:jobId/quotes — Phase 5 expert enrichment', () => {
       dob: { day: 1, month: 1, year: 1990 },
       verificationStatus: 'pending',
       legalName: 'Samuel Hill',
+      photoURL: 'https://storage.example.test/token-bearing-profile-photo',
       verified: false,
     });
     seedDoc('quotes', 'q-1', {
@@ -281,6 +282,9 @@ describe('GET /api/jobs/:jobId/quotes — Phase 5 expert enrichment', () => {
     expect(e.legalName).toBeUndefined();
     expect(e.lastName).toBeUndefined();
     expect(e.displayName).toBeUndefined();
+    expect(e.photoURL).toBeUndefined();
+    expect(e.profilePhotoURL).toBeUndefined();
+    expect(e.profilePhotoAvailable).toBe(true);
   });
 
   it('verified is true only when users.verified === true', async () => {

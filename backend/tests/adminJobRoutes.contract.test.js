@@ -340,6 +340,32 @@ describe('admin job route contracts', () => {
     }));
   });
 
+  it('routes monitoring review and chat freeze through audited admin endpoints', async () => {
+    writeCollectionDoc('jobs', 'job-monitoring', {
+      status: 'FUNDED', requiresAdminAttention: true, chatFrozen: false,
+    });
+
+    const freeze = await request(app)
+      .post('/api/admin/jobs/job-monitoring/chat/freeze')
+      .send({ frozen: true, reason: 'Off-platform payment request detected' });
+    expect(freeze.status).toBe(200);
+    expect(readCollectionDoc('jobs', 'job-monitoring').chatFrozen).toBe(true);
+
+    const reviewed = await request(app)
+      .post('/api/admin/jobs/job-monitoring/monitoring/review')
+      .send({});
+    expect(reviewed.status).toBe(200);
+    const job = readCollectionDoc('jobs', 'job-monitoring');
+    expect(job.requiresAdminAttention).toBe(false);
+    expect(job.monitoringReviewedBy).toBe('admin-uid');
+    expect(mockLogAdminJobAction).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 'job-monitoring', action: 'CHAT_FROZEN',
+    }));
+    expect(mockLogAdminJobAction).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 'job-monitoring', action: 'MONITORING_REVIEWED',
+    }));
+  });
+
   it('POST /retry-payment recreates checkout when funding failed', async () => {
     writeCollectionDoc('quotes', 'q1', { amount: 100, jobId: 'rj1', tradieUid: 't1' });
     writeCollectionDoc('jobs', 'rj1', {

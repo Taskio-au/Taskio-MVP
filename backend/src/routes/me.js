@@ -456,6 +456,7 @@ router.get('/api/me', requireAuth, async (req, res) => {
         abn: data.abn || '',
         abnVerified: !!data.abnVerified,
         photoURL: data.photoURL || data.profilePhotoURL || '',
+        profilePhotoPath: data.profilePhotoPath || '',
         stripe: {
           onboardingComplete: eligibility?.derived?.stripeOnboardingComplete || false,
         },
@@ -519,6 +520,14 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
         return res.status(400).send({ message: 'Invalid photoURL.' });
       }
       updates.photoURL = url;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'profilePhotoPath')) {
+      const photoPath = String(body.profilePhotoPath || '').trim();
+      const ownedPrefix = `profilePhotos/${uid}/`;
+      if (photoPath && (!photoPath.startsWith(ownedPrefix) || photoPath.length > 500 || photoPath.includes('..'))) {
+        return res.status(400).send({ message: 'Invalid profilePhotoPath.' });
+      }
+      updates.profilePhotoPath = photoPath;
     }
 
     // Service location (Task Expert)

@@ -7,7 +7,6 @@ const { requireAuth, requireRole, ensureUserProfile } = require('../middleware/a
 const { safeToMillis } = require('../utils/firestore');
 const { isNonEmptyString, isStringMax, toSafeNumber } = require('../utils/validation');
 const {
-  createPaymentIntent,
   retrievePaymentIntent,
   retrieveCheckoutSession,
   createTransfer,
@@ -33,6 +32,7 @@ const {
 const { buildPostedJobTitleFromPhase1Row } = require('../../../shared/paymentDisplayTaskTitle');
 const { refundFundedVariationsForCancellation } = require('../services/cancellationRefundService');
 const { itemScopeText, normalizeJobItems } = require('../services/jobItems');
+const { loggerForReq } = require('../observability/logger');
 
 const router = express.Router();
 
@@ -117,7 +117,8 @@ function buildSafeExpertSummary(uid, userData, ratingAggregate) {
     name,
     businessName,
     bio,
-    photoURL,
+    // Never return token-bearing Firebase Storage download URLs in quote/public payloads.
+    profilePhotoAvailable: Boolean(u.profilePhotoPath || photoURL),
     verified,
     rating: typeof averageRating === 'number' ? averageRating : null,
     reviewsCount: typeof reviewCount === 'number' ? reviewCount : 0,
@@ -1386,15 +1387,6 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
 });
 
 /**
- * @route POST /api/jobs/:jobId/fund
- * @description Deprecated. Use /api/jobs/:jobId/checkout instead.
- * @access Private (Homeowner)
- */
-router.post('/api/jobs/:jobId/fund', async (req, res) => {
-  return res.status(410).send({ message: 'Deprecated endpoint. Use /api/jobs/:jobId/checkout instead.' });
-});
-
-/**
  * @route POST /api/jobs/:jobId/payment-confirmed
  * @description Compatibility endpoint. Primarily webhook-driven, but can recover from webhook lag by checking Stripe directly.
  * @access Private (Homeowner)
@@ -2391,9 +2383,7 @@ router.post('/api/jobs/:id/release', requireAuth, requireRole('homeowner'), asyn
 
     const { plan, baseTransfer, variationTransfers } = stripeResult;
 
-    // eslint-disable-next-line no-console
-    console.error(JSON.stringify({
-      event: 'taskio_release_audit',
+    loggerForReq(req).info('taskio_release_audit', {
       phase: 'pre_persist',
       success: true,
       jobId,
@@ -2409,7 +2399,7 @@ router.post('/api/jobs/:id/release', requireAuth, requireRole('homeowner'), asyn
       variationTransferIds: variationTransfers.map((v) => ({ variationId: v.variationId, transferId: v.transfer.id })),
       currency: job.paymentCurrency || 'aud',
       transferGroup: `taskio_job_${jobId}`,
-    }));
+    });
 
     await persistExpertReleaseAfterTransfers({
       jobRef,
@@ -2435,9 +2425,7 @@ router.post('/api/jobs/:id/release', requireAuth, requireRole('homeowner'), asyn
       },
     });
 
-    // eslint-disable-next-line no-console
-    console.error(JSON.stringify({
-      event: 'taskio_release_audit',
+    loggerForReq(req).info('taskio_release_audit', {
       phase: 'complete',
       success: true,
       jobId,
@@ -2449,7 +2437,7 @@ router.post('/api/jobs/:id/release', requireAuth, requireRole('homeowner'), asyn
       baseTransferId: baseTransfer.id,
       variationTransferIds: variationTransfers.map((v) => v.transfer.id),
       transferGroup: `taskio_job_${jobId}`,
-    }));
+    });
 
     return res.status(200).send({
       message: 'Payment released successfully.',
@@ -2460,16 +2448,14 @@ router.post('/api/jobs/:id/release', requireAuth, requireRole('homeowner'), asyn
       totalProviderAmountCents: plan.totals.totalProviderCents,
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error(JSON.stringify({
-      event: 'taskio_release_audit',
+    loggerForReq(req).error('taskio_release_audit', {
       phase: 'error',
       success: false,
       jobId: req.params?.id,
       homeownerUid: req.user?.uid,
       message: error && error.message ? String(error.message) : 'unknown',
       code: error && error.code ? String(error.code) : null,
-    }));
+    });
 
     const mapped = getReleasePaymentErrorResponse(error);
     if (mapped) {

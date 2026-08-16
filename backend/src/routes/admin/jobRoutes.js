@@ -490,6 +490,64 @@ router.post('/api/admin/jobs/:jobId/chat/reopen', requireAuth, requireAdmin, asy
   }
 });
 
+router.post('/api/admin/jobs/:jobId/monitoring/review', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const ref = db.collection('jobs').doc(jobId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).send({ message: 'Task not found.' });
+    await ref.set({
+      requiresAdminAttention: false,
+      monitoringReviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      monitoringReviewedBy: req.user.uid,
+      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      reviewedByUid: req.user.uid,
+      adminReviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+      adminReviewedBy: req.user.uid,
+      lastAdminActionAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastAdminActionBy: req.user.uid,
+    }, { merge: true });
+    await logAdminJobAction({ req, jobId, action: 'MONITORING_REVIEWED', metadata: {} });
+    return res.status(200).send({ ok: true });
+  } catch (error) {
+    console.error('Error marking monitoring reviewed:', error);
+    return res.status(500).send({ message: 'Failed to mark monitoring reviewed.' });
+  }
+});
+
+router.post('/api/admin/jobs/:jobId/chat/freeze', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const frozen = req.body?.frozen === true;
+    const reason = String(req.body?.reason || '').trim();
+    if (frozen && (reason.length < 3 || reason.length > 300)) {
+      return res.status(400).send({ message: 'Freeze reason must be 3 to 300 characters.' });
+    }
+    const ref = db.collection('jobs').doc(jobId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).send({ message: 'Task not found.' });
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    await ref.set({
+      chatFrozen: frozen,
+      ...(frozen
+        ? { frozenAt: now, frozenBy: req.user.uid, frozenReason: reason }
+        : { unfrozenAt: now, unfrozenBy: req.user.uid }),
+      lastAdminActionAt: now,
+      lastAdminActionBy: req.user.uid,
+    }, { merge: true });
+    await logAdminJobAction({
+      req,
+      jobId,
+      action: frozen ? 'CHAT_FROZEN' : 'CHAT_UNFROZEN',
+      metadata: frozen ? { reason } : {},
+    });
+    return res.status(200).send({ ok: true, chatFrozen: frozen });
+  } catch (error) {
+    console.error('Error changing chat freeze:', error);
+    return res.status(500).send({ message: 'Failed to change chat freeze.' });
+  }
+});
+
 router.post('/api/admin/jobs/:jobId/flag-dispute', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { jobId } = req.params;

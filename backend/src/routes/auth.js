@@ -3,7 +3,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 
-const { admin, db } = require('../firebaseAdmin');
+const { admin } = require('../firebaseAdmin');
 
 const router = express.Router();
 
@@ -16,17 +16,6 @@ const authResolveLimiter = rateLimit({
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
-}
-
-async function readUserRole(uid) {
-  if (!uid) return '';
-  try {
-    const doc = await db.collection('users').doc(uid).get();
-    if (!doc.exists) return '';
-    return String(doc.data()?.role || '').trim().toLowerCase();
-  } catch (_) {
-    return '';
-  }
 }
 
 function hasGoogleProvider(providerData = []) {
@@ -46,8 +35,7 @@ router.post('/api/auth/resolve-email', authResolveLimiter, async (req, res) => {
   try {
     const userRecord = await admin.auth().getUserByEmail(email);
     const customClaims = userRecord.customClaims || {};
-    const docRole = await readUserRole(userRecord.uid);
-    const isAdmin = customClaims.admin === true || customClaims.role === 'admin' || docRole === 'admin';
+    const isAdmin = customClaims.admin === true || customClaims.role === 'admin';
 
     if (isAdmin) {
       return res.status(200).send({

@@ -33,24 +33,6 @@ function constructWebhookEvent(rawBody, signatureHeader) {
   return stripe.webhooks.constructEvent(rawBody, signatureHeader, secret);
 }
 
-async function createPaymentIntent({ amountInCents, currency = 'aud', metadata, idempotencyKey }) {
-  const stripe = getStripe();
-
-  // For MVP escrow-like flow: collect funds to platform account now.
-  // Release to tradie later via a Transfer (separate endpoint/webhook).
-  const intent = await stripe.paymentIntents.create(
-    {
-      amount: amountInCents,
-      currency,
-      automatic_payment_methods: { enabled: true },
-      metadata: metadata || {},
-    },
-    idempotencyKey ? { idempotencyKey } : undefined
-  );
-
-  return intent;
-}
-
 async function createCheckoutSession({
   amountInCents,
   currency = 'aud',
@@ -254,7 +236,6 @@ async function cancelPaymentIntent(paymentIntentId) {
 module.exports = {
   getStripe,
   constructWebhookEvent,
-  createPaymentIntent,
   createCheckoutSession,
   retrievePaymentIntent,
   retrieveCheckoutSession,
@@ -269,5 +250,4 @@ module.exports = {
   cancelPaymentIntent,
   getExpectedStripeLivemode,
 };
-
 
