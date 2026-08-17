@@ -4,7 +4,7 @@
 
 ## Prepared repository artifacts
 
-- `backend/Dockerfile` and `.dockerignore`: Node 24 Cloud Run container, non-root runtime, `/health/live` container health check.
+- Root `Dockerfile`, `.dockerignore`, and `.gcloudignore`: Node 24 Cloud Run API image built from the **repository root** so `backend/` and repo-root `shared/` keep the runtime relative-import layout (`/app/backend/**` + `/app/shared/**`). Non-root `node` user. No Docker `HEALTHCHECK` (Cloud Run probes instead). Do **not** use `--source backend`.
 - `firestore.indexes.json`: tracked index manifest. Current queries intentionally use single-field/document-ID ordering, so no composite index is declared.
 - `firebase.json`: explicit Functions, Firestore rules/indexes, Storage rules, and Hosting sources.
 - `firebase.maintenance.json` plus `maintenance/index.html`: Hosting-only pre-launch page with no-store/noindex headers.
@@ -19,8 +19,10 @@ Do not run any command in this document until all of these are true:
 3. An interactive operator verifies the active account, billing impact, IAM, Firebase project ID, and previous revision/release identifiers.
 4. The canonical origin `https://taskio.com.au` and intended API origin are confirmed operational.
 5. Firebase custom claims for `admin` and `super_admin` are assigned by an authorised operator; Firestore profile fields are not used as authority.
-6. The two uninspected local service-account keys have been rotated and removed manually (procedure below).
+6. A04 is complete for production: the user-managed Admin SDK key was deleted and local production JSON copies were removed. Do not recreate a JSON key for Cloud Run; use ADC on `taskio-api-runtime`.
 7. Required production values have been provisioned without placing values in Git or shell history.
+8. Cloud Run source builds have an approved Cloud Build identity, Artifact Registry write path, and enabled APIs (`run.googleapis.com` already used by Functions v2; `cloudbuild.googleapis.com` and `artifactregistry.googleapis.com` are additional source-deploy prerequisites and must not be enabled as an incidental side effect). Do not create Artifact Registry repositories until that batch is approved.
+9. Dedicated runtime identity `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` exists with the approved datastore/auth/secret-accessor roles. Do not use the default Compute account or `firebase-adminsdk-fbsvc` as the API identity.
 
 ### Secret-name inventory (names only)
 
@@ -91,7 +93,23 @@ Use only demo Firebase project IDs/emulators during these checks.
 
 ### 3. Deploy the Express API to Cloud Run
 
-First build with no traffic, using an approved service identity and secret mappings. Non-secret environment values must include:
+Build from the **repository root**, not `backend/`. Runtime files import repo-root `shared/` as `../../../shared/...` from `backend/src/{routes,services,constants,utils}` and `../../../../shared/...` from `backend/src/routes/admin`. The image layout is `/app/backend/**` plus `/app/shared/**`, with `WORKDIR /app/backend`.
+
+Local image build (same context Cloud Run `--source .` will use):
+
+```powershell
+docker build -t taskio-api:preflight .
+```
+
+An actual container build is **still outstanding** in this workspace: Docker is not installed locally, so the image has not been built or inspected. That build must succeed (locally or in Cloud Build) before Cloud Run deployment approval. Do not treat the Dockerfile as a verified image.
+
+Do not set `GOOGLE_APPLICATION_CREDENTIALS` or `FIREBASE_SERVICE_ACCOUNT_JSON`. Cloud Run must use ADC via `initializeApp()` when `K_SERVICE` is present.
+
+Keep the following as **separate approvals**. Do not collapse them into one command. A new Cloud Run service does not inherently have to receive public production traffic: deploy the first revision with `--no-traffic` and a `preflight` tag, keep unauthenticated invocation off, and only later enable traffic and public access.
+
+If the CLI refuses `--no-traffic` on first create, **stop and report**. Do not send 100% traffic as a workaround without a new owner approval.
+
+Non-secret environment values must include:
 
 - `NODE_ENV=production`
 - `PORT=8080`
@@ -102,15 +120,29 @@ First build with no traffic, using an approved service identity and secret mappi
 - `GEMINI_API_VERSION=v1`
 - `GEMINI_MODEL=gemini-3.6-flash`
 
+#### 3a. Build and deploy a no-traffic revision
+
 ```powershell
-gcloud run deploy taskio-api --source backend --project taskio-v2 --region australia-southeast1 --platform managed --service-account <APPROVED_RUNTIME_SERVICE_ACCOUNT> --no-traffic --set-env-vars NODE_ENV=production,PORT=8080,TRUST_PROXY=true,CORS_ORIGINS=https://taskio.com.au,FRONTEND_URL=https://taskio.com.au,STRIPE_ENABLED=false,GEMINI_API_VERSION=v1,GEMINI_MODEL=gemini-3.6-flash --set-secrets ALERT_WEBHOOK_URL=ALERT_WEBHOOK_URL:latest,OTP_SALT=OTP_SALT:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ABN_LOOKUP_GUID=ABN_LOOKUP_GUID:latest
+gcloud run deploy taskio-api --source . --project taskio-v2 --region australia-southeast1 --platform managed --service-account taskio-api-runtime@taskio-v2.iam.gserviceaccount.com --port 8080 --no-allow-unauthenticated --no-traffic --tag preflight --startup-probe httpGetPath=/health/live,periodSeconds=10,timeoutSeconds=3,failureThreshold=3 --liveness-probe httpGetPath=/health/live,periodSeconds=30,timeoutSeconds=3,failureThreshold=3 --set-env-vars NODE_ENV=production,PORT=8080,TRUST_PROXY=true,CORS_ORIGINS=https://taskio.com.au,FRONTEND_URL=https://taskio.com.au,STRIPE_ENABLED=false,GEMINI_API_VERSION=v1,GEMINI_MODEL=gemini-3.6-flash --set-secrets ALERT_WEBHOOK_URL=ALERT_WEBHOOK_URL:latest,OTP_SALT=OTP_SALT:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ABN_LOOKUP_GUID=ABN_LOOKUP_GUID:latest
 ```
 
-Verify the no-traffic revision directly using an authenticated revision tag or approved test path. Confirm `/health/live` and `/health/ready`, CORS allow/deny behaviour, structured request IDs, and no secret material in logs. Then, under a separate traffic approval:
+#### 3b. Private / tagged preflight verification
+
+Call the `preflight` tag URL with an identity token. The service remains `--no-allow-unauthenticated`. Confirm `/health/live` and `/health/ready`, CORS allow/deny behaviour, structured request IDs, ADC/Firestore without a JSON key, and no secret material in logs.
+
+#### 3c. Public invocation approval
+
+Only after 3b, a separate approval may grant public invocation (`--allow-unauthenticated` and/or ingress changes). Revision existence is not public access.
+
+#### 3d. Production traffic enablement
 
 ```powershell
 gcloud run services update-traffic taskio-api --project taskio-v2 --region australia-southeast1 --to-latest
 ```
+
+#### 3e. Frontend connection
+
+Connecting Hosting, CORS, and `REACT_APP_API_BASE_URL` (A51) remains a later approval. Do not restore the public SPA or change DNS as part of the API revision deploy.
 
 ### 4. Deploy rules and indexes
 
@@ -147,7 +179,7 @@ Stripe, App Check enforcement, SMTP, DNS/domain changes, and any live Gemini smo
 
 ## Rollback — NOT EXECUTED
 
-- Cloud Run: send 100% traffic to the recorded prior revision:
+- Cloud Run: if a prior healthy revision exists, send 100% traffic to that recorded revision. If the first preflight revision never received production traffic, delete or leave it untagged rather than “rolling back” onto it:
 
   ```powershell
   gcloud run services update-traffic taskio-api --project taskio-v2 --region australia-southeast1 --to-revisions <PREVIOUS_REVISION>=100
@@ -175,14 +207,7 @@ Public verification must check the canonical domain and both Firebase Hosting do
 
 ## Manual service-account key rotation (A04)
 
-The key files were deliberately not read, moved, changed, or deleted during repository work.
-
-1. In Google Cloud IAM → Service Accounts for the project named inside each key (determine this manually without sharing the JSON), identify the matching key ID.
-2. Confirm the intended workload runs with an approved managed service identity or ADC and does not depend on either JSON file.
-3. Disable one old key, verify the workload, then delete that key. Repeat for the other key; never rotate both simultaneously without verification.
-4. Securely remove the two local files only after confirming no process uses them.
-5. Search Git history by filename and secret-scanning tooling without printing key contents; escalate if any key was ever committed.
-6. Record key IDs, operator, timestamps, workload verification, and deletion confirmation in the private operations log—not this repository.
+A04 is complete for `taskio-v2`. Do not recreate a user-managed JSON key for the API. Cloud Run must use ADC on the approved runtime service account. Staging key handling remains outside this production plan.
 
 ## Manual local-runtime switch back to `taskio-v2`
 

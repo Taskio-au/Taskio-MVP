@@ -1,0 +1,24 @@
+# Production API image context. Allow only the files the Dockerfile copies.
+*
+!Dockerfile
+!.dockerignore
+!backend
+!backend/package.json
+!backend/package-lock.json
+!backend/src
+!backend/src/**
+!shared
+!shared/**
+
+# Never send local secrets or credential JSON even if a path is later un-ignored.
+**/.env
+**/.env.*
+!**/.env.example
+**/serviceAccountKey.json
+**/*serviceAccount*.json
+backend/setAdmin.js
+backend/debug.js
+**/*.log
+**/node_modules
+**/coverage
+**/.git

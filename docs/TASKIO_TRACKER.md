@@ -20,6 +20,17 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-17 A03 repository build-context record
+
+A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This step is repository changes and local verification only. No Google Cloud, Firebase, IAM, Secret Manager, Cloud Run, DNS, Hosting, or staging mutation.
+
+- Branch / HEAD at start of this edit: `develop` / `210ccf4`. This close-out commits the root Docker/plan files only; nothing is pushed.
+- Production image context is the **repository root** (`docker build -t taskio-api:preflight .` / later `gcloud run deploy taskio-api --source .`). `--source backend` is withdrawn.
+- Image layout: `/app/backend/**` + `/app/shared/**`, `WORKDIR /app/backend`, `CMD node src/server.js`, Node 24, `USER node`, no JSON credential, ADC on Cloud Run.
+- `backend/Dockerfile` removed so an excluded/wrong-layout file cannot be used. Root `.dockerignore` is an allowlist and still denies `.env` and service-account JSON.
+- Docker is **not installed** locally. The real container build, image inspection, and `/health/live` in a container remain **outstanding** and must succeed before Cloud Run deployment approval.
+- First Cloud Run strategy: `--no-traffic --tag preflight --no-allow-unauthenticated`, then private verify, then public invocation, then traffic, then frontend connection.
+
 ## 2026-08-17 A50 current record
 
 A50 is **COMPLETED** for production Firebase Hosting containment on `taskio-v2`. Hosting-only maintenance mode is live on the default site. Functions, rules, indexes, Storage, Cloud Run, IAM, and staging were not deployed or modified.
@@ -46,7 +57,7 @@ This ledger records current evidence without erasing the historical baseline in 
 
 | ID | Current status | Evidence / exact remaining requirement |
 |---|---|---|
-| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Node 24 Cloud Run container, health endpoints, environment inventory, exact no-traffic deployment/verification/rollback commands are prepared. Acceptance still requires production credentials, an approved service identity, deployment, HTTPS/CORS and live-flow verification. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Root-context Node 24 image (`Dockerfile` + `.dockerignore` + `.gcloudignore`) preserves `/app/backend` + `/app/shared` for `../../../shared` imports. First Cloud Run revision is planned `--no-traffic --tag preflight` with IAM/public access separate. Local Docker is not installed so image build/health remain outstanding. Secrets, runtime SA, Cloud Build/Artifact Registry, deploy, HTTPS/CORS, and frontend connection remain. |
 | A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced. Current queries avoid composite indexes; only an approved production deploy and representative live query verification can close acceptance. |
 | A02 | COMPLETED | Firestore message creation requires a valid participant role and open, funded, unfrozen chat; demo-project rules suite passes. |
@@ -89,7 +100,7 @@ This table supersedes the intermediate ledger above. `COMPLETED` means the repos
 |---|---|---|
 | A01 | COMPLETED | Seven intentional commits through `13a22e3` were reviewed, pushed to `origin/develop`, and GitHub CI run `31955663683` passed all five jobs. |
 | A02 | COMPLETED | Participant, sender-role, funded/open-chat, freeze, cancellation, and 30-day release rules are covered by the 18-test demo rules suite. |
-| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Node 24 Cloud Run container, health checks, environment inventory, CORS settings, no-traffic rollout, verification, and rollback commands are prepared in `docs/TASKIO_RELEASE_PLAN.md`; production identity, secrets, deployment, and live verification remain. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Root-context Node 24 image and `docs/TASKIO_RELEASE_PLAN.md` now build from the repository root (`docker build` / `gcloud run deploy --source .`), not `--source backend`. First revision: `--no-traffic --tag preflight`, then private verify, then public invocation, then traffic, then frontend connection. Production identity, secrets, APIs, deployment, and live verification remain. Local Docker was not available to build the image. |
 | A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute `848916998874-compute@…` / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced; current queries require no composites. An approved production deploy and representative live-query verification remain. |
 | A06 | COMPLETED | Production bypass tests fail closed; the production E2E harness exception requires an explicit flag, demo project ID, and loopback API. Standard production CI builds with bypass disabled. |
@@ -246,18 +257,18 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 - **Source:** Cursor Audit
 - **Phase:** 3 Deploy
 - **Area / feature:** Deployment — Express backend
-- **Why / evidence:** The live Firebase Hosting bundle calls http://localhost:8000. No Express deployment configuration, cloud API hostname or deployment workflow exists in the repository, so every API-dependent production action is unavailable.
+- **Why / evidence:** The previous `--source backend` plan could not ship a working production image: `backend/.dockerignore` excluded `Dockerfile*`, the backend context does not contain repo-root `shared/`, and `COPY shared` beside `src` under `/app` does not match runtime `../../../shared` imports (those require `/app/backend/src/...` plus `/app/shared/...`). Hosting remains on the A50 maintenance page. `taskio-api` is still absent. Repository build files now use the repo root; local Docker is not installed so the image has not been built.
 - **Working priority:** Critical (original: Critical)
 - **Baseline status:** Needs Decision
 - **Effort:** 1-2 days
 - **Dependencies:** A01, A04, A49
-- **Next action:** Verify Cloud Run, App Engine and Stripe Webhooks for any unrecorded manual deployment. If empty, formally select Cloud Run in australia-southeast1; configure production secrets and required environment variables; deploy to staging; then connect the frontend through A51.
-- **Acceptance / verification:** Staging health/readiness returns 200 over HTTPS; CORS accepts only approved staging/production origins; the backend starts with NODE_ENV=production; job posting, quote, OTP/ABN, admin and Stripe test-webhook flows reach the deployed API.
+- **Next action:** Do not deploy. The repository build-context fix is committed; the real container build remains outstanding because Docker is unavailable locally. The smallest next cloud preflight is enabling Cloud Build/Artifact Registry APIs and building the image **without** creating `taskio-api`, runtime IAM, or secrets. Public invocation, production traffic, and frontend connection remain later approvals.
+- **Acceptance / verification:** Staging is frozen/excluded. Production acceptance still requires HTTPS health/readiness 200, CORS only on approved origins, NODE_ENV=production, ADC without a JSON key, and job posting/quote/OTP/ABN/admin flows on the deployed API after traffic and frontend connection are separately approved.
 - **Confidence:** Confirmed
 - **Owner:** Saeed + Cursor
-- **File / location:** backend/; firebase.json; backend/package.json; createApiClient.js; deployed frontend bundle
-- **Date added / last reviewed:** 2026-08-09 / 2026-08-09
-- **Notes:** firebase.json serves frontend/build and has only an SPA catch-all; it contains no Function or Cloud Run API rewrite. Environment templates still default REACT_APP_API_BASE_URL and FRONTEND_URL to localhost. Production also requires CORS_ORIGINS, TRUST_PROXY, ALERT_WEBHOOK_URL and OTP_SALT before the backend can start. No deployment occurred during A01.
+- **File / location:** Dockerfile; .dockerignore; .gcloudignore; backend/; docs/TASKIO_RELEASE_PLAN.md
+- **Date added / last reviewed:** 2026-08-09 / 2026-08-17
+- **Notes:** First Cloud Run revision must use `--no-traffic` and tag `preflight`. Do not treat a newly created service as inherently 100% public traffic. Keep IAM/public access off the deploy command. Do not set `GOOGLE_APPLICATION_CREDENTIALS`. Docker HEALTHCHECK was removed in favour of Cloud Run probes (`node:24-alpine` has no `wget`).
 
 ### A04 — Remove and rotate local service-account keys
 
@@ -1392,6 +1403,7 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-17 | `develop` / `67f97b4` | A04 | Deleted ignored local copies `serviceAccountKey.json` and `backend/serviceAccountKey.json`. No remaining worktree JSON with production key last-4 `3cac`. Ignore/dockerignore protections remain. Ignored `setAdmin.js` left unmodified and is now non-functional. Staging key `f04d` and `.env` untouched. | File existence false; git ls-files empty; filename/env-name search; git status tracker-only | No cloud change. Nothing committed | Owner confirmation to mark A04 COMPLETED; separate decisions for `setAdmin.js` and staging key `f04d` |
 | 2026-08-17 | `develop` / `67f97b4` | A04 | Owner confirmed close-out. A04 marked COMPLETED: production key `3cac` deleted; 0 user-managed keys remain; both local production credential files removed; Functions remain on runtime Compute / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. | Tracker current record, both ledgers, and master item updated | Tracker-only edit. Nothing committed or pushed | None for A04 |
 | 2026-08-17 | `develop` / `33b4629` | A50 | Hosting-only maintenance deployed to `taskio-v2` default site. CLI uploaded 1 file from `maintenance/`. Live version `654a7615bfa2b420`; previous rollback version `530f735512a2e5ee`. Default Firebase domains verified maintenance on root and app routes. Canonical apex not attached (LiteSpeed). Functions still 4 ACTIVE with unchanged source hashes. | Live GET 200 + no-store/noindex headers; channel JSON; functions:list | Hosting-only on `taskio-v2`. No Functions/rules/indexes/Cloud Run/IAM/staging. Tracker uncommitted | Owner may commit tracker; A03 remains a separate approval |
+| 2026-08-17 | `develop` / `210ccf4` | A03 | Fixed production API build context: root `Dockerfile`/`.dockerignore`/`.gcloudignore`; deleted `backend/Dockerfile`; `backend/.dockerignore` no longer excludes Dockerfiles. Image keeps `/app/backend` + `/app/shared`. Release plan now uses `--source .`, `--no-traffic --tag preflight`, and separated public-access/traffic/frontend steps. | Path resolution of runtime `shared/` imports; `node --check`; backend tests (see session report). Docker not installed — image build/health outstanding and required before Cloud Run deploy approval | None. No cloud mutation. This batch committed locally; not pushed | Real container build still outstanding. Smallest next cloud preflight: Cloud Build/AR APIs + image build, without creating `taskio-api` |
 
 ## Required final report template
 

@@ -1,7 +1,11 @@
+# Not the production image context. Production builds from the repository
+# root Dockerfile so repo-root shared/ stays at ../../../shared from backend/src.
 node_modules
 coverage
 .env
 .env.*
 *.log
 serviceAccountKey.json
-Dockerfile*
+**/*serviceAccount*.json
+setAdmin.js
+debug.js
