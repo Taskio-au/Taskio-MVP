@@ -103,3 +103,22 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
+
+  api-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build production API image
+        run: docker build -t taskio-api:ci .
+      - name: Inspect image config
+        run: |
+          workingDir="$(docker image inspect taskio-api:ci --format '{{.Config.WorkingDir}}')"
+          user="$(docker image inspect taskio-api:ci --format '{{.Config.User}}')"
+          cmd="$(docker image inspect taskio-api:ci --format '{{json .Config.Cmd}}')"
+          echo "workingDir=$workingDir user=$user cmd=$cmd"
+          test "$workingDir" = "/app/backend"
+          test "$user" = "node"
+          test "$cmd" = '["node","src/server.js"]'
+      - name: Confirm image layout without network or credentials
+        run: |
+          docker run --rm --network=none --read-only --entrypoint sh taskio-api:ci -c "test -f /app/backend/src/server.js && test -f /app/shared/auLocations.js && test -f /app/shared/feePlans.js && test ! -e /app/backend/.env && test ! -e /app/backend/serviceAccountKey.json && test ! -e /app/serviceAccountKey.json"
