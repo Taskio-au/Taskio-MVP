@@ -20,6 +20,17 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-17 A50 current record
+
+A50 is **COMPLETED** for production Firebase Hosting containment on `taskio-v2`. Hosting-only maintenance mode is live on the default site. Functions, rules, indexes, Storage, Cloud Run, IAM, and staging were not deployed or modified.
+
+- Branch / HEAD: `develop` / `33b4629`; tracker edit uncommitted; nothing pushed.
+- Pre-deploy rollback identifiers: release `1766716607725000`, version `530f735512a2e5ee` (2025-12-26 frontend bundle, 27 files).
+- New live identifiers: release `1786941217240000`, version `654a7615bfa2b420` (2026-08-17, 1 file from `maintenance/`).
+- Verified `https://taskio-v2.web.app` and `https://taskio-v2.firebaseapp.com` (root, `/login`, `/admin`, `/post-task`): HTTP 200, title `Taskio is preparing to launch`, `Cache-Control: no-store, max-age=0`, `X-Robots-Tag: noindex, nofollow`, no app UI/scripts/Firebase SDK.
+- Canonical `taskio.com.au` / `www.taskio.com.au` are **not attached** to this Hosting site (LiteSpeed placeholder, pre-existing). DNS/domain configuration was not changed.
+- Rollback: Firebase Console → Hosting → Release history → previous release `1766716607725000` / version `530f735512a2e5ee`.
+
 ## 2026-08-17 A04 current record
 
 A04 is **COMPLETED**. Production user-managed Admin SDK key last-4 `3cac` on `taskio-v2` is permanently deleted. Zero user-managed keys remain on that Firebase Admin SDK account. Both local production credential files have been removed. Deployed Functions remain on their runtime Compute service account / ADC. No replacement production credential was created. Ignore protections remain in place.
@@ -55,7 +66,7 @@ This ledger records current evidence without erasing the historical baseline in 
 | A41 | COMPLETED | `.nvmrc`, package engines, Dockerfile, Functions and all CI jobs align on Node 24. |
 | A42 | COMPLETED | Playwright reports/results, Firebase local state, emulator/debug logs, builds and dependencies are ignored. |
 | A49 | SUPERSEDED | Staging excluded by owner decision; `taskio-v2-staging` remains frozen and was not accessed or modified. |
-| A50 | PENDING FINAL DEPLOYMENT APPROVAL | Maintenance-only no-store/noindex Hosting artifact, explicit Hosting-only command, public checks and console rollback procedure are prepared. It was not deployed. |
+| A50 | COMPLETED | Hosting-only maintenance deployed to default site `taskio-v2`. Live version `654a7615bfa2b420`; rollback version `530f735512a2e5ee`. Default Firebase domains serve the no-store/noindex maintenance page on ordinary routes. Functions/rules/indexes/Cloud Run/IAM/staging untouched. Canonical apex is not attached to this Hosting site. |
 | A51 | COMPLETED | Production API URL resolver rejects missing, local, HTTP, credentialed, and malformed endpoints; CI/build configuration and tests added. |
 | A52 | COMPLETED | Backend and frontend now normalise every case variant of `completed` to `COMPLETED`; `PAID` remains explicit, with release-evidence compatibility for genuine legacy paid records; parity tests pass. |
 | A53 | COMPLETED | Per owner decision, stale refresh is an authenticated claims-admin manual action; permissive cron-secret handling was removed. |
@@ -125,7 +136,7 @@ This table supersedes the intermediate ledger above. `COMPLETED` means the repos
 | A47 | COMPLETED | Express release-audit paths use the structured request logger; Functions errors are structured/rethrown through idempotent handlers without sensitive message data. |
 | A48 | COMPLETED | Playwright expanded from two to four tests, covering account payment gating, combined lifecycle/risk flow, launch truth/metadata/responsiveness, and multi-item task briefs; local and CI runs pass. |
 | A49 | SUPERSEDED | Staging is excluded by owner decision; no staging access or modification occurred during revised-authority implementation. |
-| A50 | PENDING FINAL DEPLOYMENT APPROVAL | No-store/noindex maintenance artifact, exact Hosting-only command, public checks, and console rollback are prepared and labelled NOT DEPLOYED. |
+| A50 | COMPLETED | Hosting-only maintenance deployed to default site `taskio-v2`. Live version `654a7615bfa2b420`; rollback version `530f735512a2e5ee`. `taskio-v2.web.app` and `taskio-v2.firebaseapp.com` serve the maintenance page on root and app routes with `Cache-Control: no-store` and `X-Robots-Tag: noindex, nofollow`. Functions remain ACTIVE unchanged. Canonical `taskio.com.au` is not attached to this Hosting site. |
 | A51 | COMPLETED | Production API resolver rejects missing, malformed, credentialed, HTTP, and loopback endpoints; isolated demo harness exception is triple-guarded; tests/build pass. |
 | A52 | COMPLETED | All `completed` case variants normalize to `COMPLETED`; `PAID` stays explicit with a release-evidence path for genuine legacy paid records; parity tests pass. |
 | A53 | COMPLETED | Stale refresh is claims-admin manual-only and the permissive cron-secret design/secret is removed. |
@@ -1081,18 +1092,18 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 - **Source:** Cursor follow-up
 - **Phase:** 1 Secure
 - **Area / feature:** Pre-launch containment — Public Firebase Hosting
-- **Why / evidence:** The live Firebase site exposes authentication and direct Firebase-backed screens while all Express-dependent actions fail. Existing rules findings mean the partial site should not remain publicly usable before launch.
+- **Why / evidence:** Production Firebase Hosting default site `taskio-v2` now serves the static no-store/noindex maintenance page. Ordinary routes (`/`, `/login`, `/admin`, `/post-task`) no longer expose the application UI on `taskio-v2.web.app` or `taskio-v2.firebaseapp.com`. Canonical apex is not attached to this Hosting site.
 - **Working priority:** Critical (original: New)
-- **Baseline status:** Ready
+- **Baseline status:** Done
 - **Effort:** Under 1 hour
 - **Dependencies:** A01
-- **Next action:** Preserve the current release details, then deploy a maintenance-only page or otherwise restrict public access. Disable signup and all application entry points until security rules and backend connectivity are verified.
+- **Next action:** None for A50 Hosting containment. Separate later decision if `taskio.com.au` should be pointed at this Hosting site. Rollback remains Console Release history to version `530f735512a2e5ee`.
 - **Acceptance / verification:** Both default Firebase domains and any custom domain show only the maintenance message; users cannot sign up, log in, post, quote or begin payment; rollback steps are documented.
 - **Confidence:** Confirmed
 - **Owner:** Saeed + Cursor
 - **File / location:** Firebase Console > Hosting; firebase.json; maintenance build
-- **Date added / last reviewed:** 2026-08-09 / 2026-08-09
-- **Notes:** Immediate containment action; do not delete Firestore/Auth/Storage data.
+- **Date added / last reviewed:** 2026-08-09 / 2026-08-17
+- **Notes:** Hosting-only deploy 2026-08-17 with `--project taskio-v2 --only hosting --config firebase.maintenance.json`. Functions/rules/indexes/Storage/Cloud Run/IAM/staging untouched. `firebase.json` and `frontend/build` unchanged. Do not delete Firestore/Auth/Storage data.
 
 ### A51 — Separate API URLs by environment and block localhost production builds
 
@@ -1380,6 +1391,7 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-17 | `develop` / `67f97b4` | A04 | Permanently deleted disabled user-managed key last-4 `3cac`. Post-consistency list: 0 user-managed keys, 3 unchanged system-managed keys, GET of `3cac` is NOT_FOUND. Functions remain ACTIVE on default compute SA. `taskio-api` absent. Local JSON files left in place. | Pre-delete disabled=True; DELETE 200; delayed list 0 user-managed; Functions/Cloud Run re-check; no ERROR logs in 20m sample | IAM delete on `taskio-v2` only. No replacement key. Staging not selected. Nothing committed | Owner approval to securely remove both local JSON copies; A04 stays BLOCKED until then |
 | 2026-08-17 | `develop` / `67f97b4` | A04 | Deleted ignored local copies `serviceAccountKey.json` and `backend/serviceAccountKey.json`. No remaining worktree JSON with production key last-4 `3cac`. Ignore/dockerignore protections remain. Ignored `setAdmin.js` left unmodified and is now non-functional. Staging key `f04d` and `.env` untouched. | File existence false; git ls-files empty; filename/env-name search; git status tracker-only | No cloud change. Nothing committed | Owner confirmation to mark A04 COMPLETED; separate decisions for `setAdmin.js` and staging key `f04d` |
 | 2026-08-17 | `develop` / `67f97b4` | A04 | Owner confirmed close-out. A04 marked COMPLETED: production key `3cac` deleted; 0 user-managed keys remain; both local production credential files removed; Functions remain on runtime Compute / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. | Tracker current record, both ledgers, and master item updated | Tracker-only edit. Nothing committed or pushed | None for A04 |
+| 2026-08-17 | `develop` / `33b4629` | A50 | Hosting-only maintenance deployed to `taskio-v2` default site. CLI uploaded 1 file from `maintenance/`. Live version `654a7615bfa2b420`; previous rollback version `530f735512a2e5ee`. Default Firebase domains verified maintenance on root and app routes. Canonical apex not attached (LiteSpeed). Functions still 4 ACTIVE with unchanged source hashes. | Live GET 200 + no-store/noindex headers; channel JSON; functions:list | Hosting-only on `taskio-v2`. No Functions/rules/indexes/Cloud Run/IAM/staging. Tracker uncommitted | Owner may commit tracker; A03 remains a separate approval |
 
 ## Required final report template
 
