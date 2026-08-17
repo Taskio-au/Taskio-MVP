@@ -20,6 +20,15 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-17 A04 current record
+
+A04 is **COMPLETED**. Production user-managed Admin SDK key last-4 `3cac` on `taskio-v2` is permanently deleted. Zero user-managed keys remain on that Firebase Admin SDK account. Both local production credential files have been removed. Deployed Functions remain on their runtime Compute service account / ADC. No replacement production credential was created. Ignore protections remain in place.
+
+- Branch / HEAD: `develop` / `67f97b4`; tracker edit uncommitted; nothing pushed.
+- Deleted local files: `serviceAccountKey.json` and `backend/serviceAccountKey.json`. Both were ignored/untracked. `.gitignore` (`**/serviceAccountKey.json`) and `backend/.dockerignore` still protect the filename.
+- No remaining worktree JSON copy of production key last-4 `3cac` was found.
+- Staging key last-4 `f04d`, `backend/.env`, and obsolete ignored scripts (`backend/setAdmin.js`, `backend/debug.js`) are explicitly outside A04 and should be tracked separately if needed.
+
 ## 2026-08-16 repository-only execution ledger
 
 This ledger records current evidence without erasing the historical baseline in each item. “Repository complete” does not imply a cloud deployment. Any source that eventually needs production deployment remains **PENDING FINAL DEPLOYMENT APPROVAL**.
@@ -27,7 +36,7 @@ This ledger records current evidence without erasing the historical baseline in 
 | ID | Current status | Evidence / exact remaining requirement |
 |---|---|---|
 | A03 | PENDING FINAL DEPLOYMENT APPROVAL | Node 24 Cloud Run container, health endpoints, environment inventory, exact no-traffic deployment/verification/rollback commands are prepared. Acceptance still requires production credentials, an approved service identity, deployment, HTTPS/CORS and live-flow verification. |
-| A04 | BLOCKED | Both reported key files remained uninspected and untouched. Exact manual identify/disable/verify/delete instructions are documented; owner confirmation of rotation and local deletion is required. |
+| A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced. Current queries avoid composite indexes; only an approved production deploy and representative live query verification can close acceptance. |
 | A02 | COMPLETED | Firestore message creation requires a valid participant role and open, funded, unfrozen chat; demo-project rules suite passes. |
 | A06 | COMPLETED | Production E2E bypass guard and tests added; CI explicitly builds with bypass disabled. |
@@ -70,7 +79,7 @@ This table supersedes the intermediate ledger above. `COMPLETED` means the repos
 | A01 | COMPLETED | Seven intentional commits through `13a22e3` were reviewed, pushed to `origin/develop`, and GitHub CI run `31955663683` passed all five jobs. |
 | A02 | COMPLETED | Participant, sender-role, funded/open-chat, freeze, cancellation, and 30-day release rules are covered by the 18-test demo rules suite. |
 | A03 | PENDING FINAL DEPLOYMENT APPROVAL | Node 24 Cloud Run container, health checks, environment inventory, CORS settings, no-traffic rollout, verification, and rollback commands are prepared in `docs/TASKIO_RELEASE_PLAN.md`; production identity, secrets, deployment, and live verification remain. |
-| A04 | BLOCKED | Both reported key files remained uninspected and untouched. Owner must identify, disable, verify, delete the cloud keys, then securely remove the local files using the documented procedure. |
+| A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute `848916998874-compute@…` / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced; current queries require no composites. An approved production deploy and representative live-query verification remain. |
 | A06 | COMPLETED | Production bypass tests fail closed; the production E2E harness exception requires an explicit flag, demo project ID, and loopback API. Standard production CI builds with bypass disabled. |
 | A07 | COMPLETED | Maintainability gate, generated-source parity, `git diff --check`, 410 frontend tests, 421 backend tests, builds, emulators, browser tests, and GitHub CI pass. |
@@ -244,18 +253,18 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 - **Source:** Cursor Audit
 - **Phase:** 1 Secure
 - **Area / feature:** Secrets — Firebase Admin credentials
-- **Why / evidence:** Two service-account JSON files containing private keys reportedly exist locally. Git history was reported clean, but the keys provide full project control.
+- **Why / evidence:** Production user-managed Admin SDK key last-4 `3cac` on `taskio-v2` is permanently deleted. Zero user-managed keys remain on that account. Both local production credential files have been removed. Deployed Functions remain on their runtime Compute service account / ADC. No replacement production credential was created. Ignore protections remain in place.
 - **Working priority:** Critical (original: Critical)
-- **Baseline status:** Ready
+- **Baseline status:** Done
 - **Effort:** 1-3 hours
 - **Dependencies:** A01, A03
-- **Next action:** Confirm which project/key is involved; rotate the key in Google Cloud IAM; use ADC or an external credential path; securely remove both local copies.
+- **Next action:** None for A04. Staging key last-4 `f04d` and obsolete ignored scripts (`backend/setAdmin.js`, `backend/debug.js`) are outside A04 and should be tracked separately if needed.
 - **Acceptance / verification:** Old key ID is disabled; backend starts using ADC or approved environment configuration; no key files exist inside the repo.
 - **Confidence:** Confirmed
 - **Owner:** Saeed + Cursor
 - **File / location:** serviceAccountKey.json; backend/serviceAccountKey.json
-- **Date added / last reviewed:** 2026-08-09 / —
-- **Notes:** —
+- **Date added / last reviewed:** 2026-08-09 / 2026-08-17
+- **Notes:** Cloud disable/delete, local-file removal, and owner close-out completed 2026-08-17. Staging GAC last-4 `f04d` and ignored obsolete scripts remain out of A04 scope.
 
 ### A05 — Create and deploy required Firestore indexes
 
@@ -1365,6 +1374,12 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-16 | `develop` / release-prep batch | A03, A04, A05, A14, A20, A21, A41, A42, A49, A50 | Prepared a Node 24 API container, index manifest, App Check guards, CI browser smoke job, maintenance artifact, secret-name inventory, exact production order/verification/rollback, key-rotation instructions, and local configuration checklist | JSON manifests parsed; App Check/Firebase config tests 11/11; no deployment command executed | Production credentials/settings/approvals; A04 owner-operated key rotation | Run full verification; review and commit artifacts; deployment statuses remain pending/blocked |
 | 2026-08-17 | `develop` / `158ad23` | A07, A08, A15, A18-A19, A22-A31, A36-A39, A43, A45-A48, U03 | Finished audited admin operations, claims-only client routing, safe photo metadata, accessible dialogs/errors/loading, shared public headers, launch truth labels, metadata/sitemap, cleanup, docs, and four-test compiled browser harness | Frontend 410/410; backend 421/421; rules 18/18; Functions 4/4; Playwright 4/4; production build, syntax, lint, maintainability and diff checks passed | Seven repository commits pushed; no cloud/service deployment or account access | Deployment/manual-only items remain pending or blocked in final reconciliation |
 | 2026-08-17 | `develop` / `13a22e3` | A01, A07, A21, A40-A42 | Repaired root clean-install lock resolution after first CI run identified missing `picomatch@4.0.5`; pinned the compatible root dev dependency | Root `npm ci` passed; both demo emulator suites re-passed; GitHub Actions run `31955663683` passed all five jobs | Pushed only to `origin/develop`; no PR/settings/deployment writes | Final v5 Actions maintenance and tracker-only commit requires its own green CI confirmation |
+| 2026-08-17 | `develop` / `67f97b4` | A04 | Read-only production inventory: `gcloud` absent, so Firebase operator OAuth REST was used. One enabled user-managed key last-4 `3cac` matches both local JSON files; `taskio-api` absent; four Functions v2 use default compute SA; no impersonation bindings; audit-log search incomplete. No mutation. | IAM describe/list keys; Cloud Run 404; Functions runtime identities | Read-only Google APIs on `taskio-v2` only. Staging not selected. Nothing committed | Local dependency check before any disable |
+| 2026-08-17 | `develop` / `67f97b4` | A04 | Local dependency check: tracked backend/Functions/CI/Docker do not hard-require the A04 JSON files. Current `backend/.env` GAC is a different staging JSON (last-4 `f04d`). Ignored `setAdmin.js` requires `backend/serviceAccountKey.json`; `debug.js` only inspects that filename; `bootstrapAdmin.js` uses ADC/GAC. | Filename/env-name inspection only; A04 JSON files not re-opened | None. No key/resource mutation. Nothing committed | Owner approval to disable user-managed key last-4 `3cac` only; delete/local-removal remain later |
+| 2026-08-17 | `develop` / `67f97b4` | A04 | Disabled user-managed key last-4 `3cac` on `taskio-v2` Admin SDK account. Key still exists and is disabled. System-managed keys unchanged. Four Functions v2 ACTIVE on default compute SA. `taskio-api` still absent. Local JSON files left in place. Local backend was not running. | Post-disable IAM list; Functions v2 list; Cloud Run 404; local file existence; no listener on 8000/8080 | IAM disable on `taskio-v2` only. Staging not selected. No delete/create/deploy. Nothing committed | Separate approval required to delete the disabled cloud key; local-file removal later |
+| 2026-08-17 | `develop` / `67f97b4` | A04 | Permanently deleted disabled user-managed key last-4 `3cac`. Post-consistency list: 0 user-managed keys, 3 unchanged system-managed keys, GET of `3cac` is NOT_FOUND. Functions remain ACTIVE on default compute SA. `taskio-api` absent. Local JSON files left in place. | Pre-delete disabled=True; DELETE 200; delayed list 0 user-managed; Functions/Cloud Run re-check; no ERROR logs in 20m sample | IAM delete on `taskio-v2` only. No replacement key. Staging not selected. Nothing committed | Owner approval to securely remove both local JSON copies; A04 stays BLOCKED until then |
+| 2026-08-17 | `develop` / `67f97b4` | A04 | Deleted ignored local copies `serviceAccountKey.json` and `backend/serviceAccountKey.json`. No remaining worktree JSON with production key last-4 `3cac`. Ignore/dockerignore protections remain. Ignored `setAdmin.js` left unmodified and is now non-functional. Staging key `f04d` and `.env` untouched. | File existence false; git ls-files empty; filename/env-name search; git status tracker-only | No cloud change. Nothing committed | Owner confirmation to mark A04 COMPLETED; separate decisions for `setAdmin.js` and staging key `f04d` |
+| 2026-08-17 | `develop` / `67f97b4` | A04 | Owner confirmed close-out. A04 marked COMPLETED: production key `3cac` deleted; 0 user-managed keys remain; both local production credential files removed; Functions remain on runtime Compute / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. | Tracker current record, both ledgers, and master item updated | Tracker-only edit. Nothing committed or pushed | None for A04 |
 
 ## Required final report template
 
