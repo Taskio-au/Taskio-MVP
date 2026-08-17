@@ -20,6 +20,39 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-17 A03 production dependency patch (repository only)
+
+A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This batch is repository-only. No Google Cloud, Artifact Registry tag, Cloud Run, Secret Manager, IAM, Hosting, DNS, Functions, or staging change.
+
+Direct production bumps (caret style preserved, current majors only):
+
+- `axios` `^1.11.0` → `^1.19.0` (lock `1.19.0`)
+- `express-rate-limit` `^8.0.1` → `^8.6.2` (lock `8.6.2`)
+- `express` `^5.1.0` → `^5.2.1` (lock `5.2.1`)
+- `firebase-admin` `^13.6.0` → `^13.10.0` (lock `13.10.0`; not 14.x)
+
+Scoped `overrides` (not applied to directs): `protobufjs@7.6.5`, `websocket-driver@0.7.5`, `@grpc/grpc-js@1.13.5`, `google-auth-library.jws@4.0.1`, `jsonwebtoken.jws@3.2.3`, `@types/request.form-data@2.5.6`, `router.path-to-regexp@8.4.2`.
+
+`npm --prefix backend audit --omit=dev` after overrides: **9 findings (1 low, 8 moderate, 0 high, 0 critical)**. Previous image was 24 (1 / 12 / 8 / 3); after direct bumps 16 (1 / 9 / 4 / 2). Backend tests 47/47 suites, 426/426 passed. `node --check` and `git diff --check` passed.
+
+Remaining production findings, accepted for this A03 patch:
+
+- Moderate `uuid@9.0.1` (`GHSA-w5hq-g745-h8pq`, `<11.1.1`) via the firebase-admin / Google Cloud tree. Unresolved pending a separately planned Firebase/Google dependency upgrade. Do not globally override `uuid`.
+- Low `@tootallnate/once@2.0.0` (`GHSA-vpq2-c234-7xj6`). The advisory is fixed in `3.0.1`; resolving it would cross the current 2.x transitive dependency expectation. Do not add an override. Leave as an accepted low residual.
+
+Do not deploy `sha256:7e4ad257…` or stale `sha256:f76b413…`. Next: GitHub CI, then a separately approved Cloud Build of a **new** image from this commit.
+
+## 2026-08-17 A03 Cloud Build from optional-webhook commit
+
+A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. Cloud Run `taskio-api` was **not** deployed. The `preflight` Artifact Registry tag was **not** moved. Digest `sha256:7e4ad257…` predates the patched lockfile and is **not** approved for Cloud Run.
+
+- Operator-reported Cloud Build `fe608395-6108-4606-96b8-a46e7a28a58c` **SUCCESS** from commit `f5c1783dc4951105a359e4da9fcda7be63374978`.
+- New image digest: `sha256:7e4ad2571ac732d16ed00db1fb8593741d0e649e2aaa9abeadd49c29d6d39f9a`.
+- Previous `:preflight` digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c` remains stale (mandatory `ALERT_WEBHOOK_URL`) and must not be deployed.
+- Cloud Build reported 24 production npm audit findings (1 low, 12 moderate, 8 high, 3 critical). Direct-dep bumps then scoped overrides reduced production `--omit=dev` to 9 (1 low / 8 moderate / 0 high / 0 critical). Digests `sha256:7e4ad257…` and `sha256:f76b413…` remain prohibited until a new image is built from the patched commit.
+- Install-script warnings for `@firebase/util` and `protobufjs` are expected upstream `postinstall` scripts, not a reason to change ignore-scripts policy in this step.
+- Secret Manager, IAM, Hosting, Functions, DNS, and staging were not accessed.
+
 ## 2026-08-17 A03 optional ALERT_WEBHOOK_URL (repository only)
 
 A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This batch is repository-only: production start no longer hard-requires `ALERT_WEBHOOK_URL`. No Google Cloud, Secret Manager, IAM, Cloud Run, Hosting, or staging change.
@@ -27,7 +60,7 @@ A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This batch is repository-only
 - `OTP_SALT` remains mandatory in production `validateEnv()` and `/health/ready`.
 - `ALERT_WEBHOOK_URL` is optional observability. Absence must not block API start. `/health/ready` must not fail solely because it is unset. `sendCriticalAlert()` continues to no-op when unset. Startup may warn that critical alert forwarding is not configured (no URL in logs).
 - The empty `ALERT_WEBHOOK_URL` Secret Manager resource on `taskio-v2` is retained as future observability configuration. Do **not** add a version or mount it until an approved production webhook exists. Do not copy staging.
-- First Cloud Run `--set-secrets` is **only** `OTP_SALT`. The existing Artifact Registry `:preflight` digest still contains the old hard-require and must be rebuilt from this commit before an OTP_SALT-only deploy.
+- First Cloud Run `--set-secrets` is **only** `OTP_SALT`. Image digest `sha256:7e4ad2571ac732d16ed00db1fb8593741d0e649e2aaa9abeadd49c29d6d39f9a` was built from this commit; the `preflight` tag was not moved. That image and stale `sha256:f76b413…` remain prohibited. Rebuild a new image only after the patched lockfile commit.
 - Cloud Run `taskio-api` still does not exist. Secret Manager resources were not recreated or modified in this batch.
 
 ## 2026-08-17 A03 Secret Manager
@@ -106,7 +139,7 @@ This ledger records current evidence without erasing the historical baseline in 
 
 | ID | Current status | Evidence / exact remaining requirement |
 |---|---|---|
-| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Runtime identity `taskio-api-runtime` exists. Secret Manager enabled. `OTP_SALT` has enabled version 1 and is the only required secret for the first Cloud Run revision. `ALERT_WEBHOOK_URL` resource exists with no version (optional/future; do not mount). No Cloud Run `taskio-api`. Commit this optional-webhook code, rebuild `:preflight`, then a separate `--no-traffic` deploy remain. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Direct bumps + scoped overrides committed. Production `npm audit --omit=dev` is 0 high / 0 critical (1 low `@tootallnate/once@2.0.0` accepted residual, advisory fixed in 3.0.1; 8 moderate `uuid@9.0.1` pending a planned Firebase/Google upgrade). Digests `sha256:7e4ad257…` and `sha256:f76b413…` must not be deployed. Cloud Run `taskio-api` does not exist. Next: GitHub CI, then a new image build. |
 | A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced. Current queries avoid composite indexes; only an approved production deploy and representative live query verification can close acceptance. |
 | A02 | COMPLETED | Firestore message creation requires a valid participant role and open, funded, unfrozen chat; demo-project rules suite passes. |
@@ -149,7 +182,7 @@ This table supersedes the intermediate ledger above. `COMPLETED` means the repos
 |---|---|---|
 | A01 | COMPLETED | Seven intentional commits through `13a22e3` were reviewed, pushed to `origin/develop`, and GitHub CI run `31955663683` passed all five jobs. |
 | A02 | COMPLETED | Participant, sender-role, funded/open-chat, freeze, cancellation, and 30-day release rules are covered by the 18-test demo rules suite. |
-| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Preflight image and `taskio-api-runtime` exist. Secret Manager: `OTP_SALT` version 1 enabled (only required secret for first Cloud Run revision); `ALERT_WEBHOOK_URL` has no version and is optional/future observability. No Cloud Run service. Rebuild `:preflight` from the optional-webhook commit, then `--no-traffic --tag preflight` (mount `OTP_SALT` only), private verify, public invocation, traffic, and frontend connection remain separate approvals. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | `taskio-api-runtime` and Secret Manager exist. Production audit after scoped overrides is 0 high / 0 critical. New digest `sha256:7e4ad257…` from `f5c1783` exists; `:preflight` tag was not moved. No Cloud Run service. After CI, rebuild a new image from this lockfile commit. Do not deploy `7e4ad257…` or `f76b413…`. Public invocation, traffic, and frontend connection remain later. |
 | A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute `848916998874-compute@…` / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced; current queries require no composites. An approved production deploy and representative live-query verification remain. |
 | A06 | COMPLETED | Production bypass tests fail closed; the production E2E harness exception requires an explicit flag, demo project ID, and loopback API. Standard production CI builds with bypass disabled. |
@@ -306,12 +339,12 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 - **Source:** Cursor Audit
 - **Phase:** 3 Deploy
 - **Area / feature:** Deployment — Express backend
-- **Why / evidence:** Artifact Registry preflight image and `taskio-api-runtime` exist. Secret Manager is enabled. `OTP_SALT` has enabled version 1 and is the only required secret for the first Cloud Run revision. `ALERT_WEBHOOK_URL` exists with no version (optional/future observability; not a hard-start requirement). Cloud Run `taskio-api` still does not exist. Hosting remains on the A50 maintenance page.
+- **Why / evidence:** Repository has axios 1.19.0, express 5.2.1, express-rate-limit 8.6.2, firebase-admin 13.10.0, plus scoped overrides. Production `npm audit --omit=dev` is 9 findings (0 high / 0 critical): accepted low `@tootallnate/once@2.0.0` (fixed in 3.0.1; do not override) and moderate `uuid@9.0.1` pending a planned Firebase/Google upgrade. Artifact Registry digest `sha256:7e4ad2571ac732d16ed00db1fb8593741d0e649e2aaa9abeadd49c29d6d39f9a` (build `fe608395-6108-4606-96b8-a46e7a28a58c`) and stale `sha256:f76b413…` must not be deployed. Cloud Run `taskio-api` still does not exist.
 - **Working priority:** Critical (original: Critical)
 - **Baseline status:** Needs Decision
 - **Effort:** 1-2 days
 - **Dependencies:** A01, A04, A49
-- **Next action:** Do not deploy Cloud Run yet. Commit and push the repository change that makes `ALERT_WEBHOOK_URL` optional, then rebuild `:preflight` from that commit. A later separate approval may deploy `--no-traffic --tag preflight` mounting **only** `OTP_SALT`. Do not add `ALERT_WEBHOOK_URL` to `--set-secrets` until an approved production webhook version exists. Gemini/ABN/Stripe secrets remain later. Public invocation, traffic, and frontend connection remain later.
+- **Next action:** After GitHub CI on this lockfile commit, a separate approval may Cloud Build a **new** image from that commit. Do not deploy `sha256:7e4ad257…` or `sha256:f76b413…`. Do not move `:preflight` until that new digest is reviewed. Mount **only** `OTP_SALT` on first Cloud Run. Public invocation, traffic, and frontend connection remain later.
 - **Acceptance / verification:** Staging is frozen/excluded. Production acceptance still requires HTTPS health/readiness 200, CORS only on approved origins, NODE_ENV=production, ADC without a JSON key, and job posting/quote/OTP/ABN/admin flows on the deployed API after traffic and frontend connection are separately approved.
 - **Confidence:** Confirmed
 - **Owner:** Saeed + Cursor
@@ -1460,6 +1493,11 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-17 | `develop` / `919aadc` | A03 | Tracker-only record of runtime identity IAM. | Docs review | Pushed `919aadc` to `origin/develop`. No GCP mutation in that commit | Secret Manager still required |
 | 2026-08-17 | `develop` / `919aadc` | A03 | Enabled Secret Manager on `taskio-v2`. Created `ALERT_WEBHOOK_URL` (no version) and `OTP_SALT` (version 1 enabled, new production random salt). Per-secret `secretAccessor` for `taskio-api-runtime` only. No Gemini/ABN/Stripe secrets. No Cloud Run/Hosting/Functions/staging change. | API ENABLED; secrets list two names; OTP v1 enabled; ALERT versions empty; IAM members runtime SA only; 0 user keys; Cloud Run 404 | Secret Manager API + two secrets + OTP version + resource IAM. Tracker/release-plan uncommitted. Nothing pushed after this batch | Remaining boot blocker at that time: production `ALERT_WEBHOOK_URL` version. Superseded by the following repository-only optional-webhook change. |
 | 2026-08-17 | `develop` / `919aadc` | A03 | Repository-only: production `validateEnv()` and `/health/ready` no longer hard-require `ALERT_WEBHOOK_URL`. `OTP_SALT` remains mandatory. `sendCriticalAlert()` still no-ops when unset. Startup warns without logging a URL. First Cloud Run `--set-secrets` documented as `OTP_SALT` only. Empty Secret Manager webhook resource left untouched as optional/future. No GCP mutation. | Focused 3 suites / 5 tests pass; full backend 47 suites / 426 tests pass; `node --check` on server/app/validateEnv/health/alerts; `git diff --check` clean | Docs + backend code/tests uncommitted. Nothing committed, pushed, or deployed | Owner approval to commit/push this batch, then a separate rebuild of `:preflight`, then a later Cloud Run `--no-traffic` approval |
+| 2026-08-17 | `develop` / `f5c1783` | A03 | Committed and pushed optional `ALERT_WEBHOOK_URL` start/ready change. GitHub CI run `32009423581` all 6 jobs success, including `api-image`. | CI green on `f5c1783` | Pushed `f5c1783` to `origin/develop`. No GCP mutation in that commit | Rebuild production image from `f5c1783`; do not deploy old digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c` |
+| 2026-08-17 | `develop` / `f5c1783` | A03 | Owner-reported Cloud Build `fe608395-6108-4606-96b8-a46e7a28a58c` SUCCESS from `f5c1783`. New digest `sha256:7e4ad2571ac732d16ed00db1fb8593741d0e649e2aaa9abeadd49c29d6d39f9a`. `preflight` tag not moved. Cloud Run not deployed. Build reported 24 npm audit findings. | Local `npm --prefix backend audit --omit=dev` reproduces 1 low / 12 moderate / 8 high / 3 critical; `outdated` and `audit fix --omit=dev --dry-run` inspected; no lockfile change | Tracker-only. No GCP access, tag move, commit, or push in this batch | Do not deploy Cloud Run. Next: non-breaking backend production dependency bumps, then a new image build |
+| 2026-08-17 | `develop` / `f5c1783` | A03 | Repository-only direct production bumps: axios 1.19.0, express 5.2.1, express-rate-limit 8.6.2, firebase-admin 13.10.0. No overrides, no 14.x, no audit fix --force. Production audit now 16 (1 low / 9 moderate / 4 high / 2 critical). Remaining HIGH/CRITICAL are transitive. | `npm --prefix backend audit --omit=dev`; backend 47 suites / 426 tests; `node --check`; `git diff --check`; lockfile versions of protobufjs/fxp/websocket-driver/form-data/ip-address/path-to-regexp/grpc-js/jws/node-forge | package.json + lockfile + tracker uncommitted. No GCP, no commit/push | Do not commit yet. Next: separately approved scoped overrides for remaining HIGH/CRITICAL, then a new image. Do not deploy `7e4ad257…` or `f76b413…` |
+| 2026-08-17 | `develop` / `f5c1783` | A03 | Added scoped npm overrides and rematerialized lockfile. Production `npm audit --omit=dev` is 0 high / 0 critical (1 low, 8 moderate uuid tree). `npm ls` confirms patched protobufjs 7.6.5, websocket-driver 0.7.5, grpc-js 1.13.5, jws 4.0.1 and 3.2.3, form-data 2.5.6 and axios 4.0.6, path-to-regexp 8.4.2. Backend tests 47/426 pass. | `npm install --package-lock-only`; `npm ci`; `npm ls`; audit omit=dev; full backend tests; `node --check`; `git diff --check` | package.json + lockfile + tracker uncommitted. No GCP, no commit/push, no image rebuild | Owner approval to commit/push this three-file batch, then a separate new Cloud Build. Do not deploy `7e4ad257…` or `f76b413…` |
+| 2026-08-17 | `develop` | A03 | Committed production dependency bumps and scoped overrides. Production audit remains 0 high / 0 critical. Accepted residuals: low `@tootallnate/once@2.0.0` (advisory fixed in 3.0.1; crossing 2.x is out of scope; no override) and moderate `uuid@9.0.1` pending a separately planned Firebase/Google upgrade. | `npm audit --omit=dev`; backend 47 suites / 426 tests; `git diff --check` | This three-file commit. No GCP, no Cloud Build, no `:preflight` move, no Cloud Run | After GitHub CI, separately approved Cloud Build of a new image. Do not deploy `7e4ad257…` or `f76b413…` |
 
 ## Required final report template
 
