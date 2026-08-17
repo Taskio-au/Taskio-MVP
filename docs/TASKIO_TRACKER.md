@@ -20,6 +20,28 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-17 A03 optional ALERT_WEBHOOK_URL (repository only)
+
+A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This batch is repository-only: production start no longer hard-requires `ALERT_WEBHOOK_URL`. No Google Cloud, Secret Manager, IAM, Cloud Run, Hosting, or staging change.
+
+- `OTP_SALT` remains mandatory in production `validateEnv()` and `/health/ready`.
+- `ALERT_WEBHOOK_URL` is optional observability. Absence must not block API start. `/health/ready` must not fail solely because it is unset. `sendCriticalAlert()` continues to no-op when unset. Startup may warn that critical alert forwarding is not configured (no URL in logs).
+- The empty `ALERT_WEBHOOK_URL` Secret Manager resource on `taskio-v2` is retained as future observability configuration. Do **not** add a version or mount it until an approved production webhook exists. Do not copy staging.
+- First Cloud Run `--set-secrets` is **only** `OTP_SALT`. The existing Artifact Registry `:preflight` digest still contains the old hard-require and must be rebuilt from this commit before an OTP_SALT-only deploy.
+- Cloud Run `taskio-api` still does not exist. Secret Manager resources were not recreated or modified in this batch.
+
+## 2026-08-17 A03 Secret Manager
+
+A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This batch enabled Secret Manager and created the two named secret resources only. No Cloud Run `taskio-api` service, Hosting, DNS, Functions, Firestore, or staging change.
+
+- Operator `admin@taskio.com.au`; project exactly `taskio-v2`; staging not accessed.
+- `secretmanager.googleapis.com` **ENABLED**. No other API was enabled in this batch.
+- Secret resources: `ALERT_WEBHOOK_URL`, `OTP_SALT`. Not created: Gemini, ABN, Stripe, `CRON_SECRET`.
+- `OTP_SALT` version **1 ENABLED**. Value was generated as a new production-only 32-byte random salt and sent only to Secret Manager. Payload not recorded.
+- `ALERT_WEBHOOK_URL` has **no version**. No production webhook URL was identified or copied. The empty resource is optional/future observability configuration; it is not a production hard-start requirement and must not be included in the first Cloud Run `--set-secrets`.
+- Resource-level `roles/secretmanager.secretAccessor` on both secrets for `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` only. No project-wide Secret Manager role. Runtime project roles remain `roles/datastore.user` + custom Auth role. User-managed keys: **0**.
+- Cloud Run `taskio-api` still does not exist. Hosting live channel remains the A50 maintenance release. Four Functions still ACTIVE with April 2026 update times.
+
 ## 2026-08-17 A03 runtime identity
 
 A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This batch created the dedicated Cloud Run runtime identity and minimum runtime IAM only. Secret Manager, secrets, Cloud Run `taskio-api`, Hosting, DNS, Functions, and staging were not changed.
@@ -84,7 +106,7 @@ This ledger records current evidence without erasing the historical baseline in 
 
 | ID | Current status | Evidence / exact remaining requirement |
 |---|---|---|
-| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Dedicated `taskio-api-runtime` exists with 0 user-managed keys, `roles/datastore.user`, and custom Auth role (`users.get`/`create`/`update` only). No Cloud Run `taskio-api` service. Secret Manager, `--no-traffic` deploy, public invocation, traffic, HTTPS/CORS, and frontend connection remain. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Runtime identity `taskio-api-runtime` exists. Secret Manager enabled. `OTP_SALT` has enabled version 1 and is the only required secret for the first Cloud Run revision. `ALERT_WEBHOOK_URL` resource exists with no version (optional/future; do not mount). No Cloud Run `taskio-api`. Commit this optional-webhook code, rebuild `:preflight`, then a separate `--no-traffic` deploy remain. |
 | A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced. Current queries avoid composite indexes; only an approved production deploy and representative live query verification can close acceptance. |
 | A02 | COMPLETED | Firestore message creation requires a valid participant role and open, funded, unfrozen chat; demo-project rules suite passes. |
@@ -127,7 +149,7 @@ This table supersedes the intermediate ledger above. `COMPLETED` means the repos
 |---|---|---|
 | A01 | COMPLETED | Seven intentional commits through `13a22e3` were reviewed, pushed to `origin/develop`, and GitHub CI run `31955663683` passed all five jobs. |
 | A02 | COMPLETED | Participant, sender-role, funded/open-chat, freeze, cancellation, and 30-day release rules are covered by the 18-test demo rules suite. |
-| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Image preflight digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c` is in Artifact Registry. Runtime identity `taskio-api-runtime` has `roles/datastore.user` plus a three-permission custom Auth role. No Cloud Run service yet. Secret Manager, `--no-traffic --tag preflight` deploy, private verify, public invocation, traffic, and frontend connection remain separate approvals. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Preflight image and `taskio-api-runtime` exist. Secret Manager: `OTP_SALT` version 1 enabled (only required secret for first Cloud Run revision); `ALERT_WEBHOOK_URL` has no version and is optional/future observability. No Cloud Run service. Rebuild `:preflight` from the optional-webhook commit, then `--no-traffic --tag preflight` (mount `OTP_SALT` only), private verify, public invocation, traffic, and frontend connection remain separate approvals. |
 | A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute `848916998874-compute@…` / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced; current queries require no composites. An approved production deploy and representative live-query verification remain. |
 | A06 | COMPLETED | Production bypass tests fail closed; the production E2E harness exception requires an explicit flag, demo project ID, and loopback API. Standard production CI builds with bypass disabled. |
@@ -284,12 +306,12 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 - **Source:** Cursor Audit
 - **Phase:** 3 Deploy
 - **Area / feature:** Deployment — Express backend
-- **Why / evidence:** Artifact Registry `taskio-api` and Cloud Build preflight image exist. Dedicated runtime SA `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` exists with 0 user-managed keys, `roles/datastore.user`, and custom role `taskioApiRuntimeFirebaseAuth` (`firebaseauth.users.get`/`create`/`update` only). Cloud Run service `taskio-api` still does not exist. Hosting remains on the A50 maintenance page. Secret Manager remains disabled.
+- **Why / evidence:** Artifact Registry preflight image and `taskio-api-runtime` exist. Secret Manager is enabled. `OTP_SALT` has enabled version 1 and is the only required secret for the first Cloud Run revision. `ALERT_WEBHOOK_URL` exists with no version (optional/future observability; not a hard-start requirement). Cloud Run `taskio-api` still does not exist. Hosting remains on the A50 maintenance page.
 - **Working priority:** Critical (original: Critical)
 - **Baseline status:** Needs Decision
 - **Effort:** 1-2 days
 - **Dependencies:** A01, A04, A49
-- **Next action:** Do not deploy Cloud Run yet. Next approval is Secret Manager only: enable the API, create the required named secrets, and grant `roles/secretmanager.secretAccessor` on those secrets to `taskio-api-runtime` (resource-level, not project-wide). Public invocation, production traffic, and frontend connection remain later.
+- **Next action:** Do not deploy Cloud Run yet. Commit and push the repository change that makes `ALERT_WEBHOOK_URL` optional, then rebuild `:preflight` from that commit. A later separate approval may deploy `--no-traffic --tag preflight` mounting **only** `OTP_SALT`. Do not add `ALERT_WEBHOOK_URL` to `--set-secrets` until an approved production webhook version exists. Gemini/ABN/Stripe secrets remain later. Public invocation, traffic, and frontend connection remain later.
 - **Acceptance / verification:** Staging is frozen/excluded. Production acceptance still requires HTTPS health/readiness 200, CORS only on approved origins, NODE_ENV=production, ADC without a JSON key, and job posting/quote/OTP/ABN/admin flows on the deployed API after traffic and frontend connection are separately approved.
 - **Confidence:** Confirmed
 - **Owner:** Saeed + Cursor
@@ -1435,6 +1457,9 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-17 | `develop` / `c7c1887` | A03 | Cloud Build / Artifact Registry preflight on `taskio-v2` only: created Docker repo `taskio-api` in `australia-southeast1`; submitted regional Cloud Build from committed root Dockerfile; pushed `:preflight`. No Cloud Run, runtime IAM, Secret Manager, Hosting, DNS, or staging. | Build `dc797823-5b5c-4119-8a4e-62edbe24b746` SUCCESS; image digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c`; `gcf-artifacts` untouched; `taskio-api` Cloud Run 404; four Functions ACTIVE unchanged; Secret Manager API disabled | AR repo + Cloud Build source/log buckets + one preflight image on `taskio-v2`. Tracker uncommitted. Nothing pushed | Next approval: dedicated `taskio-api-runtime` SA / least-privilege IAM only. Secrets and Cloud Run remain later |
 | 2026-08-17 | `develop` / `9525e63` | A03 | Tracker-only record of Cloud Build / Artifact Registry preflight. | Docs review of preflight evidence | Pushed `9525e63` to `origin/develop`. No GCP mutation in that commit | Runtime identity IAM still required |
 | 2026-08-17 | `develop` / `9525e63` | A03 | Created `taskio-api-runtime` on `taskio-v2`; custom Auth role `taskioApiRuntimeFirebaseAuth` with three user permissions; granted `roles/datastore.user` + custom role. No keys, no Logs Writer, no Token Creator, no extra actAs binding (owner already has actAs). No Secret Manager, Cloud Run, Hosting, Functions, or staging change. | SA enabled; 0 user-managed keys; role describe exact 3 perms; project bindings only those two roles; Compute/Functions unchanged; Cloud Run 404; Secret Manager disabled | IAM on `taskio-v2` only. Tracker uncommitted. Nothing pushed after this IAM batch | Next approval: Secret Manager named secrets + resource-level accessor for `taskio-api-runtime`. Cloud Run deploy later |
+| 2026-08-17 | `develop` / `919aadc` | A03 | Tracker-only record of runtime identity IAM. | Docs review | Pushed `919aadc` to `origin/develop`. No GCP mutation in that commit | Secret Manager still required |
+| 2026-08-17 | `develop` / `919aadc` | A03 | Enabled Secret Manager on `taskio-v2`. Created `ALERT_WEBHOOK_URL` (no version) and `OTP_SALT` (version 1 enabled, new production random salt). Per-secret `secretAccessor` for `taskio-api-runtime` only. No Gemini/ABN/Stripe secrets. No Cloud Run/Hosting/Functions/staging change. | API ENABLED; secrets list two names; OTP v1 enabled; ALERT versions empty; IAM members runtime SA only; 0 user keys; Cloud Run 404 | Secret Manager API + two secrets + OTP version + resource IAM. Tracker/release-plan uncommitted. Nothing pushed after this batch | Remaining boot blocker at that time: production `ALERT_WEBHOOK_URL` version. Superseded by the following repository-only optional-webhook change. |
+| 2026-08-17 | `develop` / `919aadc` | A03 | Repository-only: production `validateEnv()` and `/health/ready` no longer hard-require `ALERT_WEBHOOK_URL`. `OTP_SALT` remains mandatory. `sendCriticalAlert()` still no-ops when unset. Startup warns without logging a URL. First Cloud Run `--set-secrets` documented as `OTP_SALT` only. Empty Secret Manager webhook resource left untouched as optional/future. No GCP mutation. | Focused 3 suites / 5 tests pass; full backend 47 suites / 426 tests pass; `node --check` on server/app/validateEnv/health/alerts; `git diff --check` clean | Docs + backend code/tests uncommitted. Nothing committed, pushed, or deployed | Owner approval to commit/push this batch, then a separate rebuild of `:preflight`, then a later Cloud Run `--no-traffic` approval |
 
 ## Required final report template
 

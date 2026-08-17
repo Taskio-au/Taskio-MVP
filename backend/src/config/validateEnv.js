@@ -13,10 +13,14 @@ function validateEnv() {
   if (env === 'production') {
     requireNonEmpty('CORS_ORIGINS', process.env.CORS_ORIGINS);
     requireNonEmpty('TRUST_PROXY', process.env.TRUST_PROXY);
-    requireNonEmpty('ALERT_WEBHOOK_URL', process.env.ALERT_WEBHOOK_URL);
     requireNonEmpty('OTP_SALT', process.env.OTP_SALT);
     if (String(process.env.TASKIO_SHOW_DEV_OTP || '').toLowerCase() === 'true') {
       throw new Error('TASKIO_SHOW_DEV_OTP must be disabled in production.');
+    }
+    // Observability only: never block process start if critical-alert forwarding is unset.
+    if (!String(process.env.ALERT_WEBHOOK_URL || '').trim()) {
+      // eslint-disable-next-line no-console
+      console.warn('[env] Critical alert forwarding is not configured.');
     }
   }
 

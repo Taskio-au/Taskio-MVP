@@ -40,7 +40,6 @@ async function getReadiness() {
         || (
           Boolean(String(process.env.CORS_ORIGINS || '').trim())
           && Boolean(String(process.env.TRUST_PROXY || '').trim())
-          && Boolean(String(process.env.ALERT_WEBHOOK_URL || '').trim())
           && Boolean(String(process.env.OTP_SALT || '').trim())
           && String(process.env.TASKIO_SHOW_DEV_OTP || '').toLowerCase() !== 'true'
         ),

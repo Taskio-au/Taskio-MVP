@@ -28,15 +28,20 @@ Do not run any command in this document until all of these are true:
 
 Backend required for a production start:
 
-- `ALERT_WEBHOOK_URL`
-- `OTP_SALT`
+- `OTP_SALT` (Secret Manager resource + enabled version 1 on `taskio-v2`)
 - Application Default Credentials through the Cloud Run service identity (no JSON key)
 
-Backend conditional integrations:
+Optional / future observability (not a production hard-start requirement):
+
+- `ALERT_WEBHOOK_URL` (Secret Manager resource exists on `taskio-v2`; **no version**. Keep the empty resource. Do **not** mount it in `--set-secrets` until an approved production webhook version exists. Do not copy a staging value. `sendCriticalAlert()` no-ops when unset; `/health/ready` must not fail solely because it is absent.)
+
+Do **not** mount secret names that have no resource or no enabled version. The first Cloud Run `--set-secrets` list must be only `OTP_SALT`. Do not mount `ALERT_WEBHOOK_URL`, `GEMINI_API_KEY`, or `ABN_LOOKUP_GUID` until those resources have an approved enabled version.
+
+Backend conditional integrations (not required to boot; not created yet):
 
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` only when `STRIPE_ENABLED=true`
-- `GEMINI_API_KEY`
-- `ABN_LOOKUP_GUID`
+- `GEMINI_API_KEY` (AI description tidy / quote-message assist; routes fall back without it)
+- `ABN_LOOKUP_GUID` (official ABR ABN verify; `/api/me/abn/verify` returns 501 without it)
 
 Functions email integration, currently disabled:
 
@@ -122,8 +127,12 @@ Non-secret environment values must include:
 
 #### 3a. Build and deploy a no-traffic revision
 
+Mount only secrets that exist with an enabled version. The first Cloud Run revision must mount **only** `OTP_SALT`. Do **not** include `ALERT_WEBHOOK_URL` in `--set-secrets` until an approved production webhook version exists (the Secret Manager resource is currently empty; Cloud Run cannot mount `:latest` on a secret with no version). Do **not** include `GEMINI_API_KEY` or `ABN_LOOKUP_GUID` until those resources are created.
+
+The existing Artifact Registry image `taskio-api:preflight` (`sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c`) was built before `ALERT_WEBHOOK_URL` became optional. Do **not** deploy that digest with OTP_SALT-only mounts. Rebuild `:preflight` from the commit that makes the webhook optional, then prefer `--image` for the no-traffic deploy.
+
 ```powershell
-gcloud run deploy taskio-api --source . --project taskio-v2 --region australia-southeast1 --platform managed --service-account taskio-api-runtime@taskio-v2.iam.gserviceaccount.com --port 8080 --no-allow-unauthenticated --no-traffic --tag preflight --startup-probe httpGetPath=/health/live,periodSeconds=10,timeoutSeconds=3,failureThreshold=3 --liveness-probe httpGetPath=/health/live,periodSeconds=30,timeoutSeconds=3,failureThreshold=3 --set-env-vars NODE_ENV=production,PORT=8080,TRUST_PROXY=true,CORS_ORIGINS=https://taskio.com.au,FRONTEND_URL=https://taskio.com.au,STRIPE_ENABLED=false,GEMINI_API_VERSION=v1,GEMINI_MODEL=gemini-3.6-flash --set-secrets ALERT_WEBHOOK_URL=ALERT_WEBHOOK_URL:latest,OTP_SALT=OTP_SALT:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ABN_LOOKUP_GUID=ABN_LOOKUP_GUID:latest
+gcloud run deploy taskio-api --image australia-southeast1-docker.pkg.dev/taskio-v2/taskio-api/taskio-api:preflight --project taskio-v2 --region australia-southeast1 --platform managed --service-account taskio-api-runtime@taskio-v2.iam.gserviceaccount.com --port 8080 --no-allow-unauthenticated --no-traffic --tag preflight --startup-probe httpGetPath=/health/live,periodSeconds=10,timeoutSeconds=3,failureThreshold=3 --liveness-probe httpGetPath=/health/live,periodSeconds=30,timeoutSeconds=3,failureThreshold=3 --set-env-vars NODE_ENV=production,PORT=8080,TRUST_PROXY=true,CORS_ORIGINS=https://taskio.com.au,FRONTEND_URL=https://taskio.com.au,STRIPE_ENABLED=false,GEMINI_API_VERSION=v1,GEMINI_MODEL=gemini-3.6-flash --set-secrets OTP_SALT=OTP_SALT:latest
 ```
 
 #### 3b. Private / tagged preflight verification
