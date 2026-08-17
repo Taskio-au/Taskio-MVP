@@ -20,6 +20,20 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-17 A03 runtime identity
+
+A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This batch created the dedicated Cloud Run runtime identity and minimum runtime IAM only. Secret Manager, secrets, Cloud Run `taskio-api`, Hosting, DNS, Functions, and staging were not changed.
+
+- Operator `admin@taskio.com.au`; project exactly `taskio-v2`; staging not accessed.
+- Service account `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` created, enabled, uniqueId `110789983858921186098`. User-managed keys: **0** (two Google system-managed keys only).
+- Project roles on that identity only: `roles/datastore.user` and custom `projects/taskio-v2/roles/taskioApiRuntimeFirebaseAuth`.
+- Custom role permissions exactly: `firebaseauth.users.get`, `firebaseauth.users.create`, `firebaseauth.users.update`. No Auth config/delete/email/session permissions.
+- `roles/logging.logWriter` was **not** granted. `roles/iam.serviceAccountTokenCreator` was **not** granted.
+- Deployer `admin@taskio.com.au` already has `iam.serviceAccounts.actAs` on this SA via existing `roles/owner`; no additional `roles/iam.serviceAccountUser` binding was added.
+- Not granted: `roles/editor`, `roles/owner`, `roles/firebaseauth.admin`, `roles/firebaseauth.editor`, project-wide Secret Manager accessor, Artifact Registry writer, Cloud Run admin.
+- Default Compute SA bindings unchanged (`roles/editor`, `roles/eventarc.eventReceiver`, `roles/run.invoker`). Four Functions remain ACTIVE on that Compute identity with April 2026 update times. Cloud Run `taskio-api` still does not exist. Secret Manager API remains disabled.
+- Named secrets and Cloud Run `--no-traffic --tag preflight` deploy remain outstanding.
+
 ## 2026-08-17 A03 Cloud Build / Artifact Registry preflight
 
 A03 remains **PENDING FINAL DEPLOYMENT APPROVAL**. This batch created the production Artifact Registry repository and pushed a Cloud Build preflight image only. No Cloud Run `taskio-api` service, runtime IAM, Secret Manager, Hosting, DNS, or staging change.
@@ -70,7 +84,7 @@ This ledger records current evidence without erasing the historical baseline in 
 
 | ID | Current status | Evidence / exact remaining requirement |
 |---|---|---|
-| A03 | PENDING FINAL DEPLOYMENT APPROVAL | GitHub `api-image` CI green on `c7c1887`. Production Artifact Registry repo `taskio-api` exists in `australia-southeast1`. Cloud Build preflight image pushed: `taskio-api:preflight` digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c`. No Cloud Run `taskio-api` service. Runtime IAM, Secret Manager, `--no-traffic` deploy, public invocation, traffic, HTTPS/CORS, and frontend connection remain. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Dedicated `taskio-api-runtime` exists with 0 user-managed keys, `roles/datastore.user`, and custom Auth role (`users.get`/`create`/`update` only). No Cloud Run `taskio-api` service. Secret Manager, `--no-traffic` deploy, public invocation, traffic, HTTPS/CORS, and frontend connection remain. |
 | A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced. Current queries avoid composite indexes; only an approved production deploy and representative live query verification can close acceptance. |
 | A02 | COMPLETED | Firestore message creation requires a valid participant role and open, funded, unfrozen chat; demo-project rules suite passes. |
@@ -113,7 +127,7 @@ This table supersedes the intermediate ledger above. `COMPLETED` means the repos
 |---|---|---|
 | A01 | COMPLETED | Seven intentional commits through `13a22e3` were reviewed, pushed to `origin/develop`, and GitHub CI run `31955663683` passed all five jobs. |
 | A02 | COMPLETED | Participant, sender-role, funded/open-chat, freeze, cancellation, and 30-day release rules are covered by the 18-test demo rules suite. |
-| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Root-context Node 24 image is CI-verified (`api-image` on `c7c1887`) and pushed by Cloud Build to `australia-southeast1-docker.pkg.dev/taskio-v2/taskio-api/taskio-api:preflight` digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c`. No Cloud Run service exists yet. Runtime IAM, Secret Manager, `--no-traffic --tag preflight` deploy, private verify, public invocation, traffic, and frontend connection remain separate approvals. |
+| A03 | PENDING FINAL DEPLOYMENT APPROVAL | Image preflight digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c` is in Artifact Registry. Runtime identity `taskio-api-runtime` has `roles/datastore.user` plus a three-permission custom Auth role. No Cloud Run service yet. Secret Manager, `--no-traffic --tag preflight` deploy, private verify, public invocation, traffic, and frontend connection remain separate approvals. |
 | A04 | COMPLETED | Production key last-4 `3cac` permanently deleted; 0 user-managed keys remain on the production Admin SDK account; both local production credential files removed; Functions remain on runtime Compute `848916998874-compute@…` / ADC; no replacement production credential created; ignore protections remain. Staging key `f04d` and obsolete ignored scripts are outside A04. |
 | A05 | PENDING FINAL DEPLOYMENT APPROVAL | `firestore.indexes.json` is tracked and referenced; current queries require no composites. An approved production deploy and representative live-query verification remain. |
 | A06 | COMPLETED | Production bypass tests fail closed; the production E2E harness exception requires an explicit flag, demo project ID, and loopback API. Standard production CI builds with bypass disabled. |
@@ -270,12 +284,12 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 - **Source:** Cursor Audit
 - **Phase:** 3 Deploy
 - **Area / feature:** Deployment — Express backend
-- **Why / evidence:** Production Artifact Registry repo `taskio-api` exists in `australia-southeast1`. Cloud Build `dc797823-5b5c-4119-8a4e-62edbe24b746` pushed `taskio-api:preflight` digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c` from committed root `Dockerfile` at `c7c1887`. GitHub `api-image` CI is green. Cloud Run service `taskio-api` still does not exist. Hosting remains on the A50 maintenance page. Runtime IAM and Secret Manager remain outstanding.
+- **Why / evidence:** Artifact Registry `taskio-api` and Cloud Build preflight image exist. Dedicated runtime SA `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` exists with 0 user-managed keys, `roles/datastore.user`, and custom role `taskioApiRuntimeFirebaseAuth` (`firebaseauth.users.get`/`create`/`update` only). Cloud Run service `taskio-api` still does not exist. Hosting remains on the A50 maintenance page. Secret Manager remains disabled.
 - **Working priority:** Critical (original: Critical)
 - **Baseline status:** Needs Decision
 - **Effort:** 1-2 days
 - **Dependencies:** A01, A04, A49
-- **Next action:** Do not deploy Cloud Run. Next approval is dedicated runtime identity only: create `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` with least-privilege roles. Do not grant extra roles to the default Compute `roles/editor` account, enable Secret Manager, or create `taskio-api` until separately approved. Public invocation, production traffic, and frontend connection remain later.
+- **Next action:** Do not deploy Cloud Run yet. Next approval is Secret Manager only: enable the API, create the required named secrets, and grant `roles/secretmanager.secretAccessor` on those secrets to `taskio-api-runtime` (resource-level, not project-wide). Public invocation, production traffic, and frontend connection remain later.
 - **Acceptance / verification:** Staging is frozen/excluded. Production acceptance still requires HTTPS health/readiness 200, CORS only on approved origins, NODE_ENV=production, ADC without a JSON key, and job posting/quote/OTP/ABN/admin flows on the deployed API after traffic and frontend connection are separately approved.
 - **Confidence:** Confirmed
 - **Owner:** Saeed + Cursor
@@ -1419,6 +1433,8 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-17 | `develop` / `210ccf4` | A03 | Fixed production API build context: root `Dockerfile`/`.dockerignore`/`.gcloudignore`; deleted `backend/Dockerfile`; `backend/.dockerignore` no longer excludes Dockerfiles. Image keeps `/app/backend` + `/app/shared`. Release plan now uses `--source .`, `--no-traffic --tag preflight`, and separated public-access/traffic/frontend steps. | Path resolution of runtime `shared/` imports; `node --check`; backend tests (see session report). Docker not installed — image build/health outstanding and required before Cloud Run deploy approval | None. No cloud mutation. This batch committed locally; not pushed | Real container build still outstanding. Smallest next cloud preflight: Cloud Build/AR APIs + image build, without creating `taskio-api` |
 | 2026-08-17 | `develop` / `c7c1887` | A03 | Added GitHub CI job `api-image`: `docker build` from repo root, inspect WorkingDir/User/Cmd, confirm `/app/backend` + `/app/shared` layout and no credential files. | GitHub Actions run `32000889708` all 6 jobs success, including `api-image` | Pushed `c7c1887` to `origin/develop`. No GCP mutation in that commit | Cloud Build/Artifact Registry preflight still required |
 | 2026-08-17 | `develop` / `c7c1887` | A03 | Cloud Build / Artifact Registry preflight on `taskio-v2` only: created Docker repo `taskio-api` in `australia-southeast1`; submitted regional Cloud Build from committed root Dockerfile; pushed `:preflight`. No Cloud Run, runtime IAM, Secret Manager, Hosting, DNS, or staging. | Build `dc797823-5b5c-4119-8a4e-62edbe24b746` SUCCESS; image digest `sha256:f76b413db39f42825e9a7c6d0ea3c92d880d293e469d958e540691c2b57a213c`; `gcf-artifacts` untouched; `taskio-api` Cloud Run 404; four Functions ACTIVE unchanged; Secret Manager API disabled | AR repo + Cloud Build source/log buckets + one preflight image on `taskio-v2`. Tracker uncommitted. Nothing pushed | Next approval: dedicated `taskio-api-runtime` SA / least-privilege IAM only. Secrets and Cloud Run remain later |
+| 2026-08-17 | `develop` / `9525e63` | A03 | Tracker-only record of Cloud Build / Artifact Registry preflight. | Docs review of preflight evidence | Pushed `9525e63` to `origin/develop`. No GCP mutation in that commit | Runtime identity IAM still required |
+| 2026-08-17 | `develop` / `9525e63` | A03 | Created `taskio-api-runtime` on `taskio-v2`; custom Auth role `taskioApiRuntimeFirebaseAuth` with three user permissions; granted `roles/datastore.user` + custom role. No keys, no Logs Writer, no Token Creator, no extra actAs binding (owner already has actAs). No Secret Manager, Cloud Run, Hosting, Functions, or staging change. | SA enabled; 0 user-managed keys; role describe exact 3 perms; project bindings only those two roles; Compute/Functions unchanged; Cloud Run 404; Secret Manager disabled | IAM on `taskio-v2` only. Tracker uncommitted. Nothing pushed after this IAM batch | Next approval: Secret Manager named secrets + resource-level accessor for `taskio-api-runtime`. Cloud Run deploy later |
 
 ## Required final report template
 
