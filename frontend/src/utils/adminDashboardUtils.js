@@ -1,3 +1,5 @@
+import { isAbnRequirementSatisfied } from './profileCompliance';
+
 /**
  * Pure helper functions for the admin Dashboard.
  * Extracted to reduce maintainability debt in Dashboard.js.
@@ -16,7 +18,7 @@ export function getReadiness(u) {
   const stripeOk = stripe === 'completed' || stripe === 'enabled';
   const hasExpertise = Array.isArray(u?.expertiseApproved) && u.expertiseApproved.length > 0;
   const phoneOk = u?.phoneVerified === undefined ? true : (u.phoneVerified === true);
-  const abnOk = u?.abnVerified === undefined ? true : (u.abnVerified === true);
+  const abnOk = isAbnRequirementSatisfied(u);
   const profileOk = u?.profileCompleted === undefined ? true : (u.profileCompleted === true);
   const serviceLocationOk = u?.serviceLocationPresent === undefined ? true : (u.serviceLocationPresent === true);
   const businessTypeOk = u?.businessTypeSet === undefined ? true : (u.businessTypeSet === true);

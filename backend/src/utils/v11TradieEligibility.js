@@ -89,6 +89,11 @@ function requiresAbn(businessType, businessName) {
   return bt === 'sole_trader' || bt === 'company';
 }
 
+function isAbnRequirementSatisfied(userDoc) {
+  if (!requiresAbn(userDoc?.businessType, userDoc?.businessName)) return true;
+  return userDoc?.abnVerified === true;
+}
+
 /**
  * @param {object} userDoc - Firestore user document (or merged candidate)
  * @param {object} [decodedToken] - Firebase ID token payload (optional); `name` fills identity when doc names are empty
@@ -201,6 +206,7 @@ module.exports = {
   normalizeBusinessType,
   requiresAbn,
   requiresBusinessName,
+  isAbnRequirementSatisfied,
 };
 
 

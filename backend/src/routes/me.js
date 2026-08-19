@@ -2,11 +2,13 @@
 
 const express = require('express');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 
 const { admin, db } = require('../firebaseAdmin');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const { isValidAbn, cleanAbn } = require('../utils/abn');
-const { lookupAbnDetails } = require('../services/abnLookup');
+const { lookupAbnDetails, isAbnCurrentlyActive, summarizeAbnLookupError } = require('../services/abnLookup');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
 const {
   computeEligibility,
@@ -24,6 +26,25 @@ const { buildExpertFoundingFeeProfile } = require('../services/expertFeeProgram'
 const router = express.Router();
 const HOMEOWNER_NAME_CHANGE_COOLDOWN_DAYS = 30;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const ABN_VERIFY_WINDOW_MS = 15 * 60 * 1000;
+const ABN_VERIFY_MAX = 20;
+const abnVerifyLimiter = rateLimit({
+  windowMs: ABN_VERIFY_WINDOW_MS,
+  max: ABN_VERIFY_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  statusCode: 429,
+  message: { message: 'Too many ABN verification attempts. Please try again later.' },
+  keyGenerator: (req) => {
+    const uid = String(req.user?.uid || '').trim();
+    if (uid) return `abn-verify:uid:${uid}`;
+    const ip = String(req.ip || '').trim();
+    if (ip) return `abn-verify:ip:${ipKeyGenerator(ip)}`;
+    return 'abn-verify:ip:unknown';
+  },
+  validate: { keyGeneratorIpFallback: false, xForwardedForHeader: false },
+});
 
 function sha256Base64Url(input) {
   return crypto.createHash('sha256').update(String(input)).digest('base64url');
@@ -390,7 +411,8 @@ router.get('/api/me', requireAuth, async (req, res) => {
         const hasDob = dob && typeof dob === 'object' && Number(dob.day) > 0 && Number(dob.month) > 0 && Number(dob.year) > 0;
         const hasBusinessType = !!bt;
         const hasAbn = String(data?.abn || '').trim().length > 0;
-        if (hasDob && hasBusinessType && (!needsAbn || hasAbn)) {
+        const abnSatisfied = !needsAbn || (hasAbn && data?.abnVerified === true);
+        if (hasDob && hasBusinessType && abnSatisfied) {
           await ref.set(
             {
               privateDetailsLocked: true,
@@ -605,8 +627,6 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
       if (needsAbn && !abn) {
         return res.status(400).send({ message: 'ABN is required for sole traders and companies.' });
       }
-      
-      if (!abn) return res.status(400).send({ message: 'ABN is required.' });
       if (abn.length > 30) return res.status(400).send({ message: 'ABN is too long.' });
       // Lock ABN only after private details have been confirmed/saved.
       if (before?.role === 'tradie' && privateDetailsLocked && before?.abn) {
@@ -629,8 +649,11 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
       const hasDob = afterCandidate?.dob && typeof afterCandidate.dob === 'object';
       const hasBusinessType = !!bt;
       const hasAbn = String(afterCandidate.abn || '').trim().length > 0;
-      if (!hasDob || !hasBusinessType || (needsAbn && !hasAbn)) {
+      if (!hasDob || !hasBusinessType) {
         return res.status(400).send({ message: 'Please complete DOB, business type, and ABN (if applicable) before confirming private details.' });
+      }
+      if (needsAbn && (!hasAbn || afterCandidate.abnVerified !== true)) {
+        return res.status(400).send({ message: 'Please verify your ABN before confirming your private details.' });
       }
       updates.privateDetailsLocked = true;
       updates.privateDetailsLockedAt = admin.firestore.FieldValue.serverTimestamp();
@@ -1047,8 +1070,10 @@ router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) 
 /**
  * POST /api/me/abn/verify
  * Verifies ABN via ABR (ABN Lookup) web service + stores verified details in Firestore.
+ * Task Expert onboarding only. Marks verified only when ABR reports currently Active.
+ * GST registration is not required.
  */
-router.post('/api/me/abn/verify', requireAuth, async (req, res) => {
+router.post('/api/me/abn/verify', requireAuth, requireRole('tradie'), abnVerifyLimiter, async (req, res) => {
   try {
     const uid = req.user.uid;
     const abn = cleanAbn(req.body?.abn);
@@ -1057,9 +1082,32 @@ router.post('/api/me/abn/verify', requireAuth, async (req, res) => {
 
     // Lookup ABN on ABR (official). Requires ABN_LOOKUP_GUID in backend env.
     const details = await lookupAbnDetails(abn);
-
-    // Basic "active" heuristic: treat blank status as unknown, but keep verified since it exists on ABR.
     const status = details.entityStatus || '';
+
+    if (!isAbnCurrentlyActive(status)) {
+      await db.collection('users').doc(uid).set(
+        {
+          abn,
+          abnVerified: false,
+          abnVerifiedAt: null,
+          abnEntityName: details.entityName || '',
+          abnEntityTypeName: details.entityTypeName || '',
+          abnEntityStatus: status,
+          abnGstStatus: details.gst || '',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return res.status(400).send({
+        message: 'This ABN is not currently active on the Australian Business Register.',
+        details: {
+          abn: details.abn,
+          entityName: details.entityName,
+          entityTypeName: details.entityTypeName,
+          entityStatus: status,
+        },
+      });
+    }
 
     await db.collection('users').doc(uid).set(
       {
@@ -1087,12 +1135,15 @@ router.post('/api/me/abn/verify', requireAuth, async (req, res) => {
     });
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.error('POST /api/me/abn/verify failed:', e);
+    console.error('POST /api/me/abn/verify failed:', summarizeAbnLookupError(e));
     if (e?.code === 'ABN_LOOKUP_NOT_CONFIGURED') {
       return res.status(501).send({ message: 'ABN verification is not configured on the server. Set ABN_LOOKUP_GUID in backend .env.' });
     }
     if (e?.code === 'ABN_NOT_FOUND') {
       return res.status(400).send({ message: e.message || 'ABN not found.' });
+    }
+    if (e?.code === 'ABN_LOOKUP_PARSE_ERROR' || e?.code === 'ABN_LOOKUP_EMPTY') {
+      return res.status(502).send({ message: 'ABN verification is temporarily unavailable. Please try again later.' });
     }
     return res.status(500).send({ message: 'Failed to verify ABN.' });
   }

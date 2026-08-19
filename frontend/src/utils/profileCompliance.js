@@ -94,6 +94,11 @@ export function requiresAbn(businessType, businessName) {
   return bt === 'sole_trader' || bt === 'company';
 }
 
+export function isAbnRequirementSatisfied(profile) {
+  if (!requiresAbn(profile?.businessType, profile?.businessName)) return true;
+  return profile?.abnVerified === true;
+}
+
 /**
  * Check if Business Name is required based on business type
  * @param {string} businessType - 'individual' | 'sole_trader' | 'company'

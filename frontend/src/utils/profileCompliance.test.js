@@ -2,6 +2,7 @@ import {
   validateDob,
   requiresAbn,
   requiresBusinessName,
+  isAbnRequirementSatisfied,
   hasVerifiedIdentity,
   computeReadiness,
   canQuote,
@@ -27,6 +28,14 @@ describe('profileCompliance', () => {
     expect(requiresAbn('individual', '')).toBe(false);
     expect(requiresAbn('sole_trader', '')).toBe(true);
     expect(requiresAbn('individual', 'Acme Services')).toBe(true);
+  });
+
+  it('aligns ABN trust with quote eligibility requiresAbn', () => {
+    expect(isAbnRequirementSatisfied({ businessType: 'individual', businessName: '', abnVerified: false })).toBe(true);
+    expect(isAbnRequirementSatisfied({ businessType: 'sole_trader', businessName: '', abnVerified: false })).toBe(false);
+    expect(isAbnRequirementSatisfied({ businessType: 'sole_trader', businessName: '', abnVerified: true })).toBe(true);
+    expect(isAbnRequirementSatisfied({ businessType: 'individual', businessName: 'Acme Services', abnVerified: false })).toBe(false);
+    expect(isAbnRequirementSatisfied({ businessType: 'company', businessName: 'Acme Pty Ltd', abnVerified: false })).toBe(false);
   });
 
   it('applies business name requirement rules', () => {

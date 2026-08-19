@@ -2,7 +2,12 @@
 
 const { db } = require('../firebaseAdmin');
 const { safeToMillis } = require('../utils/firestore');
-const { computeProfileCompleted, computeStripeOnboardingComplete } = require('../utils/v11TradieEligibility');
+const {
+  computeProfileCompleted,
+  computeStripeOnboardingComplete,
+  isAbnRequirementSatisfied,
+  requiresAbn,
+} = require('../utils/v11TradieEligibility');
 
 /**
  * Normalized trust bucket for admin UI chips.
@@ -21,7 +26,7 @@ function computeVerificationBucket(userData) {
   if (d.verificationStatus === 'pending' || d.verificationReviewRequired === true) return 'PENDING_REVIEW';
   const prof = computeProfileCompleted(d);
   const stripe = computeStripeOnboardingComplete(d);
-  if (!prof || !stripe || !d.abnVerified) return 'INCOMPLETE';
+  if (!prof || !stripe || !isAbnRequirementSatisfied(d)) return 'INCOMPLETE';
   return 'REQUIRES_ATTENTION';
 }
 
@@ -74,8 +79,11 @@ async function getExpertTrustSummary(expertId) {
   }
 
   const verificationStatus = computeVerificationBucket(u);
-  const abnOk = u.abnVerified === true;
-  const abnStatus = abnOk ? 'verified' : u.abn ? 'unverified' : 'missing';
+  const abnRequired = requiresAbn(u.businessType, u.businessName);
+  const abnOk = isAbnRequirementSatisfied(u);
+  const abnStatus = !abnRequired
+    ? 'not_required'
+    : (u.abnVerified === true ? 'verified' : (u.abn ? 'unverified' : 'missing'));
   const stripeOk = computeStripeOnboardingComplete(u);
   const stripeStatus = String(u.stripeOnboardingStatus || (stripeOk ? 'completed' : 'pending'));
   const profileCompleteness = computeProfileCompleted(u) ? 'complete' : 'incomplete';
@@ -88,7 +96,7 @@ async function getExpertTrustSummary(expertId) {
 
   const trustFlags = [];
   if (!stripeOk) trustFlags.push('STRIPE_INCOMPLETE');
-  if (!abnOk && u.businessType && u.businessType !== 'individual') trustFlags.push('ABN_UNVERIFIED');
+  if (abnRequired && !abnOk) trustFlags.push('ABN_UNVERIFIED');
   if (verificationStatus === 'PENDING_REVIEW') trustFlags.push('VERIFICATION_REVIEW');
   if (u.quoteAccessVerified === false) trustFlags.push('QUOTE_ACCESS');
 

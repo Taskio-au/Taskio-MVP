@@ -3,6 +3,7 @@ import StatusTag from '../../../StatusTag';
 import ExpertiseChips from '../../../components/ExpertiseChips';
 import { canonicalExpertiseLabelMap } from '../../../constants/taskTaxonomy';
 import { formatAgeShort } from '../../../utils/adminOps';
+import { isAbnRequirementSatisfied } from '../../../utils/profileCompliance';
 
 function trustChip(label, ok) {
   return (
@@ -83,7 +84,7 @@ export default function TradiesTab({
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginTop: 6 }}>
                     {trustChip('Trust', !!u.verified)}
                     {trustChip('Stripe', u.stripeOnboardingComplete === true || u.stripeOnboardingStatus === 'completed')}
-                    {(u.abnVerified === true || u.businessType === 'individual') ? trustChip('ABN', u.abnVerified === true || u.businessType === 'individual') : trustChip('ABN', !!u.abnVerified)}
+                    {trustChip('ABN', isAbnRequirementSatisfied(u))}
                     {u.verificationReviewRequired === true ? (
                       <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e' }}>Review</span>
                     ) : null}

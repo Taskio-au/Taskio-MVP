@@ -2,10 +2,15 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import useAdminDashboardDerivedData from './useAdminDashboardDerivedData';
 
-function Harness({ jobs, jobStatusFilter = 'all' }) {
+function Harness({
+  jobs,
+  users = [],
+  jobStatusFilter = 'all',
+  tradieQuickFilter = '',
+}) {
   const data = useAdminDashboardDerivedData({
     jobs,
-    users: [],
+    users,
     sortOrder: 'newest',
     quoteMeta: { knownJobIds: [], hasAnyByJobId: {} },
     jobSearchTerm: '',
@@ -14,7 +19,7 @@ function Harness({ jobs, jobStatusFilter = 'all' }) {
     jobClientUidFilter: '',
     expertiseFilter: 'all',
     tradieSearchTerm: '',
-    tradieQuickFilter: '',
+    tradieQuickFilter,
     homeownerSearchTerm: '',
     homeownerQuickFilter: '',
   });
@@ -24,6 +29,7 @@ function Harness({ jobs, jobStatusFilter = 'all' }) {
       <div data-testid="filtered-jobs">{data.filteredJobs.length}</div>
       <div data-testid="open-jobs">{data.stats.openJobs}</div>
       <div data-testid="assigned-jobs">{data.stats.assignedJobs}</div>
+      <div data-testid="filtered-tradies">{data.filteredTradies.map((t) => t.uid).join(',')}</div>
     </div>
   );
 }
@@ -57,5 +63,43 @@ describe('useAdminDashboardDerivedData', () => {
     );
 
     expect(screen.getByTestId('filtered-jobs')).toHaveTextContent('2');
+  });
+
+  it('treats individuals without a business name as ABN-ready in ready_now', () => {
+    render(
+      <Harness
+        jobs={[]}
+        tradieQuickFilter="ready_now"
+        users={[
+          {
+            uid: 'individual-1',
+            role: 'tradie',
+            status: 'active',
+            verified: true,
+            phoneVerified: true,
+            abnVerified: false,
+            businessType: 'individual',
+            businessName: '',
+            stripeOnboardingComplete: true,
+            profileCompleted: true,
+          },
+          {
+            uid: 'sole-1',
+            role: 'tradie',
+            status: 'active',
+            verified: true,
+            phoneVerified: true,
+            abnVerified: false,
+            businessType: 'sole_trader',
+            businessName: '',
+            stripeOnboardingComplete: true,
+            profileCompleted: true,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByTestId('filtered-tradies')).toHaveTextContent('individual-1');
+    expect(screen.getByTestId('filtered-tradies')).not.toHaveTextContent('sole-1');
   });
 });

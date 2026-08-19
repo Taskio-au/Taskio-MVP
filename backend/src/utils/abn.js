@@ -1,7 +1,8 @@
 /**
- * ABN validation (offline checksum)
- * Note: This does NOT validate against the ABR registry. It only checks format + checksum.
- * For MVP V11 we use this to gate abnVerified=true; you can replace with ABR API later.
+ * ABN format + checksum helpers (offline).
+ * Checksum validity is necessary but not sufficient for verification.
+ * abnVerified is set only after a live ABR lookup confirms the ABN is currently Active.
+ * GST registration is stored when present; it is not required for verification.
  */
 
 function cleanAbn(input) {

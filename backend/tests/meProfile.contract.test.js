@@ -97,9 +97,17 @@ jest.mock('../src/middleware/auth', () => ({
     req.user = { ...global.__TASKIO_ME_TEST_AUTH__ };
     next();
   },
+  requireRole: (role) => (req, res, next) => {
+    const userRole = req.user?.role;
+    if (userRole === role) return next();
+    return res.status(403).send({
+      message: `Forbidden: Requires role ${role}. Please re-login, or ensure your account was created via /api/users/register.`,
+    });
+  },
 }));
 
 jest.mock('../src/services/abnLookup', () => ({
+  ...jest.requireActual('../src/services/abnLookup'),
   lookupAbnDetails: jest.fn(async (abn) => ({
     abn,
     entityName: 'Acme Pty Ltd',
@@ -240,7 +248,7 @@ describe('me profile route contracts', () => {
       .send({ privateDetailsLock: true });
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/complete DOB, business type, and ABN/i);
+    expect(res.body.message).toBe('Please verify your ABN before confirming your private details.');
   });
 
   it('allows private-details lock for individual without ABN', async () => {
@@ -272,7 +280,92 @@ describe('me profile route contracts', () => {
       .send({ privateDetailsLock: true });
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/complete DOB, business type, and ABN/i);
+    expect(res.body.message).toBe('Please verify your ABN before confirming your private details.');
+  });
+
+  it('blocks private-details lock when required ABN is present but unverified', async () => {
+    seedUser({
+      businessType: 'sole_trader',
+      businessName: '',
+      abn: '51824753556',
+      abnVerified: false,
+      privateDetailsLocked: false,
+    });
+
+    const res = await request(app)
+      .put('/api/me/profile')
+      .send({ privateDetailsLock: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Please verify your ABN before confirming your private details.');
+    expect(readDoc('users', 'tradie-1').abnVerified).not.toBe(true);
+    expect(readDoc('users', 'tradie-1').privateDetailsLocked).not.toBe(true);
+  });
+
+  it('allows private-details lock when required ABN is verified', async () => {
+    seedUser({
+      businessType: 'sole_trader',
+      businessName: '',
+      abn: '51824753556',
+      abnVerified: true,
+      privateDetailsLocked: false,
+    });
+
+    const res = await request(app)
+      .put('/api/me/profile')
+      .send({ privateDetailsLock: true });
+
+    expect(res.status).toBe(200);
+    expect(res.body.profile.privateDetailsLocked).toBe(true);
+  });
+
+  it('allows empty ABN on profile update when ABN is not required', async () => {
+    seedUser({
+      businessType: 'individual',
+      businessName: '',
+      abn: '',
+    });
+
+    const res = await request(app)
+      .put('/api/me/profile')
+      .send({ abn: '' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe('Profile updated.');
+    expect(readDoc('users', 'tradie-1').abn).toBe('');
+    expect(readDoc('users', 'tradie-1').abnVerified).not.toBe(true);
+  });
+
+  it('rejects empty ABN on profile update when ABN is required', async () => {
+    seedUser({
+      businessType: 'sole_trader',
+      businessName: '',
+      abn: '',
+    });
+
+    const res = await request(app)
+      .put('/api/me/profile')
+      .send({ abn: '' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('ABN is required for sole traders and companies.');
+  });
+
+  it('does not auto-lock private details on GET when required ABN is unverified', async () => {
+    seedUser({
+      businessType: 'sole_trader',
+      businessName: '',
+      abn: '51824753556',
+      abnVerified: false,
+      privateDetailsLocked: false,
+      dob: { day: 1, month: 1, year: 1990 },
+    });
+
+    const res = await request(app).get('/api/me');
+
+    expect(res.status).toBe(200);
+    expect(res.body.profile.privateDetailsLocked).toBe(false);
+    expect(readDoc('users', 'tradie-1').privateDetailsLocked).not.toBe(true);
   });
 });
 

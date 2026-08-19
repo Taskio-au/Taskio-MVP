@@ -138,9 +138,17 @@ jest.mock('../src/middleware/auth', () => ({
     req.user = { ...mockAuthState.user };
     next();
   },
+  requireRole: (role) => (req, res, next) => {
+    const userRole = req.user?.role;
+    if (userRole === role) return next();
+    return res.status(403).send({
+      message: `Forbidden: Requires role ${role}. Please re-login, or ensure your account was created via /api/users/register.`,
+    });
+  },
 }));
 
 jest.mock('../src/services/abnLookup', () => ({
+  ...jest.requireActual('../src/services/abnLookup'),
   lookupAbnDetails: jest.fn(async (abn) => ({
     abn,
     entityName: 'Acme Pty Ltd',

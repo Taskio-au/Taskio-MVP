@@ -5,6 +5,7 @@ const {
   normalizeBusinessType,
   requiresAbn,
   requiresBusinessName,
+  isAbnRequirementSatisfied,
 } = require('../src/utils/v11TradieEligibility');
 
 function baseTradie(overrides = {}) {
@@ -39,6 +40,10 @@ describe('v11TradieEligibility regression rules', () => {
     expect(requiresAbn('individual', '')).toBe(false);
     expect(requiresAbn('sole_trader', '')).toBe(true);
     expect(requiresAbn('individual', 'Acme Services')).toBe(true);
+
+    expect(isAbnRequirementSatisfied({ businessType: 'individual', businessName: '', abnVerified: false })).toBe(true);
+    expect(isAbnRequirementSatisfied({ businessType: 'sole_trader', abnVerified: false })).toBe(false);
+    expect(isAbnRequirementSatisfied({ businessType: 'company', businessName: 'Acme Pty Ltd', abnVerified: true })).toBe(true);
   });
 
   it('returns DOB_MISSING when DOB is absent', () => {

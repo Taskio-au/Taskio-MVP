@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { JOB_STATUSES, normalizeStatus } from '../../../constants/jobStatuses';
 import { getTaskReferenceCode } from '../../../utils/taskReference';
 import { sortTradies } from '../../../utils/adminDashboardUtils';
+import { requiresAbn } from '../../../utils/profileCompliance';
 import {
   hasAdminPaymentIssue,
   isDisputeStale24h,
@@ -132,7 +133,7 @@ export default function useAdminDashboardDerivedData({
           tradie.status === 'active'
           && tradie.verified === true
           && tradie.phoneVerified === true
-          && tradie.abnVerified === true
+          && (tradie.abnVerified === true || !requiresAbn(tradie.businessType, tradie.businessName))
           && tradie.stripeOnboardingComplete === true
           && tradie.profileCompleted === true
         );
