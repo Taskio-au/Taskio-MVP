@@ -20,9 +20,37 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-19 production custom domain (taskio-v2) — COMPLETED
+
+Custom-domain cutover for Hosting site `taskio-v2` is **complete**. Canonical production browser origin is `https://taskio.com.au`. Live Hosting still serves A50 maintenance. The production SPA has **not** been restored. This checkpoint did not change DNS, Hosting content, Cloud Run, IAM, Firebase Auth, Stripe, Secret Manager, Functions, Firestore, Storage, or staging.
+
+- Operator `admin@taskio.com.au`; project `taskio-v2`; site `taskio-v2`.
+- 2026-08-18: Hosting custom domains created (`taskio.com.au` canonical; `www.taskio.com.au` `redirectTarget` = `taskio.com.au`). `app.taskio.com.au` left attached.
+- Owner then applied the Firebase `requiredDnsUpdates` in GoDaddy (A/CNAME plus TXT `hosting-site=taskio-v2`). MX, SPF, `MS=`, DMARC, autodiscover, enterprise enrollment/registration, nameservers, and `app.taskio.com.au` were not modified.
+- Cloud Run already has `CORS_ORIGINS=https://taskio.com.au` and `FRONTEND_URL=https://taskio.com.au` (unchanged this checkpoint).
+
+**Verified 2026-08-19 (HTTPS / DNS):**
+
+- `https://taskio.com.au` HTTP **200**, valid TLS (`Strict-Transport-Security: max-age=31556926`). `Cache-Control: no-store, max-age=0`. `X-Robots-Tag: noindex, nofollow`. Body length 1517, `Last-Modified: Mon, 17 Aug 2026 04:33:36 GMT`, etag `14dbea0eeb2f851dfad05d94e87e8004502ac9b169ca09be6c6806a48a76d4ff` — A50 maintenance release, not the SPA.
+- `https://www.taskio.com.au` HTTP **301**, valid TLS, `Location: https://taskio.com.au/`.
+- Apex A `taskio.com.au` → `199.36.158.100` (Firebase Hosting). www CNAME → `taskio-v2.web.app`.
+- Apex TXT now includes `hosting-site=taskio-v2` plus unchanged `firebase=taskio-v2`, SPF (`include:spf.protection.outlook.com include:_spf.firebasemail.com -all`), and `v=verifydomain MS=6820192`.
+- `app.taskio.com.au` CNAME still `taskio-v2.web.app`; still serves A50.
+- Microsoft 365 intact: MX `taskio-com-au.mail.protection.outlook.com` pref 0; SPF; `MS=6820192`; DMARC; autodiscover / enterpriseenrollment / enterpriseregistration.
+
+Live Hosting channel is still A50: release `1786941217240000`, version `654a7615bfa2b420`.
+
+**A03 remains PENDING FINAL DEPLOYMENT APPROVAL / verification.** Custom domain is done; A03 cannot close because:
+
+- production SPA connection is not complete (A50 still live);
+- live browser flows are not yet verified;
+- OTP / ABN / admin / Stripe launch dependencies remain.
+
+Do not begin frontend/SPA Hosting restore until separately approved.
+
 ## 2026-08-17 A03 Cloud Run checkpoint (taskio-v2)
 
-A03 remains **PENDING FINAL DEPLOYMENT APPROVAL / verification**. Public Cloud Run invocation is enabled. Hosting restore, DNS/custom domain, frontend connection, and live job/quote/OTP/ABN/admin flow acceptance remain outstanding. This batch did not change Cloud Run configuration, traffic, secrets, Hosting, DNS, Functions, Firestore, Artifact Registry, or staging.
+A03 remains **PENDING FINAL DEPLOYMENT APPROVAL / verification**. Public Cloud Run invocation is enabled. Production custom domain is now complete (`https://taskio.com.au`, 2026-08-19). Hosting SPA restore, frontend connection, and live job/quote/OTP/ABN/admin flow acceptance remain outstanding. This batch did not change Cloud Run configuration, traffic, secrets, Hosting, DNS, Functions, Firestore, Artifact Registry, or staging.
 
 - Operator `admin@taskio.com.au`; project exactly `taskio-v2`; region `australia-southeast1`.
 - Service: `taskio-api`. Revision still `taskio-api-preflight-090f1b5` (not recreated).
@@ -37,8 +65,8 @@ A03 remains **PENDING FINAL DEPLOYMENT APPROVAL / verification**. Public Cloud R
 - CORS: Origin `https://taskio.com.au` allowed; `https://evil.example` denied with no `Access-Control-Allow-Origin`.
 - Application auth-boundary audit passed. Public `GET /api/me` without Firebase token is Express **401** `Unauthorized: No token provided`. Invalid bearer is Express **401** `Unauthorized: Invalid token`.
 - Post-test logs: expected 200/401 only; no unexpected 5xx, crashes, Firestore permission, Auth credential, Secret Manager, or unhandled-exception lines.
-- Hosting remains A50 maintenance (`taskio-v2.web.app` 200, `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`). No frontend restore. DNS/custom-domain work remains outstanding.
-- Next pickup: DNS/custom domain and/or Hosting frontend restore remain separate approvals. Do not treat public Cloud Run as A03 complete.
+- Hosting remains A50 maintenance on `https://taskio.com.au`, `https://taskio-v2.web.app`, and `https://app.taskio.com.au` (`Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`). No frontend restore.
+- Production custom domain is complete (2026-08-19). Next pickup: Hosting SPA restore remains a separate approval. Do not treat public Cloud Run or the custom-domain cutover as A03 complete.
 
 ## 2026-08-17 A03 production dependency patch (repository only)
 
