@@ -5,27 +5,178 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#0f766e">
-    <title>Taskio is preparing to launch</title>
+    <title>Taskio is almost ready</title>
     <style>
-      :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; }
+      :root {
+        color-scheme: light;
+        --teal: #0f766e;
+        --teal-deep: #115e59;
+        --ink: #0f172a;
+        --muted: #475569;
+        --line: #e7e5e4;
+        --paper: #faf8f5;
+        --card: #fffcf8;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
       * { box-sizing: border-box; }
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f0fdfa; color: #0f172a; }
-      main { width: min(680px, calc(100% - 32px)); padding: 48px; border: 1px solid #99f6e4; border-radius: 24px; background: #fff; box-shadow: 0 24px 70px rgba(15, 118, 110, .12); }
-      .wordmark { margin-bottom: 40px; color: #0f766e; font-size: 1.5rem; font-weight: 800; letter-spacing: -.03em; }
-      h1 { margin: 0 0 16px; font-size: clamp(2rem, 7vw, 3.5rem); line-height: 1.08; }
-      p { margin: 0; max-width: 55ch; color: #475569; font-size: 1.1rem; line-height: 1.7; }
-      a { color: #0f766e; font-weight: 700; }
-      @media (max-width: 520px) { main { padding: 32px 24px; border-radius: 18px; } }
+      html, body { margin: 0; overflow-x: hidden; }
+      body {
+        min-height: 100vh;
+        color: var(--ink);
+        background:
+          radial-gradient(ellipse 80% 50% at 100% -10%, rgba(15, 118, 110, .10), transparent 55%),
+          radial-gradient(ellipse 60% 40% at -10% 110%, rgba(180, 83, 9, .06), transparent 50%),
+          var(--paper);
+      }
+      .frame {
+        position: relative;
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: 1fr auto;
+        padding: 32px 24px 28px;
+      }
+      .orb {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+      }
+      .orb-a {
+        width: 420px;
+        height: 420px;
+        right: -140px;
+        top: -120px;
+        background: radial-gradient(circle at 30% 30%, rgba(15, 118, 110, .14), transparent 68%);
+      }
+      .orb-b {
+        width: 280px;
+        height: 280px;
+        left: -90px;
+        bottom: 8%;
+        border: 1px solid rgba(15, 118, 110, .12);
+      }
+      .grid {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(15, 23, 42, .035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(15, 23, 42, .035) 1px, transparent 1px);
+        background-size: 72px 72px;
+        mask-image: radial-gradient(ellipse at 50% 30%, #000 20%, transparent 75%);
+      }
+      main {
+        position: relative;
+        z-index: 1;
+        width: min(640px, 100%);
+        margin: auto;
+        padding: 48px 44px 44px;
+        background: rgba(255, 252, 248, .94);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, .8) inset,
+          0 28px 80px rgba(15, 23, 42, .08);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 36px;
+        color: var(--teal-deep);
+      }
+      .mark {
+        width: 36px;
+        height: 36px;
+        flex: none;
+      }
+      .wordmark {
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -.03em;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 18px;
+        padding: 6px 12px 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 118, 110, .22);
+        background: rgba(15, 118, 110, .08);
+        color: var(--teal-deep);
+        font-size: .8rem;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .pill::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--teal);
+        box-shadow: 0 0 0 4px rgba(15, 118, 110, .16);
+      }
+      h1 {
+        margin: 0 0 18px;
+        font-size: clamp(2.05rem, 6vw, 3.15rem);
+        line-height: 1.08;
+        letter-spacing: -.04em;
+        font-weight: 700;
+      }
+      .lede {
+        margin: 0 0 16px;
+        max-width: 48ch;
+        color: var(--muted);
+        font-size: 1.08rem;
+        line-height: 1.7;
+      }
+      .note {
+        margin: 0;
+        max-width: 48ch;
+        color: #64748b;
+        font-size: .98rem;
+        line-height: 1.65;
+      }
+      footer {
+        position: relative;
+        z-index: 1;
+        margin-top: 28px;
+        text-align: center;
+        color: #78716c;
+        font-size: .82rem;
+        letter-spacing: .01em;
+      }
+      @media (max-width: 560px) {
+        .frame { padding: 20px 16px 22px; }
+        main { padding: 32px 22px 28px; border-radius: 22px; }
+        .orb-a, .orb-b { display: none; }
+      }
     </style>
   </head>
   <body>
-    <main>
-      <div class="wordmark" aria-label="Taskio">Taskio</div>
-      <h1>We’re preparing Taskio for launch.</h1>
-      <p>
-        Taskio is not accepting tasks yet. Please check back soon, or contact the Taskio team through an
-        approved support channel if you need help.
-      </p>
-    </main>
+    <div class="frame">
+      <div class="grid" aria-hidden="true"></div>
+      <div class="orb orb-a" aria-hidden="true"></div>
+      <div class="orb orb-b" aria-hidden="true"></div>
+      <main>
+        <div class="brand">
+          <svg class="mark" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+            <rect width="36" height="36" rx="10" fill="#0f766e"/>
+            <path d="M10 13.5h16M18 13.5v10.5" fill="none" stroke="#ecfdf5" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+          <span class="wordmark">Taskio</span>
+        </div>
+        <p class="pill" role="status">Launching soon</p>
+        <h1>Taskio is almost ready.</h1>
+        <p class="lede">
+          We’re putting the final pieces in place before launch. Soon, Taskio
+          will make it easier to find the right expert, compare quotes and get
+          work done with confidence.
+        </p>
+        <p class="note">Task posting and expert onboarding are not available just yet.</p>
+      </main>
+      <footer>© 2026 Taskio · Melbourne, Australia</footer>
+    </div>
   </body>
 </html>

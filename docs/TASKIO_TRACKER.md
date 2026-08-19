@@ -20,6 +20,31 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-19 preview CORS + professional A50 refresh (taskio-v2)
+
+A03 remains **PENDING FINAL DEPLOYMENT APPROVAL / verification**. Temporary preview CORS was added on Cloud Run. Live Hosting was refreshed with a professional A50 maintenance page. The production SPA was **not** restored to the live channel. DNS, Stripe, Auth providers, Functions, Firestore/Storage rules, Secret Manager values, and staging were not changed.
+
+- Operator `admin@taskio.com.au`; project `taskio-v2`; region `australia-southeast1`; Hosting site `taskio-v2`.
+- Preview SPA (channel `a03-spa-preflight`, expires 2026-09-02): `https://taskio-v2--a03-spa-preflight-zdb058gu.web.app`.
+- Canonical origin remains `https://taskio.com.au`. `FRONTEND_URL` unchanged: `https://taskio.com.au`.
+
+**Cloud Run CORS (temporary):**
+
+- Before: revision `taskio-api-preflight-090f1b5`; `CORS_ORIGINS=https://taskio.com.au`; image `sha256:e275078558a06d9a54089a69f74c213abd2a1cac06dc956407d9a41c5fd37143`; SA `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com`; secret `OTP_SALT:1` only.
+- After: revision **`taskio-api-00002-8qn`** Ready/Active; **100%** traffic; same image digest; same SA; `OTP_SALT:1` still the only mounted secret; invoker IAM still disabled (public); ingress `all`.
+- `CORS_ORIGINS=https://taskio.com.au,https://taskio-v2--a03-spa-preflight-zdb058gu.web.app` via `--update-env-vars` only. Tag `preflight` remains on old revision `taskio-api-preflight-090f1b5` at 0%.
+- `/health/live` **200**; `/health/ready` **200** (Firestore ok, Stripe disabled/ok, env ok).
+- CORS GET `/health/live`: Origin `https://taskio.com.au` → `Access-Control-Allow-Origin: https://taskio.com.au`. Origin preview URL → allowed. Origin `https://evil.example` → **403** `CORS blocked`, no `Access-Control-Allow-Origin`. OPTIONS `/api/me` from preview → **204** with preview ACAO.
+
+**Professional A50 maintenance (live Hosting):**
+
+- Deployed with `firebase deploy --project taskio-v2 --only hosting --config firebase.maintenance.json` (not `firebase.json` / not SPA).
+- New live release `1787132706801000`, version `d0d88e13fafa18d0` (2026-08-19, `maintenance/index.html`). Previous A50: release `1786941217240000`, version `654a7615bfa2b420`.
+- Verified `https://taskio.com.au` **200**, `https://www.taskio.com.au` **301** `Location: https://taskio.com.au/`, `https://taskio-v2.web.app` **200**, `https://app.taskio.com.au` **200**. Valid TLS. `Cache-Control: no-store, max-age=0`. `X-Robots-Tag: noindex, nofollow`. Title `Taskio is almost ready`. No `static/js/main*.js` on live.
+- `firebase.maintenance.json` unchanged (no-store / noindex rewrites still apply).
+
+Do not restore the SPA to live until separately approved. Next: browser integration tests against the preview origin now that CORS allows it.
+
 ## 2026-08-19 production custom domain (taskio-v2) — COMPLETED
 
 Custom-domain cutover for Hosting site `taskio-v2` is **complete**. Canonical production browser origin is `https://taskio.com.au`. Live Hosting still serves A50 maintenance. The production SPA has **not** been restored. This checkpoint did not change DNS, Hosting content, Cloud Run, IAM, Firebase Auth, Stripe, Secret Manager, Functions, Firestore, Storage, or staging.
