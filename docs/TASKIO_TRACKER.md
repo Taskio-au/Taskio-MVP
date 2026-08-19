@@ -20,6 +20,38 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-19 PRE-LAUNCH FREEZE (taskio-v2)
+
+Taskio is in **PRE-LAUNCH FREEZE**. The only publicly usable content is the professional A50 maintenance page. The SPA is not live. The production API is not publicly invocable. End-user Firebase account creation is disabled. DNS, Stripe, ABN, Functions, Firestore/Storage data, staging, and the maintenance design were not changed.
+
+- Operator `admin@taskio.com.au`; project `taskio-v2`; region `australia-southeast1`; Hosting site `taskio-v2`.
+
+**Cloud Run `taskio-api` private:**
+
+- `--invoker-iam-check` applied. Annotation `run.googleapis.com/invoker-iam-disabled` is no longer `true`. IAM policy has **no** `allUsers` binding.
+- Unauthenticated `GET https://taskio-api-gp2whfgz5a-ts.a.run.app/health/live` returns Cloud Run **403 Forbidden** HTML (`Your client does not have permission…`), not Express.
+- CORS restored via `--update-env-vars` only: `CORS_ORIGINS=https://taskio.com.au`. Preview origin removed. `FRONTEND_URL` still `https://taskio.com.au`.
+- Serving revision **`taskio-api-00003-6zl`** (100%). Same image `sha256:e275078558a06d9a54089a69f74c213abd2a1cac06dc956407d9a41c5fd37143`; same SA `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com`; secret `OTP_SALT:1` only. Other env unchanged (`NODE_ENV`, `TRUST_PROXY`, `STRIPE_ENABLED=false`, Gemini v1 / `gemini-3.6-flash`). Tag `preflight` remains on `taskio-api-preflight-090f1b5` at 0% and is also private.
+
+**Preview SPA deleted:**
+
+- `firebase hosting:channel:delete a03-spa-preflight --project taskio-v2 --force`.
+- `https://taskio-v2--a03-spa-preflight-zdb058gu.web.app` → **404** `Site Not Found`. Hosting channels now only `live`. Live channel **not** modified (still release `1787132706801000`, version `d0d88e13fafa18d0`).
+
+**Firebase Auth sign-up disabled:**
+
+- Identity Toolkit Admin `projects/taskio-v2/config`: `client.permissions.disabledUserSignup=true` (`updateMask=client.permissions.disabledUserSignup` only).
+- Email/password and phone providers remain enabled so existing accounts (including administrator-created) can still be signed in by an operator later. User deletion by end users was **not** disabled. No users deleted. No admin custom claims modified.
+
+**Public surface verified:**
+
+- `https://taskio.com.au` **200** maintenance (`Taskio is almost ready` / Launching soon). `Cache-Control: no-store, max-age=0`. `X-Robots-Tag: noindex, nofollow`.
+- `https://www.taskio.com.au` **301** `Location: https://taskio.com.au/`.
+- `https://taskio-v2.web.app` and `https://app.taskio.com.au` **200** same maintenance page. No `static/js/main*.js`.
+- No public SPA. Public register/post-task cannot run: Hosting has no SPA, API is Cloud Run 403, Auth rejects end-user sign-up.
+
+Do **not** create another preview channel, make Cloud Run public, restore the SPA, or re-enable registration until an explicit launch approval.
+
 ## 2026-08-19 preview CORS + professional A50 refresh (taskio-v2)
 
 A03 remains **PENDING FINAL DEPLOYMENT APPROVAL / verification**. Temporary preview CORS was added on Cloud Run. Live Hosting was refreshed with a professional A50 maintenance page. The production SPA was **not** restored to the live channel. DNS, Stripe, Auth providers, Functions, Firestore/Storage rules, Secret Manager values, and staging were not changed.
