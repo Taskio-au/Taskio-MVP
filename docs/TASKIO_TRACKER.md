@@ -20,6 +20,17 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-19 branded maintenance refresh (freeze held)
+
+**PRE-LAUNCH FREEZE remains in force.** Live Hosting was refreshed with a full-screen branded maintenance page using the real Taskio logo. Cloud Run stayed private. Firebase sign-up stayed disabled. No preview SPA, no `frontend/build` restore, no DNS/Stripe/ABN/Auth-provider/Functions/Firestore/Storage/staging change.
+
+- Operator `admin@taskio.com.au`; project `taskio-v2`; site `taskio-v2`.
+- Deployed with `firebase deploy --project taskio-v2 --only hosting --config firebase.maintenance.json` (not `firebase.json`).
+- New live release `1787133495217000`, version `cffca9d87ce03901`. Previous: `1787132706801000` / `d0d88e13fafa18d0`.
+- Real logo copied byte-identical from `frontend/public/images/taskio-logo.png` to `maintenance/assets/taskio-logo.png`. Favicons copied from `frontend/public` (`favicon.ico`, `favicon-32x32.png`, `apple-touch-icon.png`). `firebase.maintenance.json` unchanged (no-store / noindex).
+- Verified `https://taskio.com.au` **200** (logo `assets/taskio-logo.png`, Launching soon); www **301** to apex; `taskio-v2.web.app` and `app.taskio.com.au` **200** same page. Valid TLS. `Cache-Control: no-store, max-age=0`. `X-Robots-Tag: noindex, nofollow`. No SPA JS.
+- Freeze checks: unauthenticated API `/health/live` still Cloud Run **403**. `client.permissions.disabledUserSignup=true`.
+
 ## 2026-08-19 PRE-LAUNCH FREEZE (taskio-v2)
 
 Taskio is in **PRE-LAUNCH FREEZE**. The only publicly usable content is the professional A50 maintenance page. The SPA is not live. The production API is not publicly invocable. End-user Firebase account creation is disabled. DNS, Stripe, ABN, Functions, Firestore/Storage data, staging, and the maintenance design were not changed.
