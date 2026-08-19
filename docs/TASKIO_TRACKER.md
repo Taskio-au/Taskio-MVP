@@ -20,6 +20,17 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-19 Auth authorized domain (freeze held)
+
+**PRE-LAUNCH FREEZE remains in force.** One Auth config change only: added `taskio.com.au` to Firebase Authentication authorized domains on `taskio-v2`. Signup, Cloud Run, Hosting, claims, providers, DNS, Stripe, ABN, Functions, Firestore, Storage, and staging were not changed.
+
+- Operator `admin@taskio.com.au`. Identity Toolkit `updateConfig` `updateMask=authorizedDomains` only.
+- Authorized domains now: `localhost`, `taskio-v2.firebaseapp.com`, `taskio-v2.web.app`, `www.taskio.com.au`, `app.taskio.com.au`, `127.0.0.1`, **`taskio.com.au`**. Existing entries unchanged.
+- `client.permissions.disabledUserSignup=true`. Email/password and phone providers still enabled (sign-in only for existing accounts).
+- Unauthenticated `GET /health/live` still Cloud Run **403**. Hosting channels: `live` only (release `1787133495217000`, version `cffca9d87ce03901`). `https://taskio.com.au` still branded maintenance **200**, no SPA.
+
+Do not enable signup, unfreeze Cloud Run, restore the SPA, add `super_admin`, or start ABN/Stripe until separately approved.
+
 ## 2026-08-19 branded maintenance refresh (freeze held)
 
 **PRE-LAUNCH FREEZE remains in force.** Live Hosting was refreshed with a full-screen branded maintenance page using the real Taskio logo. Cloud Run stayed private. Firebase sign-up stayed disabled. No preview SPA, no `frontend/build` restore, no DNS/Stripe/ABN/Auth-provider/Functions/Firestore/Storage/staging change.
