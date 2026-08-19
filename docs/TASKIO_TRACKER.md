@@ -20,6 +20,81 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-19 production ABN readiness (freeze held)
+
+**PRE-LAUNCH FREEZE remains in force.** ABN verification is production-ready for the tested Active-ABN integration path. This does **not** mean Taskio is launched. No signup enablement, Cloud Run public access, Hosting preview, SPA restore, DNS, Stripe, Auth claims, or staging change.
+
+- Operator `admin@taskio.com.au`; project `taskio-v2`; region `australia-southeast1`.
+- Repository HEAD for this checkpoint: `33b5aa33e8db5a1fffd2da920aed1ea4b2ed8e49`.
+
+**ABN code hardening**
+
+- Commit `33b5aa33e8db5a1fffd2da920aed1ea4b2ed8e49` — `security: harden ABN verification flow`.
+- GitHub Actions run `32246351055` **SUCCESS**. All six jobs green: `security-rules`, `frontend`, `api-image`, `browser-smoke`, `functions`, `backend`.
+- Active ABN required for `abnVerified=true`. Inactive/cancelled ABNs rejected. Malformed ABR response fails closed.
+- Required ABN must be verified before private-details lock.
+- Dedicated ABN verify rate limit: **20 / 15 minutes**.
+- ABR/GUID-safe logging (no GUID/`guid=` in application logs).
+- Verify route restricted to `tradie` role.
+- Trust/eligibility ABN requirement aligned. Empty ABN allowed only when ABN is not required.
+
+**Hardened production image**
+
+- Source commit `33b5aa33e8db5a1fffd2da920aed1ea4b2ed8e49`.
+- Cloud Build `2179177c-4d3c-4e06-a61b-d24a0dd50413`.
+- Image digest `sha256:f2de76fdfa00ac712446c001dbd46085b8d5e13dd2180f6d197ccc1c671c4bf6`.
+- Production audit: **0 high**, **0 critical**; existing accepted residual only (**1 low / 8 moderate**).
+
+**ABN production secret**
+
+- Secret Manager `ABN_LOOKUP_GUID` version **1 ENABLED**, automatic replication. Payload never recorded in the repository or this tracker.
+- Resource-level `roles/secretmanager.secretAccessor` granted only to `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com`.
+- Existing `OTP_SALT:1` retained.
+
+**Production Cloud Run**
+
+- Serving revision **`taskio-api-00006-puf`** = **100%** traffic on hardened digest `sha256:f2de76…`.
+- Cloud Run Invoker IAM check remains enabled/private. **No** `allUsers`. Runtime SA unchanged: `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com`.
+- Secrets mounted: `OTP_SALT:1`, `ABN_LOOKUP_GUID:1`.
+- Env unchanged: `CORS_ORIGINS=https://taskio.com.au`, `FRONTEND_URL=https://taskio.com.au`, `STRIPE_ENABLED=false`.
+- Authenticated `/health/live` **200**; authenticated `/health/ready` **200**.
+- Anonymous `/health/live` = Cloud Run **403**.
+
+**Controlled live ABR verification**
+
+One controlled private production happy-path test using synthetic Task Expert `testuser20@taskio.com` (UID `EjrP8ccyfASTkAucLyKe9XpDf0h2`). The test-account password was reset for this test only; password and tokens are **not** recorded.
+
+- Test profile: `businessType=company`, `businessName=Taskio ABR Integration Test`, `privateDetailsLocked=false`.
+- Public ABN `51824753556` — **AUSTRALIAN TAXATION OFFICE**, Commonwealth Government Entity, status **Active**.
+- `PUT /api/me/profile` HTTP **200**.
+- `POST /api/me/abn/verify` HTTP **200**, `ABN verified.`
+- Stored state: `abn=51824753556`, `abnVerified=true`, `abnVerifiedAt` present, `abnEntityName=AUSTRALIAN TAXATION OFFICE`, `abnEntityStatus=Active`, `abnEntityTypeName=Commonwealth Government Entity`.
+- `GET /api/me` HTTP **200**.
+- Exactly **one** live ABR verification request. No cancelled / not-found / rate-limit live tests; those paths remain covered by repository tests.
+
+**Log security**
+
+Cloud Run logs around the test: no `guid=`, no `ABN_LOOKUP_GUID` value, no JWT/token leakage, no password leakage, no unexpected 5xx, no Secret Manager errors, no Firestore permission errors, no unhandled exceptions.
+
+**ABN readiness conclusion**
+
+ABN verification is **production-ready for the tested Active-ABN integration path**. Taskio is **not** launched.
+
+PRE-LAUNCH FREEZE remains:
+
+- `taskio.com.au` = maintenance **200**
+- `www` = **301** to apex
+- `taskio-v2.web.app` = maintenance
+- `app.taskio.com.au` = maintenance
+- `disabledUserSignup=true`
+- Cloud Run API private / anonymous **403**
+- Hosting channel = `live` only
+- no SPA, no preview, no public registration, no public task posting
+
+**A03 remains pending overall** because the product is intentionally not launched. Other launch dependencies remain, including Stripe and final end-to-end product acceptance.
+
+**Next pickup:** Stripe production-readiness audit **first**, read-only. Do not enable Stripe or change payment configuration until separately approved. Later follow-ups: Firebase Auth custom sender domain; optional `super_admin` decision; final controlled frontend/browser acceptance before launch.
+
 ## 2026-08-19 Auth authorized domain (freeze held)
 
 **PRE-LAUNCH FREEZE remains in force.** One Auth config change only: added `taskio.com.au` to Firebase Authentication authorized domains on `taskio-v2`. Signup, Cloud Run, Hosting, claims, providers, DNS, Stripe, ABN, Functions, Firestore, Storage, and staging were not changed.
