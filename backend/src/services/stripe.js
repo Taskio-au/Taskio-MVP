@@ -218,13 +218,14 @@ async function getSucceededChargeIdForConnectTransfer(paymentIntentId) {
   return { chargeId, paymentIntent: pi };
 }
 
-async function createRefund({ paymentIntentId, amountInCents, reason, idempotencyKey }) {
+async function createRefund({ paymentIntentId, amountInCents, reason, idempotencyKey, metadata }) {
   const stripe = getStripe();
   const refund = await stripe.refunds.create(
     {
       payment_intent: paymentIntentId,
       ...(amountInCents ? { amount: amountInCents } : {}),
       ...(reason ? { reason } : {}),
+      ...(metadata && typeof metadata === 'object' ? { metadata } : {}),
     },
     idempotencyKey ? { idempotencyKey } : undefined
   );

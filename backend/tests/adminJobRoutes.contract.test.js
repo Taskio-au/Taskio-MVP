@@ -399,7 +399,7 @@ describe('admin job route contracts', () => {
       paymentIntentId: 'pi_zz',
     });
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(555555);
-    mockCreateRefund.mockResolvedValue({ id: 're_retry' });
+    mockCreateRefund.mockResolvedValue({ id: 're_retry', status: 'succeeded' });
 
     const res = await request(app)
       .post('/api/admin/jobs/rj2/retry-payment')
@@ -426,7 +426,7 @@ describe('admin job route contracts', () => {
       arrivals += 1;
       if (arrivals === 2) releaseBoth();
       await bothArrived;
-      return { id: 're_retry_shared' };
+      return { id: 're_retry_shared', status: 'succeeded' };
     });
 
     const makeRetry = () => request(app).post('/api/admin/jobs/rj2c/retry-payment');
@@ -445,7 +445,7 @@ describe('admin job route contracts', () => {
       paymentState: 'refund_failed',
       paymentIntentId: 'pi_zz',
     });
-    mockCreateRefund.mockResolvedValue({ id: 're_once' });
+    mockCreateRefund.mockResolvedValue({ id: 're_once', status: 'succeeded' });
 
     const first = await request(app).post('/api/admin/jobs/rj2b/retry-payment');
     const second = await request(app).post('/api/admin/jobs/rj2b/retry-payment');
@@ -465,16 +465,16 @@ describe('admin job route contracts', () => {
     const timeoutErr = new Error('timeout');
     timeoutErr.code = 'ETIMEDOUT';
     mockCreateRefund.mockRejectedValueOnce(timeoutErr);
-    mockCreateRefund.mockResolvedValueOnce({ id: 're_to' });
+    mockCreateRefund.mockResolvedValueOnce({ id: 're_to', status: 'succeeded' });
 
     const first = await request(app).post('/api/admin/jobs/job-to/refund');
     expect(first.status).toBe(503);
     expect(first.body.code).toBe('refund_status_uncertain');
     const afterTimeout = readCollectionDoc('jobs', 'job-to');
     expect(afterTimeout.refundAttemptOpen).toBe(true);
-    expect(afterTimeout.paymentState).toBe('in_escrow');
+    expect(afterTimeout.paymentState).toBe('refund_pending');
     expect(afterTimeout.refundId).toBeUndefined();
-    expect(afterTimeout.status).toBe('in_progress');
+    expect(afterTimeout.status).toBe('REFUND_PENDING');
 
     const retry = await request(app).post('/api/admin/jobs/job-to/refund');
     expect(retry.status).toBe(200);
@@ -498,7 +498,7 @@ describe('admin job route contracts', () => {
       code: 'internal_error',
       message: 'Stripe is down',
     });
-    mockCreateRefund.mockResolvedValueOnce({ id: 're_500' });
+    mockCreateRefund.mockResolvedValueOnce({ id: 're_500', status: 'succeeded' });
 
     const first = await request(app).post('/api/admin/jobs/job-500/refund');
     expect(first.status).toBe(503);
@@ -526,7 +526,7 @@ describe('admin job route contracts', () => {
       code: 'resource_missing',
       message: 'No such payment_intent: pi_400',
     });
-    mockCreateRefund.mockResolvedValueOnce({ id: 're_400_next' });
+    mockCreateRefund.mockResolvedValueOnce({ id: 're_400_next', status: 'succeeded' });
 
     const first = await request(app).post('/api/admin/jobs/job-400/refund');
     expect(first.status).toBe(400);
@@ -535,7 +535,7 @@ describe('admin job route contracts', () => {
     const after = readCollectionDoc('jobs', 'job-400');
     expect(after.refundAttemptOpen).toBe(false);
     expect(after.paymentState).toBe('refund_failed');
-    expect(after.status).toBe('in_progress');
+    expect(after.status).toBe('REFUND_PENDING');
     expect(after.refundId).toBeUndefined();
     expect(after.refundLastFailureCategory).toBe('invalid_request');
     expect(after.refundLastFailureCode).toBe('resource_missing');
@@ -557,7 +557,7 @@ describe('admin job route contracts', () => {
       refundLastFailureCategory: 'refund_object_failed',
       refundLastFailureCode: 'expired_or_canceled_card',
     });
-    mockCreateRefund.mockResolvedValue({ id: 're_wh_next' });
+    mockCreateRefund.mockResolvedValue({ id: 're_wh_next', status: 'succeeded' });
 
     const res = await request(app).post('/api/admin/jobs/job-wh/retry-payment');
     expect(res.status).toBe(200);
@@ -1105,7 +1105,7 @@ describe('admin job route contracts', () => {
         disputeFlag: true,
         paymentIntentId: 'pi_rd_ref',
       });
-      mockCreateRefund.mockResolvedValue({ id: 're_rd_1' });
+      mockCreateRefund.mockResolvedValue({ id: 're_rd_1', status: 'succeeded' });
 
       const res = await request(app)
         .post('/api/admin/jobs/job-rd-refund/resolve-dispute')
@@ -1113,12 +1113,13 @@ describe('admin job route contracts', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.refundId).toBe('re_rd_1');
-      expect(mockCreateRefund).toHaveBeenCalledWith({
+      expect(mockCreateRefund).toHaveBeenCalledWith(expect.objectContaining({
         paymentIntentId: 'pi_rd_ref',
         amountInCents: null,
         reason: 'requested_by_customer',
         idempotencyKey: 'taskio_refund_job-rd-refund_g1',
-      });
+        metadata: expect.objectContaining({ type: 'job_refund', jobId: 'job-rd-refund' }),
+      }));
       expect(mockCreateTransfer).not.toHaveBeenCalled();
       expect(readCollectionDoc('jobs', 'job-rd-refund').disputeResolution).toBe('refunded');
     });
@@ -1151,18 +1152,23 @@ describe('admin job route contracts', () => {
     expect(mockCreateRefund).not.toHaveBeenCalled();
   });
 
-  it('POST /refund returns 400 when refund already in progress', async () => {
+  it('POST /refund resumes an in-progress refund with the same Stripe key', async () => {
     writeCollectionDoc('jobs', 'job-pending', {
       status: 'REFUND_PENDING',
       paymentState: 'refund_pending',
       paymentIntentId: 'pi_y',
+      refundAttempt: 1,
+      refundAttemptOpen: true,
     });
+    mockCreateRefund.mockResolvedValue({ id: 're_resume', status: 'succeeded' });
 
     const res = await request(app).post('/api/admin/jobs/job-pending/refund');
 
-    expect(res.status).toBe(400);
-    expect(res.body.message).toBe('Refund already in progress.');
-    expect(mockCreateRefund).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(mockCreateRefund).toHaveBeenCalledWith(expect.objectContaining({
+      paymentIntentId: 'pi_y',
+      idempotencyKey: 'taskio_refund_job-pending_g1',
+    }));
   });
 
   it('POST /refund refunds and transitions non-disputed tasks to refunded', async () => {
@@ -1172,20 +1178,25 @@ describe('admin job route contracts', () => {
       paymentIntentId: 'pi_123',
       disputeFlag: false,
     });
-    mockCreateRefund.mockResolvedValue({ id: 're_123' });
+    mockCreateRefund.mockResolvedValue({ id: 're_123', status: 'succeeded' });
 
     const res = await request(app)
       .post('/api/admin/jobs/job-7/refund')
       .send({ idempotencyKey: 'client-chosen-key' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ message: 'Refund initiated.', refundId: 're_123' });
-    expect(mockCreateRefund).toHaveBeenCalledWith({
+    expect(res.body).toEqual({
+      message: 'Refund initiated.',
+      refundId: 're_123',
+      variationRefundIds: {},
+    });
+    expect(mockCreateRefund).toHaveBeenCalledWith(expect.objectContaining({
       paymentIntentId: 'pi_123',
       amountInCents: null,
       reason: 'requested_by_customer',
       idempotencyKey: 'taskio_refund_job-7_g1',
-    });
+      metadata: expect.objectContaining({ type: 'job_refund', jobId: 'job-7' }),
+    }));
     expect(mockCreateRefund.mock.calls[0][0].idempotencyKey).not.toBe('client-chosen-key');
 
     const job = readCollectionDoc('jobs', 'job-7');
@@ -1208,7 +1219,7 @@ describe('admin job route contracts', () => {
       arrivals += 1;
       if (arrivals === 2) releaseBoth();
       await bothArrived;
-      return { id: 're_shared' };
+      return { id: 're_shared', status: 'succeeded' };
     });
 
     const makeRefund = () => request(app).post('/api/admin/jobs/job-7c/refund');
@@ -1227,17 +1238,426 @@ describe('admin job route contracts', () => {
       paymentIntentId: 'pi_456',
       disputeFlag: true,
     });
-    mockCreateRefund.mockResolvedValue({ id: 're_456' });
+    mockCreateRefund.mockResolvedValue({ id: 're_456', status: 'succeeded' });
 
     const res = await request(app).post('/api/admin/jobs/job-8/refund');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ message: 'Refund initiated.', refundId: 're_456' });
+    expect(res.body).toEqual({
+      message: 'Refund initiated.',
+      refundId: 're_456',
+      variationRefundIds: {},
+    });
 
     const job = readCollectionDoc('jobs', 'job-8');
     expect(job.status).toBe('DISPUTED');
     expect(job.paymentState).toBe('refunded');
     expect(job.disputeResolution).toBe('refunded');
+  });
+
+  it('POST /refund refunds a funded variation with the base payment', async () => {
+    writeCollectionDoc('jobs', 'job-var-1', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_base',
+      paymentAmountCents: 20000,
+    });
+    seedJobVariation('job-var-1', 'var-a', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 5000,
+      paymentIntentId: 'pi_var_a',
+    });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => ({ id: `re_${paymentIntentId}`, status: 'succeeded' }));
+
+    const res = await request(app).post('/api/admin/jobs/job-var-1/refund');
+
+    expect(res.status).toBe(200);
+    expect(res.body.refundId).toBe('re_pi_base');
+    expect(res.body.variationRefundIds).toEqual({ 'var-a': 're_pi_var_a' });
+    const keys = mockCreateRefund.mock.calls.map((call) => call[0].idempotencyKey);
+    expect(keys).toEqual([
+      'taskio_refund_job-var-1_g1',
+      'taskio_admin_refund_var_job-var-1_var-a_g1',
+    ]);
+    expect(readCollectionDoc('jobs', 'job-var-1').paymentState).toBe('refunded');
+    expect(mockJobState.variationsByJob.get('job-var-1').get('var-a').paymentState).toBe('refunded');
+    expect(mockJobState.variationsByJob.get('job-var-1').get('var-a').refundId).toBe('re_pi_var_a');
+  });
+
+  it('POST /refund refunds multiple funded variations', async () => {
+    writeCollectionDoc('jobs', 'job-var-m', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_base_m',
+    });
+    seedJobVariation('job-var-m', 'var-a', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 4000,
+      paymentIntentId: 'pi_a',
+    });
+    seedJobVariation('job-var-m', 'var-b', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      amountPaidCents: 2500,
+      paymentIntentId: 'pi_b',
+    });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => ({ id: `re_${paymentIntentId}`, status: 'succeeded' }));
+
+    const res = await request(app).post('/api/admin/jobs/job-var-m/refund');
+    expect(res.status).toBe(200);
+    expect(res.body.variationRefundIds).toEqual({ 'var-a': 're_pi_a', 'var-b': 're_pi_b' });
+    expect(mockCreateRefund).toHaveBeenCalledTimes(3);
+  });
+
+  it('POST /refund skips unpaid and declined variations', async () => {
+    writeCollectionDoc('jobs', 'job-var-skip', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_skip',
+    });
+    seedJobVariation('job-var-skip', 'var-unpaid', {
+      status: 'awaiting_payment',
+      paymentState: 'pending_payment',
+      priceChangeCents: 5000,
+    });
+    seedJobVariation('job-var-skip', 'var-declined', {
+      status: 'declined',
+      priceChangeCents: 5000,
+      paymentIntentId: 'pi_declined',
+    });
+    mockCreateRefund.mockResolvedValue({ id: 're_skip', status: 'succeeded' });
+
+    const res = await request(app).post('/api/admin/jobs/job-var-skip/refund');
+    expect(res.status).toBe(200);
+    expect(mockCreateRefund).toHaveBeenCalledTimes(1);
+    expect(mockCreateRefund.mock.calls[0][0].paymentIntentId).toBe('pi_skip');
+    expect(res.body.variationRefundIds).toEqual({});
+  });
+
+  it('POST /refund does not refund an already-refunded variation again', async () => {
+    writeCollectionDoc('jobs', 'job-var-done', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_done',
+    });
+    seedJobVariation('job-var-done', 'var-done', {
+      status: 'approved',
+      paymentState: 'refunded',
+      paymentStatus: 'paid',
+      priceChangeCents: 5000,
+      paymentIntentId: 'pi_done_var',
+      refundId: 're_existing',
+      refundStatus: 'succeeded',
+    });
+    mockCreateRefund.mockResolvedValue({ id: 're_base_done', status: 'succeeded' });
+
+    const res = await request(app).post('/api/admin/jobs/job-var-done/refund');
+    expect(res.status).toBe(200);
+    expect(mockCreateRefund).toHaveBeenCalledTimes(1);
+    expect(res.body.variationRefundIds).toEqual({ 'var-done': 're_existing' });
+  });
+
+  it('POST /refund concurrent requests do not duplicate variation refunds', async () => {
+    writeCollectionDoc('jobs', 'job-var-c', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_c',
+    });
+    seedJobVariation('job-var-c', 'var-c', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 3000,
+      paymentIntentId: 'pi_c_var',
+    });
+    let arrivals = 0;
+    let releaseBoth;
+    const bothArrived = new Promise((resolve) => { releaseBoth = resolve; });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => {
+      arrivals += 1;
+      if (arrivals === 2) releaseBoth();
+      await bothArrived;
+      return { id: `re_${paymentIntentId}`, status: 'succeeded' };
+    });
+
+    const makeRefund = () => request(app).post('/api/admin/jobs/job-var-c/refund');
+    const [first, second] = await Promise.all([makeRefund(), makeRefund()]);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const varKeys = mockCreateRefund.mock.calls
+      .map((call) => call[0].idempotencyKey)
+      .filter((key) => String(key).includes('_var_'));
+    expect(new Set(varKeys)).toEqual(new Set(['taskio_admin_refund_var_job-var-c_var-c_g1']));
+  });
+
+  it('POST /refund retries an ambiguous variation failure with the same key', async () => {
+    writeCollectionDoc('jobs', 'job-var-amb', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_amb',
+    });
+    seedJobVariation('job-var-amb', 'var-amb', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 3000,
+      paymentIntentId: 'pi_amb_var',
+    });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => {
+      if (paymentIntentId === 'pi_amb_var' && mockCreateRefund.mock.calls.filter((c) => c[0].paymentIntentId === 'pi_amb_var').length === 1) {
+        const err = new Error('timeout');
+        err.code = 'ETIMEDOUT';
+        throw err;
+      }
+      return { id: `re_${paymentIntentId}`, status: 'succeeded' };
+    });
+
+    const first = await request(app).post('/api/admin/jobs/job-var-amb/refund');
+    expect(first.status).toBe(503);
+    expect(readCollectionDoc('jobs', 'job-var-amb').paymentState).not.toBe('refunded');
+    expect(readCollectionDoc('jobs', 'job-var-amb').refundId).toBe('re_pi_amb');
+
+    const retry = await request(app).post('/api/admin/jobs/job-var-amb/refund');
+    expect(retry.status).toBe(200);
+    const varKeys = mockCreateRefund.mock.calls
+      .filter((c) => c[0].paymentIntentId === 'pi_amb_var')
+      .map((c) => c[0].idempotencyKey);
+    expect(varKeys).toEqual([
+      'taskio_admin_refund_var_job-var-amb_var-amb_g1',
+      'taskio_admin_refund_var_job-var-amb_var-amb_g1',
+    ]);
+    expect(mockCreateRefund.mock.calls.filter((c) => c[0].paymentIntentId === 'pi_amb').length).toBe(1);
+  });
+
+  it('POST /refund persists a definitive variation failure without marking the job REFUNDED', async () => {
+    writeCollectionDoc('jobs', 'job-var-def', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_def',
+    });
+    seedJobVariation('job-var-def', 'var-def', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 3000,
+      paymentIntentId: 'pi_def_var',
+    });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => {
+      if (paymentIntentId === 'pi_def_var') {
+        return Promise.reject({
+          type: 'StripeInvalidRequestError',
+          rawType: 'invalid_request_error',
+          statusCode: 400,
+          code: 'resource_missing',
+        });
+      }
+      return { id: `re_${paymentIntentId}`, status: 'succeeded' };
+    });
+
+    const res = await request(app).post('/api/admin/jobs/job-var-def/refund');
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('refund_request_rejected');
+    expect(res.body.requiresAdminAttention).toBe(true);
+    const job = readCollectionDoc('jobs', 'job-var-def');
+    expect(job.status).not.toBe('REFUNDED');
+    expect(job.paymentState).toBe('refund_failed');
+    expect(job.refundId).toBe('re_pi_def');
+    expect(job.requiresAdminAttention).toBe(true);
+    expect(mockJobState.variationsByJob.get('job-var-def').get('var-def').paymentState).toBe('refund_failed');
+  });
+
+  it('POST /resolve-dispute refund also refunds funded variations', async () => {
+    writeCollectionDoc('jobs', 'job-rd-var', {
+      status: 'DISPUTED',
+      paymentState: 'disputed',
+      disputeFlag: true,
+      paymentIntentId: 'pi_rd_var',
+    });
+    seedJobVariation('job-rd-var', 'vx', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 8000,
+      paymentIntentId: 'pi_rd_vx',
+    });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => ({ id: `re_${paymentIntentId}`, status: 'succeeded' }));
+
+    const res = await request(app)
+      .post('/api/admin/jobs/job-rd-var/resolve-dispute')
+      .send({ resolution: 'refund' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.variationRefundIds).toEqual({ vx: 're_pi_rd_vx' });
+    expect(readCollectionDoc('jobs', 'job-rd-var').status).toBe('DISPUTED');
+    expect(readCollectionDoc('jobs', 'job-rd-var').paymentState).toBe('refunded');
+  });
+
+  it('POST /refund fails closed when base funds were already released', async () => {
+    writeCollectionDoc('jobs', 'job-rel', {
+      status: 'PAID',
+      paymentState: 'released',
+      paymentIntentId: 'pi_rel',
+      transferId: 'tr_rel',
+    });
+    mockCreateRefund.mockResolvedValue({ id: 're_should_not' });
+
+    const res = await request(app).post('/api/admin/jobs/job-rel/refund');
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('funds_already_released');
+    expect(res.body.requiresAdminAttention).toBe(true);
+    expect(mockCreateRefund).not.toHaveBeenCalled();
+    expect(readCollectionDoc('jobs', 'job-rel').requiresAdminAttention).toBe(true);
+    expect(readCollectionDoc('jobs', 'job-rel').paymentState).toBe('released');
+  });
+
+  it('POST /refund fails closed when a funded variation was already released', async () => {
+    writeCollectionDoc('jobs', 'job-vrel', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_vrel',
+    });
+    seedJobVariation('job-vrel', 'var-rel', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 5000,
+      paymentIntentId: 'pi_vrel_var',
+      releaseStatus: 'released',
+      transferId: 'tr_v',
+    });
+
+    const res = await request(app).post('/api/admin/jobs/job-vrel/refund');
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('funds_already_released');
+    expect(mockCreateRefund).not.toHaveBeenCalled();
+  });
+
+  it('POST /refund does not finalise when base succeeded and a variation is pending', async () => {
+    writeCollectionDoc('jobs', 'job-pend-var', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_pend_var',
+    });
+    seedJobVariation('job-pend-var', 'var-p', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 3000,
+      paymentIntentId: 'pi_pend_var_v',
+    });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => ({
+      id: `re_${paymentIntentId}`,
+      status: paymentIntentId === 'pi_pend_var' ? 'succeeded' : 'pending',
+    }));
+
+    const res = await request(app).post('/api/admin/jobs/job-pend-var/refund');
+    expect(res.status).toBe(200);
+    const job = readCollectionDoc('jobs', 'job-pend-var');
+    expect(job.status).toBe('REFUND_PENDING');
+    expect(job.paymentState).toBe('refund_pending');
+    expect(job.refundId).toBe('re_pi_pend_var');
+    expect(job.baseRefundConfirmed).toBe(true);
+    expect(mockJobState.variationsByJob.get('job-pend-var').get('var-p').refundId).toBe('re_pi_pend_var_v');
+    expect(mockJobState.variationsByJob.get('job-pend-var').get('var-p').paymentState).toBe('refund_pending');
+    expect(mockJobState.variationsByJob.get('job-pend-var').get('var-p').refundStatus).toBe('pending');
+  });
+
+  it('POST /refund does not finalise when base is pending and a variation succeeded', async () => {
+    writeCollectionDoc('jobs', 'job-pend-base', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_pend_base',
+    });
+    seedJobVariation('job-pend-base', 'var-ok', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 3000,
+      paymentIntentId: 'pi_pend_base_v',
+    });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => ({
+      id: `re_${paymentIntentId}`,
+      status: paymentIntentId === 'pi_pend_base' ? 'pending' : 'succeeded',
+    }));
+
+    const res = await request(app).post('/api/admin/jobs/job-pend-base/refund');
+    expect(res.status).toBe(200);
+    const job = readCollectionDoc('jobs', 'job-pend-base');
+    expect(job.status).toBe('REFUND_PENDING');
+    expect(job.paymentState).toBe('refund_pending');
+    expect(job.refundStatus).toBe('pending');
+    expect(job.baseRefundConfirmed).not.toBe(true);
+    expect(mockJobState.variationsByJob.get('job-pend-base').get('var-ok').paymentState).toBe('refunded');
+  });
+
+  it('POST /refund does not treat refundId with pending status as completion', async () => {
+    writeCollectionDoc('jobs', 'job-id-only', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_id_only',
+      refundId: 're_id_only',
+      refundStatus: 'pending',
+    });
+
+    const res = await request(app).post('/api/admin/jobs/job-id-only/refund');
+    expect(res.status).toBe(200);
+    expect(mockCreateRefund).not.toHaveBeenCalled();
+    const job = readCollectionDoc('jobs', 'job-id-only');
+    expect(job.status).toBe('REFUND_PENDING');
+    expect(job.paymentState).toBe('refund_pending');
+  });
+
+  it('POST /refund treats a Stripe Refund object with status failed as item failure', async () => {
+    writeCollectionDoc('jobs', 'job-obj-fail', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_obj_fail',
+    });
+    mockCreateRefund.mockResolvedValue({ id: 're_obj_fail', status: 'failed' });
+
+    const res = await request(app).post('/api/admin/jobs/job-obj-fail/refund');
+    expect(res.status).toBe(400);
+    expect(res.body.requiresAdminAttention).toBe(true);
+    const job = readCollectionDoc('jobs', 'job-obj-fail');
+    expect(job.status).not.toBe('REFUNDED');
+    expect(job.paymentState).toBe('refund_failed');
+    expect(job.requiresAdminAttention).toBe(true);
+    expect(job.refundId).toBe('re_obj_fail');
+  });
+
+  it('POST /resolve-dispute refund stays DISPUTED while a variation is still pending', async () => {
+    writeCollectionDoc('jobs', 'job-rd-pend', {
+      status: 'DISPUTED',
+      paymentState: 'disputed',
+      disputeFlag: true,
+      paymentIntentId: 'pi_rd_pend',
+    });
+    seedJobVariation('job-rd-pend', 'vx', {
+      status: 'approved',
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 8000,
+      paymentIntentId: 'pi_rd_pend_v',
+    });
+    mockCreateRefund.mockImplementation(async ({ paymentIntentId }) => ({
+      id: `re_${paymentIntentId}`,
+      status: paymentIntentId === 'pi_rd_pend' ? 'succeeded' : 'pending',
+    }));
+
+    const res = await request(app)
+      .post('/api/admin/jobs/job-rd-pend/resolve-dispute')
+      .send({ resolution: 'refund' });
+
+    expect(res.status).toBe(200);
+    const job = readCollectionDoc('jobs', 'job-rd-pend');
+    expect(job.status).toBe('DISPUTED');
+    expect(job.paymentState).toBe('refund_pending');
+    expect(job.disputeResolution).not.toBe('refunded');
   });
 
   it('DELETE /assign/:tradieId keeps open status canonical when the last invite is removed', async () => {

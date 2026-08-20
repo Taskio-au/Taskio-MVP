@@ -5,6 +5,7 @@ const {
   jobCheckoutIdempotencyKey,
   variationCheckoutIdempotencyKey,
   refundIdempotencyKey,
+  adminVariationRefundIdempotencyKey,
   homeownerCancelRefundKey,
   homeownerCancelVariationRefundKey,
   expressAccountIdempotencyKey,
@@ -19,6 +20,7 @@ describe('stripeIdempotency keys', () => {
       expect(jobCheckoutIdempotencyKey('job-1', 'quote-1', 1)).toBe('taskio_checkout_job-1_quote-1_g1');
       expect(variationCheckoutIdempotencyKey('job-1', 'var-1', 2)).toBe('taskio_var_checkout_job-1_var-1_g2');
       expect(refundIdempotencyKey('job-7', 1)).toBe('taskio_refund_job-7_g1');
+      expect(adminVariationRefundIdempotencyKey('job-7', 'var-1', 2)).toBe('taskio_admin_refund_var_job-7_var-1_g2');
       expect(homeownerCancelRefundKey('job-1')).toBe('taskio_homeowner_cancel_job-1');
       expect(homeownerCancelVariationRefundKey('job-1', 'var-a')).toBe('taskio_homeowner_cancel_var_job-1_var-a');
       expect(expressAccountIdempotencyKey('uid-1')).toBe('taskio_express_account_uid-1');
@@ -33,6 +35,12 @@ describe('stripeIdempotency keys', () => {
     expect(jobCheckoutIdempotencyKey('job-1', 'quote-1', 1))
       .not.toBe(jobCheckoutIdempotencyKey('job-2', 'quote-1', 1));
     expect(refundIdempotencyKey('job-1', 1)).not.toBe(refundIdempotencyKey('job-2', 1));
+    expect(adminVariationRefundIdempotencyKey('job-1', 'var-a', 1))
+      .not.toBe(adminVariationRefundIdempotencyKey('job-1', 'var-b', 1));
+    expect(adminVariationRefundIdempotencyKey('job-1', 'var-a', 1))
+      .not.toBe(refundIdempotencyKey('job-1', 1));
+    expect(adminVariationRefundIdempotencyKey('job-1', 'var-a', 1))
+      .not.toBe(homeownerCancelVariationRefundKey('job-1', 'var-a'));
   });
 
   it('normalizes missing or invalid attempts to 1', () => {

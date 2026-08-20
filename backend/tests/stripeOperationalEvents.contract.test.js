@@ -15,6 +15,16 @@ function mockClone(value) {
 function makeDocRef(collectionName, id) {
   const ref = {
     id,
+    collection: jest.fn((subName) => ({
+      get: jest.fn(async () => {
+        const rows = Array.from(store(`${collectionName}/${id}/${subName}`).entries()).map(([vid, data]) => ({
+          id: vid,
+          data: () => mockClone(data),
+        }));
+        return { empty: rows.length === 0, docs: rows };
+      }),
+      doc: jest.fn((vid) => makeDocRef(`${collectionName}/${id}/${subName}`, String(vid))),
+    })),
     get: jest.fn(async () => {
       const value = store(collectionName).get(id);
       return { id, ref, exists: !!value, data: () => mockClone(value || {}) };
@@ -199,5 +209,480 @@ describe('Stripe operational event handling', () => {
       refundLastFailureCode: 'expired_or_canceled_card',
     });
     expect(store('jobs').get('job-rf').refundId).toBeUndefined();
+  });
+
+  it('does not mark the job REFUNDED when charge.refunded is only the base payment', async () => {
+    store('jobs').set('job-br', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_base_only',
+      paymentAmountCents: 10000,
+      refundId: 're_base',
+    });
+    store('jobs/job-br/variations').set('var-1', {
+      paymentState: 'in_escrow',
+      paymentStatus: 'paid',
+      priceChangeCents: 5000,
+      paymentIntentId: 'pi_var_1',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_charge_refunded_base',
+      type: 'charge.refunded',
+      data: {
+        object: {
+          id: 'ch_1',
+          payment_intent: 'pi_base_only',
+          refunded: true,
+          amount: 10000,
+          amount_refunded: 10000,
+          metadata: { jobId: 'job-br' },
+          refunds: { data: [{ id: 're_base' }] },
+        },
+      },
+    });
+
+    expect(store('jobs').get('job-br').status).toBe('REFUND_PENDING');
+    expect(store('jobs').get('job-br').paymentState).toBe('refund_pending');
+    expect(store('jobs').get('job-br').baseRefundConfirmed).toBe(true);
+  });
+
+  it('maps a variation refund.updated to the variation and does not mark the job REFUNDED', async () => {
+    store('jobs').set('job-vr', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_base_vr',
+      paymentAmountCents: 10000,
+      refundId: 're_base_vr',
+    });
+    store('jobs/job-vr/variations').set('var-x', {
+      paymentState: 'refund_pending',
+      paymentStatus: 'paid',
+      priceChangeCents: 4000,
+      paymentIntentId: 'pi_var_x',
+      refundId: 're_var_x',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_var_refund_ok',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_var_x',
+          status: 'succeeded',
+          amount: 4000,
+          payment_intent: 'pi_var_x',
+          metadata: {
+            type: 'variation_refund',
+            paymentType: 'variation',
+            jobId: 'job-vr',
+            variationId: 'var-x',
+          },
+        },
+      },
+    });
+
+    expect(store('jobs/job-vr/variations').get('var-x').paymentState).toBe('refunded');
+    expect(store('jobs').get('job-vr').status).toBe('REFUND_PENDING');
+    expect(store('jobs').get('job-vr').paymentState).toBe('refund_pending');
+  });
+
+  it('finalises the job only after a pending variation refund later succeeds', async () => {
+    store('jobs').set('job-final-var', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_final_var_base',
+      paymentAmountCents: 10000,
+      refundId: 're_final_var_base',
+      refundStatus: 'succeeded',
+      baseRefundConfirmed: true,
+    });
+    store('jobs/job-final-var/variations').set('var-b', {
+      paymentState: 'refund_pending',
+      paymentStatus: 'paid',
+      priceChangeCents: 4000,
+      paymentIntentId: 'pi_final_var_b',
+      refundId: 're_final_var_b',
+      refundStatus: 'pending',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_var_still_pending',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_final_var_b',
+          status: 'pending',
+          amount: 4000,
+          payment_intent: 'pi_final_var_b',
+          metadata: {
+            type: 'variation_refund',
+            jobId: 'job-final-var',
+            variationId: 'var-b',
+          },
+        },
+      },
+    });
+    expect(store('jobs').get('job-final-var').status).toBe('REFUND_PENDING');
+    expect(store('jobs').get('job-final-var').paymentState).toBe('refund_pending');
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_var_now_ok',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_final_var_b',
+          status: 'succeeded',
+          amount: 4000,
+          payment_intent: 'pi_final_var_b',
+          metadata: {
+            type: 'variation_refund',
+            jobId: 'job-final-var',
+            variationId: 'var-b',
+          },
+        },
+      },
+    });
+
+    expect(store('jobs/job-final-var/variations').get('var-b').paymentState).toBe('refunded');
+    expect(store('jobs').get('job-final-var').status).toBe('REFUNDED');
+    expect(store('jobs').get('job-final-var').paymentState).toBe('refunded');
+  });
+
+  it('finalises the job when a pending base refund later succeeds and variations are already confirmed', async () => {
+    store('jobs').set('job-final-base', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_final_base',
+      paymentAmountCents: 10000,
+      refundId: 're_final_base',
+      refundStatus: 'pending',
+    });
+    store('jobs/job-final-base/variations').set('var-ok', {
+      paymentState: 'refunded',
+      paymentStatus: 'paid',
+      priceChangeCents: 4000,
+      paymentIntentId: 'pi_final_base_v',
+      refundId: 're_final_base_v',
+      refundStatus: 'succeeded',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_base_now_ok',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_final_base',
+          status: 'succeeded',
+          amount: 10000,
+          payment_intent: 'pi_final_base',
+          metadata: { type: 'job_refund', paymentType: 'base', jobId: 'job-final-base' },
+        },
+      },
+    });
+
+    expect(store('jobs').get('job-final-base').status).toBe('REFUNDED');
+    expect(store('jobs').get('job-final-base').paymentState).toBe('refunded');
+    expect(store('jobs').get('job-final-base').baseRefundConfirmed).toBe(true);
+  });
+
+  it('dispute refund stays DISPUTED with paymentState refunded once all items succeed via webhook', async () => {
+    store('jobs').set('job-final-disp', {
+      status: 'DISPUTED',
+      paymentState: 'refund_pending',
+      disputeFlag: true,
+      paymentIntentId: 'pi_final_disp',
+      paymentAmountCents: 10000,
+      refundId: 're_final_disp',
+      refundStatus: 'succeeded',
+      baseRefundConfirmed: true,
+      lastAdminActionBy: 'admin-uid',
+    });
+    store('jobs/job-final-disp/variations').set('vx', {
+      paymentState: 'refund_pending',
+      paymentStatus: 'paid',
+      priceChangeCents: 8000,
+      paymentIntentId: 'pi_final_disp_v',
+      refundId: 're_final_disp_v',
+      refundStatus: 'pending',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_disp_var_ok',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_final_disp_v',
+          status: 'succeeded',
+          amount: 8000,
+          payment_intent: 'pi_final_disp_v',
+          metadata: {
+            type: 'variation_refund',
+            jobId: 'job-final-disp',
+            variationId: 'vx',
+          },
+        },
+      },
+    });
+
+    expect(store('jobs').get('job-final-disp').status).toBe('DISPUTED');
+    expect(store('jobs').get('job-final-disp').paymentState).toBe('refunded');
+    expect(store('jobs').get('job-final-disp').disputeResolution).toBe('refunded');
+  });
+
+  it('does not confirm a base payment from a partial charge.refunded', async () => {
+    store('jobs').set('job-partial-base', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_partial_base',
+      paymentAmountCents: 10000,
+      refundId: 're_taskio_base',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_partial_base',
+      type: 'charge.refunded',
+      data: {
+        object: {
+          id: 'ch_partial_base',
+          payment_intent: 'pi_partial_base',
+          refunded: false,
+          amount: 10000,
+          amount_refunded: 2000,
+          metadata: { jobId: 'job-partial-base' },
+          refunds: { data: [{ id: 're_manual_20' }] },
+        },
+      },
+    });
+
+    const job = store('jobs').get('job-partial-base');
+    expect(job.baseRefundConfirmed).not.toBe(true);
+    expect(job.paymentState).toBe('refund_pending');
+    expect(job.status).toBe('REFUND_PENDING');
+    expect(job.refundPartial).toBe(true);
+    expect(job.requiresAdminAttention).toBe(true);
+  });
+
+  it('does not confirm a variation from a partial charge.refunded', async () => {
+    store('jobs').set('job-partial-var', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_partial_var_base',
+      paymentAmountCents: 10000,
+      refundId: 're_partial_var_base',
+      refundStatus: 'succeeded',
+      baseRefundConfirmed: true,
+    });
+    store('jobs/job-partial-var/variations').set('var-p', {
+      paymentState: 'refund_pending',
+      paymentStatus: 'paid',
+      priceChangeCents: 5000,
+      paymentIntentId: 'pi_partial_var',
+      refundId: 're_var_taskio',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_partial_var',
+      type: 'charge.refunded',
+      data: {
+        object: {
+          id: 'ch_partial_var',
+          payment_intent: 'pi_partial_var',
+          refunded: false,
+          amount: 5000,
+          amount_refunded: 1000,
+          metadata: {
+            type: 'variation_payment',
+            paymentType: 'variation',
+            jobId: 'job-partial-var',
+            variationId: 'var-p',
+          },
+          refunds: { data: [{ id: 're_manual_var' }] },
+        },
+      },
+    });
+
+    expect(store('jobs/job-partial-var/variations').get('var-p').paymentState).toBe('refund_pending');
+    expect(store('jobs').get('job-partial-var').status).toBe('REFUND_PENDING');
+    expect(store('jobs').get('job-partial-var').paymentState).toBe('refund_pending');
+  });
+
+  it('does not confirm a Taskio item from an unrelated succeeded refundId', async () => {
+    store('jobs').set('job-unrelated', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_unrelated',
+      paymentAmountCents: 10000,
+      refundId: 're_taskio_unrelated',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_unrelated_refund',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_manual_other',
+          status: 'succeeded',
+          amount: 10000,
+          payment_intent: 'pi_unrelated',
+          metadata: { type: 'job_refund', jobId: 'job-unrelated' },
+        },
+      },
+    });
+
+    const job = store('jobs').get('job-unrelated');
+    expect(job.baseRefundConfirmed).not.toBe(true);
+    expect(job.status).toBe('REFUND_PENDING');
+    expect(job.paymentState).toBe('refund_pending');
+  });
+
+  it('does not finalise when the base refund is only partial even if variations succeeded', async () => {
+    store('jobs').set('job-mix-partial', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_mix_partial',
+      paymentAmountCents: 10000,
+      refundId: 're_mix_base',
+    });
+    store('jobs/job-mix-partial/variations').set('var-ok', {
+      paymentState: 'refunded',
+      paymentStatus: 'paid',
+      priceChangeCents: 4000,
+      paymentIntentId: 'pi_mix_var',
+      refundId: 're_mix_var',
+      refundStatus: 'succeeded',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_mix_partial_base',
+      type: 'charge.refunded',
+      data: {
+        object: {
+          id: 'ch_mix_partial',
+          payment_intent: 'pi_mix_partial',
+          refunded: false,
+          amount: 10000,
+          amount_refunded: 2000,
+          refunds: { data: [{ id: 're_manual_20' }] },
+        },
+      },
+    });
+
+    const job = store('jobs').get('job-mix-partial');
+    expect(job.baseRefundConfirmed).not.toBe(true);
+    expect(job.status).toBe('REFUND_PENDING');
+    expect(job.paymentState).toBe('refund_pending');
+  });
+
+  it('does not confirm a succeeded refund whose amount is below the expected full refund', async () => {
+    store('jobs').set('job-small-amt', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_small_amt',
+      paymentAmountCents: 10000,
+      refundId: 're_small_amt',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_small_amt',
+      type: 'refund.updated',
+      data: {
+        object: {
+          id: 're_small_amt',
+          status: 'succeeded',
+          amount: 2000,
+          payment_intent: 'pi_small_amt',
+          metadata: { type: 'job_refund', jobId: 'job-small-amt' },
+        },
+      },
+    });
+
+    const job = store('jobs').get('job-small-amt');
+    expect(job.baseRefundConfirmed).not.toBe(true);
+    expect(job.status).toBe('REFUND_PENDING');
+    expect(job.refundPartial).toBe(true);
+  });
+
+  it('confirms a full variation charge.refunded only when identifiers match', async () => {
+    store('jobs').set('job-full-var-ch', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_full_var_base',
+      paymentAmountCents: 10000,
+      refundId: 're_full_var_base',
+      refundStatus: 'succeeded',
+      baseRefundConfirmed: true,
+    });
+    store('jobs/job-full-var-ch/variations').set('var-full', {
+      paymentState: 'refund_pending',
+      paymentStatus: 'paid',
+      priceChangeCents: 5000,
+      paymentIntentId: 'pi_full_var',
+      refundId: 're_full_var',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_full_var_ch',
+      type: 'charge.refunded',
+      data: {
+        object: {
+          id: 'ch_full_var',
+          payment_intent: 'pi_full_var',
+          refunded: true,
+          amount: 5000,
+          amount_refunded: 5000,
+          metadata: {
+            type: 'variation_payment',
+            jobId: 'job-full-var-ch',
+            variationId: 'var-full',
+          },
+          refunds: { data: [{ id: 're_full_var' }] },
+        },
+      },
+    });
+
+    expect(store('jobs/job-full-var-ch/variations').get('var-full').paymentState).toBe('refunded');
+    expect(store('jobs').get('job-full-var-ch').status).toBe('REFUNDED');
+    expect(store('jobs').get('job-full-var-ch').paymentState).toBe('refunded');
+  });
+
+  it('dispute path does not finalise after a partial base charge.refunded', async () => {
+    store('jobs').set('job-disp-partial', {
+      status: 'DISPUTED',
+      paymentState: 'refund_pending',
+      disputeFlag: true,
+      paymentIntentId: 'pi_disp_partial',
+      paymentAmountCents: 10000,
+      refundId: 're_disp_partial',
+    });
+    store('jobs/job-disp-partial/variations').set('vx', {
+      paymentState: 'refunded',
+      paymentStatus: 'paid',
+      priceChangeCents: 8000,
+      paymentIntentId: 'pi_disp_partial_v',
+      refundId: 're_disp_partial_v',
+      refundStatus: 'succeeded',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_disp_partial',
+      type: 'charge.refunded',
+      data: {
+        object: {
+          id: 'ch_disp_partial',
+          payment_intent: 'pi_disp_partial',
+          refunded: false,
+          amount: 10000,
+          amount_refunded: 2000,
+          refunds: { data: [{ id: 're_manual_20' }] },
+        },
+      },
+    });
+
+    const job = store('jobs').get('job-disp-partial');
+    expect(job.status).toBe('DISPUTED');
+    expect(job.paymentState).toBe('refund_pending');
+    expect(job.baseRefundConfirmed).not.toBe(true);
+    expect(job.disputeResolution).not.toBe('refunded');
   });
 });

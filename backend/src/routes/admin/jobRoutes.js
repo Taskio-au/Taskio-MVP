@@ -25,78 +25,13 @@ const {
   persistExpertReleaseAfterTransfers,
 } = require('../../services/expertJobRelease');
 const { buildAdminPaymentFeeSummary } = require('../../utils/adminPaymentFeeSummary');
+const { executeAdminFullRefund } = require('../../services/adminFullRefundService');
 const {
   jobCheckoutIdempotencyKey,
-  refundIdempotencyKey,
   allocateCheckoutGeneration,
-  allocateRefundAttempt,
-  refundAttemptSettledPatch,
-  classifyStripeRefundCreateError,
-  refundCreateErrorHttpStatus,
-  refundCreateDefinitiveFailurePatch,
 } = require('../../services/stripeIdempotency');
 
 const router = express.Router();
-
-async function allocateJobRefundAttempt(jobRef, mode) {
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(jobRef);
-    if (!snap.exists) {
-      const err = new Error('not_found');
-      err.code = 'not_found';
-      throw err;
-    }
-    const alloc = allocateRefundAttempt(snap.data() || {}, { mode });
-    if (alloc.error) {
-      const err = new Error(alloc.error.code);
-      err.code = alloc.error.code;
-      throw err;
-    }
-    if (alloc.patch) {
-      tx.update(jobRef, {
-        ...alloc.patch,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-    return alloc.attempt;
-  });
-}
-
-function logRefundCreateError(label, error, classified) {
-  // eslint-disable-next-line no-console
-  console.error(label, {
-    outcome: classified?.outcome,
-    category: classified?.category,
-    code: classified?.code,
-    stripeType: error?.type || error?.name || null,
-    stripeRawType: error?.rawType || null,
-    statusCode: error?.statusCode || error?.status || null,
-    requestId: error?.requestId || null,
-  });
-}
-
-async function respondRefundCreateError(res, jobRef, error, logLabel) {
-  const classified = classifyStripeRefundCreateError(error);
-  logRefundCreateError(logLabel, error, classified);
-  if (classified.outcome === 'definitive') {
-    await jobRef.update({
-      ...refundCreateDefinitiveFailurePatch(classified),
-      requiresAdminAttention: true,
-      paymentUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    return res.status(refundCreateErrorHttpStatus(classified)).send({
-      message: 'Stripe rejected this refund request. This attempt is closed. An authorised retry can be tried again.',
-      code: 'refund_request_rejected',
-      failureCategory: classified.category,
-      failureCode: classified.code,
-    });
-  }
-  return res.status(refundCreateErrorHttpStatus(classified)).send({
-    message: 'Refund status is still being confirmed. Retry this action; it will not create a second refund.',
-    code: 'refund_status_uncertain',
-  });
-}
 
 /** Batch-load display names for homeowner + expert UIDs (single getAll per request). */
 async function batchDisplayNamesByUid(jobs) {
@@ -840,52 +775,28 @@ router.post('/api/admin/jobs/:jobId/resolve-dispute', requireAuth, requireSuperA
       if (process.env.STRIPE_ENABLED !== 'true') {
         return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
       }
-      if (job.paymentState === 'refunded') {
+      if (job.paymentState === 'refunded' && normalizeStatus(job.status) === JOB_STATUSES.REFUNDED) {
         return res.status(400).send({ message: 'Already refunded.' });
       }
-      if (normalizeStatus(job.status) === JOB_STATUSES.REFUND_PENDING || job.paymentState === 'refund_pending') {
-        return res.status(400).send({ message: 'Refund already in progress.' });
-      }
-      if (!job.paymentIntentId) return res.status(400).send({ message: 'No payment intent found for this task.' });
 
-      const refundMode = String(job.paymentState || '').toLowerCase() === 'refund_failed' ? 'retry_failed' : 'initial';
-      const refundAttempt = await allocateJobRefundAttempt(jobRef, refundMode);
-      let refund;
-      try {
-        refund = await createRefund({
-          paymentIntentId: job.paymentIntentId,
-          amountInCents: null,
-          reason: 'requested_by_customer',
-          idempotencyKey: refundIdempotencyKey(jobId, refundAttempt),
-        });
-      } catch (error) {
-        return respondRefundCreateError(res, jobRef, error, 'Error refunding disputed payment:');
-      }
-
-      await jobRef.update({
-        status: JOB_STATUSES.DISPUTED,
-        paymentState: 'refunded',
-        refundId: refund.id,
-        refundedAt: admin.firestore.FieldValue.serverTimestamp(),
-        requiresAdminAttention: false,
-        lastAdminActionAt: admin.firestore.FieldValue.serverTimestamp(),
-        lastAdminActionBy: req.user.uid,
-        disputeResolvedAt: admin.firestore.FieldValue.serverTimestamp(),
-        disputeResolution: 'refunded',
-        disputeResolvedBy: req.user.uid,
-        ...refundAttemptSettledPatch(),
-      });
-
-      await logAdminJobAction({ req, jobId, action: 'RESOLVE_DISPUTE_REFUND', metadata: { refundId: refund.id } });
-      await logJobEvent({
+      const result = await executeAdminFullRefund({
+        jobRef,
         jobId,
-        actorId: req.user.uid,
-        actorRole: 'admin',
-        action: 'ADMIN_RESOLVE_DISPUTE_REFUND',
-        metadata: { refundId: refund.id },
+        actorUid: req.user.uid,
+        isDispute: true,
+        createRefund,
       });
-
-      return res.status(200).send({ message: 'Refund initiated.', refundId: refund.id });
+      if (result.ok) {
+        await logAdminJobAction({ req, jobId, action: 'RESOLVE_DISPUTE_REFUND', metadata: { refundId: result.body.refundId, variationRefundIds: result.body.variationRefundIds } });
+        await logJobEvent({
+          jobId,
+          actorId: req.user.uid,
+          actorRole: 'admin',
+          action: 'ADMIN_RESOLVE_DISPUTE_REFUND',
+          metadata: { refundId: result.body.refundId, variationRefundIds: result.body.variationRefundIds },
+        });
+      }
+      return res.status(result.httpStatus).send(result.body);
     }
 
     // resolution === 'expert' — uses expertJobRelease (feeSnapshot base slice, variations, full breakdown)
@@ -1054,49 +965,31 @@ router.post('/api/admin/jobs/:jobId/refund', requireAuth, requireAdmin, async (r
     const jobDoc = await jobRef.get();
     if (!jobDoc.exists) return res.status(404).send({ message: 'Task not found.' });
     const job = jobDoc.data();
+    const isDispute = job.disputeFlag === true || normalizeStatus(job.status) === JOB_STATUSES.DISPUTED;
 
-    if (job.paymentState === 'refunded') {
-      return res.status(400).send({ message: 'Already refunded.' });
-    }
-    if (normalizeStatus(job.status) === JOB_STATUSES.REFUNDED) {
-      return res.status(400).send({ message: 'Already refunded.' });
-    }
-    if (normalizeStatus(job.status) === JOB_STATUSES.REFUND_PENDING || job.paymentState === 'refund_pending') {
-      return res.status(400).send({ message: 'Refund already in progress.' });
-    }
-    if (!job.paymentIntentId) return res.status(400).send({ message: 'No payment intent found for this task.' });
-
-    const refundMode = String(job.paymentState || '').toLowerCase() === 'refund_failed' ? 'retry_failed' : 'initial';
-    const refundAttempt = await allocateJobRefundAttempt(jobRef, refundMode);
-    let refund;
-    try {
-      refund = await createRefund({
-        paymentIntentId: job.paymentIntentId,
-        amountInCents: null,
-        reason: 'requested_by_customer',
-        idempotencyKey: refundIdempotencyKey(jobId, refundAttempt),
-      });
-    } catch (error) {
-      return respondRefundCreateError(res, jobRef, error, 'Error refunding payment:');
-    }
-
-    const newStatus = job.disputeFlag === true ? JOB_STATUSES.DISPUTED : JOB_STATUSES.REFUNDED;
-    await jobRef.update({
-      status: newStatus,
-      paymentState: 'refunded',
-      refundId: refund.id,
-      refundedAt: admin.firestore.FieldValue.serverTimestamp(),
-      requiresAdminAttention: false,
-      lastAdminActionAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastAdminActionBy: req.user.uid,
-      ...refundAttemptSettledPatch(),
-      ...(job.disputeFlag === true ? { disputeResolvedAt: admin.firestore.FieldValue.serverTimestamp(), disputeResolution: 'refunded', disputeResolvedBy: req.user.uid } : {}),
+    const result = await executeAdminFullRefund({
+      jobRef,
+      jobId,
+      actorUid: req.user.uid,
+      isDispute,
+      createRefund,
     });
-
-    await logAdminJobAction({ req, jobId, action: 'REFUND', metadata: { refundId: refund.id } });
-    await logJobEvent({ jobId, actorId: req.user.uid, actorRole: 'admin', action: 'ADMIN_REFUND', metadata: { refundId: refund.id } });
-
-    return res.status(200).send({ message: 'Refund initiated.', refundId: refund.id });
+    if (result.ok) {
+      await logAdminJobAction({
+        req,
+        jobId,
+        action: 'REFUND',
+        metadata: { refundId: result.body.refundId, variationRefundIds: result.body.variationRefundIds },
+      });
+      await logJobEvent({
+        jobId,
+        actorId: req.user.uid,
+        actorRole: 'admin',
+        action: 'ADMIN_REFUND',
+        metadata: { refundId: result.body.refundId, variationRefundIds: result.body.variationRefundIds },
+      });
+    }
+    return res.status(result.httpStatus).send(result.body);
   } catch (error) {
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
@@ -1210,39 +1103,30 @@ router.post('/api/admin/jobs/:jobId/retry-payment', requireAuth, requireSuperAdm
       return res.status(200).send({ kind: 'checkout', sessionId: session.id, reused: false });
     }
 
-    if (ps === 'refund_failed') {
-      if (!job.paymentIntentId) return res.status(400).send({ message: 'No payment intent found for this task.' });
-
-      const refundAttempt = await allocateJobRefundAttempt(jobRef, 'retry_failed');
-      let refund;
-      try {
-        refund = await createRefund({
-          paymentIntentId: job.paymentIntentId,
-          amountInCents: null,
-          reason: 'requested_by_customer',
-          idempotencyKey: refundIdempotencyKey(jobId, refundAttempt),
-        });
-      } catch (error) {
-        return respondRefundCreateError(res, jobRef, error, 'POST /api/admin/jobs/:jobId/retry-payment refund failed:');
-      }
-
-      await jobRef.update({
-        paymentState: 'refund_pending',
-        refundRetryId: refund.id,
-        lastAdminActionAt: admin.firestore.FieldValue.serverTimestamp(),
-        lastAdminActionBy: req.user.uid,
-        ...refundAttemptSettledPatch(),
-      });
-
-      await logJobEvent({
+    if (ps === 'refund_failed' || ps === 'refund_pending') {
+      const result = await executeAdminFullRefund({
+        jobRef,
         jobId,
-        actorId: req.user.uid,
-        actorRole: 'admin',
-        action: 'ADMIN_RETRY_REFUND',
-        metadata: { refundId: refund.id },
+        actorUid: req.user.uid,
+        isDispute: st === JOB_STATUSES.DISPUTED || job.disputeFlag === true,
+        createRefund,
       });
-
-      return res.status(200).send({ kind: 'refund', refundId: refund.id, message: 'Refund retry initiated.' });
+      if (result.ok) {
+        await logJobEvent({
+          jobId,
+          actorId: req.user.uid,
+          actorRole: 'admin',
+          action: 'ADMIN_RETRY_REFUND',
+          metadata: { refundId: result.body.refundId, variationRefundIds: result.body.variationRefundIds },
+        });
+        return res.status(200).send({
+          kind: 'refund',
+          refundId: result.body.refundId,
+          variationRefundIds: result.body.variationRefundIds,
+          message: 'Refund retry initiated.',
+        });
+      }
+      return res.status(result.httpStatus).send(result.body);
     }
 
     return res.status(409).send({

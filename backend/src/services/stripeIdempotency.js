@@ -23,6 +23,10 @@ function refundIdempotencyKey(jobId, attempt) {
   return `taskio_refund_${String(jobId)}_g${normalizeAttempt(attempt)}`;
 }
 
+function adminVariationRefundIdempotencyKey(jobId, variationId, attempt) {
+  return `taskio_admin_refund_var_${String(jobId)}_${String(variationId)}_g${normalizeAttempt(attempt)}`;
+}
+
 function homeownerCancelRefundKey(jobId) {
   return `taskio_homeowner_cancel_${String(jobId)}`;
 }
@@ -269,6 +273,7 @@ module.exports = {
   jobCheckoutIdempotencyKey,
   variationCheckoutIdempotencyKey,
   refundIdempotencyKey,
+  adminVariationRefundIdempotencyKey,
   homeownerCancelRefundKey,
   homeownerCancelVariationRefundKey,
   expressAccountIdempotencyKey,
