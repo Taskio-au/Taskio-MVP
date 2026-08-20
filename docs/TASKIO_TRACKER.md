@@ -20,6 +20,164 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
+## 2026-08-20 Stripe repository hardening (freeze held)
+
+**PRE-LAUNCH FREEZE remains in force.** Stripe is **not** production-enabled and Taskio is **not** launched. This checkpoint records repository-only Stripe readiness audit findings and committed refund/idempotency hardening. No Stripe Dashboard/API access, no `STRIPE_ENABLED` change, no Cloud Run/IAM/Hosting/DNS/signup/SPA/preview/staging/production-data change.
+
+- Operator `admin@taskio.com.au`; project `taskio-v2`; region `australia-southeast1`.
+- Working branch: `develop`.
+- Refund-hardening HEAD: `0f5845f4410162a79c94a30314eded2267e59996`.
+
+### Stripe readiness audit
+
+Read-only production-readiness audit found:
+
+**Architecture**
+
+- Stripe Checkout Sessions
+- automatic capture
+- AUD
+- platform charge
+- separate charges and transfers
+- Stripe Connect Express
+- Taskio platform fee retained by transferring only the expert share
+- `STRIPE_ENABLED` remains **false**
+
+**Production remains**
+
+- no Stripe secrets mounted
+- no live Stripe enablement
+- no public API
+- no production webhook endpoint usable by Stripe
+- no public SPA
+
+**Key remaining blockers**
+
+- webhook/browser access architecture while Cloud Run is private
+- `STRIPE_ENABLED` checkout gating
+- admin money-move authorization policy decision
+- transfer reversal design for already released funds
+- Stripe test-mode end-to-end rehearsal
+- live Connect/configuration remains unverified
+
+### Stripe idempotency hardening
+
+- Commit `69bd274adc58e814d54f2faded76c1a60f67f6da` — `security: harden Stripe payment idempotency`.
+- GitHub Actions run `32361028767` **SUCCESS**.
+- Removed `Date.now()`-based Stripe idempotency.
+- Server-controlled persisted checkout generations.
+- Safe retry/reuse for homeowner + admin Checkout.
+- Variation Checkout idempotency.
+- Refund attempt generations.
+- Network/5xx ambiguous refund retries reuse the same key.
+- Definitive refund-create rejection closes the attempt.
+- Connect Express account creation idempotent per Taskio uid.
+- Existing stable release/transfer keys retained.
+- No live Stripe calls.
+
+### Admin full-refund hardening
+
+- Commit `0f5845f4410162a79c94a30314eded2267e59996` — `security: harden Stripe full-refund handling`.
+- GitHub Actions run `32367110948` **SUCCESS**. All six jobs green: `security-rules`, `frontend`, `api-image`, `browser-smoke`, `functions`, `backend`.
+- Fixes the previous HIGH issue where admin/dispute refund could refund only the base payment while leaving funded variations unrefunded.
+- One server-side admin full-refund engine.
+- Base payment + all eligible funded variations included.
+- Unpaid/rejected/zero/unfunded variations skipped.
+- Server-side PaymentIntent IDs and amounts only.
+- Admin `/refund` and dispute refund use the same engine.
+- Retry-payment refund path uses the same engine.
+- Already refunded items are not refunded twice.
+- Item-level progress persisted.
+- Partial failures do not falsely mark the whole job refunded.
+- Ambiguous failures remain safely retryable with the same idempotency key.
+- Definitive failures allow a later authorised generation.
+- Homeowner cancellation behaviour preserved.
+
+### Released-funds safety
+
+Taskio currently does **not** implement Stripe transfer reversal.
+
+If the base payment or a funded variation was already released/transferred to the Task Expert:
+
+- admin full refund fails closed
+- no refund is created
+- `requiresAdminAttention=true`
+- `funds_already_released` is returned
+- a separate transfer-reversal design is required before supporting this
+
+Transfer reversal is **not** implemented.
+
+### Refund confirmation hardening
+
+A Stripe refund ID alone is no longer treated as proof of completion.
+
+Final refund state requires confirmed successful refund status for **every** required payment.
+
+Base + variation behaviour:
+
+- succeeded → confirmed
+- pending/non-final → `refund_pending`
+- failed/canceled → `refund_failed` + admin attention
+- overall job does not become `REFUNDED` until all required payments are confirmed successfully refunded
+
+Webhook finalisation reloads the whole refund plan before completing the overall job.
+
+Partial-refund protection:
+
+- `charge.refunded` alone is insufficient
+- `charge.refunded` must indicate a full refund
+- PaymentIntent/item association must match
+- expected server-side amount must be fully refunded
+- persisted Taskio `refundId` is matched when available
+- unrelated/manual/partial refund events cannot falsely complete a Taskio full refund
+- partial refund fails closed for overall finalisation
+
+### Test results (refund batch)
+
+Local:
+
+- focused refund/payment/webhook tests: **162 passed**
+- full backend: **53 suites / 522 tests passed**
+- `node --check`: pass
+- `git diff --check`: pass
+- production dependency audit: **1 low / 8 moderate**, **0 high / 0 critical**; existing accepted residual; no audit fix
+
+GitHub CI for `0f5845f4410162a79c94a30314eded2267e59996`: run `32367110948` **SUCCESS**; all six jobs passed.
+
+### Current PRE-LAUNCH FREEZE
+
+Unchanged:
+
+- `taskio.com.au` = maintenance only
+- `www` redirects to apex
+- `taskio-v2.web.app` = maintenance
+- `app.taskio.com.au` = maintenance
+- `disabledUserSignup=true`
+- Cloud Run API private
+- anonymous Cloud Run = **403**
+- Hosting live channel only
+- no SPA
+- no preview
+- no public registration
+- no public task posting
+- `STRIPE_ENABLED=false`
+- no live Stripe configuration
+
+This is **not** a Taskio launch.
+
+**A03 remains pending overall.**
+
+### Next pickup
+
+Do **not** start these in this session. Recommended next work session:
+
+1. repository-only `STRIPE_ENABLED` checkout gating
+2. then webhook ingress architecture that exposes **only** the required Stripe webhook safely without unnecessarily opening the whole API
+3. then admin vs super_admin money-operation policy decision
+4. transfer-reversal design if refunds after release are required
+5. Stripe **TEST-mode** end-to-end rehearsal
+6. only much later, separately approved live Stripe configuration
+
 ## 2026-08-19 production ABN readiness (freeze held)
 
 **PRE-LAUNCH FREEZE remains in force.** ABN verification is production-ready for the tested Active-ABN integration path. This does **not** mean Taskio is launched. No signup enablement, Cloud Run public access, Hosting preview, SPA restore, DNS, Stripe, Auth claims, or staging change.
