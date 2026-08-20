@@ -463,6 +463,23 @@ describe('POST /api/jobs/:jobId/variations/:variationId/approve', () => {
     expect(v.paymentState).toBe('not_required');
   });
 
+  test('ignores client-supplied amount and idempotencyKey', async () => {
+    seedActiveJob();
+    seedPendingVariation('job-1', 'var-1', { priceChangeCents: 5000 });
+
+    await request(buildApp())
+      .post('/api/jobs/job-1/variations/var-1/approve')
+      .set('Authorization', 'Bearer fake')
+      .send({ amount: 1, amountInCents: 1, idempotencyKey: 'client-chosen-key' });
+
+    const { createCheckoutSession } = require('../src/services/stripe');
+    expect(createCheckoutSession.mock.calls[0][0].amountInCents).toBe(5000);
+    expect(createCheckoutSession.mock.calls[0][0].idempotencyKey).toBe(
+      'taskio_var_checkout_job-1_var-1_g1'
+    );
+    expect(createCheckoutSession.mock.calls[0][0].idempotencyKey).not.toBe('client-chosen-key');
+  });
+
   test('Stripe metadata includes paymentType=variation', async () => {
     seedActiveJob();
     seedPendingVariation('job-1', 'var-1', { priceChangeCents: 5000 });
@@ -478,6 +495,7 @@ describe('POST /api/jobs/:jobId/variations/:variationId/approve', () => {
     expect(callArgs.metadata.jobId).toBe('job-1');
     expect(callArgs.metadata.variationId).toBe('var-1');
     expect(callArgs.metadata.homeownerUid).toBe('homeowner-1');
+    expect(callArgs.idempotencyKey).toBe('taskio_var_checkout_job-1_var-1_g1');
     expect(callArgs.successUrl).toContain('variationPayment=success');
     expect(callArgs.successUrl).toContain('{CHECKOUT_SESSION_ID}');
     expect(callArgs.successUrl).toContain('variationId=var-1');
@@ -496,9 +514,9 @@ describe('POST /api/jobs/:jobId/variations/:variationId/approve', () => {
     expect(res.status).toBe(403);
   });
 
-  test('409 when variation is not pending', async () => {
+  test('409 when variation is declined', async () => {
     seedActiveJob();
-    seedPendingVariation('job-1', 'var-1', { status: 'awaiting_payment' });
+    seedPendingVariation('job-1', 'var-1', { status: 'declined' });
 
     const res = await request(buildApp())
       .post('/api/jobs/job-1/variations/var-1/approve')
@@ -506,6 +524,68 @@ describe('POST /api/jobs/:jobId/variations/:variationId/approve', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toMatch(/not pending/i);
+  });
+
+  test('repeat approve while awaiting_payment reuses the same Stripe idempotency key', async () => {
+    seedActiveJob();
+    seedPendingVariation('job-1', 'var-1', { priceChangeCents: 5000 });
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(111);
+
+    const app = buildApp();
+    const first = await request(app)
+      .post('/api/jobs/job-1/variations/var-1/approve')
+      .set('Authorization', 'Bearer fake');
+    nowSpy.mockReturnValue(999999);
+    const second = await request(app)
+      .post('/api/jobs/job-1/variations/var-1/approve')
+      .set('Authorization', 'Bearer fake');
+    nowSpy.mockRestore();
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.reused).toBe(true);
+    expect(second.body.sessionId).toBe(first.body.sessionId);
+
+    const { createCheckoutSession } = require('../src/services/stripe');
+    expect(createCheckoutSession).toHaveBeenCalledTimes(1);
+    expect(createCheckoutSession.mock.calls[0][0].idempotencyKey).toBe(
+      'taskio_var_checkout_job-1_var-1_g1'
+    );
+    expect(createCheckoutSession.mock.calls[0][0].idempotencyKey).not.toMatch(/111|999999/);
+  });
+
+  test('concurrent approve requests share one Checkout idempotency key', async () => {
+    seedActiveJob();
+    seedPendingVariation('job-1', 'var-1', { priceChangeCents: 5000 });
+    const { createCheckoutSession } = require('../src/services/stripe');
+    createCheckoutSession.mockResolvedValue({ id: 'cs_shared_var', status: 'open', payment_status: 'unpaid' });
+
+    const app = buildApp();
+    const makeRequest = () => request(app)
+      .post('/api/jobs/job-1/variations/var-1/approve')
+      .set('Authorization', 'Bearer fake');
+    const [first, second] = await Promise.all([makeRequest(), makeRequest()]);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const keys = createCheckoutSession.mock.calls.map(([args]) => args.idempotencyKey);
+    expect(keys.length).toBeGreaterThanOrEqual(1);
+    expect(new Set(keys)).toEqual(new Set(['taskio_var_checkout_job-1_var-1_g1']));
+  });
+
+  test('different variations do not share Checkout idempotency keys', async () => {
+    seedActiveJob();
+    seedPendingVariation('job-1', 'var-a', { priceChangeCents: 5000 });
+    seedPendingVariation('job-1', 'var-b', { priceChangeCents: 7000 });
+    const app = buildApp();
+    await request(app).post('/api/jobs/job-1/variations/var-a/approve').set('Authorization', 'Bearer fake');
+    await request(app).post('/api/jobs/job-1/variations/var-b/approve').set('Authorization', 'Bearer fake');
+    const { createCheckoutSession } = require('../src/services/stripe');
+    const keys = createCheckoutSession.mock.calls.map(([args]) => args.idempotencyKey);
+    expect(keys).toEqual([
+      'taskio_var_checkout_job-1_var-a_g1',
+      'taskio_var_checkout_job-1_var-b_g1',
+    ]);
   });
 
   test('409 when job is COMPLETED', async () => {
@@ -628,6 +708,28 @@ describe('POST /api/jobs/:jobId/variations/:variationId/checkout', () => {
 
     const v = getVariation('job-1', 'var-1');
     expect(v.checkoutSessionId).toBe('cs_new_456');
+    expect(createCheckoutSession.mock.calls[0][0].idempotencyKey).toBe(
+      'taskio_var_checkout_job-1_var-1_g2'
+    );
+  });
+
+  test('fails closed when retrieveCheckoutSession throws', async () => {
+    seedActiveJob();
+    seedPendingVariation('job-1', 'var-1', {
+      status: 'awaiting_payment',
+      priceChangeCents: 5000,
+      checkoutSessionId: 'cs_unknown',
+    });
+    const { retrieveCheckoutSession, createCheckoutSession } = require('../src/services/stripe');
+    retrieveCheckoutSession.mockRejectedValueOnce(new Error('stripe_fetch_error'));
+
+    const res = await request(buildApp())
+      .post('/api/jobs/job-1/variations/var-1/checkout')
+      .set('Authorization', 'Bearer fake');
+
+    expect(res.status).toBe(202);
+    expect(res.body.pending).toBe(true);
+    expect(createCheckoutSession).not.toHaveBeenCalled();
   });
 
   test('409 when variation already approved (fully paid)', async () => {

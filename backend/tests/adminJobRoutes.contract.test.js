@@ -384,6 +384,9 @@ describe('admin job route contracts', () => {
     expect(res.body.kind).toBe('checkout');
     expect(res.body.sessionId).toBe('cs_test_1');
     expect(mockCreateCheckoutSession).toHaveBeenCalled();
+    expect(mockCreateCheckoutSession.mock.calls[0][0].idempotencyKey).toBe(
+      'taskio_checkout_rj1_q1_g1'
+    );
     const job = readCollectionDoc('jobs', 'rj1');
     expect(job.paymentCheckoutSessionId).toBe('cs_test_1');
     expect(job.paymentIntentId).toBe('pi_new');
@@ -395,13 +398,170 @@ describe('admin job route contracts', () => {
       paymentState: 'refund_failed',
       paymentIntentId: 'pi_zz',
     });
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(555555);
     mockCreateRefund.mockResolvedValue({ id: 're_retry' });
 
-    const res = await request(app).post('/api/admin/jobs/rj2/retry-payment');
+    const res = await request(app)
+      .post('/api/admin/jobs/rj2/retry-payment')
+      .send({ idempotencyKey: 'client-chosen-key' });
+    nowSpy.mockRestore();
 
     expect(res.status).toBe(200);
     expect(res.body.kind).toBe('refund');
-    expect(mockCreateRefund).toHaveBeenCalled();
+    expect(mockCreateRefund).toHaveBeenCalledTimes(1);
+    expect(mockCreateRefund.mock.calls[0][0].idempotencyKey).toBe('taskio_refund_rj2_g2');
+    expect(mockCreateRefund.mock.calls[0][0].idempotencyKey).not.toMatch(/555555|client-chosen/);
+  });
+
+  it('POST /retry-payment concurrent refund retries share one Stripe idempotency key', async () => {
+    writeCollectionDoc('jobs', 'rj2c', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_failed',
+      paymentIntentId: 'pi_zz',
+    });
+    let arrivals = 0;
+    let releaseBoth;
+    const bothArrived = new Promise((resolve) => { releaseBoth = resolve; });
+    mockCreateRefund.mockImplementation(async () => {
+      arrivals += 1;
+      if (arrivals === 2) releaseBoth();
+      await bothArrived;
+      return { id: 're_retry_shared' };
+    });
+
+    const makeRetry = () => request(app).post('/api/admin/jobs/rj2c/retry-payment');
+    const [res, res2] = await Promise.all([makeRetry(), makeRetry()]);
+
+    expect(res.status).toBe(200);
+    expect(res2.status).toBe(200);
+    expect(mockCreateRefund).toHaveBeenCalledTimes(2);
+    const keys = mockCreateRefund.mock.calls.map((call) => call[0].idempotencyKey);
+    expect(new Set(keys)).toEqual(new Set(['taskio_refund_rj2c_g2']));
+  });
+
+  it('POST /retry-payment does not refund twice after a successful retry', async () => {
+    writeCollectionDoc('jobs', 'rj2b', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_failed',
+      paymentIntentId: 'pi_zz',
+    });
+    mockCreateRefund.mockResolvedValue({ id: 're_once' });
+
+    const first = await request(app).post('/api/admin/jobs/rj2b/retry-payment');
+    const second = await request(app).post('/api/admin/jobs/rj2b/retry-payment');
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(409);
+    expect(mockCreateRefund).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /refund network timeout keeps the attempt open and reuses the same key', async () => {
+    writeCollectionDoc('jobs', 'job-to', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_to',
+      disputeFlag: false,
+    });
+    const timeoutErr = new Error('timeout');
+    timeoutErr.code = 'ETIMEDOUT';
+    mockCreateRefund.mockRejectedValueOnce(timeoutErr);
+    mockCreateRefund.mockResolvedValueOnce({ id: 're_to' });
+
+    const first = await request(app).post('/api/admin/jobs/job-to/refund');
+    expect(first.status).toBe(503);
+    expect(first.body.code).toBe('refund_status_uncertain');
+    const afterTimeout = readCollectionDoc('jobs', 'job-to');
+    expect(afterTimeout.refundAttemptOpen).toBe(true);
+    expect(afterTimeout.paymentState).toBe('in_escrow');
+    expect(afterTimeout.refundId).toBeUndefined();
+    expect(afterTimeout.status).toBe('in_progress');
+
+    const retry = await request(app).post('/api/admin/jobs/job-to/refund');
+    expect(retry.status).toBe(200);
+    expect(mockCreateRefund.mock.calls.map((call) => call[0].idempotencyKey)).toEqual([
+      'taskio_refund_job-to_g1',
+      'taskio_refund_job-to_g1',
+    ]);
+  });
+
+  it('POST /refund Stripe 500 keeps the same generation', async () => {
+    writeCollectionDoc('jobs', 'job-500', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_500',
+      disputeFlag: false,
+    });
+    mockCreateRefund.mockRejectedValueOnce({
+      type: 'StripeAPIError',
+      rawType: 'api_error',
+      statusCode: 500,
+      code: 'internal_error',
+      message: 'Stripe is down',
+    });
+    mockCreateRefund.mockResolvedValueOnce({ id: 're_500' });
+
+    const first = await request(app).post('/api/admin/jobs/job-500/refund');
+    expect(first.status).toBe(503);
+    expect(readCollectionDoc('jobs', 'job-500').refundAttemptOpen).toBe(true);
+
+    const retry = await request(app).post('/api/admin/jobs/job-500/refund');
+    expect(retry.status).toBe(200);
+    expect(mockCreateRefund.mock.calls.map((call) => call[0].idempotencyKey)).toEqual([
+      'taskio_refund_job-500_g1',
+      'taskio_refund_job-500_g1',
+    ]);
+  });
+
+  it('POST /refund definitive 400 closes the attempt without a webhook and next retry is N+1', async () => {
+    writeCollectionDoc('jobs', 'job-400', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_400',
+      disputeFlag: false,
+    });
+    mockCreateRefund.mockRejectedValueOnce({
+      type: 'StripeInvalidRequestError',
+      rawType: 'invalid_request_error',
+      statusCode: 400,
+      code: 'resource_missing',
+      message: 'No such payment_intent: pi_400',
+    });
+    mockCreateRefund.mockResolvedValueOnce({ id: 're_400_next' });
+
+    const first = await request(app).post('/api/admin/jobs/job-400/refund');
+    expect(first.status).toBe(400);
+    expect(first.body.code).toBe('refund_request_rejected');
+    expect(first.body.failureCode).toBe('resource_missing');
+    const after = readCollectionDoc('jobs', 'job-400');
+    expect(after.refundAttemptOpen).toBe(false);
+    expect(after.paymentState).toBe('refund_failed');
+    expect(after.status).toBe('in_progress');
+    expect(after.refundId).toBeUndefined();
+    expect(after.refundLastFailureCategory).toBe('invalid_request');
+    expect(after.refundLastFailureCode).toBe('resource_missing');
+
+    const retry = await request(app).post('/api/admin/jobs/job-400/retry-payment');
+    expect(retry.status).toBe(200);
+    expect(retry.body.kind).toBe('refund');
+    expect(mockCreateRefund.mock.calls[1][0].idempotencyKey).toBe('taskio_refund_job-400_g2');
+  });
+
+  it('POST /retry-payment after a failed Stripe Refund object uses generation N+1', async () => {
+    writeCollectionDoc('jobs', 'job-wh', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_failed',
+      paymentIntentId: 'pi_wh',
+      refundAttempt: 1,
+      refundAttemptOpen: false,
+      refundLastFailedId: 're_failed',
+      refundLastFailureCategory: 'refund_object_failed',
+      refundLastFailureCode: 'expired_or_canceled_card',
+    });
+    mockCreateRefund.mockResolvedValue({ id: 're_wh_next' });
+
+    const res = await request(app).post('/api/admin/jobs/job-wh/retry-payment');
+    expect(res.status).toBe(200);
+    expect(mockCreateRefund.mock.calls[0][0].idempotencyKey).toBe('taskio_refund_job-wh_g2');
   });
 
   it('GET /api/admin/jobs enriches homeownerName and expertName via batch user reads', async () => {
@@ -957,7 +1117,7 @@ describe('admin job route contracts', () => {
         paymentIntentId: 'pi_rd_ref',
         amountInCents: null,
         reason: 'requested_by_customer',
-        idempotencyKey: 'refund_job-rd-refund',
+        idempotencyKey: 'taskio_refund_job-rd-refund_g1',
       });
       expect(mockCreateTransfer).not.toHaveBeenCalled();
       expect(readCollectionDoc('jobs', 'job-rd-refund').disputeResolution).toBe('refunded');
@@ -1014,7 +1174,9 @@ describe('admin job route contracts', () => {
     });
     mockCreateRefund.mockResolvedValue({ id: 're_123' });
 
-    const res = await request(app).post('/api/admin/jobs/job-7/refund');
+    const res = await request(app)
+      .post('/api/admin/jobs/job-7/refund')
+      .send({ idempotencyKey: 'client-chosen-key' });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: 'Refund initiated.', refundId: 're_123' });
@@ -1022,13 +1184,40 @@ describe('admin job route contracts', () => {
       paymentIntentId: 'pi_123',
       amountInCents: null,
       reason: 'requested_by_customer',
-      idempotencyKey: 'refund_job-7',
+      idempotencyKey: 'taskio_refund_job-7_g1',
     });
+    expect(mockCreateRefund.mock.calls[0][0].idempotencyKey).not.toBe('client-chosen-key');
 
     const job = readCollectionDoc('jobs', 'job-7');
     expect(job.status).toBe('REFUNDED');
     expect(job.paymentState).toBe('refunded');
     expect(job.refundId).toBe('re_123');
+  });
+
+  it('POST /refund concurrent requests share one Stripe idempotency key', async () => {
+    writeCollectionDoc('jobs', 'job-7c', {
+      status: 'in_progress',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_123',
+      disputeFlag: false,
+    });
+    let arrivals = 0;
+    let releaseBoth;
+    const bothArrived = new Promise((resolve) => { releaseBoth = resolve; });
+    mockCreateRefund.mockImplementation(async () => {
+      arrivals += 1;
+      if (arrivals === 2) releaseBoth();
+      await bothArrived;
+      return { id: 're_shared' };
+    });
+
+    const makeRefund = () => request(app).post('/api/admin/jobs/job-7c/refund');
+    const [first, second] = await Promise.all([makeRefund(), makeRefund()]);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const keys = mockCreateRefund.mock.calls.map((call) => call[0].idempotencyKey);
+    expect(new Set(keys)).toEqual(new Set(['taskio_refund_job-7c_g1']));
   });
 
   it('POST /refund keeps disputed tasks in disputed state', async () => {

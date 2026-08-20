@@ -33,6 +33,12 @@ const { buildPostedJobTitleFromPhase1Row } = require('../../../shared/paymentDis
 const { refundFundedVariationsForCancellation } = require('../services/cancellationRefundService');
 const { itemScopeText, normalizeJobItems } = require('../services/jobItems');
 const { loggerForReq } = require('../observability/logger');
+const {
+  jobCheckoutIdempotencyKey,
+  variationCheckoutIdempotencyKey,
+  homeownerCancelRefundKey,
+  allocateCheckoutGeneration,
+} = require('../services/stripeIdempotency');
 
 const router = express.Router();
 
@@ -1272,22 +1278,16 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
         err.code = 'not_found';
         throw err;
       }
-      const current = snap.data() || {};
-      const existingGeneration = Math.max(1, Math.floor(Number(current.paymentCheckoutGeneration || 1)));
-      const replacing = String(reco.replaceSessionId || '');
-      if (!replacing || String(current.paymentCheckoutSessionId || '') !== replacing) {
-        return existingGeneration;
-      }
-      if (current.paymentCheckoutReplacementFor === replacing) {
-        return existingGeneration;
-      }
-      const nextGeneration = existingGeneration + 1;
-      tx.update(jobRef, {
-        paymentCheckoutGeneration: nextGeneration,
-        paymentCheckoutReplacementFor: replacing,
-        paymentUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      const alloc = allocateCheckoutGeneration(snap.data() || {}, {
+        replaceSessionId: reco.replaceSessionId || '',
       });
-      return nextGeneration;
+      if (alloc.patch) {
+        tx.update(jobRef, {
+          ...alloc.patch,
+          paymentUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      return alloc.generation;
     });
 
     const frontend = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -1303,7 +1303,7 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
       successUrl,
       cancelUrl,
       metadata: { jobId, quoteId, homeownerUid },
-      idempotencyKey: `taskio_checkout_${jobId}_${quoteId}_g${checkoutGeneration}`,
+      idempotencyKey: jobCheckoutIdempotencyKey(jobId, quoteId, checkoutGeneration),
       customerEmail: req.user?.email || undefined,
     });
 
@@ -1918,6 +1918,60 @@ router.post(
   }
 );
 
+function variationCheckoutUrls(jobId, variationId) {
+  const frontend = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+  return {
+    successUrl: `${frontend}/job/${jobId}?variationPayment=success&variationId=${encodeURIComponent(variationId)}&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${frontend}/job/${jobId}?variationPayment=cancelled&variationId=${encodeURIComponent(variationId)}`,
+  };
+}
+
+async function inspectStoredCheckoutSession(sessionId) {
+  if (!sessionId) return { kind: 'none' };
+  try {
+    const session = await retrieveCheckoutSession(sessionId);
+    if (session?.status === 'open' && session?.payment_status === 'unpaid') {
+      return { kind: 'reuse', sessionId };
+    }
+    return { kind: 'replace', replaceSessionId: sessionId };
+  } catch (_) {
+    return { kind: 'retry_later' };
+  }
+}
+
+async function createPaidVariationCheckoutSession({
+  jobId,
+  variationId,
+  job,
+  variation,
+  homeownerUid,
+  customerEmail,
+  generation,
+}) {
+  const { createCheckoutSession } = require('../services/stripe');
+  const amountInCents = Math.max(0, Math.floor(Number(variation.priceChangeCents || 0)));
+  const urls = variationCheckoutUrls(jobId, variationId);
+  return createCheckoutSession({
+    amountInCents,
+    currency: 'aud',
+    name: 'Approved variation payment',
+    description: `Variation: ${(variation.title || '').slice(0, 80)}`,
+    successUrl: urls.successUrl,
+    cancelUrl: urls.cancelUrl,
+    metadata: {
+      type: 'variation_payment',
+      paymentType: 'variation',
+      jobId: String(jobId),
+      variationId: String(variationId),
+      homeownerUid: String(homeownerUid),
+      tradieUid: String(job.acceptedTradieUid || ''),
+      amountInCents: String(amountInCents),
+    },
+    idempotencyKey: variationCheckoutIdempotencyKey(jobId, variationId, generation),
+    customerEmail,
+  });
+}
+
 /**
  * POST /api/jobs/:jobId/variations/:variationId/approve (homeowner-only)
  * $0 variations: approve directly.
@@ -1945,7 +1999,10 @@ router.post(
       if (job.homeownerUid !== homeownerUid) {
         return res.status(403).send({ message: 'Only the task owner can approve a variation.' });
       }
-      if (variation.status !== 'pending') {
+      if (variation.status === 'approved' && variation.paymentState === 'in_escrow') {
+        return res.status(409).send({ message: 'This variation has already been paid.' });
+      }
+      if (variation.status !== 'pending' && variation.status !== 'awaiting_payment') {
         return res.status(409).send({ message: 'This variation is not pending review.' });
       }
       const APPROVE_BLOCKED = new Set([
@@ -1963,6 +2020,9 @@ router.post(
 
       // Zero-amount: approve directly without Stripe.
       if (amountInCents === 0) {
+        if (variation.status !== 'pending') {
+          return res.status(409).send({ message: 'This variation is not pending review.' });
+        }
         await varRef.update({
           status: 'approved',
           approvedByUid: homeownerUid,
@@ -1980,35 +2040,89 @@ router.post(
         return res.status(200).send({ status: 'approved' });
       }
 
-      // Paid variation: create Stripe Checkout Session.
       if (process.env.STRIPE_ENABLED !== 'true') {
         return res.status(503).send({ message: 'Stripe is not configured. Please contact support.' });
       }
-      const { createCheckoutSession: createVarCheckout } = require('../services/stripe');
-      const varFrontend = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
-      const session = await createVarCheckout({
-        amountInCents,
-        currency: 'aud',
-        name: 'Approved variation payment',
-        description: `Variation: ${(variation.title || '').slice(0, 80)}`,
-        successUrl: `${varFrontend}/job/${jobId}?variationPayment=success&variationId=${encodeURIComponent(variationId)}&session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl: `${varFrontend}/job/${jobId}?variationPayment=cancelled&variationId=${encodeURIComponent(variationId)}`,
-        metadata: {
-          type: 'variation_payment',
-          paymentType: 'variation',
-          jobId: String(jobId),
-          variationId: String(variationId),
-          homeownerUid: String(homeownerUid),
-          tradieUid: String(job.acceptedTradieUid || ''),
-          amountInCents: String(amountInCents),
-        },
-        idempotencyKey: `taskio_var_approve_${variationId}_${Date.now()}`,
+
+      const claimed = await db.runTransaction(async (tx) => {
+        const fresh = await tx.get(varRef);
+        if (!fresh.exists) {
+          const err = new Error('not_found');
+          err.code = 'not_found';
+          throw err;
+        }
+        const data = fresh.data() || {};
+        if (data.status === 'approved' && data.paymentState === 'in_escrow') {
+          const err = new Error('already_paid');
+          err.code = 'already_paid';
+          throw err;
+        }
+        if (data.status !== 'pending' && data.status !== 'awaiting_payment') {
+          const err = new Error('not_pending');
+          err.code = 'not_pending';
+          throw err;
+        }
+        const ensured = allocateCheckoutGeneration(data, { sessionIdField: 'checkoutSessionId' });
+        const patch = {
+          status: 'awaiting_payment',
+          paymentState: 'pending_payment',
+          approvedByUid: homeownerUid,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...(ensured.patch || {}),
+        };
+        if (!data.paymentCheckoutGeneration) {
+          patch.paymentCheckoutGeneration = ensured.generation;
+        }
+        tx.update(varRef, patch);
+        return {
+          generation: ensured.generation,
+          checkoutSessionId: data.checkoutSessionId || null,
+          variation: { ...data, ...patch },
+        };
+      });
+
+      const inspected = await inspectStoredCheckoutSession(claimed.checkoutSessionId);
+      if (inspected.kind === 'reuse') {
+        return res.status(200).send({ status: 'awaiting_payment', sessionId: inspected.sessionId, reused: true });
+      }
+      if (inspected.kind === 'retry_later') {
+        return res.status(202).send({
+          pending: true,
+          message: 'Payment status is still being checked. Please try again shortly.',
+        });
+      }
+
+      const generation = await db.runTransaction(async (tx) => {
+        const fresh = await tx.get(varRef);
+        const data = fresh.data() || {};
+        const alloc = allocateCheckoutGeneration(data, {
+          sessionIdField: 'checkoutSessionId',
+          replaceSessionId: inspected.replaceSessionId || '',
+        });
+        if (alloc.patch) {
+          tx.update(varRef, {
+            ...alloc.patch,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+        return alloc.generation;
+      });
+
+      const session = await createPaidVariationCheckoutSession({
+        jobId,
+        variationId,
+        job,
+        variation: claimed.variation,
+        homeownerUid,
         customerEmail: req.user?.email || undefined,
+        generation,
       });
 
       await varRef.update({
         status: 'awaiting_payment',
         checkoutSessionId: session.id,
+        paymentCheckoutGeneration: generation,
+        paymentCheckoutReplacementFor: null,
         paymentState: 'pending_payment',
         approvedByUid: homeownerUid,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2022,6 +2136,9 @@ router.post(
       });
       return res.status(200).send({ status: 'awaiting_payment', sessionId: session.id });
     } catch (e) {
+      if (e?.code === 'not_found') return res.status(404).send({ message: 'Variation not found.' });
+      if (e?.code === 'already_paid') return res.status(409).send({ message: 'This variation has already been paid.' });
+      if (e?.code === 'not_pending') return res.status(409).send({ message: 'This variation is not pending review.' });
       // eslint-disable-next-line no-console
       console.error('POST variation/approve error:', e);
       return res.status(500).send({ message: 'Failed to approve variation. Please try again.' });
@@ -2031,7 +2148,7 @@ router.post(
 
 /**
  * POST /api/jobs/:jobId/variations/:variationId/checkout (homeowner-only)
- * Retry path: reuse an open Checkout Session or create a new one.
+ * Retry path: reuse an open Checkout Session or create a new attempt generation.
  */
 router.post(
   '/api/jobs/:jobId/variations/:variationId/checkout',
@@ -2065,47 +2182,57 @@ router.post(
         return res.status(503).send({ message: 'Stripe is not configured. Please contact support.' });
       }
 
-      const amountInCents = Math.max(0, Math.floor(Number(variation.priceChangeCents || 0)));
-
-      // Try to reuse existing open session.
-      const existingVarSessionId = variation.checkoutSessionId;
-      if (existingVarSessionId) {
-        try {
-          const existingVarSession = await retrieveCheckoutSession(existingVarSessionId);
-          if (existingVarSession?.status === 'open' && existingVarSession?.payment_status === 'unpaid') {
-            return res.status(200).send({ sessionId: existingVarSessionId, reused: true });
-          }
-        } catch (_) { /* fall through */ }
+      const inspected = await inspectStoredCheckoutSession(variation.checkoutSessionId);
+      if (inspected.kind === 'reuse') {
+        return res.status(200).send({ sessionId: inspected.sessionId, reused: true });
+      }
+      if (inspected.kind === 'retry_later') {
+        return res.status(202).send({
+          pending: true,
+          message: 'Payment status is still being checked. Please try again shortly.',
+        });
       }
 
-      const { createCheckoutSession: createVarRetryCheckout } = require('../services/stripe');
-      const varRetryFrontend = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
-      const retrySession = await createVarRetryCheckout({
-        amountInCents,
-        currency: 'aud',
-        name: 'Approved variation payment',
-        description: `Variation: ${(variation.title || '').slice(0, 80)}`,
-        successUrl: `${varRetryFrontend}/job/${jobId}?variationPayment=success&variationId=${encodeURIComponent(variationId)}&session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl: `${varRetryFrontend}/job/${jobId}?variationPayment=cancelled&variationId=${encodeURIComponent(variationId)}`,
-        metadata: {
-          type: 'variation_payment',
-          paymentType: 'variation',
-          jobId: String(jobId),
-          variationId: String(variationId),
-          homeownerUid: String(homeownerUid),
-          tradieUid: String(job.acceptedTradieUid || ''),
-          amountInCents: String(amountInCents),
-        },
-        idempotencyKey: `taskio_var_checkout_${variationId}_${Date.now()}`,
+      const generation = await db.runTransaction(async (tx) => {
+        const fresh = await tx.get(varRef);
+        if (!fresh.exists) {
+          const err = new Error('not_found');
+          err.code = 'not_found';
+          throw err;
+        }
+        const data = fresh.data() || {};
+        const alloc = allocateCheckoutGeneration(data, {
+          sessionIdField: 'checkoutSessionId',
+          replaceSessionId: inspected.replaceSessionId || '',
+        });
+        if (alloc.patch) {
+          tx.update(varRef, {
+            ...alloc.patch,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+        return alloc.generation;
+      });
+
+      const retrySession = await createPaidVariationCheckoutSession({
+        jobId,
+        variationId,
+        job,
+        variation,
+        homeownerUid,
         customerEmail: req.user?.email || undefined,
+        generation,
       });
 
       await varRef.update({
         checkoutSessionId: retrySession.id,
+        paymentCheckoutGeneration: generation,
+        paymentCheckoutReplacementFor: null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       return res.status(200).send({ sessionId: retrySession.id });
     } catch (e) {
+      if (e?.code === 'not_found') return res.status(404).send({ message: 'Variation not found.' });
       // eslint-disable-next-line no-console
       console.error('POST variation/checkout error:', e);
       return res.status(500).send({ message: 'Failed to start payment. Please try again.' });
@@ -2512,7 +2639,7 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
         paymentIntentId: job.paymentIntentId,
         amountInCents: null,
         reason: 'requested_by_customer',
-        idempotencyKey: `taskio_homeowner_cancel_${jobId}`,
+        idempotencyKey: homeownerCancelRefundKey(jobId),
       });
       await updateJobStatus(db, admin, jobRef, JOB_STATUSES.REFUND_PENDING, {
         paymentState: 'refund_pending',
@@ -2545,7 +2672,7 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
         paymentIntentId: job.paymentIntentId,
         amountInCents: null,
         reason: 'requested_by_customer',
-        idempotencyKey: `taskio_homeowner_cancel_${jobId}`,
+        idempotencyKey: homeownerCancelRefundKey(jobId),
       });
       await updateJobStatus(db, admin, jobRef, JOB_STATUSES.REFUND_PENDING, {
         paymentState: 'refund_pending',

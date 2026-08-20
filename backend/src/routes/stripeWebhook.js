@@ -18,6 +18,7 @@ const {
   scheduleMaybeAutoEnrollFoundingExpert,
 } = require('../services/foundingExpertAutoEnrollmentService');
 const { upsertWorkItemFromAutomation } = require('../services/adminWorkItemService');
+const { refundAttemptFailedPatch } = require('../services/stripeIdempotency');
 
 const router = express.Router();
 
@@ -317,7 +318,10 @@ async function dispatchStripeEventHandlers(event) {
     return;
   }
 
-  if (event.type === 'refund.updated' && event.data?.object?.status === 'failed') {
+  if (
+    event.type === 'refund.failed'
+    || (event.type === 'refund.updated' && event.data?.object?.status === 'failed')
+  ) {
     const refundObj = event.data.object;
     const pi = refundObj?.payment_intent;
     const paymentIntentId = typeof pi === 'string' ? pi : pi?.id;
@@ -333,6 +337,7 @@ async function dispatchStripeEventHandlers(event) {
           highestFlagSeverity: 'HIGH',
           paymentUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...refundAttemptFailedPatch(refundObj),
         });
         try {
           await evaluateJobRiskById(doc.id);

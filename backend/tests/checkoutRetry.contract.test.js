@@ -250,10 +250,12 @@ describe('POST /api/jobs/:jobId/checkout', () => {
       seedQuotedJobAndQuote();
       mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_new_abc', payment_intent: 'pi_new_abc' });
 
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(424242);
       const res = await request(app)
         .post('/api/jobs/job-1/checkout')
-        .send({ quoteId: 'quote-1' })
+        .send({ quoteId: 'quote-1', idempotencyKey: 'client-chosen-key' })
         .set('Authorization', 'Bearer token');
+      nowSpy.mockRestore();
 
       expect(res.status).toBe(200);
       expect(res.body.sessionId).toBe('cs_new_abc');
@@ -268,6 +270,8 @@ describe('POST /api/jobs/:jobId/checkout', () => {
       expect(mockCreateCheckoutSession.mock.calls[0][0].idempotencyKey).toBe(
         'taskio_checkout_job-1_quote-1_g1',
       );
+      expect(mockCreateCheckoutSession.mock.calls[0][0].idempotencyKey).not.toBe('client-chosen-key');
+      expect(mockCreateCheckoutSession.mock.calls[0][0].idempotencyKey).not.toMatch(/424242/);
       // paymentState must NOT be in_escrow until webhook fires
       expect(job.paymentState).not.toBe('in_escrow');
     });

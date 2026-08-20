@@ -95,20 +95,23 @@ async function retrieveCheckoutSession(sessionId) {
   });
 }
 
-async function createExpressAccount({ taskioUid, email }) {
+async function createExpressAccount({ taskioUid, email, idempotencyKey }) {
   const stripe = getStripe();
-  const account = await stripe.accounts.create({
-    type: 'express',
-    country: 'AU',
-    email,
-    metadata: {
-      taskioUid,
+  const account = await stripe.accounts.create(
+    {
+      type: 'express',
+      country: 'AU',
+      email,
+      metadata: {
+        taskioUid,
+      },
+      capabilities: {
+        transfers: { requested: true },
+      },
+      business_type: 'individual',
     },
-    capabilities: {
-      transfers: { requested: true },
-    },
-    business_type: 'individual',
-  });
+    idempotencyKey ? { idempotencyKey } : undefined
+  );
   return account;
 }
 

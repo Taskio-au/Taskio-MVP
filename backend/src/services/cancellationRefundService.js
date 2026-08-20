@@ -1,5 +1,7 @@
 'use strict';
 
+const { homeownerCancelVariationRefundKey } = require('./stripeIdempotency');
+
 function variationNeedsCancellationRefund(variation) {
   const v = variation || {};
   const amount = Math.floor(Number(v.amountPaidCents ?? v.priceChangeCents ?? 0));
@@ -41,7 +43,7 @@ async function refundFundedVariationsForCancellation({
       paymentIntentId: String(data.paymentIntentId),
       amountInCents: null,
       reason: 'requested_by_customer',
-      idempotencyKey: `taskio_homeowner_cancel_var_${jobId}_${doc.id}`,
+      idempotencyKey: homeownerCancelVariationRefundKey(jobId, doc.id),
     });
     refundIds[doc.id] = refund.id;
     await doc.ref.set({

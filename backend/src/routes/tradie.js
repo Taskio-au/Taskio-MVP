@@ -19,6 +19,7 @@ const { getShortJobRef } = require('../../../shared/taskReference');
 const { paymentDisplayTaskTitle } = require('../../../shared/paymentDisplayTaskTitle');
 const { admin } = require('../firebaseAdmin');
 const { standardLaunchFeePercent } = require('../../../shared/feePlans');
+const { expressAccountIdempotencyKey } = require('../services/stripeIdempotency');
 const {
   DEFAULT_AUTO_ACTOR_UID,
   foundingExpertAutoEnrollEnabled,
@@ -703,7 +704,11 @@ router.post('/api/tradie/stripe/onboarding-link', requireAuth, requireRole('trad
 
     let stripeAccountId = userData.stripeAccountId;
     if (!stripeAccountId) {
-      const account = await createExpressAccount({ taskioUid: uid, email: userData.email });
+      const account = await createExpressAccount({
+        taskioUid: uid,
+        email: userData.email,
+        idempotencyKey: expressAccountIdempotencyKey(uid),
+      });
       stripeAccountId = account.id;
       await userRef.set(
         {

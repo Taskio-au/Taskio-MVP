@@ -168,4 +168,36 @@ describe('Stripe operational event handling', () => {
       sourceReasonCodes: ['PAYOUT_FAILED'],
     }));
   });
+
+  it('closes the refund attempt when a Stripe Refund later fails', async () => {
+    store('jobs').set('job-rf', {
+      status: 'REFUND_PENDING',
+      paymentState: 'refund_pending',
+      paymentIntentId: 'pi_rf',
+      refundAttempt: 1,
+      refundAttemptOpen: true,
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_refund_failed',
+      type: 'refund.failed',
+      data: {
+        object: {
+          id: 're_failed_1',
+          status: 'failed',
+          payment_intent: 'pi_rf',
+          failure_reason: 'expired_or_canceled_card',
+        },
+      },
+    });
+
+    expect(store('jobs').get('job-rf')).toMatchObject({
+      paymentState: 'refund_failed',
+      refundAttemptOpen: false,
+      refundLastFailedId: 're_failed_1',
+      refundLastFailureCategory: 'refund_object_failed',
+      refundLastFailureCode: 'expired_or_canceled_card',
+    });
+    expect(store('jobs').get('job-rf').refundId).toBeUndefined();
+  });
 });
