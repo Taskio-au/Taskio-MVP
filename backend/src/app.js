@@ -17,6 +17,7 @@ const tradieRoutes = require('./routes/tradie');
 const adminRoutes = require('./routes/admin');
 const meRoutes = require('./routes/me');
 const stripeWebhookRoutes = require('./routes/stripeWebhook');
+const internalStripeVerifiedEventRoutes = require('./routes/internalStripeVerifiedEvent');
 const reviewRoutes = require('./routes/reviews');
 const authRoutes = require('./routes/auth');
 
@@ -77,6 +78,7 @@ function createApp() {
     max: 500, // Increased for dev (polling dashboard makes ~18 req/min)
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'POST' && req.path === '/internal/stripe/verified-event',
   });
   const aiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -90,6 +92,8 @@ function createApp() {
   app.use('/api/ai', aiLimiter);
   // Stripe webhook MUST be registered before JSON body parsing (Stripe needs raw body for signature verification)
   app.use(stripeWebhookRoutes);
+  // Internal A2 ingest: own 256kb JSON parser, no Firebase auth, not mounted on createWebhookApp()
+  app.use(internalStripeVerifiedEventRoutes);
   app.use(express.json({ limit: '1mb' }));
 
   /* ------------------------------------------------------------------------ */

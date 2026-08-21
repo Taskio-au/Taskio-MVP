@@ -18,6 +18,7 @@ function redactValue(value) {
         'authorization',
         'password',
         'token',
+        'id_token',
         'idtoken',
         'accesstoken',
         'refreshtoken',

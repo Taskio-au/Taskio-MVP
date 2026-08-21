@@ -4,6 +4,7 @@ const express = require('express');
 const { db } = require('../firebaseAdmin');
 const { isStripeEnabled } = require('../config/stripeEnabled');
 const { getExpectedStripeLivemode } = require('../config/stripeLivemode');
+const { isInternalStripeIngestConfigured } = require('../config/stripeInternalIngest');
 
 const router = express.Router();
 
@@ -23,18 +24,19 @@ async function withTimeout(promise, timeoutMs) {
 
 async function getReadiness() {
   const expectedStripeLivemode = getExpectedStripeLivemode();
+  const stripeEnabled = isStripeEnabled();
+  const stripeSecretsOk = Boolean(process.env.STRIPE_SECRET_KEY)
+    && Boolean(process.env.STRIPE_WEBHOOK_SECRET)
+    && Boolean(process.env.FRONTEND_URL)
+    && (expectedStripeLivemode === true || expectedStripeLivemode === false);
+  const internalWebhookConfigured = isInternalStripeIngestConfigured();
   const checks = {
     firestore: { ok: false },
     stripe: {
-      ok: !isStripeEnabled()
-        || (
-          Boolean(process.env.STRIPE_SECRET_KEY)
-          && Boolean(process.env.STRIPE_WEBHOOK_SECRET)
-          && Boolean(process.env.FRONTEND_URL)
-          && (expectedStripeLivemode === true || expectedStripeLivemode === false)
-        ),
-      enabled: isStripeEnabled(),
+      ok: !stripeEnabled || (stripeSecretsOk && internalWebhookConfigured),
+      enabled: stripeEnabled,
       livemode: expectedStripeLivemode,
+      ...(stripeEnabled ? { internalWebhookConfigured } : {}),
     },
     env: {
       ok: (process.env.NODE_ENV || 'development') !== 'production'

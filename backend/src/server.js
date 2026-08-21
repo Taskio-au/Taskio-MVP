@@ -5,10 +5,12 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 const { validateEnv } = require('./config/validateEnv');
+const { validateMainApiStripeIngestEnv } = require('./config/stripeInternalIngest');
 const { createApp } = require('./app');
 const { logger } = require('./observability/logger');
 
 validateEnv();
+validateMainApiStripeIngestEnv();
 
 const app = createApp();
 const port = process.env.PORT || 8000;

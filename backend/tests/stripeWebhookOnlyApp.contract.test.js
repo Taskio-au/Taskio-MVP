@@ -88,6 +88,8 @@ describe('webhook-only Express app', () => {
     ['POST', '/api/ai/chat'],
     ['GET', '/api/stripe/webhook'],
     ['PUT', '/api/stripe/webhook'],
+    ['POST', '/internal/stripe/verified-event'],
+    ['GET', '/internal/stripe/verified-event'],
   ])('%s %s returns 404', async (method, path) => {
     const app = createWebhookApp();
     const res = await request(app)[method.toLowerCase()](path);

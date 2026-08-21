@@ -15,6 +15,10 @@ function errorHandler(err, req, res, next) {
     return res.status(413).json({ message: 'Payload too large' });
   }
 
+  if (err instanceof SyntaxError && (err.status === 400 || err.type === 'entity.parse.failed')) {
+    return res.status(400).json({ message: 'Invalid JSON' });
+  }
+
   // Avoid leaking internals; log server-side with request context.
   const reqLogger = loggerForReq(req);
   reqLogger.error('unhandled_error', {
