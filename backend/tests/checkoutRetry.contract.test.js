@@ -546,6 +546,33 @@ describe('POST /api/jobs/:jobId/checkout', () => {
       expect(job.paymentState).toBe('in_escrow');
     });
   });
+
+  it('returns stripe_disabled and does not call Stripe when STRIPE_ENABLED=false even if a secret exists', async () => {
+    const prevEnabled = process.env.STRIPE_ENABLED;
+    const prevSecret = process.env.STRIPE_SECRET_KEY;
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+    try {
+      seedQuotedJobAndQuote();
+      mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_should_not_exist' });
+
+      const res = await request(app)
+        .post('/api/jobs/job-1/checkout')
+        .send({ quoteId: 'quote-1' })
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(503);
+      expect(res.body.code).toBe('stripe_disabled');
+      expect(mockCreateCheckoutSession).not.toHaveBeenCalled();
+      expect(mockRetrieveCheckoutSession).not.toHaveBeenCalled();
+      expect(mockRetrievePaymentIntent).not.toHaveBeenCalled();
+      expect(readDoc('jobs', 'job-1').status).toBe('QUOTED');
+    } finally {
+      process.env.STRIPE_ENABLED = prevEnabled;
+      if (prevSecret === undefined) delete process.env.STRIPE_SECRET_KEY;
+      else process.env.STRIPE_SECRET_KEY = prevSecret;
+    }
+  });
 });
 
 describe('POST /api/jobs/:jobId/payment-confirmed', () => {
@@ -663,5 +690,24 @@ describe('POST /api/jobs/:jobId/payment-confirmed', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('session_job_mismatch');
+  });
+
+  it('does not retrieve Stripe when payments are disabled', async () => {
+    const prevEnabled = process.env.STRIPE_ENABLED;
+    process.env.STRIPE_ENABLED = 'false';
+    try {
+      seedAwaitingFundingForConfirm();
+      const res = await request(app)
+        .post('/api/jobs/job-1/payment-confirmed')
+        .send({ sessionId: 'cs_any' })
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(503);
+      expect(res.body.code).toBe('stripe_disabled');
+      expect(mockRetrieveCheckoutSession).not.toHaveBeenCalled();
+      expect(mockRetrievePaymentIntent).not.toHaveBeenCalled();
+    } finally {
+      process.env.STRIPE_ENABLED = prevEnabled;
+    }
   });
 });

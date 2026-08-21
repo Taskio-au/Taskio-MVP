@@ -7,12 +7,15 @@
  * - user.verified === true (admin verified)
  * - user.phoneVerified === true
  * - user.abnVerified === true
- * - user.stripe.onboardingComplete === true (mapped from existing Stripe fields)
+ * - user.stripe.onboardingComplete === true when Stripe is enabled
+ *   (this requirement is skipped while STRIPE_ENABLED is not exactly "true")
  * - user.profileCompleted === true (stored or derived)
  * - auth email_verified === true (recommended; appears in the dashboard checklist)
  *
  * Frontend should treat these as UX hints only; backend enforces.
  */
+
+const { isStripeEnabled } = require('../config/stripeEnabled');
 
 function normalizeStatus(s) {
   const v = String(s || '').toLowerCase();
@@ -176,7 +179,7 @@ function computeEligibility({ decodedToken, userDoc }) {
   if (!checklist.phoneVerified) reasons.push('PHONE_NOT_VERIFIED');
   if (checklist.abnRequired && !checklist.abnPresent) reasons.push('ABN_MISSING');
   if (checklist.abnRequired && !checklist.abnVerified) reasons.push('ABN_NOT_VERIFIED');
-  if (!checklist.stripeOnboardingComplete) reasons.push('STRIPE_NOT_COMPLETE');
+  if (isStripeEnabled() && !checklist.stripeOnboardingComplete) reasons.push('STRIPE_NOT_COMPLETE');
   if (!checklist.profileCompleted) reasons.push('PROFILE_INCOMPLETE');
   if (!checklist.serviceLocationPresent) reasons.push('SERVICE_LOCATION_MISSING');
   if (!checklist.businessTypeSet) reasons.push('BUSINESS_TYPE_MISSING');

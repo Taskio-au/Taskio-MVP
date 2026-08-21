@@ -26,6 +26,7 @@ const {
 } = require('../../services/expertJobRelease');
 const { buildAdminPaymentFeeSummary } = require('../../utils/adminPaymentFeeSummary');
 const { executeAdminFullRefund } = require('../../services/adminFullRefundService');
+const { isStripeEnabled, sendStripeDisabled, sendIfStripeDisabled } = require('../../config/stripeEnabled');
 const {
   jobCheckoutIdempotencyKey,
   allocateCheckoutGeneration,
@@ -634,8 +635,8 @@ router.post('/api/admin/jobs/:jobId/clear-dispute', requireAuth, requireAdmin, a
 
 router.post('/api/admin/jobs/:jobId/manual-release', requireAuth, requireAdmin, async (req, res) => {
   try {
-    if (process.env.STRIPE_ENABLED !== 'true') {
-      return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
     }
 
     const { jobId } = req.params;
@@ -739,6 +740,7 @@ router.post('/api/admin/jobs/:jobId/manual-release', requireAuth, requireAdmin, 
       totalProviderAmountCents: plan.totals.totalProviderCents,
     });
   } catch (error) {
+    if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
     }
@@ -772,8 +774,8 @@ router.post('/api/admin/jobs/:jobId/resolve-dispute', requireAuth, requireSuperA
     }
 
     if (resolution === 'refund') {
-      if (process.env.STRIPE_ENABLED !== 'true') {
-        return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
+      if (!isStripeEnabled()) {
+        return sendStripeDisabled(res);
       }
       if (job.paymentState === 'refunded' && normalizeStatus(job.status) === JOB_STATUSES.REFUNDED) {
         return res.status(400).send({ message: 'Already refunded.' });
@@ -800,8 +802,8 @@ router.post('/api/admin/jobs/:jobId/resolve-dispute', requireAuth, requireSuperA
     }
 
     // resolution === 'expert' — uses expertJobRelease (feeSnapshot base slice, variations, full breakdown)
-    if (process.env.STRIPE_ENABLED !== 'true') {
-      return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
     }
     if (job.paymentState === 'released' && job.transferId) {
       return res.status(200).send({ message: 'Payment already released.', transferId: job.transferId });
@@ -904,6 +906,7 @@ router.post('/api/admin/jobs/:jobId/resolve-dispute', requireAuth, requireSuperA
       totalProviderAmountCents: plan.totals.totalProviderCents,
     });
   } catch (error) {
+    if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
     }
@@ -956,8 +959,8 @@ router.post('/api/admin/jobs/:jobId/mark-refunded', requireAuth, requireAdmin, a
 
 router.post('/api/admin/jobs/:jobId/refund', requireAuth, requireAdmin, async (req, res) => {
   try {
-    if (process.env.STRIPE_ENABLED !== 'true') {
-      return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
     }
 
     const { jobId } = req.params;
@@ -991,6 +994,7 @@ router.post('/api/admin/jobs/:jobId/refund', requireAuth, requireAdmin, async (r
     }
     return res.status(result.httpStatus).send(result.body);
   } catch (error) {
+    if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
     }
@@ -1006,8 +1010,8 @@ router.post('/api/admin/jobs/:jobId/refund', requireAuth, requireAdmin, async (r
  */
 router.post('/api/admin/jobs/:jobId/retry-payment', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
-    if (process.env.STRIPE_ENABLED !== 'true') {
-      return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
     }
 
     const { jobId } = req.params;
@@ -1133,6 +1137,7 @@ router.post('/api/admin/jobs/:jobId/retry-payment', requireAuth, requireSuperAdm
       message: `Retry is only for failed funding (payment_failed while awaiting funding) or refund_failed. Current paymentState: ${ps || '—'}`,
     });
   } catch (error) {
+    if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
     }

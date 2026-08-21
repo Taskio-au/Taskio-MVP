@@ -161,4 +161,43 @@ describe('v11TradieEligibility regression rules', () => {
     expect(result.checklist.profileCompleted).toBe(true);
     expect(result.reasons).not.toContain('PROFILE_INCOMPLETE');
   });
+
+  it('does not fail eligibility solely for incomplete Stripe when Stripe is disabled', () => {
+    const prev = process.env.STRIPE_ENABLED;
+    delete process.env.STRIPE_ENABLED;
+    try {
+      const result = computeEligibility({
+        decodedToken: { email_verified: true },
+        userDoc: baseTradie({
+          stripe: { onboardingComplete: false },
+          stripeOnboardingStatus: 'pending',
+        }),
+      });
+      expect(result.eligible).toBe(true);
+      expect(result.reasons).not.toContain('STRIPE_NOT_COMPLETE');
+      expect(result.checklist.stripeOnboardingComplete).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.STRIPE_ENABLED;
+      else process.env.STRIPE_ENABLED = prev;
+    }
+  });
+
+  it('still requires Stripe onboarding when Stripe is enabled', () => {
+    const prev = process.env.STRIPE_ENABLED;
+    process.env.STRIPE_ENABLED = 'true';
+    try {
+      const result = computeEligibility({
+        decodedToken: { email_verified: true },
+        userDoc: baseTradie({
+          stripe: { onboardingComplete: false },
+          stripeOnboardingStatus: 'pending',
+        }),
+      });
+      expect(result.eligible).toBe(false);
+      expect(result.reasons).toContain('STRIPE_NOT_COMPLETE');
+    } finally {
+      if (prev === undefined) delete process.env.STRIPE_ENABLED;
+      else process.env.STRIPE_ENABLED = prev;
+    }
+  });
 });

@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { db } = require('../firebaseAdmin');
+const { isStripeEnabled } = require('../config/stripeEnabled');
 const { getExpectedStripeLivemode } = require('../services/stripe');
 
 const router = express.Router();
@@ -25,14 +26,14 @@ async function getReadiness() {
   const checks = {
     firestore: { ok: false },
     stripe: {
-      ok: process.env.STRIPE_ENABLED !== 'true'
+      ok: !isStripeEnabled()
         || (
           Boolean(process.env.STRIPE_SECRET_KEY)
           && Boolean(process.env.STRIPE_WEBHOOK_SECRET)
           && Boolean(process.env.FRONTEND_URL)
           && expectedStripeLivemode !== null
         ),
-      enabled: process.env.STRIPE_ENABLED === 'true',
+      enabled: isStripeEnabled(),
       livemode: expectedStripeLivemode,
     },
     env: {

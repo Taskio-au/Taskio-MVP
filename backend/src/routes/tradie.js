@@ -20,6 +20,7 @@ const { paymentDisplayTaskTitle } = require('../../../shared/paymentDisplayTaskT
 const { admin } = require('../firebaseAdmin');
 const { standardLaunchFeePercent } = require('../../../shared/feePlans');
 const { expressAccountIdempotencyKey } = require('../services/stripeIdempotency');
+const { isStripeEnabled, sendStripeDisabled, sendIfStripeDisabled } = require('../config/stripeEnabled');
 const {
   DEFAULT_AUTO_ACTOR_UID,
   foundingExpertAutoEnrollEnabled,
@@ -566,7 +567,7 @@ router.get('/api/tradie/payment-activity', requireAuth, requireRole('tradie'), a
     const hasStripeConnectedAccount = !!(connectAcct && String(connectAcct).trim());
 
     let stripeBalance = { dataAvailable: false };
-    if (process.env.STRIPE_ENABLED === 'true' && hasStripeConnectedAccount) {
+    if (isStripeEnabled() && hasStripeConnectedAccount) {
       try {
         const bal = await retrieveConnectAccountBalance(connectAcct);
         const pick = (arr, cur) => {
@@ -619,8 +620,8 @@ router.get('/api/tradie/payment-activity', requireAuth, requireRole('tradie'), a
  */
 router.post('/api/tradie/stripe-dashboard-link', requireAuth, requireRole('tradie'), async (req, res) => {
   try {
-    if (process.env.STRIPE_ENABLED !== 'true') {
-      return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
     }
 
     const uid = req.user.uid;
@@ -637,6 +638,7 @@ router.post('/api/tradie/stripe-dashboard-link', requireAuth, requireRole('tradi
     const link = await createExpressDashboardLoginLink(accountId);
     return res.status(200).send({ url: link.url });
   } catch (error) {
+    if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
     }
@@ -648,8 +650,8 @@ router.post('/api/tradie/stripe-dashboard-link', requireAuth, requireRole('tradi
 
 router.get('/api/tradie/stripe/status', requireAuth, requireRole('tradie'), async (req, res) => {
   try {
-    if (process.env.STRIPE_ENABLED !== 'true') {
-      return res.status(200).send({ enabled: false, onboardingStatus: 'not_enabled' });
+    if (!isStripeEnabled()) {
+      return res.status(200).send({ enabled: false, onboardingStatus: 'not_enabled', code: 'stripe_disabled' });
     }
 
     const uid = req.user.uid;
@@ -684,6 +686,7 @@ router.get('/api/tradie/stripe/status', requireAuth, requireRole('tradie'), asyn
       requirements: fresh.stripeRequirements || null,
     });
   } catch (error) {
+    if (sendIfStripeDisabled(res, error)) return;
     // eslint-disable-next-line no-console
     console.error('Error getting Stripe onboarding status:', error);
     return res.status(500).send({ message: 'Failed to get Stripe onboarding status.' });
@@ -692,8 +695,8 @@ router.get('/api/tradie/stripe/status', requireAuth, requireRole('tradie'), asyn
 
 router.post('/api/tradie/stripe/onboarding-link', requireAuth, requireRole('tradie'), async (req, res) => {
   try {
-    if (process.env.STRIPE_ENABLED !== 'true') {
-      return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
     }
 
     const uid = req.user.uid;
@@ -735,6 +738,7 @@ router.post('/api/tradie/stripe/onboarding-link', requireAuth, requireRole('trad
 
     return res.status(200).send({ url: link.url });
   } catch (error) {
+    if (sendIfStripeDisabled(res, error)) return;
     // eslint-disable-next-line no-console
     console.error('Error creating Stripe onboarding link:', error);
     return res.status(500).send({ message: 'Failed to create Stripe onboarding link.' });

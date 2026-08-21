@@ -43,6 +43,11 @@ jest.mock('../src/firebaseAdmin', () => ({
               const u = mockUserStore.get(String(id));
               return { exists: !!u, data: () => (u ? JSON.parse(JSON.stringify(u)) : null) };
             }),
+            set: jest.fn(async (payload, options = {}) => {
+              const existing = mockUserStore.get(String(id)) || {};
+              const next = options.merge ? { ...existing, ...payload } : { ...payload };
+              mockUserStore.set(String(id), next);
+            }),
           })),
         };
       }
@@ -138,5 +143,63 @@ describe('POST /api/tradie/stripe-dashboard-link', () => {
 
     expect(res.status).toBe(403);
     expect(mockCreateExpressDashboardLoginLink).not.toHaveBeenCalled();
+  });
+
+  it('returns stripe_disabled and does not create a login link when Stripe is disabled', async () => {
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+    seedUser('tradie-1', { stripeAccountId: 'acct_123' });
+
+    const res = await request(app).post('/api/tradie/stripe-dashboard-link');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(mockCreateExpressDashboardLoginLink).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/tradie/stripe/onboarding-link', () => {
+  let app;
+  let envStripe;
+  const stripe = require('../src/services/stripe');
+
+  beforeEach(() => {
+    resetState();
+    envStripe = process.env.STRIPE_ENABLED;
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.FRONTEND_URL = 'http://localhost:3000';
+    stripe.createExpressAccount.mockReset();
+    stripe.createAccountLink.mockReset();
+    stripe.createExpressAccount.mockResolvedValue({ id: 'acct_new' });
+    stripe.createAccountLink.mockResolvedValue({ url: 'https://connect.stripe.com/setup/s/acct_new' });
+    app = buildApp();
+  });
+
+  afterEach(() => {
+    process.env.STRIPE_ENABLED = envStripe;
+  });
+
+  it('creates an Express account and AccountLink when Stripe is enabled', async () => {
+    seedUser('tradie-1', { email: 'expert@test.com' });
+
+    const res = await request(app).post('/api/tradie/stripe/onboarding-link');
+
+    expect(res.status).toBe(200);
+    expect(res.body.url).toContain('connect.stripe.com');
+    expect(stripe.createExpressAccount).toHaveBeenCalled();
+    expect(stripe.createAccountLink).toHaveBeenCalled();
+  });
+
+  it('does not create Connect resources when Stripe is disabled even if a secret exists', async () => {
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+    seedUser('tradie-1', { email: 'expert@test.com' });
+
+    const res = await request(app).post('/api/tradie/stripe/onboarding-link');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(stripe.createExpressAccount).not.toHaveBeenCalled();
+    expect(stripe.createAccountLink).not.toHaveBeenCalled();
   });
 });

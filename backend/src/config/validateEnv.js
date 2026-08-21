@@ -1,5 +1,7 @@
 'use strict';
 
+const { isStripeEnabled } = require('./stripeEnabled');
+
 function requireNonEmpty(name, value) {
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new Error(`Missing required env var: ${name}`);
@@ -25,8 +27,8 @@ function validateEnv() {
   }
 
   // If Stripe flows are enabled, these keys must exist.
-  // Enable Stripe by setting STRIPE_ENABLED=true
-  if (process.env.STRIPE_ENABLED === 'true') {
+  // Enable Stripe only with the explicit value STRIPE_ENABLED=true.
+  if (isStripeEnabled()) {
     requireNonEmpty('STRIPE_SECRET_KEY', process.env.STRIPE_SECRET_KEY);
     requireNonEmpty('STRIPE_WEBHOOK_SECRET', process.env.STRIPE_WEBHOOK_SECRET);
     // Used for Stripe Connect account link return/refresh URLs

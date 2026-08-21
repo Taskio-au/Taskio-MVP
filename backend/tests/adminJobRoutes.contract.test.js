@@ -676,8 +676,9 @@ describe('admin job route contracts', () => {
 
     const res = await request(app).post('/api/admin/jobs/job-4/manual-release');
 
-    expect(res.status).toBe(400);
-    expect(res.body.message).toBe('Stripe is not enabled on this server.');
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(mockCreateTransfer).not.toHaveBeenCalled();
   });
 
   it('POST /manual-release releases escrow and returns transfer id', async () => {
@@ -1919,5 +1920,43 @@ describe('admin job route contracts', () => {
       expect(s.taskioFeeCents).toBe(14000);
       expect(s.expertReleasedCents).toBe(126000);
     });
+  });
+
+  it('POST /refund returns stripe_disabled and does not call Stripe when disabled', async () => {
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+    writeCollectionDoc('jobs', 'job-refund-off', {
+      status: 'FUNDED',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_off',
+      paymentAmountCents: 10000,
+    });
+
+    const res = await request(app).post('/api/admin/jobs/job-refund-off/refund');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(mockCreateRefund).not.toHaveBeenCalled();
+  });
+
+  it('POST /retry-payment returns stripe_disabled and does not call Stripe when disabled', async () => {
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+    writeCollectionDoc('quotes', 'q-off', { amount: 100, jobId: 'rj-off', tradieUid: 't1' });
+    writeCollectionDoc('jobs', 'rj-off', {
+      status: 'AWAITING_FUNDING',
+      paymentState: 'payment_failed',
+      acceptedQuoteId: 'q-off',
+      homeownerUid: 'h1',
+      paymentCurrency: 'aud',
+    });
+
+    const res = await request(app).post('/api/admin/jobs/rj-off/retry-payment');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(mockCreateCheckoutSession).not.toHaveBeenCalled();
+    expect(mockRetrieveCheckoutSession).not.toHaveBeenCalled();
+    expect(mockCreateRefund).not.toHaveBeenCalled();
   });
 });

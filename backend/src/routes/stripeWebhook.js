@@ -3,6 +3,7 @@
 const express = require('express');
 
 const { admin, db } = require('../firebaseAdmin');
+const { isStripeEnabled } = require('../config/stripeEnabled');
 const { constructWebhookEvent, getExpectedStripeLivemode, retrievePaymentIntent } = require('../services/stripe');
 const { JOB_STATUSES, normalizeStatus, isValidTransition } = require('../constants/jobStatuses');
 const { updateJobStatus } = require('../services/jobStatusUpdates');
@@ -524,7 +525,7 @@ router.post(
   express.raw({ type: 'application/json' }),
   async (req, res) => {
     try {
-      if (process.env.STRIPE_ENABLED !== 'true') {
+      if (!isStripeEnabled()) {
         return res.status(404).send({ message: 'Not found' });
       }
 

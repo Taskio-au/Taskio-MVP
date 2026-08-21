@@ -1,11 +1,13 @@
 'use strict';
 
 const Stripe = require('stripe');
+const { requireStripeEnabled } = require('../config/stripeEnabled');
 
 function getStripe() {
+  requireStripeEnabled();
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
-    const err = new Error('Stripe is not configured (missing STRIPE_SECRET_KEY).');
+    const err = new Error('Stripe is not configured.');
     err.code = 'stripe_not_configured';
     throw err;
   }
@@ -24,7 +26,7 @@ function getExpectedStripeLivemode() {
 function constructWebhookEvent(rawBody, signatureHeader) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) {
-    const err = new Error('Stripe webhook is not configured (missing STRIPE_WEBHOOK_SECRET).');
+    const err = new Error('Stripe webhook is not configured.');
     err.code = 'stripe_webhook_not_configured';
     throw err;
   }

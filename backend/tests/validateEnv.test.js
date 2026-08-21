@@ -60,4 +60,37 @@ describe('validateEnv production secrets', () => {
     delete process.env.OTP_SALT;
     expect(() => validateEnv()).toThrow('Missing required env var: OTP_SALT');
   });
+
+  it('starts without Stripe secrets when STRIPE_ENABLED is false', () => {
+    process.env.STRIPE_ENABLED = 'false';
+    delete process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it('starts without Stripe secrets when STRIPE_ENABLED is missing or malformed', () => {
+    delete process.env.STRIPE_ENABLED;
+    expect(() => validateEnv()).not.toThrow();
+    process.env.STRIPE_ENABLED = 'TRUE';
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it('requires Stripe backend configuration when STRIPE_ENABLED is true', () => {
+    process.env.STRIPE_ENABLED = 'true';
+    expect(() => validateEnv()).toThrow('Missing required env var: STRIPE_SECRET_KEY');
+    process.env.STRIPE_SECRET_KEY = 'sk_live_example';
+    expect(() => validateEnv()).toThrow('Missing required env var: STRIPE_WEBHOOK_SECRET');
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    expect(() => validateEnv()).toThrow('Missing required env var: FRONTEND_URL');
+    process.env.FRONTEND_URL = 'https://taskio.com.au';
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it('still rejects a non-live secret key in production when Stripe is enabled', () => {
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_example';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.FRONTEND_URL = 'https://taskio.com.au';
+    expect(() => validateEnv()).toThrow('Production Stripe must use a live secret key.');
+  });
 });

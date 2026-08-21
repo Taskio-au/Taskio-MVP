@@ -896,4 +896,128 @@ describe('quote lifecycle contracts', () => {
     expect(job.variationPlatformFeeReleasedCents).toBe(1000);
     expect(job.baseReleaseFeeSource).toBe('fee_snapshot_v1');
   });
+
+  it('lets a complete expert quote when Stripe is globally disabled even if onboarding is incomplete', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: true,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'pending',
+    });
+    seedDoc('jobs', 'job-quote-off', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-off/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.quoteId).toBeTruthy();
+  });
+
+  it('still requires Stripe onboarding to quote when Stripe is enabled', async () => {
+    process.env.STRIPE_ENABLED = 'true';
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: true,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'pending',
+    });
+    seedDoc('jobs', 'job-quote-on', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-on/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.reasons).toContain('STRIPE_NOT_COMPLETE');
+  });
+
+  it('does not transfer on homeowner release when Stripe is disabled', async () => {
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+    seedDoc('users', 'homeowner-1', {
+      role: 'homeowner',
+      quoteAccessVerified: true,
+      phoneVerified: true,
+    });
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      stripeOnboardingStatus: 'completed',
+      stripeChargesEnabled: true,
+      stripePayoutsEnabled: true,
+      stripeAccountId: 'acct_123',
+    });
+    seedDoc('jobs', 'job-rel-off', {
+      homeownerUid: 'homeowner-1',
+      status: 'COMPLETED',
+      paymentState: 'in_escrow',
+      paymentAmountCents: 20000,
+      paymentCurrency: 'aud',
+      acceptedTradieUid: 'tradie-1',
+      paymentIntentId: 'pi_123',
+    });
+
+    const res = await request(app).post('/api/jobs/job-rel-off/release');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(stripeService.createTransfer).not.toHaveBeenCalled();
+  });
+
+  it('does not refund on homeowner cancel when Stripe is disabled', async () => {
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+    seedDoc('users', 'homeowner-1', {
+      role: 'homeowner',
+      quoteAccessVerified: true,
+      phoneVerified: true,
+    });
+    seedDoc('jobs', 'job-cancel-off', {
+      homeownerUid: 'homeowner-1',
+      status: 'FUNDED',
+      paymentState: 'in_escrow',
+      paymentIntentId: 'pi_cancel',
+      paymentAmountCents: 20000,
+    });
+
+    const res = await request(app).post('/api/jobs/job-cancel-off/cancel');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(stripeService.createRefund).not.toHaveBeenCalled();
+  });
 });

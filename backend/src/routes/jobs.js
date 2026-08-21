@@ -33,6 +33,7 @@ const { buildPostedJobTitleFromPhase1Row } = require('../../../shared/paymentDis
 const { refundFundedVariationsForCancellation } = require('../services/cancellationRefundService');
 const { itemScopeText, normalizeJobItems } = require('../services/jobItems');
 const { loggerForReq } = require('../observability/logger');
+const { isStripeEnabled, sendStripeDisabled, sendIfStripeDisabled } = require('../config/stripeEnabled');
 const {
   jobCheckoutIdempotencyKey,
   variationCheckoutIdempotencyKey,
@@ -788,7 +789,7 @@ router.post('/api/jobs/:id/quotes', requireAuth, requireRole('tradie'), async (r
     const flagReasons = piiCheck.patterns;
 
     // Server-side enforcement: tradie must complete Stripe onboarding before participating in escrow jobs.
-    if (process.env.STRIPE_ENABLED === 'true') {
+    if (isStripeEnabled()) {
       if (!tradieData || computeStripeOnboardingComplete(tradieData) !== true) {
         return res.status(403).send({
           message: 'Stripe onboarding required. Please complete your Stripe onboarding before submitting quotes.',
@@ -946,9 +947,11 @@ router.get('/api/tradie/eligibility', requireAuth, requireRole('tradie'), async 
       checklist.businessTypeSet === true,
       checklist.abnRequired === false || (checklist.abnPresent === true && checklist.abnVerified === true),
       checklist.profileCompleted === true,
-      checklist.stripeOnboardingComplete === true,
       checklist.verified === true,
     ];
+    if (isStripeEnabled()) {
+      quoteReadinessItems.push(checklist.stripeOnboardingComplete === true);
+    }
     const score = Math.round((quoteReadinessItems.filter(Boolean).length / quoteReadinessItems.length) * 100);
     
     return res.status(200).send({
@@ -1168,6 +1171,10 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
       return res.status(403).send({ message: 'Add a verified email or continue with Google to continue.', code: 'account_completion_required' });
     }
 
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
+    }
+
     const jobRef = db.collection('jobs').doc(jobId);
     const quoteRef = db.collection('quotes').doc(quoteId);
 
@@ -1376,6 +1383,7 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
     if (error?.code === 'bad_job_status') return res.status(400).send({ message: `Cannot fund job with status: ${error.status}` });
     if (error?.code === 'bad_amount') return res.status(400).send({ message: 'Quote amount is invalid.' });
     if (error?.code === 'missing_tradie') return res.status(500).send({ message: 'Quote data is missing the expert ID.' });
+    if (sendIfStripeDisabled(res, error)) return;
     if (error?.code === 'stripe_not_configured') return res.status(500).send({ message: 'Stripe is not configured on the server.' });
     if (error?.code === 'invalid_status_transition') {
       return res.status(409).send({ message: 'Invalid task state for checkout.' });
@@ -1429,6 +1437,10 @@ router.post('/api/jobs/:jobId/payment-confirmed', requireAuth, requireRole('home
         paymentState: jobData.paymentState,
         paymentStatus: jobData.paymentStatus || null,
       });
+    }
+
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
     }
 
     const softStillConfirming = (extraJob = jobData, extraFields = {}) =>
@@ -1581,6 +1593,7 @@ router.post('/api/jobs/:jobId/payment-confirmed', requireAuth, requireRole('home
       paymentStatus: afterData.paymentStatus || null,
     });
   } catch (error) {
+    if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(500).send({ message: 'Stripe is not configured on the server.' });
     }
@@ -2040,8 +2053,8 @@ router.post(
         return res.status(200).send({ status: 'approved' });
       }
 
-      if (process.env.STRIPE_ENABLED !== 'true') {
-        return res.status(503).send({ message: 'Stripe is not configured. Please contact support.' });
+      if (!isStripeEnabled()) {
+        return sendStripeDisabled(res);
       }
 
       const claimed = await db.runTransaction(async (tx) => {
@@ -2139,6 +2152,7 @@ router.post(
       if (e?.code === 'not_found') return res.status(404).send({ message: 'Variation not found.' });
       if (e?.code === 'already_paid') return res.status(409).send({ message: 'This variation has already been paid.' });
       if (e?.code === 'not_pending') return res.status(409).send({ message: 'This variation is not pending review.' });
+      if (sendIfStripeDisabled(res, e)) return;
       // eslint-disable-next-line no-console
       console.error('POST variation/approve error:', e);
       return res.status(500).send({ message: 'Failed to approve variation. Please try again.' });
@@ -2178,8 +2192,8 @@ router.post(
       if (variation.status !== 'awaiting_payment') {
         return res.status(409).send({ message: 'This variation is not awaiting payment.' });
       }
-      if (process.env.STRIPE_ENABLED !== 'true') {
-        return res.status(503).send({ message: 'Stripe is not configured. Please contact support.' });
+      if (!isStripeEnabled()) {
+        return sendStripeDisabled(res);
       }
 
       const inspected = await inspectStoredCheckoutSession(variation.checkoutSessionId);
@@ -2233,6 +2247,7 @@ router.post(
       return res.status(200).send({ sessionId: retrySession.id });
     } catch (e) {
       if (e?.code === 'not_found') return res.status(404).send({ message: 'Variation not found.' });
+      if (sendIfStripeDisabled(res, e)) return;
       // eslint-disable-next-line no-console
       console.error('POST variation/checkout error:', e);
       return res.status(500).send({ message: 'Failed to start payment. Please try again.' });
@@ -2262,6 +2277,9 @@ router.post(
       if (!jobSnap.exists) return res.status(404).send({ message: 'Task not found.' });
       if (jobSnap.data().homeownerUid !== homeownerUid) {
         return res.status(403).send({ message: 'Only the task owner can confirm this payment.' });
+      }
+      if (!isStripeEnabled()) {
+        return sendStripeDisabled(res);
       }
 
       const session = await retrieveCheckoutSession(sessionId);
@@ -2299,6 +2317,7 @@ router.post(
 
       return res.status(200).send({ status: 'completed', variationId });
     } catch (e) {
+      if (sendIfStripeDisabled(res, e)) return;
       // eslint-disable-next-line no-console
       console.error('POST variation confirm-checkout-session error:', e);
       return res.status(500).send({ message: 'Could not confirm payment. Please try again shortly.' });
@@ -2436,8 +2455,8 @@ router.post('/api/jobs/:id/complete', requireAuth, requireRole('tradie'), async 
  */
 router.post('/api/jobs/:id/release', requireAuth, requireRole('homeowner'), async (req, res) => {
   try {
-    if (process.env.STRIPE_ENABLED !== 'true') {
-      return res.status(400).send({ message: 'Stripe is not enabled on this server.' });
+    if (!isStripeEnabled()) {
+      return sendStripeDisabled(res);
     }
 
     const jobId = req.params.id;
@@ -2588,6 +2607,7 @@ router.post('/api/jobs/:id/release', requireAuth, requireRole('homeowner'), asyn
     if (mapped) {
       return res.status(mapped.status).send({ message: mapped.message, code: error.code });
     }
+    if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
     }
@@ -2625,8 +2645,8 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
     }
 
     if (cur === JOB_STATUSES.AWAITING_FUNDING && escrowPaid) {
-      if (process.env.STRIPE_ENABLED !== 'true') {
-        return res.status(400).send({ message: 'Refunds require Stripe on this server.' });
+      if (!isStripeEnabled()) {
+        return sendStripeDisabled(res);
       }
       if (!job.paymentIntentId) return res.status(400).send({ message: 'No payment to refund.' });
       const variationRefundIds = await refundFundedVariationsForCancellation({
@@ -2658,8 +2678,8 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
     }
 
     if (cur === JOB_STATUSES.FUNDED) {
-      if (process.env.STRIPE_ENABLED !== 'true') {
-        return res.status(400).send({ message: 'Refunds require Stripe on this server.' });
+      if (!isStripeEnabled()) {
+        return sendStripeDisabled(res);
       }
       if (!job.paymentIntentId) return res.status(400).send({ message: 'No payment to refund.' });
       const variationRefundIds = await refundFundedVariationsForCancellation({
@@ -2699,6 +2719,7 @@ router.post('/api/jobs/:id/cancel', requireAuth, requireRole('homeowner'), async
         variationId: error.variationId,
       });
     }
+    if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });
     }

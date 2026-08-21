@@ -89,4 +89,29 @@ describe('GET /health/ready production env', () => {
     expect(res.body.ok).toBe(false);
     expect(res.body.checks.env.ok).toBe(false);
   });
+
+  it('reports Stripe as intentionally disabled even if secrets are present', async () => {
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_live_present_but_disabled';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_present';
+    process.env.FRONTEND_URL = 'https://taskio.com.au';
+
+    const res = await request(app).get('/health/ready');
+
+    expect(res.status).toBe(200);
+    expect(res.body.checks.stripe.ok).toBe(true);
+    expect(res.body.checks.stripe.enabled).toBe(false);
+  });
+
+  it('fails readiness when Stripe is enabled but required configuration is missing', async () => {
+    process.env.STRIPE_ENABLED = 'true';
+    delete process.env.STRIPE_SECRET_KEY;
+
+    const res = await request(app).get('/health/ready');
+
+    expect(res.status).toBe(503);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.checks.stripe.ok).toBe(false);
+    expect(res.body.checks.stripe.enabled).toBe(true);
+  });
 });

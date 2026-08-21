@@ -627,6 +627,8 @@ describe('POST /api/jobs/:jobId/variations/:variationId/approve', () => {
       .set('Authorization', 'Bearer fake');
 
     expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(require('../src/services/stripe').createCheckoutSession).not.toHaveBeenCalled();
   });
 
   test('logs CLIENT_VARIATION_APPROVED for zero-amount', async () => {
@@ -766,6 +768,27 @@ describe('POST /api/jobs/:jobId/variations/:variationId/checkout', () => {
       .set('Authorization', 'Bearer fake');
 
     expect(res.status).toBe(403);
+  });
+
+  test('returns stripe_disabled and does not call Stripe when payments are disabled', async () => {
+    seedActiveJob();
+    seedPendingVariation('job-1', 'var-1', {
+      status: 'awaiting_payment',
+      priceChangeCents: 5000,
+      checkoutSessionId: 'cs_open',
+    });
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+
+    const stripe = require('../src/services/stripe');
+    const res = await request(buildApp())
+      .post('/api/jobs/job-1/variations/var-1/checkout')
+      .set('Authorization', 'Bearer fake');
+
+    expect(res.status).toBe(503);
+    expect(res.body.code).toBe('stripe_disabled');
+    expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+    expect(stripe.retrieveCheckoutSession).not.toHaveBeenCalled();
   });
 });
 
@@ -1098,5 +1121,22 @@ describe('Stripe webhook: payment_intent.succeeded for paymentType=variation', (
     const job = mockState.collections.get('jobs')?.get('job-2');
     expect(job?.paymentState).toBe('in_escrow');
     expect(job?.status).toBe('FUNDED');
+  });
+
+  test('does not process webhooks when Stripe is disabled', async () => {
+    process.env.STRIPE_ENABLED = 'false';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
+    const stripe = require('../src/services/stripe');
+    const evt = makePaymentIntentEvent();
+    const app = buildWebhookApp();
+    const res = await request(app)
+      .post('/api/stripe/webhook')
+      .set('stripe-signature', 'sig')
+      .set('Content-Type', 'application/json')
+      .send(Buffer.from(JSON.stringify(evt)));
+
+    expect(res.status).toBe(404);
+    expect(stripe.constructWebhookEvent).not.toHaveBeenCalled();
+    expect(stripe.retrievePaymentIntent).not.toHaveBeenCalled();
   });
 });
