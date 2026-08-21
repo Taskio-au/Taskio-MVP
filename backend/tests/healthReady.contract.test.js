@@ -21,6 +21,7 @@ const ENV_KEYS = [
   'STRIPE_ENABLED',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
+  'STRIPE_EXPECTED_LIVEMODE',
   'FRONTEND_URL',
   'TASKIO_SHOW_DEV_OTP',
 ];
@@ -101,6 +102,21 @@ describe('GET /health/ready production env', () => {
     expect(res.status).toBe(200);
     expect(res.body.checks.stripe.ok).toBe(true);
     expect(res.body.checks.stripe.enabled).toBe(false);
+  });
+
+  it('fails readiness when Stripe is enabled but STRIPE_EXPECTED_LIVEMODE is missing', async () => {
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY = 'sk_live_example';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.FRONTEND_URL = 'https://taskio.com.au';
+    delete process.env.STRIPE_EXPECTED_LIVEMODE;
+
+    const res = await request(app).get('/health/ready');
+
+    expect(res.status).toBe(503);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.checks.stripe.ok).toBe(false);
+    expect(res.body.checks.stripe.livemode).toBeNull();
   });
 
   it('fails readiness when Stripe is enabled but required configuration is missing', async () => {

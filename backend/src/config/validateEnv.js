@@ -1,6 +1,7 @@
 'use strict';
 
 const { isStripeEnabled } = require('./stripeEnabled');
+const { parseStripeExpectedLivemode } = require('./stripeLivemode');
 
 function requireNonEmpty(name, value) {
   if (typeof value !== 'string' || value.trim().length === 0) {
@@ -33,8 +34,17 @@ function validateEnv() {
     requireNonEmpty('STRIPE_WEBHOOK_SECRET', process.env.STRIPE_WEBHOOK_SECRET);
     // Used for Stripe Connect account link return/refresh URLs
     requireNonEmpty('FRONTEND_URL', process.env.FRONTEND_URL);
-    if (env === 'production' && !String(process.env.STRIPE_SECRET_KEY).startsWith('sk_live_')) {
-      throw new Error('Production Stripe must use a live secret key.');
+    const expectedLivemode = parseStripeExpectedLivemode(process.env.STRIPE_EXPECTED_LIVEMODE);
+    if (expectedLivemode !== true && expectedLivemode !== false) {
+      throw new Error('Missing required env var: STRIPE_EXPECTED_LIVEMODE');
+    }
+    if (env === 'production') {
+      if (expectedLivemode !== true) {
+        throw new Error('Production Stripe must expect live mode.');
+      }
+      if (!String(process.env.STRIPE_SECRET_KEY).startsWith('sk_live_')) {
+        throw new Error('Production Stripe must use a live secret key.');
+      }
     }
   }
 

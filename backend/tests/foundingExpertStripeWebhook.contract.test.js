@@ -79,13 +79,20 @@ jest.mock('../src/firebaseAdmin', () => ({
         add: jest.fn(async () => ({ id: 'x' })),
       };
     }),
-    runTransaction: async () => {},
+    runTransaction: async (fn) => {
+      const tx = {
+        get: (ref) => ref.get(),
+        set: (ref, payload, options) => ref.set(payload, options),
+        update: (ref, payload) => ref.set(payload, { merge: true }),
+      };
+      return fn(tx);
+    },
   },
 }));
 
 jest.mock('../src/services/stripe', () => ({
   constructWebhookEvent: jest.fn(),
-  getExpectedStripeLivemode: jest.fn(() => null),
+  getExpectedStripeLivemode: jest.fn(() => false),
 }));
 
 jest.mock('../src/utils/auditLogs', () => ({
@@ -133,6 +140,7 @@ describe('Stripe account.updated wires founding auto enrolment', () => {
     mockStores.get('users').clear();
     mockStores.get('stripe_events').clear();
     process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.FOUNDING_EXPERT_AUTO_ENROLL_ENABLED = 'true';
 
     autoSvc.scheduleMaybeAutoEnrollFoundingExpert.mockClear();

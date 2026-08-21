@@ -14,7 +14,22 @@ function redactValue(value) {
     const out = {};
     for (const [k, v] of Object.entries(value)) {
       const lower = String(k).toLowerCase();
-      if (['authorization', 'password', 'token', 'idtoken', 'accesstoken', 'refreshtoken'].includes(lower)) {
+      if ([
+        'authorization',
+        'password',
+        'token',
+        'idtoken',
+        'accesstoken',
+        'refreshtoken',
+        'stripe-signature',
+        'stripesignature',
+        'stripe_webhook_secret',
+        'stripewebhooksecret',
+        'stripe_secret_key',
+        'stripesecretkey',
+        'rawbody',
+        'payload',
+      ].includes(lower)) {
         out[k] = '[REDACTED]';
       } else {
         out[k] = redactValue(v);

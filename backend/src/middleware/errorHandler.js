@@ -11,6 +11,10 @@ function errorHandler(err, req, res, next) {
     return res.status(403).json({ message: err.message });
   }
 
+  if (err && (err.status === 413 || err.statusCode === 413 || err.type === 'entity.too.large')) {
+    return res.status(413).json({ message: 'Payload too large' });
+  }
+
   // Avoid leaking internals; log server-side with request context.
   const reqLogger = loggerForReq(req);
   reqLogger.error('unhandled_error', {

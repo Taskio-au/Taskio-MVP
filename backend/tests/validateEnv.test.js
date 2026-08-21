@@ -11,6 +11,7 @@ const ENV_KEYS = [
   'STRIPE_ENABLED',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
+  'STRIPE_EXPECTED_LIVEMODE',
   'FRONTEND_URL',
   'TASKIO_SHOW_DEV_OTP',
 ];
@@ -83,6 +84,8 @@ describe('validateEnv production secrets', () => {
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     expect(() => validateEnv()).toThrow('Missing required env var: FRONTEND_URL');
     process.env.FRONTEND_URL = 'https://taskio.com.au';
+    expect(() => validateEnv()).toThrow('Missing required env var: STRIPE_EXPECTED_LIVEMODE');
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     expect(() => validateEnv()).not.toThrow();
   });
 
@@ -91,6 +94,7 @@ describe('validateEnv production secrets', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_example';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://taskio.com.au';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     expect(() => validateEnv()).toThrow('Production Stripe must use a live secret key.');
   });
 });

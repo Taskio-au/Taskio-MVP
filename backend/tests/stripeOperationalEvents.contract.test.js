@@ -61,6 +61,7 @@ const mockDb = {
   runTransaction: jest.fn(async (callback) => callback({
     get: (ref) => ref.get(),
     update: (ref, payload) => ref.update(payload),
+    set: (ref, payload, options) => ref.set(payload, options),
   })),
 };
 
@@ -70,6 +71,9 @@ jest.mock('../src/firebaseAdmin', () => ({
       FieldValue: {
         serverTimestamp: jest.fn(() => '__ts__'),
         arrayUnion: jest.fn((...values) => values),
+      },
+      Timestamp: {
+        fromDate: (d) => ({ _seconds: Math.floor(d.getTime() / 1000) }),
       },
     },
   },
@@ -684,5 +688,67 @@ describe('Stripe operational event handling', () => {
     expect(job.paymentState).toBe('refund_pending');
     expect(job.baseRefundConfirmed).not.toBe(true);
     expect(job.disputeResolution).not.toBe('refunded');
+  });
+
+  it('associates checkout.session.completed without retrieving or funding when PI is a string', async () => {
+    const stripe = require('../src/services/stripe');
+    store('jobs').set('job-cs-string', {
+      status: 'AWAITING_FUNDING',
+      paymentState: 'pending_payment',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_cs_string',
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: 'cs_string_1',
+          mode: 'payment',
+          payment_status: 'paid',
+          payment_intent: 'pi_cs_string',
+          metadata: { jobId: 'job-cs-string' },
+        },
+      },
+    });
+
+    expect(stripe.retrievePaymentIntent).not.toHaveBeenCalled();
+    expect(store('jobs').get('job-cs-string')).toMatchObject({
+      status: 'AWAITING_FUNDING',
+      paymentState: 'pending_payment',
+      paymentCheckoutSessionId: 'cs_string_1',
+      paymentIntentId: 'pi_cs_string',
+    });
+  });
+
+  it('funds from checkout.session.completed only when the event already includes a succeeded PI object', async () => {
+    const stripe = require('../src/services/stripe');
+    store('jobs').set('job-cs-obj', {
+      status: 'AWAITING_FUNDING',
+      paymentState: 'pending_payment',
+      acceptedQuoteId: 'q1',
+    });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_cs_obj',
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: 'cs_obj_1',
+          mode: 'payment',
+          payment_status: 'paid',
+          payment_intent: {
+            id: 'pi_cs_obj',
+            object: 'payment_intent',
+            status: 'succeeded',
+            amount: 10000,
+            currency: 'aud',
+          },
+          metadata: { jobId: 'job-cs-obj' },
+        },
+      },
+    });
+
+    expect(stripe.retrievePaymentIntent).not.toHaveBeenCalled();
+    expect(store('jobs').get('job-cs-obj').paymentCheckoutSessionId).toBe('cs_obj_1');
   });
 });

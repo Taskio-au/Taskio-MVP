@@ -2,6 +2,7 @@
 
 const Stripe = require('stripe');
 const { requireStripeEnabled } = require('../config/stripeEnabled');
+const { getExpectedStripeLivemode } = require('../config/stripeLivemode');
 
 function getStripe() {
   requireStripeEnabled();
@@ -16,23 +17,29 @@ function getStripe() {
   });
 }
 
-function getExpectedStripeLivemode() {
-  const key = String(process.env.STRIPE_SECRET_KEY || '').trim();
-  if (key.startsWith('sk_live_')) return true;
-  if (key.startsWith('sk_test_')) return false;
-  return null;
-}
-
 function constructWebhookEvent(rawBody, signatureHeader) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = typeof process.env.STRIPE_WEBHOOK_SECRET === 'string'
+    ? process.env.STRIPE_WEBHOOK_SECRET.trim()
+    : '';
   if (!secret) {
     const err = new Error('Stripe webhook is not configured.');
     err.code = 'stripe_webhook_not_configured';
     throw err;
   }
+  if (!signatureHeader) {
+    const err = new Error('Missing Stripe-Signature header');
+    err.code = 'stripe_signature_missing';
+    throw err;
+  }
+  if (rawBody == null || (typeof rawBody !== 'string' && !Buffer.isBuffer(rawBody))) {
+    const err = new Error('Stripe webhook raw body is invalid.');
+    err.code = 'stripe_webhook_invalid_body';
+    throw err;
+  }
 
-  const stripe = getStripe();
-  return stripe.webhooks.constructEvent(rawBody, signatureHeader, secret);
+  // Local HMAC verification only. Do not instantiate a Stripe client (that would
+  // require STRIPE_SECRET_KEY and network-capable API configuration).
+  return Stripe.webhooks.constructEvent(rawBody, signatureHeader, secret);
 }
 
 async function createCheckoutSession({

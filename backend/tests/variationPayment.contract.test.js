@@ -75,8 +75,12 @@ jest.mock('../src/firebaseAdmin', () => ({
               const existing = store().get(docId) || {};
               store().set(docId, { ...existing, ...mockClone(payload) });
             }),
-            set: jest.fn(async (payload) => {
-              store().set(docId, { id: docId, ...mockClone(payload) });
+            set: jest.fn(async (payload, options = {}) => {
+              const existing = store().get(docId) || {};
+              const next = options.merge
+                ? { ...existing, ...mockClone(payload) }
+                : { id: docId, ...mockClone(payload) };
+              store().set(docId, next);
             }),
             // Subcollection (variations)
             collection: jest.fn((subName) => {
@@ -129,7 +133,7 @@ jest.mock('../src/firebaseAdmin', () => ({
       const fakeTx = {
         get: (ref) => ref.get(),
         update: (ref, data) => ref.update(data),
-        set: (ref, data) => ref.set(data),
+        set: (ref, data, options) => ref.set(data, options),
       };
       return cb(fakeTx);
     }),
@@ -160,7 +164,7 @@ jest.mock('../src/services/stripe', () => ({
   getSucceededChargeIdForConnectTransfer: jest.fn(),
   createCheckoutSession: jest.fn(async () => mockState.stripeSession),
   constructWebhookEvent: jest.fn(),
-  getExpectedStripeLivemode: jest.fn(() => null),
+  getExpectedStripeLivemode: jest.fn(() => false),
 }));
 
 jest.mock('../src/utils/firestore', () => ({
@@ -226,6 +230,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   resetState();
   process.env.STRIPE_ENABLED = 'true';
+  process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
   process.env.FRONTEND_URL = 'http://localhost:3000';
 });
 
@@ -233,6 +238,7 @@ describe('Stripe payment interruption and duplicate-delivery matrix', () => {
   beforeEach(() => {
     resetState();
     process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
   });
 
   test('duplicate delivery of one variation event is acknowledged without reprocessing', async () => {
