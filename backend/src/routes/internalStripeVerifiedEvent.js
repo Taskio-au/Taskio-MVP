@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Future A2 second-hop contract (not implemented here):
+ * A2 second-hop ingest on private taskio-api:
  *
  * POST {TASKIO_API_CLOUD_RUN_URL}/internal/stripe/verified-event
  * Authorization: Bearer <Google ID token from ADC / runtime SA>
@@ -16,34 +16,13 @@ const express = require('express');
 
 const { isStripeEnabled } = require('../config/stripeEnabled');
 const { getExpectedStripeLivemode } = require('../config/stripeLivemode');
+const { STRIPE_INTERNAL_INGEST_PATH } = require('../config/stripeInternalPath');
 const { processVerifiedStripeEvent } = require('../services/stripeEventProcessor');
+const { validateForwardedStripeEvent } = require('../services/stripeEventShape');
 const { createVerifyInternalServiceIdentity } = require('../middleware/verifyInternalServiceIdentity');
 const { logger, loggerForReq } = require('../observability/logger');
 
 const INTERNAL_EVENT_JSON_LIMIT = 256 * 1024;
-
-function isStripeEventId(value) {
-  return typeof value === 'string' && /^evt_[A-Za-z0-9_]+$/.test(value);
-}
-
-function validateForwardedStripeEvent(body) {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return { ok: false };
-  }
-  if (body.object !== 'event') return { ok: false };
-  if (!isStripeEventId(body.id)) return { ok: false };
-  if (typeof body.type !== 'string' || body.type.length === 0 || body.type !== body.type.trim()) {
-    return { ok: false };
-  }
-  if (typeof body.livemode !== 'boolean') return { ok: false };
-  if (!body.data || typeof body.data !== 'object' || Array.isArray(body.data)) {
-    return { ok: false };
-  }
-  if (!body.data.object || typeof body.data.object !== 'object' || Array.isArray(body.data.object)) {
-    return { ok: false };
-  }
-  return { ok: true };
-}
 
 function clientErrorMessage(err) {
   if (err && (err.code === 'stripe_livemode_mismatch' || err.code === 'stripe_livemode_not_configured')) {
@@ -59,7 +38,7 @@ function createInternalStripeVerifiedEventRouter(options = {}) {
   });
 
   router.post(
-    '/internal/stripe/verified-event',
+    STRIPE_INTERNAL_INGEST_PATH,
     (req, res, next) => {
       if (!isStripeEnabled()) {
         return res.status(404).send({ message: 'Not found' });

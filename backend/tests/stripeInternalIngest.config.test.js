@@ -79,4 +79,12 @@ describe('internal Stripe ingest env', () => {
       callerEmail: 'webhook@example.iam.gserviceaccount.com',
     });
   });
+
+  it('rejects an audience that includes a path', () => {
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app/internal/stripe/verified-event';
+    process.env.STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT = 'webhook@example.iam.gserviceaccount.com';
+    expect(() => validateInternalStripeIngestEnv()).toThrow('HTTPS origin');
+    expect(parseInternalStripeIngestConfig()).toBeNull();
+  });
 });

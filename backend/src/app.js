@@ -18,6 +18,7 @@ const adminRoutes = require('./routes/admin');
 const meRoutes = require('./routes/me');
 const stripeWebhookRoutes = require('./routes/stripeWebhook');
 const internalStripeVerifiedEventRoutes = require('./routes/internalStripeVerifiedEvent');
+const { STRIPE_INTERNAL_INGEST_PATH } = require('./config/stripeInternalPath');
 const reviewRoutes = require('./routes/reviews');
 const authRoutes = require('./routes/auth');
 
@@ -78,7 +79,7 @@ function createApp() {
     max: 500, // Increased for dev (polling dashboard makes ~18 req/min)
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => req.method === 'POST' && req.path === '/internal/stripe/verified-event',
+    skip: (req) => req.method === 'POST' && req.path === STRIPE_INTERNAL_INGEST_PATH,
   });
   const aiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

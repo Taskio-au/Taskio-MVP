@@ -65,6 +65,8 @@ jobs:
       - run: npm ci
       - run: node --check src/server.js
       - run: node --check src/app.js
+      - run: node --check src/webhookServer.js
+      - run: node --check src/webhookApp.js
       - run: npm test
 
   functions:
@@ -122,3 +124,53 @@ jobs:
       - name: Confirm image layout without network or credentials
         run: |
           docker run --rm --network=none --read-only --entrypoint sh taskio-api:ci -c "test -f /app/backend/src/server.js && test -f /app/shared/auLocations.js && test -f /app/shared/feePlans.js && test ! -e /app/backend/.env && test ! -e /app/backend/serviceAccountKey.json && test ! -e /app/serviceAccountKey.json"
+
+  webhook-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build webhook-only image
+        run: docker build -f Dockerfile.webhook -t taskio-webhook:ci .
+      - name: Inspect image config
+        run: |
+          workingDir="$(docker image inspect taskio-webhook:ci --format '{{.Config.WorkingDir}}')"
+          user="$(docker image inspect taskio-webhook:ci --format '{{.Config.User}}')"
+          cmd="$(docker image inspect taskio-webhook:ci --format '{{json .Config.Cmd}}')"
+          echo "workingDir=$workingDir user=$user cmd=$cmd"
+          test "$workingDir" = "/app/backend"
+          test "$user" = "node"
+          test "$cmd" = '["node","src/webhookServer.js"]'
+      - name: Confirm webhook image layout without credentials or API extras
+        run: |
+          docker run --rm --network=none --read-only --entrypoint sh taskio-webhook:ci -c "
+            test -f /app/backend/src/webhookServer.js &&
+            test -f /app/backend/src/webhookApp.js &&
+            test ! -e /app/shared &&
+            test ! -e /app/frontend &&
+            test ! -e /app/backend/.env &&
+            test ! -e /app/backend/serviceAccountKey.json &&
+            test ! -e /app/serviceAccountKey.json &&
+            test ! -e /app/.git &&
+            test ! -e /root/.git &&
+            ! grep -R --include='*.json' -l 'private_key' /app/backend/src >/dev/null 2>&1
+          "
+      - name: Smoke start with Stripe disabled
+        run: |
+          docker run -d --name taskio-webhook-smoke -e STRIPE_ENABLED=false -e NODE_ENV=production -p 18080:8080 taskio-webhook:ci
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/ | grep -q 404; then
+              break
+            fi
+            sleep 1
+          done
+          root_code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/)"
+          webhook_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/api/stripe/webhook)"
+          logs="$(docker logs taskio-webhook-smoke 2>&1 || true)"
+          docker rm -f taskio-webhook-smoke >/dev/null
+          echo "root=$root_code webhook=$webhook_code"
+          echo "$logs"
+          test "$root_code" = "404"
+          test "$webhook_code" = "404"
+          echo "$logs" | grep -q 'webhook_server_started'
+          ! echo "$logs" | grep -qiE 'firestore|firebase-admin|unable to detect a project id'
+          ! echo "$logs" | grep -qE 'Bearer |whsec_|sk_live_|sk_test_'

@@ -1,6 +1,7 @@
 'use strict';
 
 const { isStripeEnabled } = require('./stripeEnabled');
+const { parseStripeInternalAudience } = require('./stripeInternalAudience');
 
 /**
  * Private taskio-api ingest for already HMAC-verified Stripe events.
@@ -8,9 +9,7 @@ const { isStripeEnabled } = require('./stripeEnabled');
  * the webhook-only ingress, and not while STRIPE_ENABLED=false.
  */
 function parseInternalStripeIngestConfig() {
-  const audience = typeof process.env.STRIPE_INTERNAL_AUDIENCE === 'string'
-    ? process.env.STRIPE_INTERNAL_AUDIENCE.trim()
-    : '';
+  const audience = parseStripeInternalAudience(process.env.STRIPE_INTERNAL_AUDIENCE);
   const callerEmail = typeof process.env.STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT === 'string'
     ? process.env.STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT.trim()
     : '';
@@ -35,14 +34,17 @@ function requireInternalStripeIngestConfig() {
 }
 
 function validateInternalStripeIngestEnv() {
-  const audience = typeof process.env.STRIPE_INTERNAL_AUDIENCE === 'string'
+  const audienceRaw = typeof process.env.STRIPE_INTERNAL_AUDIENCE === 'string'
     ? process.env.STRIPE_INTERNAL_AUDIENCE.trim()
     : '';
   const callerEmail = typeof process.env.STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT === 'string'
     ? process.env.STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT.trim()
     : '';
-  if (!audience) {
+  if (!audienceRaw) {
     throw new Error('Missing required env var: STRIPE_INTERNAL_AUDIENCE');
+  }
+  if (!parseStripeInternalAudience(audienceRaw)) {
+    throw new Error('STRIPE_INTERNAL_AUDIENCE must be an HTTPS origin with no path.');
   }
   if (!callerEmail) {
     throw new Error('Missing required env var: STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT');

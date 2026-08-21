@@ -1,5 +1,11 @@
 'use strict';
 
+/**
+ * Private taskio-api HMAC webhook (compatibility path).
+ * HMAC-verify then processVerifiedStripeEvent locally.
+ * The public webhook-only runtime must use stripeWebhookForward.js instead.
+ */
+
 const express = require('express');
 
 const { isStripeEnabled } = require('../config/stripeEnabled');

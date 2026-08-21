@@ -4,7 +4,7 @@ const express = require('express');
 const helmet = require('helmet');
 
 const { requestContext } = require('./middleware/requestContext');
-const stripeWebhookRoutes = require('./routes/stripeWebhook');
+const { createStripeWebhookForwardRouter } = require('./routes/stripeWebhookForward');
 const { loggerForReq } = require('./observability/logger');
 
 const WEBHOOK_RAW_BODY_LIMIT = 256 * 1024;
@@ -16,12 +16,12 @@ function isPayloadTooLarge(err) {
   return false;
 }
 
-function createWebhookApp() {
+function createWebhookApp(options = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use(requestContext);
   app.use(helmet());
-  app.use(stripeWebhookRoutes);
+  app.use(createStripeWebhookForwardRouter(options));
 
   app.use((req, res) => res.status(404).send({ message: 'Not found' }));
 

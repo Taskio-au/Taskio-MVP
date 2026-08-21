@@ -1,6 +1,7 @@
 # Production API image context. Allow only the files the Dockerfile copies.
 *
 !Dockerfile
+!Dockerfile.webhook
 !.dockerignore
 !backend
 !backend/package.json
