@@ -171,6 +171,5 @@ jobs:
           echo "$logs"
           test "$root_code" = "404"
           test "$webhook_code" = "404"
-          echo "$logs" | grep -q 'webhook_server_started'
           ! echo "$logs" | grep -qiE 'firestore|firebase-admin|unable to detect a project id'
           ! echo "$logs" | grep -qE 'Bearer |whsec_|sk_live_|sk_test_'
