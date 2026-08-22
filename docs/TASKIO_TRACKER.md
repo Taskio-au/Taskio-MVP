@@ -4,20 +4,137 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
-> Owner authorization revised 2026-08-22: non-destructive staging and test-mode work is approved. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
+> Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Verified remote `develop`: `f8eb0ae8d277ea4a5ba5570e8108a18e7d9fdbf1` (`fix: enforce custom job item requirements`). Local source commits: `b5fee75` (webhook CI smoke), `1d65ed9` (custom-item semantics), and `518a8ba` (photo-required completion gates). The staging deployment-safety/preflight change described below is the next repository checkpoint.
+- HEAD / origin: `62b4f1f7e66669dde2de405803eb77ea0c7e251f` (`chore(staging): harden deployment preflight`); `develop` = `origin/develop`; working tree clean
 - **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
-- Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No Stripe Dashboard/API activity in this work.
-- `taskio-api` Cloud Run remains **private** (no `allUsers`). No webhook Cloud Run service, webhook runtime SA, webhook IAM, Stripe webhook endpoint, or new DNS exists yet.
-- GitHub Actions run `32577334560` at `f8eb0ae8`: **SUCCESS**. All seven jobs are green: `security-rules`, `frontend`, `backend`, `functions`, `browser-smoke`, `api-image`, and `webhook-image`. Images were smoke-tested only and were not published.
-- Staging/test work is authorized only within the owner choices recorded below. Production remains frozen.
+- Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No production webhook service yet. No production data modification.
+- `taskio-api` Cloud Run remains **private** (no `allUsers`).
+- Staging/test work is authorized only as the **minimal staging validation** recorded below. This decision does **not** authorize production changes.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Exact next pickup:** execute the read-only `taskio-v2-staging` inventory in `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`, record the evidence, and then deploy the private staging API plus webhook-only staging service under the documented IAM constraints. Do not launch, enable live Stripe, expose production services, or change production data. Legal remains awaiting review.
+**Exact next pickup:** MINIMAL READ-ONLY STAGING INVENTORY for `taskio-v2-staging` only. Do not execute deployments, IAM mutations, secret-value reads, Stripe Dashboard/API work, or production changes until separately approved.
+
+## 2026-08-23 owner decision: minimal staging validation (supersedes broad staging)
+
+**Owner decision.** Taskio will **not** maintain or build a full duplicate staging environment. Staging exists only as a **temporary infrastructure and Stripe TEST-mode validation bench** before production.
+
+Reason:
+
+- the repository already has extensive automated coverage
+- building a full parallel environment adds complexity and time
+- the remaining highest-risk unknowns are Cloud Run / IAM / OIDC / Stripe integration rather than ordinary application development
+- we want the safety benefit of staging without turning staging into a second product environment
+
+Production remains frozen until final approval. This simplified staging decision does **not** authorize production changes.
+
+### Minimal staging scope (required)
+
+1. Confirm the project is exactly `taskio-v2-staging`.
+2. Region: `australia-southeast1`.
+3. Deploy private `taskio-api-staging`.
+4. Deploy public webhook-only `taskio-stripe-webhook-staging`.
+5. Use dedicated minimum-privilege runtime service accounts.
+6. Use only required staging secrets (names/versions; never print values).
+7. Stripe TEST mode only: `STRIPE_EXPECTED_LIVEMODE=false`; `sk_test_` only.
+8. Verify:
+   - API is private
+   - webhook is the only public Cloud Run service
+   - webhook SA can invoke the private API
+   - webhook SA does **not** have Firestore / Firebase Admin access
+   - HMAC validation works
+   - Google OIDC forwarding works
+   - exact audience works
+   - exact caller identity works
+   - invalid signature fails
+   - wrong / `livemode=true` event fails
+   - duplicate event is idempotent
+9. Execute **one** representative critical Stripe lifecycle: TEST Checkout/funding, webhook confirmation, and one representative refund/cancellation path.
+10. Capture enough rollback information to undo the staging services/IAM if required.
+
+Intent: a **short** validation phase (roughly a few focused hours if infrastructure behaves as expected), not a multi-day staging-environment project. That estimate is **not** a hard deadline.
+
+### Out of scope for minimal staging
+
+**Not required** before production readiness unless testing reveals a specific need:
+
+- polished staging frontend
+- `staging.taskio.com.au`
+- custom staging DNS
+- full duplicate Firebase Hosting environment
+- complete staging Auth-provider rollout
+- staging App Check rollout
+- full staging Storage / user-content migration
+- exhaustive staging browser regression
+- permanent staging monitoring dashboards
+- complete replication of production configuration
+- comprehensive staging data population
+- long-lived staging operational environment
+
+### Browser / product testing
+
+Normal user-journey / browser acceptance **still needs to happen**, but it does **not** require building a full permanent staging environment.
+
+After minimal staging proves the infrastructure/payment path:
+
+- complete critical homeowner journey
+- complete critical Task Expert journey
+- complete admin journey
+- verify registration / posting / quote / acceptance / payment / completion / review as applicable
+- fix defects found
+- perform production preflight
+- then obtain explicit owner launch approval
+
+Use the safest practical environment for those final tests while production remains contained.
+
+### Remaining gate order (current)
+
+1. Minimal read-only staging inventory.
+2. Minimal staging API/webhook deployment.
+3. Cloud Run IAM + Google OIDC verification.
+4. Stripe TEST-mode critical payment/refund rehearsal.
+5. Stop expanding staging unless a defect specifically requires it.
+6. Critical browser/user journey acceptance.
+7. Security / observability / rollback / backup / launch-runbook check.
+8. Legal readiness.
+9. Production deployment/configuration.
+10. Owner final launch approval.
+
+### Production freeze (unchanged)
+
+- `taskio.com.au` remains maintenance only
+- no public SPA
+- signup remains disabled
+- production `taskio-api` remains private
+- production `STRIPE_ENABLED=false`
+- no live Stripe
+- no production webhook service yet
+- no production data modification
+- no launch approval yet
+
+### Exact next pickup
+
+**MINIMAL READ-ONLY STAGING INVENTORY.**
+
+Answer only what is needed for the small deployment:
+
+- confirm active project identity is exactly `taskio-v2-staging`
+- existing Cloud Run services
+- candidate/runtime service accounts
+- relevant IAM bindings
+- required Secret Manager secret **names/versions only**, never values
+- Artifact Registry availability
+- Firestore existence
+- Stripe TEST configuration availability/state needed for the rehearsal
+
+Do **not** require staging frontend / DNS / Hosting work as part of this inventory.
+
+After inventory, report the **minimum exact mutations required**. Do **not** execute them until separately approved. Do **not** begin that inventory in this documentation batch.
+
+Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
 
 ## 2026-08-22 staging deployment safety and operator preflight
 
@@ -39,6 +156,8 @@
 - Deployment completion requires redacted inventory, immutable image digests, service revisions, IAM evidence, smoke results, and rollback evidence in this tracker.
 
 ### Remaining gates after this preparation
+
+Historical sequence at this checkpoint. **Superseded 2026-08-23** by the minimal staging validation decision above.
 
 1. Read-only staging inventory and evidence capture.
 2. Staging Cloud Run/IAM/secret deployment and private-hop verification.
@@ -73,6 +192,8 @@
 - Legal: **awaiting review** and therefore still a launch blocker.
 
 ### Remaining gate order
+
+Historical sequence at this checkpoint. **Superseded 2026-08-23** by the minimal staging validation decision above.
 
 1. Staging webhook/GCP preflight and configuration inventory.
 2. Staging deployment and private-hop identity verification, limited to approved non-destructive staging changes.
