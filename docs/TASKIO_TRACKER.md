@@ -4,21 +4,138 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
-> Owner authorization revised 2026-08-16: `taskio-v2-staging` is frozen and excluded. This run is repository-only. Neither Firebase project, Stripe, nor any other live service may be accessed or modified. Production deployment remains a separate approval boundary.
+> Owner authorization revised 2026-08-16: `taskio-v2-staging` is frozen and excluded. Neither Firebase project, Stripe, nor any other live service may be accessed or modified without a separate explicit approval. Production deployment remains a separate approval boundary.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Starting local/remote commit for this run: `e736581 fix(ci): restore frontend verification`
-- Starting working tree: untracked owner-authored `docs/TASKIO_TRACKER.md`; otherwise clean
-- GitHub Actions: all five jobs green at `13a22e3` (`security-rules`, `frontend`, `backend`, `functions`, `browser-smoke`)
-- Frontend: 59 suites / 410 tests passed; maintainability and production build passed
-- Backend: 44 suites / 421 tests passed; syntax checks passed
-- Firebase rules: 18/18 demo-project emulator tests passed
-- Functions: 4/4 demo-project emulator tests plus syntax/lint passed
-- Playwright: 4/4 Chromium tests passed against the compiled demo-only/local harness
-- Historical staging actions below pre-date the revised authorization. Staging is now frozen and must not be accessed.
+- HEAD / origin: `b920168fda6894e35a5353c49cdf94b3ab5adab0` (`security: add Stripe webhook forwarding runtime`); `develop` = `origin/develop`; working tree clean
+- **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
+- Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No Stripe Dashboard/API activity in this work.
+- `taskio-api` Cloud Run remains **private** (no `allUsers`). No webhook Cloud Run service, webhook runtime SA, webhook IAM, Stripe webhook endpoint, or new DNS exists yet.
+- GitHub Actions at HEAD (`32484237217`): six jobs green (`security-rules`, `frontend`, `api-image`, `browser-smoke`, `functions`, `backend`); **`webhook-image` failed on a CI-only smoke log assertion**. Image build/inspect/HTTP 404 smoke passed; image was not published.
+- Historical staging actions below pre-date the revised authorization. Staging is frozen and must not be accessed.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
+
+**Exact next pickup:** CI-only `webhook-image` smoke-test correction (preferably `.github/workflows/ci.yml` only). Do not start GCP, IAM, Cloud Run, secrets, Stripe endpoints, or `STRIPE_ENABLED` changes.
+
+## 2026-08-22 Stripe feature gating and webhook A2 handover (freeze held)
+
+**PRE-LAUNCH FREEZE remains in force.** Stripe is **not** production-enabled and Taskio is **not** launched. This checkpoint records repository-only Stripe feature gating plus webhook hardening Phases 1–3 (A2 forwarding runtime). No Stripe Dashboard/API access, no production `STRIPE_ENABLED` change, no Cloud Run/IAM/Hosting/DNS/signup/SPA/preview/staging/production-data change.
+
+- Operator `admin@taskio.com.au`; project `taskio-v2`; region `australia-southeast1`.
+- Working branch: `develop`.
+- Handover HEAD: `b920168fda6894e35a5353c49cdf94b3ab5adab0`. `develop` = `origin/develop`. Working tree clean at this checkpoint.
+
+### Stripe feature gating
+
+- Commit `9d9702bcf18ac3421619e45d7afe749de5a52c92` — `security: enforce Stripe feature gating`.
+- GitHub Actions run `32473716750` **SUCCESS**. All six jobs green: `security-rules`, `frontend`, `api-image`, `browser-smoke`, `functions`, `backend`.
+- `STRIPE_ENABLED` is now the authoritative server-side Stripe feature gate.
+- Only the exact value `STRIPE_ENABLED=true` enables Stripe. Presence of Stripe secrets does **not** implicitly enable Stripe.
+- When disabled: Checkout cannot create/retrieve Stripe sessions; paid variation Stripe operations blocked; Connect account/onboarding mutations blocked; refunds/retry-payment blocked; transfers/releases blocked; funded cancellation refund blocked; webhook processing disabled.
+- Quote eligibility no longer requires Stripe onboarding while Stripe is globally disabled.
+- Production `STRIPE_ENABLED` remains **false**.
+
+### Webhook Phase 1 — HMAC, livemode, atomic claim
+
+- Commit `086d5bc529fb21d06254488dabf5bdfc576d1ef9` — `security: harden Stripe webhook processing`.
+- GitHub Actions run `32477936987` **SUCCESS**. All six jobs green.
+- Webhook-only Express application introduced (`createWebhookApp()`). Public-style app exposes only `POST /api/stripe/webhook`. All other routes/methods 404. Raw body limit **256kb**.
+- Stripe HMAC verification decoupled from `STRIPE_SECRET_KEY`. HMAC requires `STRIPE_WEBHOOK_SECRET` only. No Stripe API call is required for webhook verification.
+- Explicit `STRIPE_EXPECTED_LIVEMODE` (`true`|`false` only; fail closed). Not inferred from `sk_*`.
+- `checkout.session.completed` no longer retrieves PaymentIntent. `payment_intent.succeeded` remains authoritative where required.
+- Stripe webhook processing no longer requires `STRIPE_SECRET_KEY`.
+- `stripe_events` claiming changed from non-atomic writes to a transactional lease/claim model (server UUID `claimId`, ~60s lease). Concurrent duplicate deliveries cannot execute handlers twice. A stale worker cannot settle a newer claim. Duplicate processed → 200; in-flight valid lease → 503.
+- `processVerifiedStripeEvent(event)` separated from the HTTP/HMAC layer.
+
+### Webhook Phase 2 — private internal ingest
+
+- Commit `cd05b790860e9ec9d10e3903d0271303fffc96e5` — `security: secure internal Stripe webhook ingest`.
+- GitHub Actions run `32479216717` **SUCCESS**. All six jobs green.
+- Private `taskio-api` now contains `POST /internal/stripe/verified-event`.
+- `taskio-api` is still assumed private behind Cloud Run IAM. This route does **not** use Firebase end-user authentication.
+- Google service-to-service ID token is independently verified (`google-auth-library` is a direct backend dependency).
+- Audience must equal `STRIPE_INTERNAL_AUDIENCE`. Caller email must equal `STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT`. `email_verified` required.
+- Invalid identity causes zero Firestore processing. Event structure and livemode are independently checked.
+- `processVerifiedStripeEvent` remains the single business-processing path.
+- No Stripe HMAC secret and no Stripe secret key are required on this second hop.
+- Intended audience is the private `taskio-api` Cloud Run **base URL**, not the ingest path.
+- Main-API ingest env is validated only on the private API process when Stripe is enabled. Webhook-only processes must not call `validateMainApiStripeIngestEnv()`.
+
+### Webhook Phase 3 — A2 forwarding runtime (repository)
+
+- Commit `b920168fda6894e35a5353c49cdf94b3ab5adab0` — `security: add Stripe webhook forwarding runtime`.
+- Preferred A2 architecture:
+
+```
+Stripe
+  → dedicated public webhook-only Cloud Run
+  → Stripe HMAC verification + expected livemode
+  → Google OIDC / ADC service identity
+  → private taskio-api POST /internal/stripe/verified-event
+  → atomic stripe_events processing
+```
+
+- Repository additions: dedicated `backend/src/webhookServer.js`; forward-only HMAC route (`stripeWebhookForward.js`); `stripeEventForwarder`; ADC Google ID-token client (`googleIdTokenClient.js`); shared event-shape validation; dedicated webhook runtime env validation; `Dockerfile.webhook`; separate CI `webhook-image` job.
+- Public webhook runtime exposes only `POST /api/stripe/webhook`. It does not mount the Taskio main API, does not expose `/internal/stripe/verified-event`, does not initialise Firebase Admin / Firestore, does not require `roles/datastore.user`, and does not require `STRIPE_SECRET_KEY`.
+- Google ID token is obtained using ADC / runtime service identity. Token audience is the configured private `taskio-api` HTTPS base origin (`STRIPE_INTERNAL_AUDIENCE`; no path). Internal destination is derived server-side as `<audience>/internal/stripe/verified-event` and cannot come from the Stripe event or client data.
+- One internal POST per Stripe delivery. No automatic forwarding retries. Private hop timeout **8 seconds**. Timeout/token/network failure → retryable 5xx to Stripe. Private 200 → public 200; 503 → 503; 5xx → generic 5xx; 401/403 → generic server/config failure; 400 → fail closed. Private response bodies are not leaked.
+- Atomic `stripe_events` claim remains **private-side only**. Public ingress does not call `processVerifiedStripeEvent()` in A2/forward mode.
+- Existing private `taskio-api` `POST /api/stripe/webhook` HMAC+process route is **retained temporarily** for compatibility. It is **not** the future public ingress.
+- When `STRIPE_ENABLED=false`, the webhook process starts without webhook secret/audience and the route returns 404. When enabled it requires `STRIPE_WEBHOOK_SECRET`, `STRIPE_EXPECTED_LIVEMODE`, and `STRIPE_INTERNAL_AUDIENCE`. Processing mode is unset/`forward` only. OTP/ABN/Gemini/Firebase/frontend/`STRIPE_SECRET_KEY` are not required on this process.
+
+### Phase 3 CI state
+
+- GitHub Actions run `32484237217` for `b920168fda6894e35a5353c49cdf94b3ab5adab0`.
+- **PASS:** `security-rules`, `frontend`, `api-image`, `browser-smoke`, `functions`, `backend`.
+- **FAIL:** `webhook-image` — step `Smoke start with Stripe disabled` only.
+- This is **not** an application failure, **not** a Dockerfile build failure, and **not** a dependency failure.
+- `webhook-image` results that passed: image build; config inspection (runtime user `node`; `CMD ["node","src/webhookServer.js"]`); credential/layout inspection (no `.env`, no service-account JSON, no `.git`, no frontend/`shared` directory); disabled-mode HTTP smoke `GET /` → 404 and `POST /api/stripe/webhook` → 404. Image was **not** published.
+- Failure occurred only because CI required the informational log line `webhook_server_started`. Docker logs at assertion time contained only dotenv startup output (`injecting env (0) from .env`). Likely stdout/log buffering/timing.
+- Pending fix: CI-only removal/replacement of the brittle positive log assertion. **Do not classify Phase 3 repository work as fully CI-green until `webhook-image` passes.**
+
+### Production / freeze (unchanged)
+
+- Public maintenance page only; no public SPA; no Hosting preview.
+- Firebase end-user signup disabled (`disabledUserSignup=true`).
+- `taskio-api` Cloud Run remains private; no `allUsers`.
+- `STRIPE_ENABLED=false`; Stripe not launched; no live Stripe configuration.
+- No webhook Cloud Run service exists yet. No webhook runtime service account. No webhook IAM changes. No Stripe webhook endpoint configured. No new DNS.
+- No production data changes from this work.
+
+This is **not** a Taskio launch. **A03 remains incomplete.**
+
+### Next pickup
+
+Exact next action: **CI-only `webhook-image` smoke-test correction.**
+
+Scope:
+
+- preferably modify only `.github/workflows/ci.yml`
+- remove the brittle positive requirement for `webhook_server_started`
+- retain deterministic HTTP 404 smoke checks
+- retain image build / user / CMD / layout / credential checks
+- retain negative Firebase/secret log checks
+- commit/push
+- require all **seven** jobs green: `security-rules`, `frontend`, `api-image`, `webhook-image`, `browser-smoke`, `functions`, `backend`
+
+After all seven are green:
+
+**NEXT:** READ-ONLY GCP WEBHOOK DEPLOYMENT PREFLIGHT.
+
+That preflight must initially be inventory/planning only. No Cloud Run creation, IAM mutation, service-account creation, Secret Manager mutation, image push/deploy, Stripe endpoint configuration, or `STRIPE_ENABLED` change. Later infrastructure mutations require separate explicit approval.
+
+Remaining Stripe/product items after webhook infrastructure work:
+
+- Stripe **TEST-mode** E2E before live
+- live Stripe configuration much later
+- admin vs `super_admin` payment policy review
+- transfer reversal design if required
+- frontend disabled-payment/onboarding UX gate
+- browser/API public-access architecture remains separate from webhook ingress
+- A03 remains incomplete
+- product must not be launched yet
 
 ## 2026-08-20 Stripe repository hardening (freeze held)
 
@@ -169,7 +286,7 @@ This is **not** a Taskio launch.
 
 ### Next pickup
 
-Do **not** start these in this session. Recommended next work session:
+Historical recommended sequence at this checkpoint (items 1–2 completed in the 2026-08-22 handover above):
 
 1. repository-only `STRIPE_ENABLED` checkout gating
 2. then webhook ingress architecture that exposes **only** the required Stripe webhook safely without unnecessarily opening the whole API
