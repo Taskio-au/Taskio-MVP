@@ -4,20 +4,54 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
-> Owner authorization revised 2026-08-16: `taskio-v2-staging` is frozen and excluded. Neither Firebase project, Stripe, nor any other live service may be accessed or modified without a separate explicit approval. Production deployment remains a separate approval boundary.
+> Owner authorization revised 2026-08-22: non-destructive staging and test-mode work is approved. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- HEAD / origin: `b920168fda6894e35a5353c49cdf94b3ab5adab0` (`security: add Stripe webhook forwarding runtime`); `develop` = `origin/develop`; working tree clean
+- Verified remote `develop`: `f8eb0ae8d277ea4a5ba5570e8108a18e7d9fdbf1` (`fix: enforce custom job item requirements`). Local source commits: `b5fee75` (webhook CI smoke), `1d65ed9` (custom-item semantics), and `518a8ba` (photo-required completion gates). Working tree clean before this tracker update.
 - **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
 - Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No Stripe Dashboard/API activity in this work.
 - `taskio-api` Cloud Run remains **private** (no `allUsers`). No webhook Cloud Run service, webhook runtime SA, webhook IAM, Stripe webhook endpoint, or new DNS exists yet.
-- GitHub Actions at HEAD (`32484237217`): six jobs green (`security-rules`, `frontend`, `api-image`, `browser-smoke`, `functions`, `backend`); **`webhook-image` failed on a CI-only smoke log assertion**. Image build/inspect/HTTP 404 smoke passed; image was not published.
-- Historical staging actions below pre-date the revised authorization. Staging is frozen and must not be accessed.
+- GitHub Actions run `32577334560` at `f8eb0ae8`: **SUCCESS**. All seven jobs are green: `security-rules`, `frontend`, `backend`, `functions`, `browser-smoke`, `api-image`, and `webhook-image`. Images were smoke-tested only and were not published.
+- Staging/test work is authorized only within the owner choices recorded below. Production remains frozen.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Exact next pickup:** CI-only `webhook-image` smoke-test correction (preferably `.github/workflows/ci.yml` only). Do not start GCP, IAM, Cloud Run, secrets, Stripe endpoints, or `STRIPE_ENABLED` changes.
+**Exact next pickup:** complete the remaining pre-launch gates in staging/test mode, beginning with a staging webhook/GCP deployment preflight. Do not launch, enable live Stripe, expose production services, or change production data. Legal remains awaiting review.
+
+## 2026-08-22 seven-job CI and custom-item gate completion
+
+**Outcome:** the repository fixes and CI gate are complete. This is **not** launch approval.
+
+- `b5fee75` removed the timing-sensitive webhook startup-log assertion while retaining deterministic HTTP 404, container user/CMD/layout, and negative secret/Firebase checks.
+- `1d65ed9` aligned phase-one scope checks and posting requirements with custom-item text, including apartment make-good photo requirements and mirror-size/photo rules.
+- `518a8ba` enforced photo-required completion gates through API and admin/expert completion paths.
+- Local validation passed: backend **64 suites / 672 tests**, frontend **60 suites / 418 tests**, frontend production build, functions lint, focused backend tests, and `git diff --check`.
+- GitHub remote checkpoint: `f8eb0ae8d277ea4a5ba5570e8108a18e7d9fdbf1`.
+- GitHub Actions run `32577334560`: all seven jobs green.
+
+### Owner decisions now governing remaining work
+
+- `1A`: commit and push `develop` after green validation.
+- `2A`: staging-only, non-destructive GCP/Firebase work is authorized.
+- `3A`: Stripe **TEST-mode synthetic data only**.
+- `4A`: production remains frozen.
+- `5A`: staging test accounts may be used.
+- `6A`: `super_admin` is required for manual financial operations.
+- `7A`: no automated post-payout refunds during the pilot.
+- Launch: **not approved**; owner will review after all gates are complete.
+- Legal: **awaiting review** and therefore still a launch blocker.
+
+### Remaining gate order
+
+1. Staging webhook/GCP preflight and configuration inventory.
+2. Staging deployment and private-hop identity verification, limited to approved non-destructive staging changes.
+3. Stripe TEST-mode synthetic end-to-end payment/webhook/refund-path rehearsal.
+4. Staging test-account browser journeys and operational/admin checks.
+5. Security, observability, rollback, backup, and launch-runbook evidence review.
+6. Legal approval and owner final launch review.
+
+Production launch, public enablement, and live Stripe remain blocked until steps 1–6 are evidenced and the owner gives a new explicit approval.
 
 ## 2026-08-22 Stripe feature gating and webhook A2 handover (freeze held)
 
