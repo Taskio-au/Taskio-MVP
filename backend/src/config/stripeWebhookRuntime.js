@@ -4,6 +4,11 @@ const { isStripeEnabled } = require('./stripeEnabled');
 const { parseStripeExpectedLivemode } = require('./stripeLivemode');
 const { parseStripeInternalAudience } = require('./stripeInternalAudience');
 const { STRIPE_INTERNAL_INGEST_PATH } = require('./stripeInternalPath');
+const {
+  DEPLOYMENT_ENV_PRODUCTION,
+  DEPLOYMENT_ENV_STAGING,
+  validateDeploymentEnvironment,
+} = require('./deploymentEnvironment');
 
 const FORWARD_TIMEOUT_MS = 8000;
 const WEBHOOK_PROCESSING_MODE_FORWARD = 'forward';
@@ -70,8 +75,14 @@ function validateWebhookRuntimeEnv() {
   }
 
   const env = process.env.NODE_ENV || 'development';
-  if (env === 'production' && expectedLivemode !== true) {
-    throw new Error('Production Stripe must expect live mode.');
+  if (env === 'production') {
+    const deploymentEnvironment = validateDeploymentEnvironment();
+    if (deploymentEnvironment === DEPLOYMENT_ENV_PRODUCTION && expectedLivemode !== true) {
+      throw new Error('Production Stripe must expect live mode.');
+    }
+    if (deploymentEnvironment === DEPLOYMENT_ENV_STAGING && expectedLivemode !== false) {
+      throw new Error('Staging Stripe must expect test mode.');
+    }
   }
 }
 

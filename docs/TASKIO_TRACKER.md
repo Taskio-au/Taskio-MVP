@@ -8,7 +8,7 @@
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Verified remote `develop`: `f8eb0ae8d277ea4a5ba5570e8108a18e7d9fdbf1` (`fix: enforce custom job item requirements`). Local source commits: `b5fee75` (webhook CI smoke), `1d65ed9` (custom-item semantics), and `518a8ba` (photo-required completion gates). Working tree clean before this tracker update.
+- Verified remote `develop`: `f8eb0ae8d277ea4a5ba5570e8108a18e7d9fdbf1` (`fix: enforce custom job item requirements`). Local source commits: `b5fee75` (webhook CI smoke), `1d65ed9` (custom-item semantics), and `518a8ba` (photo-required completion gates). The staging deployment-safety/preflight change described below is the next repository checkpoint.
 - **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
 - Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No Stripe Dashboard/API activity in this work.
 - `taskio-api` Cloud Run remains **private** (no `allUsers`). No webhook Cloud Run service, webhook runtime SA, webhook IAM, Stripe webhook endpoint, or new DNS exists yet.
@@ -17,7 +17,37 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Exact next pickup:** complete the remaining pre-launch gates in staging/test mode, beginning with a staging webhook/GCP deployment preflight. Do not launch, enable live Stripe, expose production services, or change production data. Legal remains awaiting review.
+**Exact next pickup:** execute the read-only `taskio-v2-staging` inventory in `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`, record the evidence, and then deploy the private staging API plus webhook-only staging service under the documented IAM constraints. Do not launch, enable live Stripe, expose production services, or change production data. Legal remains awaiting review.
+
+## 2026-08-22 staging deployment safety and operator preflight
+
+**Outcome:** repository preparation for the staging webhook deployment is complete. No GCP, Firebase, Stripe, Hosting, DNS, IAM, Secret Manager, or production mutation was performed in this phase.
+
+- Added a fail-closed deployment identity contract: `TASKIO_DEPLOYMENT_ENV` is limited to `production` or `staging`; staging is accepted only for the exact Google Cloud project `taskio-v2-staging`; that project cannot be declared as production.
+- Production-hardened staging services may use Stripe TEST mode only: `STRIPE_EXPECTED_LIVEMODE=false` and an `sk_test_` API key. Live-mode events or a live secret key are rejected in staging.
+- Production behavior remains unchanged: a production deployment with Stripe enabled requires expected live mode and an `sk_live_` key.
+- Added regression coverage for accepted staging TEST configuration, forged staging declarations, live Stripe in staging, and treating the staging project as production.
+- Added secret-free `backend/env.staging.example` and the operational checklist `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
+- Local backend gate passed: **64 suites / 679 tests**. `git diff --check` passed.
+
+### Staging deployment boundary
+
+- Fixed project: `taskio-v2-staging`; fixed region: `australia-southeast1`.
+- Intended services: private `taskio-api-staging` and public webhook-only `taskio-stripe-webhook-staging`.
+- Only the webhook runtime may be public. Its service account may invoke the private staging API only and must not receive Firestore/Firebase Admin access or API-only secrets.
+- Stripe remains TEST mode. The first accepted event must prove the Google identity-token hop, exact caller/audience checks, atomic event processing, idempotent replay, and `livemode=true` rejection.
+- Deployment completion requires redacted inventory, immutable image digests, service revisions, IAM evidence, smoke results, and rollback evidence in this tracker.
+
+### Remaining gates after this preparation
+
+1. Read-only staging inventory and evidence capture.
+2. Staging Cloud Run/IAM/secret deployment and private-hop verification.
+3. Stripe TEST synthetic end-to-end rehearsal, including refund-path policy behavior.
+4. Staging browser journeys with approved test accounts and operational/admin checks.
+5. Security, observability, backup, rollback, and launch-runbook evidence review.
+6. Legal approval and owner final launch review.
+
+**PRE-LAUNCH FREEZE remains fully in force.** This repository checkpoint is not a deployment, does not make the product launch-ready by itself, and does not authorize production changes.
 
 ## 2026-08-22 seven-job CI and custom-item gate completion
 

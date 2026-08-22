@@ -23,6 +23,10 @@ const KEYS = [
   'NODE_ENV',
   'CORS_ORIGINS',
   'TRUST_PROXY',
+  'TASKIO_DEPLOYMENT_ENV',
+  'GOOGLE_CLOUD_PROJECT',
+  'GCLOUD_PROJECT',
+  'FIREBASE_PROJECT_ID',
 ];
 
 describe('webhook runtime env validation', () => {
@@ -128,5 +132,42 @@ describe('webhook runtime env validation', () => {
     process.env.STRIPE_ENABLED = 'false';
     process.env.STRIPE_WEBHOOK_PROCESSING_MODE = 'direct';
     expect(() => validateWebhookRuntimeEnv()).toThrow('forward');
+  });
+
+  test('production-hardened staging webhook accepts test events only in staging', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.TASKIO_DEPLOYMENT_ENV = 'staging';
+    process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
+    process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
+    expect(() => validateWebhookRuntimeEnv()).not.toThrow();
+  });
+
+  test('production-hardened webhook rejects a forged staging declaration', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.TASKIO_DEPLOYMENT_ENV = 'staging';
+    process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2';
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
+    process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
+    expect(() => validateWebhookRuntimeEnv()).toThrow(
+      'Staging deployment requires Google Cloud project taskio-v2-staging.',
+    );
+  });
+
+  test('production-hardened webhook rejects treating staging as production', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.TASKIO_DEPLOYMENT_ENV = 'production';
+    process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
+    process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
+    expect(() => validateWebhookRuntimeEnv()).toThrow(
+      'Google Cloud project taskio-v2-staging requires TASKIO_DEPLOYMENT_ENV=staging.',
+    );
   });
 });

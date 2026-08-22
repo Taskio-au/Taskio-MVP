@@ -14,6 +14,10 @@ const ENV_KEYS = [
   'STRIPE_EXPECTED_LIVEMODE',
   'FRONTEND_URL',
   'TASKIO_SHOW_DEV_OTP',
+  'TASKIO_DEPLOYMENT_ENV',
+  'GOOGLE_CLOUD_PROJECT',
+  'GCLOUD_PROJECT',
+  'FIREBASE_PROJECT_ID',
 ];
 
 describe('validateEnv production secrets', () => {
@@ -96,5 +100,53 @@ describe('validateEnv production secrets', () => {
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     expect(() => validateEnv()).toThrow('Production Stripe must use a live secret key.');
+  });
+
+  it('allows Stripe test mode only for the explicitly identified staging project', () => {
+    process.env.TASKIO_DEPLOYMENT_ENV = 'staging';
+    process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_example';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it('rejects a staging declaration outside the staging project', () => {
+    process.env.TASKIO_DEPLOYMENT_ENV = 'staging';
+    process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2';
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY = 'sk_test_example';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
+    expect(() => validateEnv()).toThrow(
+      'Staging deployment requires Google Cloud project taskio-v2-staging.',
+    );
+  });
+
+  it('rejects live Stripe configuration in the staging project', () => {
+    process.env.TASKIO_DEPLOYMENT_ENV = 'staging';
+    process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY = 'sk_live_example';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
+    expect(() => validateEnv()).toThrow('Staging Stripe must expect test mode.');
+  });
+
+  it('rejects treating the staging project as production', () => {
+    process.env.TASKIO_DEPLOYMENT_ENV = 'production';
+    process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY = 'sk_live_example';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
+    expect(() => validateEnv()).toThrow(
+      'Google Cloud project taskio-v2-staging requires TASKIO_DEPLOYMENT_ENV=staging.',
+    );
   });
 });

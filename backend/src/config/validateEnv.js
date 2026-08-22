@@ -2,6 +2,11 @@
 
 const { isStripeEnabled } = require('./stripeEnabled');
 const { parseStripeExpectedLivemode } = require('./stripeLivemode');
+const {
+  DEPLOYMENT_ENV_PRODUCTION,
+  DEPLOYMENT_ENV_STAGING,
+  validateDeploymentEnvironment,
+} = require('./deploymentEnvironment');
 
 function requireNonEmpty(name, value) {
   if (typeof value !== 'string' || value.trim().length === 0) {
@@ -39,11 +44,24 @@ function validateEnv() {
       throw new Error('Missing required env var: STRIPE_EXPECTED_LIVEMODE');
     }
     if (env === 'production') {
-      if (expectedLivemode !== true) {
+      const deploymentEnvironment = validateDeploymentEnvironment();
+      if (deploymentEnvironment === DEPLOYMENT_ENV_PRODUCTION && expectedLivemode !== true) {
         throw new Error('Production Stripe must expect live mode.');
       }
-      if (!String(process.env.STRIPE_SECRET_KEY).startsWith('sk_live_')) {
+      if (
+        deploymentEnvironment === DEPLOYMENT_ENV_PRODUCTION
+        && !String(process.env.STRIPE_SECRET_KEY).startsWith('sk_live_')
+      ) {
         throw new Error('Production Stripe must use a live secret key.');
+      }
+      if (deploymentEnvironment === DEPLOYMENT_ENV_STAGING && expectedLivemode !== false) {
+        throw new Error('Staging Stripe must expect test mode.');
+      }
+      if (
+        deploymentEnvironment === DEPLOYMENT_ENV_STAGING
+        && !String(process.env.STRIPE_SECRET_KEY).startsWith('sk_test_')
+      ) {
+        throw new Error('Staging Stripe must use a test secret key.');
       }
     }
   }
@@ -66,5 +84,4 @@ function validateEnv() {
 }
 
 module.exports = { validateEnv };
-
 
