@@ -1,6 +1,7 @@
 'use strict';
 
 const { phase1ExpertiseCatalog } = require('../shared/expertiseCatalog');
+const { itemScopeText } = require('../shared/jobPostingSemantics');
 
 const MAX_JOB_ITEMS = 20;
 const MIN_QUANTITY = 1;
@@ -67,10 +68,6 @@ function normalizeJobItems({ jobType, primaryCategory, items }) {
     primaryRow,
     legacyInput: false,
   };
-}
-
-function itemScopeText(items) {
-  return (items || []).map((item) => item.customDescription || '').filter(Boolean).join(' ');
 }
 
 module.exports = {

@@ -182,4 +182,53 @@ describe('JobPostingForm', () => {
     expect(screen.getByText(/Small wall-mounted planters/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /next/i })).not.toBeDisabled();
   });
+
+  it('blocks custom item text that is outside the Phase 1 scope before submission', () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('button', { name: /assembly/i }));
+    fireEvent.click(screen.getByLabelText(/something else within this category/i));
+    fireEvent.change(screen.getByLabelText(/custom task item description/i), {
+      target: { value: 'Electrical cabinet work' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /^description \*/i }), {
+      target: { value: 'Please complete the listed work in the study.' },
+    });
+
+    expect(screen.getByText(/outside our current scope/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
+  });
+
+  it('requires a photo for a custom-only Apartment Make-Good brief', () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('button', { name: /make-good/i }));
+    fireEvent.click(screen.getByLabelText(/something else within this category/i));
+    fireEvent.change(screen.getByLabelText(/custom task item description/i), {
+      target: { value: 'Small cosmetic move-out fixes' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /^description \*/i }), {
+      target: { value: 'Please complete the listed cosmetic fixes before handover.' },
+    });
+
+    expect(screen.getByText(/please upload at least 1 photo so experts can quote this job/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
+  });
+
+  it('applies mirror size and photo rules to custom mirror work', () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('button', { name: /mounting/i }));
+    fireEvent.click(screen.getByLabelText(/something else within this category/i));
+    fireEvent.change(screen.getByLabelText(/custom task item description/i), {
+      target: { value: 'Mount a mirror above the console' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /^description \*/i }), {
+      target: { value: 'Install the listed item securely on an internal wall.' },
+    });
+
+    expect(screen.getByText(/mirror size \*/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText(/large or heavy mirror/i));
+    expect(screen.getByText(/please upload at least 1 photo so experts can quote this job/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
+  });
 });

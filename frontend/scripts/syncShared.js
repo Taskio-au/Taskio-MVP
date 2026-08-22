@@ -124,12 +124,53 @@ function main() {
   ].join('\n');
   writeFile(jobDest, jobOut);
   console.log('[syncShared] generated', path.relative(root, jobDest));
+
+  const postingSemanticsPath = path.join(root, 'shared', 'jobPostingSemantics.js');
+  if (!fs.existsSync(postingSemanticsPath)) {
+    console.error('[syncShared] Missing job posting semantics:', postingSemanticsPath);
+    process.exit(1);
+  }
+  try {
+    delete require.cache[require.resolve(postingSemanticsPath)];
+  } catch (_) {
+    // ignore
+  }
+  // eslint-disable-next-line import/no-dynamic-require, global-require
+  const postingSemantics = require(postingSemanticsPath);
+  const postingSemanticsDest = path.join(__dirname, '..', 'src', 'shared', 'jobPostingSemantics.generated.js');
+  const postingSemanticsOut = [
+    '// AUTO-GENERATED from shared/jobPostingSemantics.js — do not edit',
+    '',
+    `export const MIRROR_CATALOG_TYPE = ${toJsStringLiteral(postingSemantics.MIRROR_CATALOG_TYPE)};`,
+    `export const MIRROR_CATEGORY = ${toJsStringLiteral(postingSemantics.MIRROR_CATEGORY)};`,
+    `export const REQUIRED_PHOTO_CATEGORIES = ${JSON.stringify(postingSemantics.REQUIRED_PHOTO_CATEGORIES)};`,
+    'const mirrorCustomItemPattern = /\\bmirrors?\\b/i;',
+    '',
+    'export function itemScopeText(items) {',
+    '  return (items || [])',
+    "    .map((item) => String(item?.customDescription || '').trim())",
+    '    .filter(Boolean)',
+    "    .join(' ');",
+    '}',
+    '',
+    'export function itemRepresentsMirrorWork(item, primaryCategory) {',
+    '  if (item?.type === MIRROR_CATALOG_TYPE) return true;',
+    '  return primaryCategory === MIRROR_CATEGORY',
+    "    && item?.type === 'custom'",
+    "    && mirrorCustomItemPattern.test(String(item.customDescription || ''));",
+    '}',
+    '',
+    'export function includesMirrorWork(items, primaryCategory) {',
+    '  return (items || []).some((item) => itemRepresentsMirrorWork(item, primaryCategory));',
+    '}',
+    '',
+    'export function categoryRequiresPostingPhoto(primaryCategory) {',
+    "  return REQUIRED_PHOTO_CATEGORIES.includes(String(primaryCategory || '').trim());",
+    '}',
+    '',
+  ].join('\n');
+  writeFile(postingSemanticsDest, postingSemanticsOut);
+  console.log('[syncShared] generated', path.relative(root, postingSemanticsDest));
 }
 
 main();
-
-
-
-
-
-

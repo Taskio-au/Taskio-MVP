@@ -11,6 +11,11 @@ import {
     getTopLevelCategoryId,
 } from '../constants/taskTaxonomy';
 import { melbournePilotLocations } from '../shared/auLocations';
+import {
+    categoryRequiresPostingPhoto,
+    includesMirrorWork,
+    itemScopeText,
+} from '../shared/jobPostingSemantics.generated';
 import TaskSummary from './job-posting/TaskSummaryCard';
 import LegalNotice from './LegalNotice';
 import {
@@ -387,17 +392,34 @@ function JobPostingForm() {
         () => groupedJobTypes.find((group) => group.id === selectedTopLevelCategory) || null,
         [groupedJobTypes, selectedTopLevelCategory]
     );
+    const includesMirror = useMemo(
+        () => includesMirrorWork(formData.items, selectedTopLevelGroup?.sourceCategory),
+        [formData.items, selectedTopLevelGroup]
+    );
     const phase1TextScopeError = useMemo(
-        () => getOutOfScopeTextError(selectedJobType?.label || '', formData.description),
-        [formData.description, selectedJobType]
+        () => getOutOfScopeTextError(
+            selectedJobType?.label || '',
+            `${formData.description} ${itemScopeText(formData.items)}`
+        ),
+        [formData.description, formData.items, selectedJobType]
     );
     const photoRequirement = useMemo(() => {
         const rank = { [PHOTO_LEVELS.NONE]: 0, [PHOTO_LEVELS.RECOMMENDED]: 1, [PHOTO_LEVELS.REQUIRED]: 2 };
-        return (formData.items || []).reduce((highest, item) => {
+        const categoryMinimum = categoryRequiresPostingPhoto(selectedTopLevelGroup?.sourceCategory)
+            ? PHOTO_LEVELS.REQUIRED
+            : PHOTO_LEVELS.NONE;
+        const itemRequirement = (formData.items || []).reduce((highest, item) => {
             const next = getPhotoRequirement(item.type, formData.mirrorSize);
             return rank[next] > rank[highest] ? next : highest;
         }, PHOTO_LEVELS.NONE);
-    }, [formData.items, formData.mirrorSize]);
+        const mirrorRequirement = includesMirror
+            ? (formData.mirrorSize === 'large_heavy' ? PHOTO_LEVELS.REQUIRED : PHOTO_LEVELS.RECOMMENDED)
+            : PHOTO_LEVELS.NONE;
+        return [categoryMinimum, itemRequirement, mirrorRequirement].reduce(
+            (highest, next) => (rank[next] > rank[highest] ? next : highest),
+            PHOTO_LEVELS.NONE
+        );
+    }, [formData.items, formData.mirrorSize, includesMirror, selectedTopLevelGroup]);
     
     // Move all useId calls to the top level
     const descId = useId(), firstNameId = useId(), phoneId = useId(), otpId = useId();
@@ -470,6 +492,11 @@ function JobPostingForm() {
             setSelectedTopLevelCategory(categoryId);
         }
     }, [formData.jobType, formData.primaryCategoryId, selectedTopLevelCategory]);
+
+    useEffect(() => {
+        if (includesMirror || !formData.mirrorSize) return;
+        setFormData((prev) => ({ ...prev, mirrorSize: '' }));
+    }, [formData.mirrorSize, includesMirror]);
 
     const handleLocationChange = useCallback((e) => {
         const nextLocation = normalizeSelectedLocation(e.target.value);
@@ -623,7 +650,7 @@ function JobPostingForm() {
                         && Number(item.quantity) <= 99
                         && (item.type !== 'custom' || String(item.customDescription || '').trim().length >= 3)
                     ))
-                    && (!formData.items.some((item) => item.type === 'mounting_mirrors') || !!formData.mirrorSize)
+                    && (!includesMirror || !!formData.mirrorSize)
                     && formData.description.trim().length >= 10
                     && !phase1TextScopeError
                     && (photoRequirement !== PHOTO_LEVELS.REQUIRED || photos.length > 0);
@@ -640,7 +667,7 @@ function JobPostingForm() {
             }
             default: return false;
         }
-    }, [acceptedLegal, currentStep, formData, formErrors.location, otpCode, otpRequested, phase1TextScopeError, photoRequirement, photos.length]);
+    }, [acceptedLegal, currentStep, formData, formErrors.location, includesMirror, otpCode, otpRequested, phase1TextScopeError, photoRequirement, photos.length]);
 
     const nextStep = useCallback(() => setCurrentStep(prev => Math.min(prev + 1, totalSteps)), [totalSteps]);
     const prevStep = useCallback(() => setCurrentStep(prev => Math.max(1, prev - 1)), []);
@@ -675,10 +702,10 @@ function JobPostingForm() {
                 parking: formData.parking,
             },
             details: {
-                mirrorSize: formData.items?.some((item) => item.type === 'mounting_mirrors') ? formData.mirrorSize : '',
+                mirrorSize: includesMirror ? formData.mirrorSize : '',
             },
         };
-    }, [formData, selectedJobType, selectedTopLevelGroup]);
+    }, [formData, includesMirror, selectedJobType, selectedTopLevelGroup]);
 
     const uploadPhotosForJob = useCallback(async (jobId) => {
         if (!jobId || photos.length === 0) return [];
@@ -954,7 +981,7 @@ function JobPostingForm() {
                         </div>
                     </div>
 
-                    {formData.items?.some((item) => item.type === 'mounting_mirrors') && (
+                    {includesMirror && (
                         <div style={{ marginBottom: '22px' }}>
                             <div className="taskio-fieldLabel" style={{ marginBottom: '8px' }}>Mirror size *</div>
                             <div style={{ display: 'grid', gap: '10px' }}>

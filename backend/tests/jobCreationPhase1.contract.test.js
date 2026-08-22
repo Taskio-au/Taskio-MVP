@@ -191,6 +191,32 @@ describe('job creation Phase 1 contract', () => {
     expect(job.items[2]).toEqual({ type: 'custom', quantity: 2, customDescription: 'Small wall-mounted planters' });
   });
 
+  it('requires mirror details when a custom Mounting item describes mirror work', async () => {
+    const payload = {
+      primaryCategory: 'Mounting',
+      items: [{ type: 'custom', quantity: 1, customDescription: 'Mount a mirror above the console' }],
+      description: 'Install the listed item securely on an internal wall.',
+      location: { suburb: 'Richmond', state: 'VIC', postcode: '3121' },
+      estimatedDuration: 'under_1_hour',
+      timeline: 'Flexible',
+      budget: 'under_150',
+      siteAccess: {
+        propertyType: 'apartment_unit', liftAvailable: 'yes', stairs: 'none', parking: 'easy',
+      },
+      details: { mirrorSize: '' },
+    };
+
+    const missingDetailsRes = await request(app).post('/api/jobs').send(payload);
+    expect(missingDetailsRes.status).toBe(400);
+    expect(missingDetailsRes.body.message).toBe('Please confirm whether the mirror is standard or large/heavy.');
+
+    const validRes = await request(app)
+      .post('/api/jobs')
+      .send({ ...payload, details: { mirrorSize: 'large_heavy' } });
+    expect(validRes.status).toBe(201);
+    expect(readDocs('jobs')[0].details).toEqual({ mirrorSize: 'large_heavy' });
+  });
+
   it('rejects jobs outside the inner Melbourne allowlist with the exact launch message', async () => {
     const res = await request(app)
       .post('/api/jobs')
