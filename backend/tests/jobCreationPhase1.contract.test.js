@@ -215,6 +215,42 @@ describe('job creation Phase 1 contract', () => {
       .send({ ...payload, details: { mirrorSize: 'large_heavy' } });
     expect(validRes.status).toBe(201);
     expect(readDocs('jobs')[0].details).toEqual({ mirrorSize: 'large_heavy' });
+    expect(readDocs('jobs')[0]).toMatchObject({
+      postingPhotoRequired: true,
+      postingReady: false,
+    });
+  });
+
+  it('keeps a custom-only Apartment Make-Good brief unready until a photo is saved', async () => {
+    const createRes = await request(app)
+      .post('/api/jobs')
+      .send({
+        primaryCategory: 'Apartment Make-Good',
+        items: [{ type: 'custom', quantity: 1, customDescription: 'Patch small picture-hook holes' }],
+        description: 'A few small cosmetic fixes before moving out.',
+        location: { suburb: 'Carlton', state: 'VIC', postcode: '3053' },
+        estimatedDuration: 'under_1_hour',
+        timeline: 'Flexible',
+        budget: 'under_150',
+        siteAccess: {
+          propertyType: 'apartment_unit', liftAvailable: 'yes', stairs: 'none', parking: 'limited',
+        },
+        details: { mirrorSize: '' },
+      });
+
+    expect(createRes.status).toBe(201);
+    const jobId = createRes.body.jobId;
+    expect(readDocs('jobs')[0]).toMatchObject({
+      primaryCategory: 'Apartment Make-Good',
+      postingPhotoRequired: true,
+      postingReady: false,
+    });
+
+    const emptyPhotoRes = await request(app)
+      .post(`/api/jobs/${jobId}/photos`)
+      .send({ photos: [] });
+    expect(emptyPhotoRes.status).toBe(400);
+    expect(readDocs('jobs')[0].postingReady).toBe(false);
   });
 
   it('rejects jobs outside the inner Melbourne allowlist with the exact launch message', async () => {
@@ -332,6 +368,7 @@ describe('job creation Phase 1 contract', () => {
         downloadUrl: 'https://example.com/wall-damage.jpg',
       },
     ]);
+    expect(jobs[0].postingReady).toBe(true);
   });
 
   it('rejects invalid property types in site access', async () => {

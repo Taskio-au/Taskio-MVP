@@ -409,10 +409,12 @@ router.get('/api/tradie/jobs', requireAuth, requireRole('tradie'), async (req, r
     if (jobsSnapshot.empty) return res.status(200).send([]);
 
     // Always use the Firestore document id — spread data second so a stale/wrong `id` field in the payload cannot win.
-    const jobs = jobsSnapshot.docs.map((doc) => {
-      const data = doc.data() || {};
-      return { ...data, id: doc.id };
-    });
+    const jobs = jobsSnapshot.docs
+      .map((doc) => {
+        const data = doc.data() || {};
+        return { ...data, id: doc.id };
+      })
+      .filter((job) => job.postingReady !== false);
     jobs.sort((a, b) => safeToMillis(b.createdAt) - safeToMillis(a.createdAt));
 
     const enriched = await attachExpertQuoteAttentionFields(jobs, tradieUid);
@@ -435,6 +437,10 @@ router.get('/api/tradie/jobs/:jobId', requireAuth, requireRole('tradie'), async 
     if (!jobDoc.exists) return res.status(404).send({ message: 'Task not found.' });
 
     const jobData = await recoverAcceptedTradieUid(jobRef, jobDoc.data());
+
+    if (jobData.postingReady === false) {
+      return res.status(404).send({ message: 'Task not found.' });
+    }
 
     if (!jobData.invitedTradieUids || !jobData.invitedTradieUids.includes(tradieUid)) {
       return res.status(403).send({ message: 'Forbidden: You are not invited to quote on this task.' });

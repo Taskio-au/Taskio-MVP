@@ -262,6 +262,9 @@ router.post('/api/admin/jobs/:jobId/assign', requireAuth, requireAdmin, async (r
     const jobRef = db.collection('jobs').doc(jobId);
     const jobDoc = await jobRef.get();
     if (!jobDoc.exists) return res.status(404).send({ message: 'Task not found.' });
+    if (jobDoc.data()?.postingReady === false) {
+      return res.status(409).send({ message: 'Task cannot be assigned until its required posting photos are uploaded.' });
+    }
 
     await jobRef.update({
       invitedTradieUids: admin.firestore.FieldValue.arrayUnion(tradieUid),
