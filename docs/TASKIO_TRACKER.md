@@ -8,15 +8,26 @@
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Latest repository batch: `fix(auth): honor verified Firebase phone for experts`. `develop` = `origin/develop` after this push; working tree expected clean.
-- **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
-- Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No production webhook service yet. No production data modification.
-- `taskio-api` Cloud Run remains **private** (no `allUsers`).
-- Staging/test work is authorized only as the **minimal staging validation** recorded below. This decision does **not** authorize production changes.
-- Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
+- Latest repository batch: `docs: record staging payment validation`. Source checkpoint **before** this tracker-only commit: `b2e7bc707e9bfcbcc6ed679b09764d6668999d64`. `develop` = `origin/develop` after this push; working tree expected clean.
+- **PRE-LAUNCH FREEZE remains fully in force.** `taskio.com.au` is maintenance only. No public SPA. Production signup disabled. Production API private. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
+- Staging/test work remains the **minimal staging validation bench** only. This decision does **not** authorize production changes.
+- Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission.
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Exact next pickup:** SYNTHETIC PAYMENT EXECUTION — PHASE A/B SETUP on `taskio-v2-staging` only. That batch may create synthetic homeowner/expert/admin identities, genuine Firebase verification state, expert profile/photo, and a TEST Express account/onboarding. Stop before job creation, quote, or Checkout. Do not start until separately approved. Do not enable live Stripe. Do not modify production.
+**Staging gates now COMPLETE (2026-08-23, `taskio-v2-staging`, Stripe TEST only):**
+
+- expert verified-Firebase-phone consistency fix deployed
+- minimum staging Firebase Auth runtime IAM established using custom role `projects/taskio-v2-staging/roles/taskioStagingAuthUserManager` with only `firebaseauth.users.create`, `firebaseauth.users.get`, `firebaseauth.users.update`, `firebaseauth.users.delete`
+- synthetic homeowner / expert / admin identities prepared
+- Stripe TEST Express onboarding complete
+- expert `eligibility=true`
+- platform webhook HMAC → OIDC → private API gate passed
+- duplicate webhook / idempotency gate passed
+- Connected Accounts webhook gate passed
+- genuine Checkout / payment lifecycle passed
+- genuine funded homeowner cancellation / full-refund lifecycle passed
+
+**Exact next pickup:** FINAL STAGING READINESS REVIEW. Do **not** start variation, expert release/payout, dispute, or admin/super_admin refund testing, and do **not** change production, without a new decision/approval. SYNTHETIC PAYMENT EXECUTION — PHASE A/B SETUP is **no longer** the next pickup.
 
 ## 2026-08-23 expert phone-verification consistency
 
@@ -27,6 +38,104 @@ Synthetic Checkout preflight found that homeowner account completion accepted ei
 - Request-body phone values, `users.phone` alone, and unverified custom headers are not trusted. Email, admin verification, DOB/adult, expertise, location, profile/photo, Stripe onboarding, and job invitation gates are unchanged.
 - The dual-header Cloud Run invocation method remains an **OPERATOR STAGING TEST HARNESS** only. It does not prove browser/user-journey connectivity to the IAM-private API.
 - Production PRE-LAUNCH FREEZE is unchanged. No Auth/Firestore/Stripe application mutations in this batch.
+
+## 2026-08-23 minimal staging Stripe lifecycle — PASS
+
+Minimal staging Stripe TEST lifecycle is complete on `taskio-v2-staging`. Production was not mutated and remains frozen.
+
+### Infrastructure / current source
+
+- Source checkpoint before this tracker-only commit: `b2e7bc707e9bfcbcc6ed679b09764d6668999d64`
+- Staging project: `taskio-v2-staging`
+- API revision: `taskio-api-staging-00007-bnh`
+- Webhook revision: `taskio-stripe-webhook-staging-00007-8tx`
+- API remains IAM-private
+- Webhook remains the only public staging Cloud Run application service
+- Stripe TEST only (`livemode=false`)
+- Production unchanged / frozen
+
+### Identity / Connect setup
+
+- Three synthetic Firebase Auth identities created: homeowner, expert, staging admin
+- Staging admin has `admin=true` only; `super_admin` absent
+- Expert TEST Express account: `acct_1U7VjdKCF5W6OUwD`
+- Expert Stripe onboarding completed; expert `eligibility=true`
+- Staging Storage synthetic expert avatar used
+- Phone provider stayed disabled; Firebase Admin `phoneNumber` claim worked
+- No manual Firestore `phoneVerified` fiction was needed
+
+### Runtime IAM
+
+- API runtime retains `roles/datastore.user`
+- Plus staging-only custom role `projects/taskio-v2-staging/roles/taskioStagingAuthUserManager` (`firebaseauth.users.create|get|update|delete` only)
+- Production did **not** receive this role. Any production equivalent remains a separate future approval.
+
+### Payment lifecycle evidence
+
+- `JOB_ID`: `iB30tmEnf4cAOC3vDC2W`
+- `QUOTE_ID`: `V91tCiz72kZ413PdmYkE`
+- Checkout: `cs_test_a1OOYXSrUQuZl1AAukU6XuwpxOpJER0Pk79o6AgH5lGVScjVwcmGoPPKTq`
+- PaymentIntent: `pi_3U7XYWGdq6QKDpuT1pWlHUqt`
+- AUD 20.00 / 2000 cents
+- Job `OPEN` → `QUOTED` → `AWAITING_FUNDING` → `FUNDED`
+- `paymentState=in_escrow`; `paymentStatus=succeeded`
+- `feeSnapshot`: standard launch; 10% / 1000 bps; Taskio fee 200 cents; expert net 1800 cents; no founding-expert benefit
+- `payment_intent.succeeded` was the definitive funding event; `checkout.session.completed` also processed successfully
+- Public webhook and private internal OIDC hops both returned HTTP 200
+- No duplicate funding / session / PaymentIntent / fee snapshot
+
+### Refund lifecycle evidence
+
+- `REFUND_ID`: `re_3U7XYWGdq6QKDpuT1T6hD8rf`
+- Homeowner cancelled the FUNDED-but-unreleased job
+- No transfer / release / payout existed beforehand
+- Job transitioned through `REFUND_PENDING` to `REFUNDED`
+- `paymentState=refunded`; `refundStatus=succeeded`; `baseRefundConfirmed=true`
+- Full 2000-cent AUD refund
+- Genuine `charge.refunded` and `refund.updated` webhook events processed
+- No transfer, payout, reversal, variation, dispute, or duplicate refund
+- Quote remains `accepted` as a historical record
+
+### Operational note
+
+An empty-body POST through the Google frontend returned HTTP 411 before Cloud Run. Sending `{}` supplied `Content-Length` and the normal cancel endpoint worked. Do **not** classify the 411 as an application failure.
+
+### Not yet proven (do not start without a new decision)
+
+These paths were **not** tested and are **not** approved by this PASS:
+
+- expert release / Stripe transfer / payout
+- paid variation lifecycle
+- dispute workflow
+- admin manual / `super_admin` refund workflow
+- post-payout refund behavior
+
+Do not treat them as automatic launch blockers unless the existing release plan requires them. Next session should first assess whether each is actually required before launch.
+
+### Unresolved pre-launch architecture point
+
+The dual-header method:
+
+- `X-Serverless-Authorization` = Google operator identity
+- `Authorization` = Firebase ID token
+
+is an **OPERATOR STAGING TEST HARNESS ONLY**. It proves API/app paths. It does **not** prove that a normal Taskio browser user can directly reach the IAM-private Cloud Run API.
+
+Normal browser/user connectivity, intended production API exposure, or a trusted-proxy architecture remains a pre-launch gate. Not resolved in this batch.
+
+### Exact next pickup
+
+**FINAL STAGING READINESS REVIEW.** Next session should:
+
+1. Consolidate minimal staging evidence
+2. Classify remaining Stripe paths as required-before-launch vs optional
+3. Review browser → API architecture / connectivity
+4. Review security / observability / rollback / backup / cleanup
+5. Decide which synthetic staging evidence/data to retain or clean up
+6. Review legal readiness
+7. Produce the remaining production-preflight checklist
+
+Do **not** start variation testing, release/payout testing, dispute testing, admin manual refund testing, or production changes without a new decision/approval.
 
 ## 2026-08-23 Stripe Connect dual webhook destinations (repository)
 
@@ -144,12 +253,12 @@ Use the safest practical environment for those final tests while production rema
 
 ### Remaining gate order (current)
 
-1. Minimal read-only staging inventory.
-2. Minimal staging API/webhook deployment.
-3. Cloud Run IAM + Google OIDC verification.
-4. Stripe TEST-mode critical payment/refund rehearsal.
+1. Minimal read-only staging inventory. **Done.**
+2. Minimal staging API/webhook deployment. **Done.**
+3. Cloud Run IAM + Google OIDC verification. **Done.**
+4. Stripe TEST-mode critical payment/refund rehearsal. **Done** (Checkout funding + funded homeowner full refund). Remaining Stripe paths (release/payout, variation, dispute, admin/super_admin refund, post-payout refund) are **not** automatically launch blockers; classify them in the next readiness review.
 5. Stop expanding staging unless a defect specifically requires it.
-6. Critical browser/user journey acceptance.
+6. Critical browser/user journey acceptance, including how a normal browser reaches the IAM-private API.
 7. Security / observability / rollback / backup / launch-runbook check.
 8. Legal readiness.
 9. Production deployment/configuration.
@@ -169,9 +278,11 @@ Use the safest practical environment for those final tests while production rema
 
 ### Exact next pickup
 
-SYNTHETIC PAYMENT EXECUTION — PHASE A/B SETUP on `taskio-v2-staging` only. That batch may create synthetic homeowner/expert/admin identities, genuine Firebase verification state, expert profile/photo, and a TEST Express account/onboarding. Stop before job creation, quote, or Checkout. Do not start until separately approved.
+**FINAL STAGING READINESS REVIEW.** Consolidate the completed minimal staging evidence, classify remaining Stripe paths as required-before-launch vs optional, review browser → API connectivity, review security/observability/rollback/backup/cleanup, decide synthetic-data retention, review legal readiness, and produce the remaining production-preflight checklist.
 
-Platform HMAC, duplicate-resend/idempotency, and Connected Accounts HMAC gates already passed. Do **not** require staging frontend / DNS / Hosting work. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
+Do **not** start variation, release/payout, dispute, or admin manual refund testing, and do **not** change production, without a new decision/approval.
+
+Platform HMAC, duplicate-resend/idempotency, Connected Accounts HMAC, genuine Checkout funding, and funded homeowner full-refund gates already passed. Do **not** require staging frontend / DNS / Hosting work. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
 
 ## 2026-08-22 staging deployment safety and operator preflight
 
