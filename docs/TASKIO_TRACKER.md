@@ -8,7 +8,7 @@
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Latest repository batch: `security: separate Stripe Connect webhook signing secret`. `develop` = `origin/develop` after this push; working tree expected clean.
+- Latest repository batch: `chore(stripe): remove stale transfer.failed event`. `develop` = `origin/develop` after this push; working tree expected clean.
 - **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
 - Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No production webhook service yet. No production data modification.
 - `taskio-api` Cloud Run remains **private** (no `allUsers`).
@@ -16,7 +16,7 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Exact next pickup:** Create two empty staging webhook Secret Manager resources (`taskio-staging-stripe-webhook-secret` and `taskio-staging-stripe-connect-webhook-secret`). Then, while the webhook remains `STRIPE_ENABLED=false`, make only that service public and manually register the two Stripe TEST destinations. Do not start until separately approved. Do not enable live Stripe. Do not modify production.
+**Exact next pickup:** Synthetic Checkout / payment lifecycle preflight. First derive the exact minimum synthetic staging user/job/quote/payment state and authenticated API calls required for a real Checkout → payment webhook → funded-state rehearsal. Do not start until separately approved. Do not enable live Stripe. Do not modify production.
 
 ## 2026-08-23 Stripe Connect dual webhook destinations (repository)
 
@@ -32,9 +32,23 @@ Webhook-only runtime now supports the two Stripe Connect event sources on the sa
 - Intended later staging destinations (not registered in this batch):
   - platform: `https://taskio-stripe-webhook-staging-1077378545256.australia-southeast1.run.app/api/stripe/webhook`
   - connected accounts: `https://taskio-stripe-webhook-staging-1077378545256.australia-southeast1.run.app/api/stripe/connect-webhook`
-- Platform/account events currently consumed: `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `refund.failed`, `refund.updated`, `transfer.failed`, `transfer.reversed`.
+- Platform/account events currently consumed: `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `refund.failed`, `refund.updated`, `transfer.reversed`.
 - Connected-account events currently consumed: `account.updated`, `payout.failed`.
+- `transfer.failed` was removed as stale for Stripe API version `2025-07-30.basil`. Keep `transfer.reversed`. Do not treat the Workbench details alias `transfer.canceled` as a separately selectable Taskio event.
 - Production PRE-LAUNCH FREEZE is unchanged. No Stripe Dashboard/API operations and no webhook Secret Manager resources in this source batch.
+
+## 2026-08-23 Stripe TEST webhook gates + stale transfer.failed cleanup
+
+Staging HMAC → OIDC → private API gates are complete for TEST mode. Destinations were not changed in this cleanup batch.
+
+- Platform webhook gate passed (`POST /api/stripe/webhook`).
+- Same-event idempotent resend gate passed.
+- Connected Accounts webhook gate passed (`POST /api/stripe/connect-webhook`).
+- `transfer.failed` was removed from runtime handling and intended subscription documentation. Supported transfer operational event remains `transfer.reversed`.
+- Stripe Workbench for `2025-07-30.basil` exposes `transfer.reversed` and not `transfer.failed`. Destination details may display `transfer.canceled` as a historical alias; Taskio does not handle it as a separate event.
+- Synthetic payment lifecycle remains next. Do not begin it until separately approved.
+
+**PRE-LAUNCH FREEZE remains fully in force.** Legal blockers unchanged.
 
 ## 2026-08-23 A2 secret separation (repository + image rebuild)
 
@@ -144,14 +158,9 @@ Use the safest practical environment for those final tests while production rema
 
 ### Exact next pickup
 
-Create two empty staging webhook Secret Manager resources on `taskio-v2-staging` only:
+Synthetic Checkout / payment lifecycle preflight on `taskio-v2-staging` only. First derive the exact minimum synthetic staging user/job/quote/payment state and authenticated API calls required for a real Checkout → payment webhook → funded-state rehearsal. Do not start until separately approved.
 
-- `taskio-staging-stripe-webhook-secret`
-- `taskio-staging-stripe-connect-webhook-secret`
-
-Then, while the webhook remains Stripe-disabled, make only that service public and manually register the two Stripe TEST destinations. Do not start until separately approved.
-
-Read-only inventory and Stripe-disabled Cloud Run bootstrap already exist. Do **not** require staging frontend / DNS / Hosting work. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
+Platform HMAC, duplicate-resend/idempotency, and Connected Accounts HMAC gates already passed. Do **not** require staging frontend / DNS / Hosting work. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
 
 ## 2026-08-22 staging deployment safety and operator preflight
 

@@ -245,7 +245,7 @@ async function handleOperationalStripeEvent(event) {
     return true;
   }
 
-  if (event.type === 'transfer.reversed' || event.type === 'transfer.failed') {
+  if (event.type === 'transfer.reversed') {
     const jobId = String(object?.metadata?.jobId || '').trim();
     const jobDoc = jobId ? await db.collection('jobs').doc(jobId).get() : null;
     await flagJobPaymentIncident(jobDoc?.exists ? jobDoc : null, {

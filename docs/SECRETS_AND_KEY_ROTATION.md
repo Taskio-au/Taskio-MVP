@@ -8,8 +8,8 @@ Do not run production from checked-in `.env` files. Use a managed secret store o
 
 - Firebase service account credentials
 - `STRIPE_SECRET_KEY` (main API runtime only)
-- `STRIPE_WEBHOOK_SECRET` (webhook-only runtime; platform/account destination; not required on the main API)
-- `STRIPE_CONNECT_WEBHOOK_SECRET` (webhook-only runtime; connected-account destination; not required on the main API)
+- `STRIPE_WEBHOOK_SECRET` (webhook-only runtime; platform/account destination; not required on the main API). Platform event contract is the 10 selectable events including `transfer.reversed`; `transfer.failed` is not an application expectation.
+- `STRIPE_CONNECT_WEBHOOK_SECRET` (webhook-only runtime; connected-account destination; not required on the main API). Connected-account events remain `account.updated` and `payout.failed`.
 - `GEMINI_API_KEY`
 - `ALERT_WEBHOOK_URL`
 - Any ABN lookup or third-party verification credentials

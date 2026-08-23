@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+
 const stores = new Map();
 const mockWorkItems = [];
 
@@ -152,6 +155,26 @@ describe('Stripe operational event handling', () => {
       paymentIncidentType: 'transfer.reversed',
       paymentIncidentStatus: 'reversed',
     });
+  });
+
+  it('does not flag a payment incident for stale transfer.failed or the UI alias transfer.canceled', async () => {
+    store('jobs').set('job-stale-failed', { status: 'PAID', paymentState: 'released' });
+    store('jobs').set('job-ui-alias', { status: 'PAID', paymentState: 'released' });
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_stale_failed',
+      type: 'transfer.failed',
+      data: { object: { id: 'tr_failed', status: 'failed', metadata: { jobId: 'job-stale-failed' } } },
+    });
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_ui_alias',
+      type: 'transfer.canceled',
+      data: { object: { id: 'tr_canceled', status: 'canceled', metadata: { jobId: 'job-ui-alias' } } },
+    });
+
+    expect(store('jobs').get('job-stale-failed')).toEqual({ status: 'PAID', paymentState: 'released' });
+    expect(store('jobs').get('job-ui-alias')).toEqual({ status: 'PAID', paymentState: 'released' });
+    expect(mockWorkItems).toEqual([]);
   });
 
   it('flags the connected expert and creates an admin work item on payout failure', async () => {
@@ -750,5 +773,15 @@ describe('Stripe operational event handling', () => {
 
     expect(stripe.retrievePaymentIntent).not.toHaveBeenCalled();
     expect(store('jobs').get('job-cs-obj').paymentCheckoutSessionId).toBe('cs_obj_1');
+  });
+
+  it('runtime handler source has no transfer.failed or transfer.canceled contract', () => {
+    const src = fs.readFileSync(
+      path.join(__dirname, '../src/services/stripeEventHandlers.js'),
+      'utf8',
+    );
+    expect(src).toMatch(/transfer\.reversed/);
+    expect(src).not.toMatch(/transfer\.failed/);
+    expect(src).not.toMatch(/transfer\.canceled/);
   });
 });

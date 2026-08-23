@@ -40,8 +40,8 @@ Do **not** mount secret names that have no resource or no enabled version. The f
 Backend conditional integrations (not required to boot; not created yet):
 
 - `STRIPE_SECRET_KEY` on the main API only when `STRIPE_ENABLED=true`
-- `STRIPE_WEBHOOK_SECRET` on the webhook-only runtime only when `STRIPE_ENABLED=true` (platform/account destination; not required on the main API)
-- `STRIPE_CONNECT_WEBHOOK_SECRET` on the webhook-only runtime only when `STRIPE_ENABLED=true` (connected-account destination; not required on the main API)
+- `STRIPE_WEBHOOK_SECRET` on the webhook-only runtime only when `STRIPE_ENABLED=true` (platform/account destination; not required on the main API). Intended platform event set: `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `refund.failed`, `refund.updated`, `transfer.reversed`. Do not subscribe to stale `transfer.failed`; do not treat Workbench alias `transfer.canceled` as a separate Taskio event.
+- `STRIPE_CONNECT_WEBHOOK_SECRET` on the webhook-only runtime only when `STRIPE_ENABLED=true` (connected-account destination; not required on the main API). Intended connected-account events: `account.updated`, `payout.failed`.
 - `GEMINI_API_KEY` (AI description tidy / quote-message assist; routes fall back without it)
 - `ABN_LOOKUP_GUID` (official ABR ABN verify; `/api/me/abn/verify` returns 501 without it)
 

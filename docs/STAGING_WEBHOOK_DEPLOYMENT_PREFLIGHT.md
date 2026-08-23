@@ -82,12 +82,12 @@ Staging requires **two** Stripe TEST webhook destinations on the same webhook Cl
 | Platform / account | `POST /api/stripe/webhook` | `STRIPE_WEBHOOK_SECRET` |
 | Connected accounts | `POST /api/stripe/connect-webhook` | `STRIPE_CONNECT_WEBHOOK_SECRET` |
 
-Intended staging URLs (not registered yet):
+Registered staging URLs (operator-registered TEST destinations; do not change them in a source-cleanup batch):
 
 - Platform: `https://taskio-stripe-webhook-staging-1077378545256.australia-southeast1.run.app/api/stripe/webhook`
 - Connected accounts: `https://taskio-stripe-webhook-staging-1077378545256.australia-southeast1.run.app/api/stripe/connect-webhook`
 
-Relevant platform/account events currently consumed:
+Relevant platform/account events currently consumed (10):
 
 - `checkout.session.completed`
 - `payment_intent.succeeded`
@@ -98,13 +98,16 @@ Relevant platform/account events currently consumed:
 - `charge.dispute.closed`
 - `refund.failed`
 - `refund.updated`
-- `transfer.failed`
 - `transfer.reversed`
 
-Relevant connected-account events currently consumed:
+Relevant connected-account events currently consumed (2):
 
 - `account.updated`
 - `payout.failed`
+
+Stripe API version for the staging destinations is `2025-07-30.basil`. The Workbench edit screen exposes those 10 platform events, including `transfer.reversed` and not `transfer.failed`. Destination details may display `transfer.canceled` as a historical compatibility alias; do not treat it as a separately selectable or required Taskio event.
+
+Proven TEST gates (do not resend events from a source-cleanup batch): platform HMAC → OIDC → private API; same-event idempotent resend; Connected Accounts HMAC → OIDC → private API. Next is the synthetic Checkout / payment lifecycle rehearsal.
 
 Each destination must use only its own signing secret. Do not share, fall back, or try both secrets on one route.
 
