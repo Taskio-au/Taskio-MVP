@@ -43,7 +43,7 @@ router.post(
 
       let event;
       try {
-        event = constructWebhookEvent(req.body, sig);
+        event = constructWebhookEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
       } catch (e) {
         if (e && e.code === 'stripe_webhook_not_configured') {
           loggerForReq(req).warn('stripe_webhook_not_configured');

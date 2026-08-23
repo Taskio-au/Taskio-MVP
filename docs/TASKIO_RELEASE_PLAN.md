@@ -40,7 +40,8 @@ Do **not** mount secret names that have no resource or no enabled version. The f
 Backend conditional integrations (not required to boot; not created yet):
 
 - `STRIPE_SECRET_KEY` on the main API only when `STRIPE_ENABLED=true`
-- `STRIPE_WEBHOOK_SECRET` on the webhook-only runtime only when `STRIPE_ENABLED=true` (not required on the main API)
+- `STRIPE_WEBHOOK_SECRET` on the webhook-only runtime only when `STRIPE_ENABLED=true` (platform/account destination; not required on the main API)
+- `STRIPE_CONNECT_WEBHOOK_SECRET` on the webhook-only runtime only when `STRIPE_ENABLED=true` (connected-account destination; not required on the main API)
 - `GEMINI_API_KEY` (AI description tidy / quote-message assist; routes fall back without it)
 - `ABN_LOOKUP_GUID` (official ABR ABN verify; `/api/me/abn/verify` returns 501 without it)
 

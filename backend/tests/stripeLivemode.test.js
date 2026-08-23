@@ -74,6 +74,7 @@ describe('validateEnv requires explicit livemode when Stripe is enabled', () => 
     'STRIPE_ENABLED',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_CONNECT_WEBHOOK_SECRET',
     'FRONTEND_URL',
     'STRIPE_EXPECTED_LIVEMODE',
     'TASKIO_SHOW_DEV_OTP',

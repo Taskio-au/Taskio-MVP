@@ -11,6 +11,7 @@ const { parseStripeInternalAudience } = require('../src/config/stripeInternalAud
 const KEYS = [
   'STRIPE_ENABLED',
   'STRIPE_WEBHOOK_SECRET',
+  'STRIPE_CONNECT_WEBHOOK_SECRET',
   'STRIPE_EXPECTED_LIVEMODE',
   'STRIPE_INTERNAL_AUDIENCE',
   'STRIPE_SECRET_KEY',
@@ -55,6 +56,7 @@ describe('webhook runtime env validation', () => {
   test('STRIPE_ENABLED=true with webhook secret, livemode, and audience is valid', () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
     expect(() => validateWebhookRuntimeEnv()).not.toThrow();
@@ -72,6 +74,7 @@ describe('webhook runtime env validation', () => {
   test('does not require STRIPE_SECRET_KEY, OTP, ABN, Gemini, or caller SA', () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
     expect(() => validateWebhookRuntimeEnv()).not.toThrow();
@@ -79,14 +82,24 @@ describe('webhook runtime env validation', () => {
 
   test('missing webhook secret is invalid when enabled', () => {
     process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
     expect(() => validateWebhookRuntimeEnv()).toThrow('STRIPE_WEBHOOK_SECRET');
   });
 
+  test('missing connect webhook secret is invalid when enabled', () => {
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
+    process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
+    expect(() => validateWebhookRuntimeEnv()).toThrow('STRIPE_CONNECT_WEBHOOK_SECRET');
+  });
+
   test('missing expected livemode is invalid when enabled', () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
     expect(() => validateWebhookRuntimeEnv()).toThrow('STRIPE_EXPECTED_LIVEMODE');
   });
@@ -94,6 +107,7 @@ describe('webhook runtime env validation', () => {
   test('missing audience is invalid when enabled', () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     expect(() => validateWebhookRuntimeEnv()).toThrow('STRIPE_INTERNAL_AUDIENCE');
   });
@@ -101,6 +115,7 @@ describe('webhook runtime env validation', () => {
   test('malformed audience is invalid', () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'http://taskio-api.example.run.app';
     expect(() => validateWebhookRuntimeEnv()).toThrow('HTTPS origin');
@@ -112,6 +127,7 @@ describe('webhook runtime env validation', () => {
     expect(parseStripeInternalAudience('https://taskio-api.example.run.app/api')).toBeNull();
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app/internal/stripe/verified-event';
     expect(() => validateWebhookRuntimeEnv()).toThrow('HTTPS origin');
@@ -140,6 +156,7 @@ describe('webhook runtime env validation', () => {
     process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
     expect(() => validateWebhookRuntimeEnv()).not.toThrow();
@@ -151,6 +168,7 @@ describe('webhook runtime env validation', () => {
     process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2';
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
     expect(() => validateWebhookRuntimeEnv()).toThrow(
@@ -164,6 +182,7 @@ describe('webhook runtime env validation', () => {
     process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_example';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
     expect(() => validateWebhookRuntimeEnv()).toThrow(

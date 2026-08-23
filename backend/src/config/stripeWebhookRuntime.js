@@ -43,6 +43,8 @@ function getWebhookForwardDestination() {
 /**
  * Webhook-only process env. Must not require STRIPE_SECRET_KEY, OTP, ABN,
  * Gemini, Firebase, caller SA email, or frontend URL.
+ * When Stripe is enabled, both STRIPE_WEBHOOK_SECRET (platform) and
+ * STRIPE_CONNECT_WEBHOOK_SECRET (connected accounts) are required.
  */
 function validateWebhookRuntimeEnv() {
   const mode = getWebhookProcessingMode();
@@ -57,6 +59,13 @@ function validateWebhookRuntimeEnv() {
     : '';
   if (!webhookSecret) {
     throw new Error('Missing required env var: STRIPE_WEBHOOK_SECRET');
+  }
+
+  const connectWebhookSecret = typeof process.env.STRIPE_CONNECT_WEBHOOK_SECRET === 'string'
+    ? process.env.STRIPE_CONNECT_WEBHOOK_SECRET.trim()
+    : '';
+  if (!connectWebhookSecret) {
+    throw new Error('Missing required env var: STRIPE_CONNECT_WEBHOOK_SECRET');
   }
 
   const expectedLivemode = parseStripeExpectedLivemode(process.env.STRIPE_EXPECTED_LIVEMODE);

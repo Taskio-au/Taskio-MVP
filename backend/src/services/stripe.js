@@ -17,10 +17,8 @@ function getStripe() {
   });
 }
 
-function constructWebhookEvent(rawBody, signatureHeader) {
-  const secret = typeof process.env.STRIPE_WEBHOOK_SECRET === 'string'
-    ? process.env.STRIPE_WEBHOOK_SECRET.trim()
-    : '';
+function constructWebhookEvent(rawBody, signatureHeader, webhookSecret) {
+  const secret = typeof webhookSecret === 'string' ? webhookSecret.trim() : '';
   if (!secret) {
     const err = new Error('Stripe webhook is not configured.');
     err.code = 'stripe_webhook_not_configured';

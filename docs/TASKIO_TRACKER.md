@@ -8,7 +8,7 @@
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Latest repository batch: `security: separate Stripe webhook secret from API` (A2 secret separation). `develop` = `origin/develop` after this push; working tree expected clean.
+- Latest repository batch: `security: separate Stripe Connect webhook signing secret`. `develop` = `origin/develop` after this push; working tree expected clean.
 - **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
 - Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No production webhook service yet. No production data modification.
 - `taskio-api` Cloud Run remains **private** (no `allUsers`).
@@ -16,7 +16,25 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Exact next pickup:** Stripe TEST wiring for `taskio-v2-staging` only (store `sk_test_` on the API, configure audience/caller, grant webhook `run.invoker` on the API only, create the TEST endpoint against `WEBHOOK_ORIGIN`, store `whsec_` on the webhook runtime only, then make only the webhook public). Do not start until separately approved. Do not enable live Stripe. Do not modify production.
+**Exact next pickup:** Create two empty staging webhook Secret Manager resources (`taskio-staging-stripe-webhook-secret` and `taskio-staging-stripe-connect-webhook-secret`). Then, while the webhook remains `STRIPE_ENABLED=false`, make only that service public and manually register the two Stripe TEST destinations. Do not start until separately approved. Do not enable live Stripe. Do not modify production.
+
+## 2026-08-23 Stripe Connect dual webhook destinations (repository)
+
+Webhook-only runtime now supports the two Stripe Connect event sources on the same Cloud Run service, with isolated signing secrets.
+
+- Platform/account route remains `POST /api/stripe/webhook` and verifies only with `STRIPE_WEBHOOK_SECRET`.
+- Connected-account route is `POST /api/stripe/connect-webhook` and verifies only with `STRIPE_CONNECT_WEBHOOK_SECRET`.
+- HMAC construction takes the route-specific secret explicitly. Neither route accepts the other secret. There is no fallback, no try-both, and no shared secret.
+- When webhook runtime `STRIPE_ENABLED=true`, both secrets plus `STRIPE_EXPECTED_LIVEMODE` and `STRIPE_INTERNAL_AUDIENCE` are required. Staging still requires expected livemode `false`; production still requires `true`.
+- When `STRIPE_ENABLED=false`, neither signing secret is required and both routes return 404.
+- Both routes preserve the 256 KB raw body, require `Stripe-Signature`, fail closed on invalid HMAC, enforce expected livemode, validate event shape, and forward only HMAC-verified events through the existing Google OIDC path. Public webhook runtime still does not initialise Firebase/Firestore.
+- Private API startup/readiness still does **not** require either signing secret. Legacy private `POST /api/stripe/webhook` remains fail-closed without `STRIPE_WEBHOOK_SECRET`. The Stripe API key remains private-API only.
+- Intended later staging destinations (not registered in this batch):
+  - platform: `https://taskio-stripe-webhook-staging-1077378545256.australia-southeast1.run.app/api/stripe/webhook`
+  - connected accounts: `https://taskio-stripe-webhook-staging-1077378545256.australia-southeast1.run.app/api/stripe/connect-webhook`
+- Platform/account events currently consumed: `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `refund.failed`, `refund.updated`, `transfer.failed`, `transfer.reversed`.
+- Connected-account events currently consumed: `account.updated`, `payout.failed`.
+- Production PRE-LAUNCH FREEZE is unchanged. No Stripe Dashboard/API operations and no webhook Secret Manager resources in this source batch.
 
 ## 2026-08-23 A2 secret separation (repository + image rebuild)
 
@@ -126,7 +144,12 @@ Use the safest practical environment for those final tests while production rema
 
 ### Exact next pickup
 
-**Stripe TEST wiring** for `taskio-v2-staging` only, after the A2 secret-separation images exist. Do not start until separately approved.
+Create two empty staging webhook Secret Manager resources on `taskio-v2-staging` only:
+
+- `taskio-staging-stripe-webhook-secret`
+- `taskio-staging-stripe-connect-webhook-secret`
+
+Then, while the webhook remains Stripe-disabled, make only that service public and manually register the two Stripe TEST destinations. Do not start until separately approved.
 
 Read-only inventory and Stripe-disabled Cloud Run bootstrap already exist. Do **not** require staging frontend / DNS / Hosting work. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
 
@@ -2158,6 +2181,7 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-17 | `develop` / `090f1b5` | A03 | Read-only application-auth boundary while Cloud Run IAM remains on. `X-Serverless-Authorization` used so Express sees Firebase `Authorization`. Protected GETs (`/api/me`, `/api/admin/bootstrap`, `/api/tradie/profile`) return Express 401 without app token; invalid bearer returns Express 401 Invalid token. Bare request is Cloud Run 403. Route audit: mutating user-data routes have requireAuth plus role/admin/super-admin as expected. No 5xx in post-test logs. IAM/traffic/Hosting unchanged. | Code audit of `backend/src/routes/**` + `middleware/auth.js`; private curls; logging read freshness 15m | Tracker-only. No IAM, Cloud Run, traffic, Hosting, DNS, or staging change | Public invocation still a separate approval. Do not restore Hosting or DNS |
 | 2026-08-17 | `develop` / `090f1b5` | A03 | Owner enabled public Cloud Run invocation with `--no-invoker-iam-check`. Revision/digest/SA/`OTP_SALT:1` unchanged. Unauthenticated `/health/live` Express 200. Unauthenticated `/api/me` Express 401 `No token provided`. Invalid Firebase bearer Express 401 `Invalid token`. No unexpected 5xx. Hosting remains A50 maintenance. DNS/custom domain and frontend restore outstanding. A03 not completed. | `gcloud run services describe` (`invoker-iam-disabled: true`); public curls to service URL; logging read; Hosting GET | Tracker checkpoint. This verification did not change Cloud Run, traffic, secrets, Hosting, DNS, Functions, or staging | Next: DNS/custom domain and/or Hosting frontend restore, separately approved |
 | 2026-08-23 | `develop` / A2 secret-separation | staging | Main API no longer requires `STRIPE_WEBHOOK_SECRET` at startup or readiness. Webhook-only runtime remains the sole HMAC secret holder. Legacy private HMAC route fails closed without a signing secret. No Cloud Run/Stripe/IAM mutation in the repository batch. | Focused Stripe/env tests; full backend suite; `node --check`; `git diff --check`; staging images rebuilt from new HEAD, not deployed | Pushed the repository commit. Cloud Build image rebuild on `taskio-v2-staging` only. Existing Cloud Run left `STRIPE_ENABLED=false` | Next: Stripe TEST wiring approval |
+| 2026-08-23 | `develop` / Connect dual webhook | staging | Webhook runtime gained isolated `POST /api/stripe/connect-webhook` (`STRIPE_CONNECT_WEBHOOK_SECRET`) beside platform `POST /api/stripe/webhook` (`STRIPE_WEBHOOK_SECRET`). Cross-secret HMAC isolation; both 404 when Stripe disabled. Private API still gets neither signing secret. | Focused webhook/HMAC/livemode/OIDC/secret-boundary tests; full backend suite; `node --check`; `git diff --check` | Repository source only until CI is green; then staging images rolled to existing services with webhook still `STRIPE_ENABLED=false` and private | Next: two empty staging webhook Secret Manager resources, then public webhook + two Stripe TEST destinations |
 
 ## Required final report template
 

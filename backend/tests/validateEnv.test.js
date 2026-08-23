@@ -11,6 +11,7 @@ const ENV_KEYS = [
   'STRIPE_ENABLED',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
+  'STRIPE_CONNECT_WEBHOOK_SECRET',
   'STRIPE_EXPECTED_LIVEMODE',
   'FRONTEND_URL',
   'TASKIO_SHOW_DEV_OTP',
@@ -70,6 +71,7 @@ describe('validateEnv production secrets', () => {
     process.env.STRIPE_ENABLED = 'false';
     delete process.env.STRIPE_SECRET_KEY;
     delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
     expect(() => validateEnv()).not.toThrow();
   });
 
@@ -80,7 +82,7 @@ describe('validateEnv production secrets', () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
-  it('requires Stripe API configuration when STRIPE_ENABLED is true, but not STRIPE_WEBHOOK_SECRET', () => {
+  it('requires Stripe API configuration when STRIPE_ENABLED is true, but not webhook signing secrets', () => {
     process.env.STRIPE_ENABLED = 'true';
     expect(() => validateEnv()).toThrow('Missing required env var: STRIPE_SECRET_KEY');
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
@@ -89,6 +91,7 @@ describe('validateEnv production secrets', () => {
     expect(() => validateEnv()).toThrow('Missing required env var: STRIPE_EXPECTED_LIVEMODE');
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
     expect(() => validateEnv()).not.toThrow();
   });
 
@@ -98,6 +101,7 @@ describe('validateEnv production secrets', () => {
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
     expect(() => validateEnv()).not.toThrow();
   });
 
@@ -107,6 +111,7 @@ describe('validateEnv production secrets', () => {
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
     expect(() => validateEnv()).toThrow('Production Stripe must use a live secret key.');
   });
 
@@ -118,6 +123,7 @@ describe('validateEnv production secrets', () => {
     process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
     expect(() => validateEnv()).not.toThrow();
   });
 

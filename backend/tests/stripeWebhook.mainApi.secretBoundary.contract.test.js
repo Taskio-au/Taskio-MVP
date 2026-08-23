@@ -14,6 +14,7 @@ const webhookRoutes = require('../src/routes/stripeWebhook');
 const ENV_KEYS = [
   'STRIPE_ENABLED',
   'STRIPE_WEBHOOK_SECRET',
+  'STRIPE_CONNECT_WEBHOOK_SECRET',
   'STRIPE_EXPECTED_LIVEMODE',
 ];
 
@@ -57,6 +58,7 @@ describe('legacy main API HMAC webhook fail-closed without signing secret', () =
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
     app = buildApp();
   });
 
@@ -101,5 +103,22 @@ describe('legacy main API HMAC webhook fail-closed without signing secret', () =
     expect(() => constructWebhookEvent(Buffer.from(payload), header)).toThrow(
       expect.objectContaining({ code: 'stripe_webhook_not_configured' }),
     );
+  });
+
+  test('STRIPE_CONNECT_WEBHOOK_SECRET does not satisfy the private API HMAC route', async () => {
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_connect_must_not_be_used';
+    const payload = JSON.stringify(baseEvent({ id: 'evt_api_hmac_connect_secret' }));
+    const header = Stripe.webhooks.generateTestHeaderString({
+      payload,
+      secret: 'whsec_connect_must_not_be_used',
+    });
+    const res = await request(app)
+      .post('/api/stripe/webhook')
+      .set('Content-Type', 'application/json')
+      .set('Stripe-Signature', header)
+      .send(payload);
+    expect(res.status).toBe(503);
+    expect(res.body.message).toBe('Webhook handler failed');
+    expect(processVerifiedStripeEvent).not.toHaveBeenCalled();
   });
 });

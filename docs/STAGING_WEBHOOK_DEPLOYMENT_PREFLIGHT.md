@@ -69,11 +69,44 @@ After inventory, report the **minimum exact mutations required**. Do not execute
 
 1. Build the main API from the repository root `Dockerfile` and the webhook service from `Dockerfile.webhook`. Pin deployments to immutable image digests.
 2. Keep both services on `NODE_ENV=production`, `TASKIO_DEPLOYMENT_ENV=staging`, and `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`.
-3. Configure the main API with a Stripe `sk_test_` secret and `STRIPE_EXPECTED_LIVEMODE=false`. Do **not** mount or set `STRIPE_WEBHOOK_SECRET` on the main API. The private API receives verified events at `/internal/stripe/verified-event` after Google OIDC checks.
-4. Configure the webhook service with the TEST endpoint signing secret (`STRIPE_WEBHOOK_SECRET`), `STRIPE_EXPECTED_LIVEMODE=false`, and the exact private API HTTPS origin as `STRIPE_INTERNAL_AUDIENCE`. The webhook-only service is the sole holder of the Stripe webhook signing secret.
+3. Configure the main API with a Stripe `sk_test_` secret and `STRIPE_EXPECTED_LIVEMODE=false`. Do **not** mount or set `STRIPE_WEBHOOK_SECRET` or `STRIPE_CONNECT_WEBHOOK_SECRET` on the main API. The private API receives verified events at `/internal/stripe/verified-event` after Google OIDC checks. The Stripe API key remains private-API only.
+4. Configure the webhook service with **both** TEST endpoint signing secrets (`STRIPE_WEBHOOK_SECRET` for platform/account events and `STRIPE_CONNECT_WEBHOOK_SECRET` for connected-account events), `STRIPE_EXPECTED_LIVEMODE=false`, and the exact private API HTTPS origin as `STRIPE_INTERNAL_AUDIENCE`. Both secrets belong only to the webhook runtime. The private API gets neither.
 5. Do not put `STRIPE_SECRET_KEY`, Firebase credentials, Gemini credentials, ABN credentials, OTP secrets, or frontend configuration on the webhook service.
 6. Keep `ENABLE_SET_ADMIN_ENDPOINT=false` and `TASKIO_SHOW_DEV_OTP=false`.
 7. Use only required staging secrets. Dedicated minimum-privilege runtime service accounts only.
+
+Staging requires **two** Stripe TEST webhook destinations on the same webhook Cloud Run service. Do not register them until separately approved:
+
+| Destination | Route | Signing secret |
+|---|---|---|
+| Platform / account | `POST /api/stripe/webhook` | `STRIPE_WEBHOOK_SECRET` |
+| Connected accounts | `POST /api/stripe/connect-webhook` | `STRIPE_CONNECT_WEBHOOK_SECRET` |
+
+Intended staging URLs (not registered yet):
+
+- Platform: `https://taskio-stripe-webhook-staging-1077378545256.australia-southeast1.run.app/api/stripe/webhook`
+- Connected accounts: `https://taskio-stripe-webhook-staging-1077378545256.australia-southeast1.run.app/api/stripe/connect-webhook`
+
+Relevant platform/account events currently consumed:
+
+- `checkout.session.completed`
+- `payment_intent.succeeded`
+- `payment_intent.payment_failed`
+- `charge.refunded`
+- `charge.dispute.created`
+- `charge.dispute.updated`
+- `charge.dispute.closed`
+- `refund.failed`
+- `refund.updated`
+- `transfer.failed`
+- `transfer.reversed`
+
+Relevant connected-account events currently consumed:
+
+- `account.updated`
+- `payout.failed`
+
+Each destination must use only its own signing secret. Do not share, fall back, or try both secrets on one route.
 
 The application now fails closed if staging is declared outside `taskio-v2-staging`, if that project is declared as production, if staging expects live events, or if staging receives a non-test Stripe secret key.
 
@@ -83,7 +116,7 @@ The application now fails closed if staging is declared outside `taskio-v2-stagi
 - The webhook service is the only public Cloud Run ingress used by Stripe.
 - The webhook runtime service account has `roles/run.invoker` on the staging main API only.
 - The main API checks the caller email against `STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT` and requires a verified Google identity token with the exact configured audience.
-- The webhook service account has no Firestore, Storage, Firebase Admin, Secret Manager access beyond its single webhook signing-secret version, or project-wide invoker grant.
+- The webhook service account has no Firestore, Storage, Firebase Admin, Secret Manager access beyond its webhook signing-secret versions, or project-wide invoker grant.
 - The API runtime service account receives only the data and secret access required by the API.
 
 ## Required verification (minimal)

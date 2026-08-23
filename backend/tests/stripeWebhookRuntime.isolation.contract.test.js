@@ -6,6 +6,7 @@ const Stripe = require('stripe');
 const request = require('supertest');
 
 const TEST_WEBHOOK_SECRET = 'whsec_test_taskio_isolation';
+const TEST_CONNECT_WEBHOOK_SECRET = 'whsec_test_taskio_isolation_connect';
 const AUDIENCE = 'https://taskio-api.example.run.app';
 
 function signedEvent(id = 'evt_iso_1') {
@@ -30,6 +31,7 @@ describe('webhook-only runtime isolation', () => {
   const envKeys = [
     'STRIPE_ENABLED',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_CONNECT_WEBHOOK_SECRET',
     'STRIPE_EXPECTED_LIVEMODE',
     'STRIPE_INTERNAL_AUDIENCE',
     'STRIPE_SECRET_KEY',
@@ -42,6 +44,7 @@ describe('webhook-only runtime isolation', () => {
     });
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = TEST_WEBHOOK_SECRET;
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = TEST_CONNECT_WEBHOOK_SECRET;
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = AUDIENCE;
     delete process.env.STRIPE_SECRET_KEY;

@@ -21,6 +21,7 @@ const ENV_KEYS = [
   'STRIPE_ENABLED',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
+  'STRIPE_CONNECT_WEBHOOK_SECRET',
   'STRIPE_EXPECTED_LIVEMODE',
   'STRIPE_INTERNAL_AUDIENCE',
   'STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT',
@@ -168,7 +169,7 @@ describe('GET /health/ready production env', () => {
     expect(JSON.stringify(res.body)).not.toContain('webhook@example.iam.gserviceaccount.com');
   });
 
-  it('does not require STRIPE_WEBHOOK_SECRET for Stripe-enabled API readiness', async () => {
+  it('does not require STRIPE_WEBHOOK_SECRET or STRIPE_CONNECT_WEBHOOK_SECRET for Stripe-enabled API readiness', async () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
     process.env.FRONTEND_URL = 'https://taskio.com.au';
@@ -176,6 +177,7 @@ describe('GET /health/ready production env', () => {
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
     process.env.STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT = 'webhook@example.iam.gserviceaccount.com';
     delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
 
     const res = await request(app).get('/health/ready');
 

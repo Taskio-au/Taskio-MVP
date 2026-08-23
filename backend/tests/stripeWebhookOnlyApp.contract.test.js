@@ -5,6 +5,7 @@ const request = require('supertest');
 const { createMemoryFirestore } = require('./helpers/memoryFirestore');
 
 const TEST_WEBHOOK_SECRET = 'whsec_test_taskio_webhook_app';
+const TEST_CONNECT_WEBHOOK_SECRET = 'whsec_test_taskio_connect_app';
 const AUDIENCE = 'https://taskio-api.example.run.app';
 const mockMemory = createMemoryFirestore();
 const mockForward = jest.fn(async () => ({ httpStatus: 200, body: { received: true } }));
@@ -45,6 +46,7 @@ describe('webhook-only Express app', () => {
   const envKeys = [
     'STRIPE_ENABLED',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_CONNECT_WEBHOOK_SECRET',
     'STRIPE_EXPECTED_LIVEMODE',
     'STRIPE_SECRET_KEY',
     'STRIPE_INTERNAL_AUDIENCE',
@@ -69,12 +71,13 @@ describe('webhook-only Express app', () => {
     dispatchStripeEventHandlers.mockClear();
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = TEST_WEBHOOK_SECRET;
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = TEST_CONNECT_WEBHOOK_SECRET;
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = AUDIENCE;
     delete process.env.STRIPE_SECRET_KEY;
   });
 
-  test('POST /api/stripe/webhook is the only functional route', async () => {
+  test('POST /api/stripe/webhook and /api/stripe/connect-webhook are the functional routes', async () => {
     const app = createWebhookApp({ forwardVerifiedStripeEvent: mockForward });
     const { payload, header } = signedEvent();
     const res = await request(app)
@@ -85,6 +88,27 @@ describe('webhook-only Express app', () => {
     expect(res.status).toBe(200);
     expect(res.body.received).toBe(true);
     expect(mockForward).toHaveBeenCalledTimes(1);
+
+    const connectEvent = {
+      id: 'evt_app_connect_1',
+      object: 'event',
+      type: 'account.updated',
+      livemode: false,
+      created: Math.floor(Date.now() / 1000),
+      data: { object: { id: 'acct_app_1', object: 'account' } },
+    };
+    const connectPayload = JSON.stringify(connectEvent);
+    const connectHeader = Stripe.webhooks.generateTestHeaderString({
+      payload: connectPayload,
+      secret: TEST_CONNECT_WEBHOOK_SECRET,
+    });
+    const connectRes = await request(app)
+      .post('/api/stripe/connect-webhook')
+      .set('Stripe-Signature', connectHeader)
+      .set('Content-Type', 'application/json')
+      .send(connectPayload);
+    expect(connectRes.status).toBe(200);
+    expect(mockForward).toHaveBeenCalledTimes(2);
     expect(dispatchStripeEventHandlers).not.toHaveBeenCalled();
     expect(mockMemory.store('stripe_events').size).toBe(0);
   });
@@ -101,6 +125,8 @@ describe('webhook-only Express app', () => {
     ['POST', '/api/ai/chat'],
     ['GET', '/api/stripe/webhook'],
     ['PUT', '/api/stripe/webhook'],
+    ['GET', '/api/stripe/connect-webhook'],
+    ['PUT', '/api/stripe/connect-webhook'],
     ['POST', '/internal/stripe/verified-event'],
     ['GET', '/internal/stripe/verified-event'],
   ])('%s %s returns 404', async (method, path) => {
@@ -130,6 +156,14 @@ describe('webhook-only Express app', () => {
       expect(mockForward).not.toHaveBeenCalled();
       expect(dispatchStripeEventHandlers).not.toHaveBeenCalled();
       expect(mockMemory.store('stripe_events').size).toBe(0);
+
+      const connectRes = await request(app)
+        .post('/api/stripe/connect-webhook')
+        .set('Stripe-Signature', header)
+        .set('Content-Type', 'application/json')
+        .send(payload);
+      expect(connectRes.status).toBe(404);
+      expect(mockForward).not.toHaveBeenCalled();
     } finally {
       constructSpy.mockRestore();
     }

@@ -94,6 +94,7 @@ describe('internal Stripe verified-event ingest', () => {
     'STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_CONNECT_WEBHOOK_SECRET',
   ];
 
   beforeAll(() => {
@@ -121,6 +122,7 @@ describe('internal Stripe verified-event ingest', () => {
     process.env.STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT = CALLER;
     delete process.env.STRIPE_SECRET_KEY;
     delete process.env.STRIPE_WEBHOOK_SECRET;
+    delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
     mockVerifyIdToken.mockResolvedValue(validGooglePayload());
   });
 

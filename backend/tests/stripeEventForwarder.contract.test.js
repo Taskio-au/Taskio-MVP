@@ -60,6 +60,7 @@ describe('Stripe verified-event forwarder', () => {
   const envKeys = [
     'STRIPE_ENABLED',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_CONNECT_WEBHOOK_SECRET',
     'STRIPE_EXPECTED_LIVEMODE',
     'STRIPE_INTERNAL_AUDIENCE',
     'STRIPE_SECRET_KEY',
@@ -72,6 +73,7 @@ describe('Stripe verified-event forwarder', () => {
     });
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = TEST_WEBHOOK_SECRET;
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_test_taskio_forwarder_connect';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = AUDIENCE;
     delete process.env.STRIPE_SECRET_KEY;
@@ -212,6 +214,7 @@ describe('public webhook HTTP mapping', () => {
   const envKeys = [
     'STRIPE_ENABLED',
     'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_CONNECT_WEBHOOK_SECRET',
     'STRIPE_EXPECTED_LIVEMODE',
     'STRIPE_INTERNAL_AUDIENCE',
   ];
@@ -223,6 +226,7 @@ describe('public webhook HTTP mapping', () => {
     });
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_WEBHOOK_SECRET = TEST_WEBHOOK_SECRET;
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET = 'whsec_test_taskio_forwarder_connect';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     process.env.STRIPE_INTERNAL_AUDIENCE = AUDIENCE;
   });
