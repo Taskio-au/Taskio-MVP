@@ -32,11 +32,11 @@ function validateEnv() {
     }
   }
 
-  // If Stripe flows are enabled, these keys must exist.
+  // If Stripe flows are enabled, the private API must have its own Stripe
+  // API secret. HMAC signing secrets belong only on the webhook-only runtime.
   // Enable Stripe only with the explicit value STRIPE_ENABLED=true.
   if (isStripeEnabled()) {
     requireNonEmpty('STRIPE_SECRET_KEY', process.env.STRIPE_SECRET_KEY);
-    requireNonEmpty('STRIPE_WEBHOOK_SECRET', process.env.STRIPE_WEBHOOK_SECRET);
     // Used for Stripe Connect account link return/refresh URLs
     requireNonEmpty('FRONTEND_URL', process.env.FRONTEND_URL);
     const expectedLivemode = parseStripeExpectedLivemode(process.env.STRIPE_EXPECTED_LIVEMODE);

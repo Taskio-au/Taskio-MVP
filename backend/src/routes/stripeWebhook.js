@@ -45,6 +45,10 @@ router.post(
       try {
         event = constructWebhookEvent(req.body, sig);
       } catch (e) {
+        if (e && e.code === 'stripe_webhook_not_configured') {
+          loggerForReq(req).warn('stripe_webhook_not_configured');
+          return res.status(503).json({ message: 'Webhook handler failed' });
+        }
         loggerForReq(req).warn('stripe_webhook_invalid_signature', {
           code: e && e.code ? e.code : 'invalid_signature',
         });

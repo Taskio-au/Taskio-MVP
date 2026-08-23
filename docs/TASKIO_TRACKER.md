@@ -8,7 +8,7 @@
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- HEAD / origin: `62b4f1f7e66669dde2de405803eb77ea0c7e251f` (`chore(staging): harden deployment preflight`); `develop` = `origin/develop`; working tree clean
+- Latest repository batch: `security: separate Stripe webhook secret from API` (A2 secret separation). `develop` = `origin/develop` after this push; working tree expected clean.
 - **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
 - Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No production webhook service yet. No production data modification.
 - `taskio-api` Cloud Run remains **private** (no `allUsers`).
@@ -16,7 +16,16 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Exact next pickup:** MINIMAL READ-ONLY STAGING INVENTORY for `taskio-v2-staging` only. Do not execute deployments, IAM mutations, secret-value reads, Stripe Dashboard/API work, or production changes until separately approved.
+**Exact next pickup:** Stripe TEST wiring for `taskio-v2-staging` only (store `sk_test_` on the API, configure audience/caller, grant webhook `run.invoker` on the API only, create the TEST endpoint against `WEBHOOK_ORIGIN`, store `whsec_` on the webhook runtime only, then make only the webhook public). Do not start until separately approved. Do not enable live Stripe. Do not modify production.
+
+## 2026-08-23 A2 secret separation (repository + image rebuild)
+
+A2 secret separation was hardened before enabling Stripe TEST in staging.
+
+- Main API `validateEnv()` / `/health/ready` no longer require `STRIPE_WEBHOOK_SECRET` when `STRIPE_ENABLED=true`. The private API still requires `STRIPE_SECRET_KEY`, `STRIPE_EXPECTED_LIVEMODE`, `FRONTEND_URL`, and internal ingest identity (`STRIPE_INTERNAL_AUDIENCE` + `STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT`).
+- The webhook-only runtime remains the sole holder of the Stripe webhook signing secret and still requires `STRIPE_WEBHOOK_SECRET` when Stripe is enabled.
+- Legacy private `POST /api/stripe/webhook` remains on the main API for compatibility and fails closed without a signing secret (no HMAC bypass, no unsigned events, no fabricated secret).
+- No Cloud Run configuration change, no Stripe secrets, no `run.invoker`, and no production mutation were performed in this repository batch. Staging images are rebuilt from the new HEAD and must not be deployed until the Stripe TEST wiring approval.
 
 ## 2026-08-23 owner decision: minimal staging validation (supersedes broad staging)
 
@@ -117,24 +126,9 @@ Use the safest practical environment for those final tests while production rema
 
 ### Exact next pickup
 
-**MINIMAL READ-ONLY STAGING INVENTORY.**
+**Stripe TEST wiring** for `taskio-v2-staging` only, after the A2 secret-separation images exist. Do not start until separately approved.
 
-Answer only what is needed for the small deployment:
-
-- confirm active project identity is exactly `taskio-v2-staging`
-- existing Cloud Run services
-- candidate/runtime service accounts
-- relevant IAM bindings
-- required Secret Manager secret **names/versions only**, never values
-- Artifact Registry availability
-- Firestore existence
-- Stripe TEST configuration availability/state needed for the rehearsal
-
-Do **not** require staging frontend / DNS / Hosting work as part of this inventory.
-
-After inventory, report the **minimum exact mutations required**. Do **not** execute them until separately approved. Do **not** begin that inventory in this documentation batch.
-
-Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
+Read-only inventory and Stripe-disabled Cloud Run bootstrap already exist. Do **not** require staging frontend / DNS / Hosting work. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
 
 ## 2026-08-22 staging deployment safety and operator preflight
 
@@ -2163,6 +2157,7 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-17 | `develop` / `090f1b5` | A03 | Private Cloud Run `taskio-api` on `taskio-v2` / `australia-southeast1`. Revision `taskio-api-preflight-090f1b5`. Digest `sha256:e275078558a06d9a54089a69f74c213abd2a1cac06dc956407d9a41c5fd37143`. Runtime SA `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com`. Secret `OTP_SALT:1` only. IAM-private; ingress all; traffic 100% as first revision. Unauthenticated live 403. Authenticated live/ready 200 (Firestore healthy, Stripe disabled). CORS allows `https://taskio.com.au`, rejects `https://evil.example`. Hosting remains A50 maintenance. Four Functions ACTIVE unchanged. | `gcloud run services/revisions describe`; empty IAM policy; authenticated CORS curls; logging read; functions list; Hosting GET `taskio-v2.web.app` | Cloud Run service/revision exist. This tracker update uncommitted. No public invocation, Hosting, DNS, Functions, or secret-value change in this verification | Separate approval: `allUsers` `roles/run.invoker` only. Do not restore Hosting or DNS |
 | 2026-08-17 | `develop` / `090f1b5` | A03 | Read-only application-auth boundary while Cloud Run IAM remains on. `X-Serverless-Authorization` used so Express sees Firebase `Authorization`. Protected GETs (`/api/me`, `/api/admin/bootstrap`, `/api/tradie/profile`) return Express 401 without app token; invalid bearer returns Express 401 Invalid token. Bare request is Cloud Run 403. Route audit: mutating user-data routes have requireAuth plus role/admin/super-admin as expected. No 5xx in post-test logs. IAM/traffic/Hosting unchanged. | Code audit of `backend/src/routes/**` + `middleware/auth.js`; private curls; logging read freshness 15m | Tracker-only. No IAM, Cloud Run, traffic, Hosting, DNS, or staging change | Public invocation still a separate approval. Do not restore Hosting or DNS |
 | 2026-08-17 | `develop` / `090f1b5` | A03 | Owner enabled public Cloud Run invocation with `--no-invoker-iam-check`. Revision/digest/SA/`OTP_SALT:1` unchanged. Unauthenticated `/health/live` Express 200. Unauthenticated `/api/me` Express 401 `No token provided`. Invalid Firebase bearer Express 401 `Invalid token`. No unexpected 5xx. Hosting remains A50 maintenance. DNS/custom domain and frontend restore outstanding. A03 not completed. | `gcloud run services describe` (`invoker-iam-disabled: true`); public curls to service URL; logging read; Hosting GET | Tracker checkpoint. This verification did not change Cloud Run, traffic, secrets, Hosting, DNS, Functions, or staging | Next: DNS/custom domain and/or Hosting frontend restore, separately approved |
+| 2026-08-23 | `develop` / A2 secret-separation | staging | Main API no longer requires `STRIPE_WEBHOOK_SECRET` at startup or readiness. Webhook-only runtime remains the sole HMAC secret holder. Legacy private HMAC route fails closed without a signing secret. No Cloud Run/Stripe/IAM mutation in the repository batch. | Focused Stripe/env tests; full backend suite; `node --check`; `git diff --check`; staging images rebuilt from new HEAD, not deployed | Pushed the repository commit. Cloud Build image rebuild on `taskio-v2-staging` only. Existing Cloud Run left `STRIPE_ENABLED=false` | Next: Stripe TEST wiring approval |
 
 ## Required final report template
 

@@ -110,7 +110,6 @@ describe('GET /health/ready production env', () => {
   it('fails readiness when Stripe is enabled but STRIPE_EXPECTED_LIVEMODE is missing', async () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     delete process.env.STRIPE_EXPECTED_LIVEMODE;
 
@@ -137,7 +136,6 @@ describe('GET /health/ready production env', () => {
   it('fails readiness when Stripe is enabled but internal ingest identity is missing', async () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     delete process.env.STRIPE_INTERNAL_AUDIENCE;
@@ -156,7 +154,6 @@ describe('GET /health/ready production env', () => {
   it('reports internal ingest as configured without exposing audience or caller', async () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
@@ -169,5 +166,21 @@ describe('GET /health/ready production env', () => {
     expect(res.body.checks.stripe.internalWebhookConfigured).toBe(true);
     expect(JSON.stringify(res.body)).not.toContain('https://taskio-api.example.run.app');
     expect(JSON.stringify(res.body)).not.toContain('webhook@example.iam.gserviceaccount.com');
+  });
+
+  it('does not require STRIPE_WEBHOOK_SECRET for Stripe-enabled API readiness', async () => {
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY = 'sk_live_example';
+    process.env.FRONTEND_URL = 'https://taskio.com.au';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
+    process.env.STRIPE_INTERNAL_AUDIENCE = 'https://taskio-api.example.run.app';
+    process.env.STRIPE_WEBHOOK_CALLER_SERVICE_ACCOUNT = 'webhook@example.iam.gserviceaccount.com';
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+
+    const res = await request(app).get('/health/ready');
+
+    expect(res.status).toBe(200);
+    expect(res.body.checks.stripe.ok).toBe(true);
+    expect(res.body.checks.stripe.enabled).toBe(true);
   });
 });

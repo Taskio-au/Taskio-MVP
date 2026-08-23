@@ -80,36 +80,44 @@ describe('validateEnv production secrets', () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
-  it('requires Stripe backend configuration when STRIPE_ENABLED is true', () => {
+  it('requires Stripe API configuration when STRIPE_ENABLED is true, but not STRIPE_WEBHOOK_SECRET', () => {
     process.env.STRIPE_ENABLED = 'true';
     expect(() => validateEnv()).toThrow('Missing required env var: STRIPE_SECRET_KEY');
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
-    expect(() => validateEnv()).toThrow('Missing required env var: STRIPE_WEBHOOK_SECRET');
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     expect(() => validateEnv()).toThrow('Missing required env var: FRONTEND_URL');
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     expect(() => validateEnv()).toThrow('Missing required env var: STRIPE_EXPECTED_LIVEMODE');
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it('production Stripe-enabled config succeeds with a live key and no webhook HMAC secret', () => {
+    process.env.STRIPE_ENABLED = 'true';
+    process.env.STRIPE_SECRET_KEY = 'sk_live_example';
+    process.env.FRONTEND_URL = 'https://taskio.com.au';
+    process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
+    delete process.env.STRIPE_WEBHOOK_SECRET;
     expect(() => validateEnv()).not.toThrow();
   });
 
   it('still rejects a non-live secret key in production when Stripe is enabled', () => {
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_test_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
+    delete process.env.STRIPE_WEBHOOK_SECRET;
     expect(() => validateEnv()).toThrow('Production Stripe must use a live secret key.');
   });
 
-  it('allows Stripe test mode only for the explicitly identified staging project', () => {
+  it('allows Stripe test mode only for the explicitly identified staging project without a webhook HMAC secret', () => {
     process.env.TASKIO_DEPLOYMENT_ENV = 'staging';
     process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_test_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
+    delete process.env.STRIPE_WEBHOOK_SECRET;
     expect(() => validateEnv()).not.toThrow();
   });
 
@@ -118,7 +126,6 @@ describe('validateEnv production secrets', () => {
     process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2';
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_test_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'false';
     expect(() => validateEnv()).toThrow(
@@ -131,7 +138,6 @@ describe('validateEnv production secrets', () => {
     process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     expect(() => validateEnv()).toThrow('Staging Stripe must expect test mode.');
@@ -142,7 +148,6 @@ describe('validateEnv production secrets', () => {
     process.env.GOOGLE_CLOUD_PROJECT = 'taskio-v2-staging';
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://staging.taskio.com.au';
     process.env.STRIPE_EXPECTED_LIVEMODE = 'true';
     expect(() => validateEnv()).toThrow(

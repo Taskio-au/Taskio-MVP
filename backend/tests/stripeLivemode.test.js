@@ -91,7 +91,6 @@ describe('validateEnv requires explicit livemode when Stripe is enabled', () => 
     process.env.OTP_SALT = 'unit-test-otp-salt';
     process.env.STRIPE_ENABLED = 'true';
     process.env.STRIPE_SECRET_KEY = 'sk_live_example';
-    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_example';
     process.env.FRONTEND_URL = 'https://taskio.com.au';
     jest.spyOn(console, 'warn').mockImplementation(() => {});
   });

@@ -7,8 +7,8 @@ Do not run production from checked-in `.env` files. Use a managed secret store o
 ## Secrets Inventory
 
 - Firebase service account credentials
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_SECRET_KEY` (main API runtime only)
+- `STRIPE_WEBHOOK_SECRET` (webhook-only runtime only; not required on the main API)
 - `GEMINI_API_KEY`
 - `ALERT_WEBHOOK_URL`
 - Any ABN lookup or third-party verification credentials

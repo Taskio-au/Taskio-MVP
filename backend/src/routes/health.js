@@ -26,7 +26,6 @@ async function getReadiness() {
   const expectedStripeLivemode = getExpectedStripeLivemode();
   const stripeEnabled = isStripeEnabled();
   const stripeSecretsOk = Boolean(process.env.STRIPE_SECRET_KEY)
-    && Boolean(process.env.STRIPE_WEBHOOK_SECRET)
     && Boolean(process.env.FRONTEND_URL)
     && (expectedStripeLivemode === true || expectedStripeLivemode === false);
   const internalWebhookConfigured = isInternalStripeIngestConfigured();

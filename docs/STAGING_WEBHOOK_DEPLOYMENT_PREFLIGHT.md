@@ -69,8 +69,8 @@ After inventory, report the **minimum exact mutations required**. Do not execute
 
 1. Build the main API from the repository root `Dockerfile` and the webhook service from `Dockerfile.webhook`. Pin deployments to immutable image digests.
 2. Keep both services on `NODE_ENV=production`, `TASKIO_DEPLOYMENT_ENV=staging`, and `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`.
-3. Configure the main API with a Stripe `sk_test_` secret and `STRIPE_EXPECTED_LIVEMODE=false`.
-4. Configure the webhook service with the TEST endpoint signing secret, `STRIPE_EXPECTED_LIVEMODE=false`, and the exact private API HTTPS origin as `STRIPE_INTERNAL_AUDIENCE`.
+3. Configure the main API with a Stripe `sk_test_` secret and `STRIPE_EXPECTED_LIVEMODE=false`. Do **not** mount or set `STRIPE_WEBHOOK_SECRET` on the main API. The private API receives verified events at `/internal/stripe/verified-event` after Google OIDC checks.
+4. Configure the webhook service with the TEST endpoint signing secret (`STRIPE_WEBHOOK_SECRET`), `STRIPE_EXPECTED_LIVEMODE=false`, and the exact private API HTTPS origin as `STRIPE_INTERNAL_AUDIENCE`. The webhook-only service is the sole holder of the Stripe webhook signing secret.
 5. Do not put `STRIPE_SECRET_KEY`, Firebase credentials, Gemini credentials, ABN credentials, OTP secrets, or frontend configuration on the webhook service.
 6. Keep `ENABLE_SET_ADMIN_ENDPOINT=false` and `TASKIO_SHOW_DEV_OTP=false`.
 7. Use only required staging secrets. Dedicated minimum-privilege runtime service accounts only.
