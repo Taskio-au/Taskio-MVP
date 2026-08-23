@@ -107,7 +107,13 @@ Relevant connected-account events currently consumed (2):
 
 Stripe API version for the staging destinations is `2025-07-30.basil`. The Workbench edit screen exposes those 10 platform events, including `transfer.reversed` and not `transfer.failed`. Destination details may display `transfer.canceled` as a historical compatibility alias; do not treat it as a separately selectable or required Taskio event.
 
-Proven TEST gates (do not resend events from a source-cleanup batch): platform HMAC → OIDC → private API; same-event idempotent resend; Connected Accounts HMAC → OIDC → private API. Next is the synthetic Checkout / payment lifecycle rehearsal.
+Proven TEST gates (do not resend events from a source-cleanup batch): platform HMAC → OIDC → private API; same-event idempotent resend; Connected Accounts HMAC → OIDC → private API.
+
+Synthetic Checkout preflight found and resolved an expert phone-verification consistency issue. A verified Firebase Auth `phone_number` claim can satisfy the expert phone gate; manual Firestore `phoneVerified` seeding is **not** required for the staging rehearsal.
+
+The current dual-header Cloud Run invocation method (`X-Serverless-Authorization` Google identity token + Firebase `Authorization`) is an **OPERATOR STAGING TEST HARNESS**. It does **not** by itself prove that a normal browser end user can directly call the IAM-private Cloud Run API. Browser/user-journey connectivity remains a later pre-launch gate.
+
+Next pickup is SYNTHETIC PAYMENT EXECUTION — PHASE A/B SETUP (identities/profiles/TEST Express onboarding only). Stop before job creation, quote, or Checkout. Do not start until separately approved.
 
 Each destination must use only its own signing secret. Do not share, fall back, or try both secrets on one route.
 

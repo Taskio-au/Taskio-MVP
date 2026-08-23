@@ -200,4 +200,118 @@ describe('v11TradieEligibility regression rules', () => {
       else process.env.STRIPE_ENABLED = prev;
     }
   });
+
+  it('passes the expert phone gate when profile.phoneVerified is true without a token phone', () => {
+    const result = computeEligibility({
+      decodedToken: { email_verified: true },
+      userDoc: baseTradie({ phoneVerified: true }),
+    });
+    expect(result.eligible).toBe(true);
+    expect(result.checklist.phoneVerified).toBe(true);
+    expect(result.reasons).not.toContain('PHONE_NOT_VERIFIED');
+  });
+
+  it('passes the expert phone gate when profile.phoneVerified is absent but the token has phone_number', () => {
+    const result = computeEligibility({
+      decodedToken: { email_verified: true, phone_number: '+61400000001' },
+      userDoc: baseTradie({ phoneVerified: false }),
+    });
+    expect(result.eligible).toBe(true);
+    expect(result.checklist.phoneVerified).toBe(true);
+    expect(result.reasons).not.toContain('PHONE_NOT_VERIFIED');
+  });
+
+  it('fails the expert phone gate when neither profile verification nor token phone is present', () => {
+    const result = computeEligibility({
+      decodedToken: { email_verified: true },
+      userDoc: baseTradie({ phoneVerified: false }),
+    });
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain('PHONE_NOT_VERIFIED');
+  });
+
+  it('fails the expert phone gate when users.phone exists but phoneVerified is false and there is no token phone', () => {
+    const result = computeEligibility({
+      decodedToken: { email_verified: true },
+      userDoc: baseTradie({ phone: '+61400000099', phoneVerified: false }),
+    });
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain('PHONE_NOT_VERIFIED');
+  });
+
+  it('does not treat a request-body style phone field as expert phone verification', () => {
+    const result = computeEligibility({
+      decodedToken: { email_verified: true, phone: '+61400000001' },
+      userDoc: baseTradie({ phone: '+61400000001', phoneVerified: false }),
+    });
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain('PHONE_NOT_VERIFIED');
+  });
+
+  it('still enforces remaining expert gates when a token phone is present', () => {
+    const token = { email_verified: true, phone_number: '+61400000001' };
+    const phoneOk = { phoneVerified: false };
+
+    expect(computeEligibility({
+      decodedToken: token,
+      userDoc: baseTradie({ ...phoneOk, role: 'homeowner' }),
+    }).reasons).toContain('NOT_TRADIE');
+
+    expect(computeEligibility({
+      decodedToken: token,
+      userDoc: baseTradie({ ...phoneOk, status: 'disabled' }),
+    }).reasons).toContain('STATUS_NOT_ACTIVE');
+
+    expect(computeEligibility({
+      decodedToken: { phone_number: '+61400000001' },
+      userDoc: baseTradie(phoneOk),
+    }).reasons).toContain('EMAIL_NOT_VERIFIED');
+
+    expect(computeEligibility({
+      decodedToken: token,
+      userDoc: baseTradie({ ...phoneOk, verified: false }),
+    }).reasons).toContain('UNVERIFIED');
+
+    expect(computeEligibility({
+      decodedToken: token,
+      userDoc: baseTradie({ ...phoneOk, dob: null }),
+    }).reasons).toContain('DOB_MISSING');
+
+    expect(computeEligibility({
+      decodedToken: token,
+      userDoc: baseTradie({
+        ...phoneOk,
+        profileCompleted: false,
+        displayName: '',
+        firstName: '',
+        lastName: '',
+        bio: '',
+        photoURL: '',
+        expertiseApproved: [],
+      }),
+    }).reasons).toContain('PROFILE_INCOMPLETE');
+
+    expect(computeEligibility({
+      decodedToken: token,
+      userDoc: baseTradie({ ...phoneOk, serviceLocation: null }),
+    }).reasons).toContain('SERVICE_LOCATION_MISSING');
+
+    const prev = process.env.STRIPE_ENABLED;
+    process.env.STRIPE_ENABLED = 'true';
+    try {
+      expect(computeEligibility({
+        decodedToken: token,
+        userDoc: baseTradie({
+          ...phoneOk,
+          stripe: { onboardingComplete: false },
+          stripeOnboardingStatus: 'pending',
+          stripeChargesEnabled: false,
+          stripePayoutsEnabled: false,
+        }),
+      }).reasons).toContain('STRIPE_NOT_COMPLETE');
+    } finally {
+      if (prev === undefined) delete process.env.STRIPE_ENABLED;
+      else process.env.STRIPE_ENABLED = prev;
+    }
+  });
 });

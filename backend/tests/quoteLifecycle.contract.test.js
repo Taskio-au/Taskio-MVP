@@ -966,6 +966,115 @@ describe('quote lifecycle contracts', () => {
     expect(res.body.reasons).toContain('STRIPE_NOT_COMPLETE');
   });
 
+  it('lets a complete expert quote when the Firebase token has phone_number and Firestore phoneVerified is false', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+      phone_number: '+61400000001',
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: false,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'pending',
+    });
+    seedDoc('jobs', 'job-quote-token-phone', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-token-phone/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.quoteId).toBeTruthy();
+  });
+
+  it('rejects an expert quote when neither Firestore phoneVerified nor token phone_number is present', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: false,
+      phone: '+61400000099',
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'pending',
+    });
+    seedDoc('jobs', 'job-quote-no-phone', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-no-phone/quotes')
+      .send({
+        amount: 250,
+        message: 'Happy to complete this task for you.',
+        phone: '+61400000001',
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.reasons).toContain('PHONE_NOT_VERIFIED');
+  });
+
+  it('still requires a job invitation even when the expert phone gate is satisfied by the token', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+      phone_number: '+61400000001',
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: false,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'pending',
+    });
+    seedDoc('jobs', 'job-quote-uninvited', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['someone-else'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-uninvited/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe('Forbidden: You are not invited to quote on this task.');
+  });
+
   it('does not transfer on homeowner release when Stripe is disabled', async () => {
     process.env.STRIPE_ENABLED = 'false';
     process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';

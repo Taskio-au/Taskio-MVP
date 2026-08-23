@@ -8,7 +8,7 @@
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Latest repository batch: `chore(stripe): remove stale transfer.failed event`. `develop` = `origin/develop` after this push; working tree expected clean.
+- Latest repository batch: `fix(auth): honor verified Firebase phone for experts`. `develop` = `origin/develop` after this push; working tree expected clean.
 - **PRE-LAUNCH FREEZE remains fully in force.** Public maintenance page only. No public SPA, Hosting preview, signup, or public `taskio-api`. Stripe is **not** launched.
 - Production `STRIPE_ENABLED` remains **false**. No live Stripe configuration. No production webhook service yet. No production data modification.
 - `taskio-api` Cloud Run remains **private** (no `allUsers`).
@@ -16,7 +16,17 @@
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Exact next pickup:** Synthetic Checkout / payment lifecycle preflight. First derive the exact minimum synthetic staging user/job/quote/payment state and authenticated API calls required for a real Checkout → payment webhook → funded-state rehearsal. Do not start until separately approved. Do not enable live Stripe. Do not modify production.
+**Exact next pickup:** SYNTHETIC PAYMENT EXECUTION — PHASE A/B SETUP on `taskio-v2-staging` only. That batch may create synthetic homeowner/expert/admin identities, genuine Firebase verification state, expert profile/photo, and a TEST Express account/onboarding. Stop before job creation, quote, or Checkout. Do not start until separately approved. Do not enable live Stripe. Do not modify production.
+
+## 2026-08-23 expert phone-verification consistency
+
+Synthetic Checkout preflight found that homeowner account completion accepted either `users.phoneVerified === true` or a verified Firebase ID-token `phone_number`, while expert quote eligibility required only `users.phoneVerified === true`.
+
+- Shared helper `hasVerifiedPhone(profile, decodedToken)` now applies the same contract to homeowner completed-account checks and expert quote eligibility.
+- A verified Firebase Auth phone claim satisfies the expert phone gate. Manual Firestore `phoneVerified=true` seeding is **not** required for the staging rehearsal.
+- Request-body phone values, `users.phone` alone, and unverified custom headers are not trusted. Email, admin verification, DOB/adult, expertise, location, profile/photo, Stripe onboarding, and job invitation gates are unchanged.
+- The dual-header Cloud Run invocation method remains an **OPERATOR STAGING TEST HARNESS** only. It does not prove browser/user-journey connectivity to the IAM-private API.
+- Production PRE-LAUNCH FREEZE is unchanged. No Auth/Firestore/Stripe application mutations in this batch.
 
 ## 2026-08-23 Stripe Connect dual webhook destinations (repository)
 
@@ -46,7 +56,8 @@ Staging HMAC → OIDC → private API gates are complete for TEST mode. Destinat
 - Connected Accounts webhook gate passed (`POST /api/stripe/connect-webhook`).
 - `transfer.failed` was removed from runtime handling and intended subscription documentation. Supported transfer operational event remains `transfer.reversed`.
 - Stripe Workbench for `2025-07-30.basil` exposes `transfer.reversed` and not `transfer.failed`. Destination details may display `transfer.canceled` as a historical alias; Taskio does not handle it as a separate event.
-- Synthetic payment lifecycle remains next. Do not begin it until separately approved.
+- Synthetic Checkout preflight found an expert phone-verification consistency issue. That is now resolved: a verified Firebase Auth `phone_number` claim satisfies the expert phone gate. Manual Firestore `phoneVerified=true` seeding is **not** required for the staging rehearsal.
+- The current dual-header Cloud Run invocation method (`X-Serverless-Authorization` Google identity token + Firebase `Authorization`) is an **OPERATOR STAGING TEST HARNESS**. It does **not** by itself prove that a normal browser end user can directly call the IAM-private Cloud Run API. Browser/user-journey connectivity remains a later pre-launch gate.
 
 **PRE-LAUNCH FREEZE remains fully in force.** Legal blockers unchanged.
 
@@ -158,7 +169,7 @@ Use the safest practical environment for those final tests while production rema
 
 ### Exact next pickup
 
-Synthetic Checkout / payment lifecycle preflight on `taskio-v2-staging` only. First derive the exact minimum synthetic staging user/job/quote/payment state and authenticated API calls required for a real Checkout → payment webhook → funded-state rehearsal. Do not start until separately approved.
+SYNTHETIC PAYMENT EXECUTION — PHASE A/B SETUP on `taskio-v2-staging` only. That batch may create synthetic homeowner/expert/admin identities, genuine Firebase verification state, expert profile/photo, and a TEST Express account/onboarding. Stop before job creation, quote, or Checkout. Do not start until separately approved.
 
 Platform HMAC, duplicate-resend/idempotency, and Connected Accounts HMAC gates already passed. Do **not** require staging frontend / DNS / Hosting work. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
 

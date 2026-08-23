@@ -165,4 +165,26 @@ describe('homeowner account completion contracts', () => {
     expect(res.status).toBe(200);
     expect(res.body.profile.accountCompleted).toBe(true);
   });
+
+  it('still completes the homeowner account from a Firebase token phone without Firestore phoneVerified', async () => {
+    seedDoc('users', 'homeowner-1', {
+      role: 'homeowner',
+      phone: '+61400000001',
+      phoneVerified: false,
+      email: 'saeed@example.com',
+      emailVerified: true,
+      quoteAccessVerified: true,
+      accountCompleted: false,
+    });
+    mockState.currentUser.email = 'saeed@example.com';
+    mockState.currentUser.email_verified = true;
+    mockState.currentUser.phone_number = '+61400000001';
+
+    const res = await request(app)
+      .post('/api/me/homeowner/complete-account')
+      .send({ method: 'email', firstName: 'Saeed' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.profile.accountCompleted).toBe(true);
+  });
 });

@@ -5,7 +5,7 @@
  * - user.role === "tradie"
  * - user.status === "active"
  * - user.verified === true (admin verified)
- * - user.phoneVerified === true
+ * - phone verified: users.phoneVerified === true OR decoded token phone_number
  * - user.abnVerified === true
  * - user.stripe.onboardingComplete === true when Stripe is enabled
  *   (this requirement is skipped while STRIPE_ENABLED is not exactly "true")
@@ -16,6 +16,7 @@
  */
 
 const { isStripeEnabled } = require('../config/stripeEnabled');
+const { hasVerifiedPhone } = require('./verifiedPhone');
 
 function normalizeStatus(s) {
   const v = String(s || '').toLowerCase();
@@ -130,7 +131,7 @@ function computeStripeOnboardingComplete(userDoc) {
 
 function computeChecklist({ decodedToken, userDoc }) {
   const emailVerified = decodedToken?.email_verified === true;
-  const phoneVerified = userDoc?.phoneVerified === true;
+  const phoneVerified = hasVerifiedPhone(userDoc, decodedToken);
   const businessType = normalizeBusinessType(userDoc?.businessType);
   const abnRequired = requiresAbn(businessType, userDoc?.businessName);
   const abnPresent = abnRequired ? hasMinText(userDoc?.abn, 5) : true;

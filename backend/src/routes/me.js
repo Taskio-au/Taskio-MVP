@@ -18,6 +18,7 @@ const {
   requiresBusinessName,
 } = require('../utils/v11TradieEligibility');
 const { writeUserAuditLog } = require('../utils/auditLogs');
+const { hasVerifiedPhone } = require('../utils/verifiedPhone');
 const { evaluateProfileRequestRiskById } = require('../services/riskAutomationPipeline');
 const { safeToMillis } = require('../utils/firestore');
 const { isSupportedMelbournePilotLocation, INNER_MELBOURNE_LAUNCH_MESSAGE } = require('../../../shared/auLocations');
@@ -186,7 +187,7 @@ function hasHomeownerFirstName(profile = {}) {
 }
 
 function hasDurableHomeownerAccount(profile = {}, decodedToken = {}) {
-  const phoneVerified = profile.phoneVerified === true || !!decodedToken?.phone_number;
+  const phoneVerified = hasVerifiedPhone(profile, decodedToken);
   const emailVerified = profile.emailVerified === true || decodedToken?.email_verified === true;
   return phoneVerified && emailVerified && hasHomeownerFirstName(profile);
 }

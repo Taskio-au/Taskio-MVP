@@ -20,6 +20,7 @@ const { melbournePilotLocations, isSupportedMelbournePilotLocation, normalizeLoc
 const { defaultPlatformFeePercentFromEnv } = require('../../../shared/feePlans');
 const { getExpertRatingAggregate } = require('../services/reviewAggregationService');
 const { detectPII } = require('../utils/eligibility');
+const { hasVerifiedPhone } = require('../utils/verifiedPhone');
 const { applyVariationPaymentSuccess, isVariationPaymentMetadata } = require('../services/variationPaymentCompletion');
 const {
   createExpertReleaseStripeTransfers,
@@ -356,7 +357,7 @@ function hasQuoteAccess(profile, decodedToken) {
 }
 
 function hasCompletedHomeownerAccount(profile, decodedToken) {
-  const phoneVerified = profile.phoneVerified === true || !!decodedToken?.phone_number;
+  const phoneVerified = hasVerifiedPhone(profile, decodedToken);
   const emailVerified = profile.emailVerified === true || decodedToken?.email_verified === true;
   const hasFirstName = Boolean(
     String(profile.firstName || '').trim()
