@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { db } = require('../firebaseAdmin');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { isStripeEnabled } = require('../config/stripeEnabled');
 const { getExpectedStripeLivemode } = require('../config/stripeLivemode');
 const { isInternalStripeIngestConfigured } = require('../config/stripeInternalIngest');
@@ -90,7 +91,7 @@ router.get('/health', async (req, res) => {
   });
 });
 
-router.get('/health/metrics', (req, res) => {
+router.get('/health/metrics', requireAuth, requireAdmin, (req, res) => {
   const mem = process.memoryUsage();
   return res.status(200).json({
     process: {

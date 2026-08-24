@@ -163,6 +163,7 @@ Set these in a local `backend/.env` (never commit it):
 - **STRIPE_SECRET_KEY**: Stripe secret key (`sk_test_...` for test mode)
 - **STRIPE_WEBHOOK_SECRET**: webhook signing secret (`whsec_...`) when Stripe is enabled
 - **FRONTEND_URL**: frontend origin used for Stripe Connect return/refresh URLs
+- **TASKIO_PUBLIC_SIGNUP_ENABLED**: production/pre-launch public enrollment. Exact `true` allows `POST /api/users/register` and Google expert enrollment. Missing, `false`, or any other value disables signup in production before Firebase Auth/Firestore writes. Safe value: `false`. Do not set `true` without explicit owner launch approval.
 
 Example (placeholders only):
 

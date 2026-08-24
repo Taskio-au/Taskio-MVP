@@ -297,4 +297,101 @@ describe('tradie registration contracts', () => {
     expect(response.status).toBe(409);
     expect(response.body.message).toMatch(/different Taskio role/i);
   });
+
+  describe('public signup kill switch on enrollment routes', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalFlag = process.env.TASKIO_PUBLIC_SIGNUP_ENABLED;
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalFlag === undefined) {
+        delete process.env.TASKIO_PUBLIC_SIGNUP_ENABLED;
+      } else {
+        process.env.TASKIO_PUBLIC_SIGNUP_ENABLED = originalFlag;
+      }
+    });
+
+    const tradiePayload = {
+      role: 'tradie',
+      firstName: 'Jane',
+      lastName: 'Expert',
+      email: 'jane@example.com',
+      password: 'hunter22',
+      serviceLocation: {
+        label: 'Richmond VIC 3121',
+        suburb: 'Richmond',
+        state: 'VIC',
+        postcode: '3121',
+        country: 'AU',
+      },
+      primaryServiceSuburb: 'Richmond',
+      primaryServicePostcode: '3121',
+      expertise: ['mounting_shelves'],
+    };
+
+    it('blocks POST /api/users/register in production when the flag is missing and does not create Auth users', async () => {
+      process.env.NODE_ENV = 'production';
+      delete process.env.TASKIO_PUBLIC_SIGNUP_ENABLED;
+
+      const response = await request(buildApp()).post('/api/users/register').send(tradiePayload);
+
+      expect(response.status).toBe(503);
+      expect(response.body.code).toBe('signup_disabled');
+      expect(mockState.createdUsers).toHaveLength(0);
+      expect(mockState.claims).toHaveLength(0);
+      expect(mockState.storedUsers.size).toBe(0);
+    });
+
+    it('blocks POST /api/users/register in production when the flag is false', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.TASKIO_PUBLIC_SIGNUP_ENABLED = 'false';
+
+      const response = await request(buildApp()).post('/api/users/register').send(tradiePayload);
+
+      expect(response.status).toBe(503);
+      expect(mockState.createdUsers).toHaveLength(0);
+    });
+
+    it('blocks POST /api/users/register in production when the flag is malformed', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.TASKIO_PUBLIC_SIGNUP_ENABLED = 'yes';
+
+      const response = await request(buildApp()).post('/api/users/register').send(tradiePayload);
+
+      expect(response.status).toBe(503);
+      expect(mockState.createdUsers).toHaveLength(0);
+    });
+
+    it('allows POST /api/users/register in production when the flag is true', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.TASKIO_PUBLIC_SIGNUP_ENABLED = 'true';
+
+      const response = await request(buildApp()).post('/api/users/register').send(tradiePayload);
+
+      expect(response.status).toBe(201);
+      expect(mockState.createdUsers).toHaveLength(1);
+    });
+
+    it('blocks Google expert enrollment when signup is disabled before claims or profile writes', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.TASKIO_PUBLIC_SIGNUP_ENABLED = 'false';
+
+      const response = await request(buildApp())
+        .post('/api/users/register/expert-google')
+        .set('Authorization', 'Bearer test-token')
+        .send({
+          firstName: 'Jane',
+          lastName: 'Expert',
+          serviceLocation: tradiePayload.serviceLocation,
+          primaryServiceSuburb: 'Richmond',
+          primaryServicePostcode: '3121',
+          expertise: ['mounting_shelves'],
+        });
+
+      expect(response.status).toBe(503);
+      expect(response.body.code).toBe('signup_disabled');
+      expect(mockState.claims).toHaveLength(0);
+      expect(mockState.storedUsers.size).toBe(0);
+    });
+  });
 });

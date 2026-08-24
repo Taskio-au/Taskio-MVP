@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 
 const { admin, db } = require('../firebaseAdmin');
 const { requireAuth } = require('../middleware/auth');
+const { requirePublicSignupEnabled } = require('../config/publicSignup');
 const { isNonEmptyString, isStringMax } = require('../utils/validation');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
 const { isSupportedMelbournePilotLocation, INNER_MELBOURNE_LAUNCH_MESSAGE } = require('../../../shared/auLocations');
@@ -139,7 +140,7 @@ function buildTradieUserData({
   return payload;
 }
 
-router.post('/api/users/register', authLimiter, async (req, res) => {
+router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, async (req, res) => {
   try {
     const {
       email,
@@ -232,7 +233,7 @@ router.post('/api/users/register', authLimiter, async (req, res) => {
   }
 });
 
-router.post('/api/users/register/expert-google', authLimiter, requireAuth, async (req, res) => {
+router.post('/api/users/register/expert-google', authLimiter, requireAuth, requirePublicSignupEnabled, async (req, res) => {
   try {
     const {
       firstName,

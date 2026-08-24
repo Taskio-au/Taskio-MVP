@@ -8,13 +8,13 @@
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Latest repository batch: `docs: record staging payment validation`. Source checkpoint **before** this tracker-only commit: `b2e7bc707e9bfcbcc6ed679b09764d6668999d64`. `develop` = `origin/develop` after this push; working tree expected clean.
-- **PRE-LAUNCH FREEZE remains fully in force.** `taskio.com.au` is maintenance only. No public SPA. Production signup disabled. Production API private. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
-- Staging/test work remains the **minimal staging validation bench** only. This decision does **not** authorize production changes.
+- Latest repository batch: `security: harden API for public browser access`. Prior docs-only HEAD `02d39ed14fb67576285c5fbad6d3cf7bee27d514`. Deployed staging application source remains `b2e7bc707e9bfcbcc6ed679b09764d6668999d64` until a **separate** deploy approval. This batch is source/tests/docs only.
+- **PRE-LAUNCH FREEZE remains fully in force.** `taskio.com.au` is maintenance only. No public SPA. Production signup stays disabled (`TASKIO_PUBLIC_SIGNUP_ENABLED` missing/`false`). Production API remains IAM-private. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
+- Staging/test work remains the **minimal staging validation bench** only. This decision does **not** authorize production changes, Cloud Run public IAM, or a staging deploy of this commit.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission.
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Staging gates now COMPLETE (2026-08-23, `taskio-v2-staging`, Stripe TEST only):**
+**Staging gates now COMPLETE (`taskio-v2-staging`, Stripe TEST only):**
 
 - expert verified-Firebase-phone consistency fix deployed
 - minimum staging Firebase Auth runtime IAM established using custom role `projects/taskio-v2-staging/roles/taskioStagingAuthUserManager` with only `firebaseauth.users.create`, `firebaseauth.users.get`, `firebaseauth.users.update`, `firebaseauth.users.delete`
@@ -26,8 +26,9 @@
 - Connected Accounts webhook gate passed
 - genuine Checkout / payment lifecycle passed
 - genuine funded homeowner cancellation / full-refund lifecycle passed
+- **EXPERT RELEASE / CONNECT TRANSFER GATE: PASS** (2026-08-24). Proven: expert complete → homeowner release → Stripe TEST Connect transfer. **Not** proven: connected-account bank payout.
 
-**Exact next pickup:** FINAL STAGING READINESS REVIEW. Do **not** start variation, expert release/payout, dispute, or admin/super_admin refund testing, and do **not** change production, without a new decision/approval. SYNTHETIC PAYMENT EXECUTION — PHASE A/B SETUP is **no longer** the next pickup.
+**Exact next pickup:** PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH. Do **not** make Cloud Run public, deploy this commit, enable signup, restore Hosting, or touch production without a new decision/approval.
 
 ## 2026-08-23 expert phone-verification consistency
 
@@ -96,15 +97,30 @@ Minimal staging Stripe TEST lifecycle is complete on `taskio-v2-staging`. Produc
 - No transfer, payout, reversal, variation, dispute, or duplicate refund
 - Quote remains `accepted` as a historical record
 
+### Expert release / Connect transfer evidence — PASS
+
+- `JOB_ID`: `iWKp0gdrUAK1vC27XV3L`
+- `QUOTE_ID`: `ODZlAnpV9ekJedFucjHy`
+- Checkout: `cs_test_a1ji5PWa21U3UrwhnrUoLqIIvKeVx2qU5i5tbTFNW9wlrlhRhDyQGsC8wG`
+- PaymentIntent: `pi_3U7vFHGdq6QKDpuT1DZE7Ile`
+- Source charge: `ch_3U7vFHGdq6QKDpuT1mxXgMcp`
+- Connect Transfer: `tr_3U7vFHGdq6QKDpuT1yWsRK22`
+- Destination: `acct_1U7VjdKCF5W6OUwD`
+- AUD 20.00 / 2000 cents gross; Taskio 200 cents; expert 1800 cents
+- `FUNDED` → expert `/complete` → `COMPLETED` / `in_escrow` → homeowner `/release`
+- Final: `status=PAID`, `paymentState=released`, `releasePlanVersion=2`, `baseReleaseFeeSource=fee_snapshot_v1`
+- No variation, no Taskio-initiated payout, no refund/reversal/dispute on this job
+- Production unchanged / frozen
+
 ### Operational note
 
 An empty-body POST through the Google frontend returned HTTP 411 before Cloud Run. Sending `{}` supplied `Content-Length` and the normal cancel endpoint worked. Do **not** classify the 411 as an application failure.
 
 ### Not yet proven (do not start without a new decision)
 
-These paths were **not** tested and are **not** approved by this PASS:
+These paths were **not** tested and are **not** approved by the payment PASS notes:
 
-- expert release / Stripe transfer / payout
+- connected-account **bank payout** (transfer-to-Express-balance is proven; payout-to-bank is not)
 - paid variation lifecycle
 - dispute workflow
 - admin manual / `super_admin` refund workflow
@@ -125,15 +141,9 @@ Normal browser/user connectivity, intended production API exposure, or a trusted
 
 ### Exact next pickup
 
-**FINAL STAGING READINESS REVIEW.** Next session should:
+**PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH.** Application hardening for a later public-API decision is in `docs/PUBLIC_API_EXPOSURE_PREFLIGHT.md`. Do not treat that document as deployment approval.
 
-1. Consolidate minimal staging evidence
-2. Classify remaining Stripe paths as required-before-launch vs optional
-3. Review browser → API architecture / connectivity
-4. Review security / observability / rollback / backup / cleanup
-5. Decide which synthetic staging evidence/data to retain or clean up
-6. Review legal readiness
-7. Produce the remaining production-preflight checklist
+Next session should not start Cloud Run public IAM, staging deploy of this commit, signup enablement, Hosting restore, or LIVE Stripe without a new owner approval.
 
 Do **not** start variation testing, release/payout testing, dispute testing, admin manual refund testing, or production changes without a new decision/approval.
 
@@ -2313,6 +2323,7 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-17 | `develop` / `090f1b5` | A03 | Owner enabled public Cloud Run invocation with `--no-invoker-iam-check`. Revision/digest/SA/`OTP_SALT:1` unchanged. Unauthenticated `/health/live` Express 200. Unauthenticated `/api/me` Express 401 `No token provided`. Invalid Firebase bearer Express 401 `Invalid token`. No unexpected 5xx. Hosting remains A50 maintenance. DNS/custom domain and frontend restore outstanding. A03 not completed. | `gcloud run services describe` (`invoker-iam-disabled: true`); public curls to service URL; logging read; Hosting GET | Tracker checkpoint. This verification did not change Cloud Run, traffic, secrets, Hosting, DNS, Functions, or staging | Next: DNS/custom domain and/or Hosting frontend restore, separately approved |
 | 2026-08-23 | `develop` / A2 secret-separation | staging | Main API no longer requires `STRIPE_WEBHOOK_SECRET` at startup or readiness. Webhook-only runtime remains the sole HMAC secret holder. Legacy private HMAC route fails closed without a signing secret. No Cloud Run/Stripe/IAM mutation in the repository batch. | Focused Stripe/env tests; full backend suite; `node --check`; `git diff --check`; staging images rebuilt from new HEAD, not deployed | Pushed the repository commit. Cloud Build image rebuild on `taskio-v2-staging` only. Existing Cloud Run left `STRIPE_ENABLED=false` | Next: Stripe TEST wiring approval |
 | 2026-08-23 | `develop` / Connect dual webhook | staging | Webhook runtime gained isolated `POST /api/stripe/connect-webhook` (`STRIPE_CONNECT_WEBHOOK_SECRET`) beside platform `POST /api/stripe/webhook` (`STRIPE_WEBHOOK_SECRET`). Cross-secret HMAC isolation; both 404 when Stripe disabled. Private API still gets neither signing secret. | Focused webhook/HMAC/livemode/OIDC/secret-boundary tests; full backend suite; `node --check`; `git diff --check` | Repository source only until CI is green; then staging images rolled to existing services with webhook still `STRIPE_ENABLED=false` and private | Next: two empty staging webhook Secret Manager resources, then public webhook + two Stripe TEST destinations |
+| 2026-08-24 | `develop` / public-API hardening | none | Source-only: `super_admin` on admin refund/manual-release; `TASKIO_PUBLIC_SIGNUP_ENABLED` production fail-closed; `/health/metrics` admin-only; public-API preflight doc. Staging expert-release gate recorded PASS. No Cloud Run IAM, deploy, Firebase, Stripe, or production change. | Backend full suite; `node --check`; `git diff --check` | Pushed to `origin/develop` only after tests green. **Not deployed.** | Next: PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH — separate approval |
 
 ## Required final report template
 

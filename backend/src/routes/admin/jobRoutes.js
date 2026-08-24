@@ -636,7 +636,11 @@ router.post('/api/admin/jobs/:jobId/clear-dispute', requireAuth, requireAdmin, a
   }
 });
 
-router.post('/api/admin/jobs/:jobId/manual-release', requireAuth, requireAdmin, async (req, res) => {
+/**
+ * POST /api/admin/jobs/:jobId/manual-release
+ * Creates a Stripe Connect transfer. Super-admin only.
+ */
+router.post('/api/admin/jobs/:jobId/manual-release', requireAuth, requireAdmin, requireSuperAdmin, async (req, res) => {
   try {
     if (!isStripeEnabled()) {
       return sendStripeDisabled(res);
@@ -960,7 +964,11 @@ router.post('/api/admin/jobs/:jobId/mark-refunded', requireAuth, requireAdmin, a
   }
 });
 
-router.post('/api/admin/jobs/:jobId/refund', requireAuth, requireAdmin, async (req, res) => {
+/**
+ * POST /api/admin/jobs/:jobId/refund
+ * Creates Stripe Refund object(s). Super-admin only.
+ */
+router.post('/api/admin/jobs/:jobId/refund', requireAuth, requireAdmin, requireSuperAdmin, async (req, res) => {
   try {
     if (!isStripeEnabled()) {
       return sendStripeDisabled(res);
