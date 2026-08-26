@@ -31,10 +31,14 @@ Browsers send `Authorization: Bearer <Firebase ID token>`. Cloud Run IAM-public 
 
 Gated enrollment routes:
 
-- `POST /api/users/register` (anonymous Firebase Admin `createUser`)
+- `POST /api/users/register` (anonymous Firebase Admin `createUser`, **expert `tradie` role only**)
 - `POST /api/users/register/expert-google` (authenticated Google expert bootstrap)
 
 Not gated: login, `POST /api/auth/resolve-email`, profile edits, admin, Stripe ingest.
+
+### Homeowner registration is not available on this route
+
+`POST /api/users/register` rejects `role: 'homeowner'` with HTTP 400 before Auth `createUser` or any Firestore write. Homeowner accounts are created only by the phone-verified posting flow, so `quoteAccessVerified` can be granted only by `POST /api/me/homeowner/activate-quote-access` (which requires a phone-verified token) or `POST /api/me/homeowner/complete-account`.
 
 ## Anonymous endpoint inventory
 
@@ -45,7 +49,7 @@ Classification: **A** intentionally public · **B** public but rate-limited · *
 | `GET /` | A | Liveness banner only. No secrets. |
 | `GET /health`, `/health/live`, `/health/ready` | A | Infrastructure probes. Readiness reports booleans, not secret values. |
 | `GET /health/metrics` | C → now auth | Process RSS/heap/uptime. **Admin `requireAuth` + `requireAdmin` as of this batch.** Anonymous 401; non-admin 403. |
-| `POST /api/users/register` | B + E | Rate-limited. **Signup flag** fails closed in production. |
+| `POST /api/users/register` | B + E | Rate-limited. **Signup flag** fails closed in production. Expert `tradie` role only; `homeowner` rejected with 400 before any Auth/Firestore write. |
 | `POST /api/users/register/expert-google` | B + authenticated + E | Requires Firebase session **and** signup flag. |
 | `POST /api/auth/resolve-email` | B | Sign-in strategy hint; rate-limited; does not create accounts. |
 | `GET /api/suburb-search` | B | Melbourne launch suburb labels only; covered by general limiter. |

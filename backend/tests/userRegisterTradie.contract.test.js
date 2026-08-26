@@ -226,16 +226,95 @@ describe('tradie registration contracts', () => {
       .post('/api/users/register')
       .set('x-request-id', 'registration-test-request')
       .send({
-        role: 'homeowner',
+        role: 'tradie',
         firstName: 'Safe',
         lastName: 'Error',
         email: 'unsafe-error@example.com',
         password: 'hunter22',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
       });
 
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('We could not create the account with those details.');
     expect(JSON.stringify(response.body)).not.toMatch(/tenant|credential|Firebase internal/i);
+  });
+
+  it('rejects homeowner registration and directs the caller to the posting flow', async () => {
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .send({
+        role: 'homeowner',
+        firstName: 'Stage',
+        lastName: 'Homeowner',
+        email: 'homeowner@example.com',
+        password: 'hunter22',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('Expert accounts only. To create a homeowner account, post a task.');
+  });
+
+  it('creates no Auth user, claim or profile when homeowner registration is rejected', async () => {
+    await request(buildApp())
+      .post('/api/users/register')
+      .send({
+        role: 'homeowner',
+        firstName: 'Stage',
+        lastName: 'Homeowner',
+        email: 'homeowner@example.com',
+        password: 'hunter22',
+      });
+
+    expect(mockState.createdUsers).toHaveLength(0);
+    expect(mockState.claims).toHaveLength(0);
+    expect(mockState.storedUsers.size).toBe(0);
+  });
+
+  it('never grants homeowner quote access through the public register route', async () => {
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .send({
+        role: 'homeowner',
+        firstName: 'Stage',
+        lastName: 'Homeowner',
+        email: 'quote-access@example.com',
+        password: 'hunter22',
+        quoteAccessVerified: true,
+      });
+
+    expect(response.status).toBe(400);
+    expect(
+      [...mockState.storedUsers.values()].some((profile) => profile?.quoteAccessVerified === true)
+    ).toBe(false);
+  });
+
+  it('rejects a missing or unsupported account type without creating anything', async () => {
+    for (const role of [undefined, '', 'admin', 'client']) {
+      resetMockState();
+      const response = await request(buildApp())
+        .post('/api/users/register')
+        .send({
+          role,
+          firstName: 'Stage',
+          lastName: 'Unknown',
+          email: 'unknown-role@example.com',
+          password: 'hunter22',
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Please choose a valid account type.');
+      expect(mockState.createdUsers).toHaveLength(0);
+      expect(mockState.storedUsers.size).toBe(0);
+    }
   });
 
   it('completes Google expert signup for an authenticated account', async () => {

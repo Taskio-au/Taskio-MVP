@@ -154,8 +154,15 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
       primaryServicePostcode,
     } = req.body;
 
-    if (!role || (role !== 'homeowner' && role !== 'tradie')) {
-      return res.status(400).send({ message: 'Please choose an account type (Client or Expert).' });
+    // Homeowner accounts are created only by the phone-verified posting flow, which is the
+    // single path that may grant quote access. See POST /api/me/homeowner/activate-quote-access.
+    if (role === 'homeowner') {
+      return res.status(400).send({
+        message: 'Expert accounts only. To create a homeowner account, post a task.',
+      });
+    }
+    if (role !== 'tradie') {
+      return res.status(400).send({ message: 'Please choose a valid account type.' });
     }
     if (!isNonEmptyString(email) || !isStringMax(email, 320)) {
       return res.status(400).send({ message: 'A valid email is required.' });
@@ -204,10 +211,6 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
       role,
       status: 'active',
       verified: false,
-      ...(role === 'homeowner' ? {
-        quoteAccessVerified: true,
-        accountCompleted: false,
-      } : {}),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 

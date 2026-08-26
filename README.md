@@ -165,6 +165,8 @@ Set these in a local `backend/.env` (never commit it):
 - **FRONTEND_URL**: frontend origin used for Stripe Connect return/refresh URLs
 - **TASKIO_PUBLIC_SIGNUP_ENABLED**: production/pre-launch public enrollment. Exact `true` allows `POST /api/users/register` and Google expert enrollment. Missing, `false`, or any other value disables signup in production before Firebase Auth/Firestore writes. Safe value: `false`. Do not set `true` without explicit owner launch approval.
 
+`POST /api/users/register` creates **expert (`tradie`) accounts only**. `role: 'homeowner'` is rejected with HTTP 400 before any Firebase Auth or Firestore write. Homeowner accounts are created only by the phone-verified posting flow, which is the single path that may grant quote access (`POST /api/me/homeowner/activate-quote-access`).
+
 Example (placeholders only):
 
 ```sh
