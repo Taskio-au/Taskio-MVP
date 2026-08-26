@@ -65,6 +65,13 @@ describe('smoke: auth guard flow', () => {
   });
 });
 
+describe('routes: retired homeowner email signup', () => {
+  // Homeowner accounts are created only by the phone-verified /post-job flow.
+  it('no longer ships the /auth-and-post page module', () => {
+    expect(() => require('./components/HomeownerAuthPage')).toThrow(/Cannot find module/);
+  });
+});
+
 describe('smoke: quote and escrow flow', () => {
   it('shows expected quote acceptance CTA labels', () => {
     expect(getPrimaryAction(JOB_STATUSES.QUOTED, 'job-1')?.label).toBe('View quotes');

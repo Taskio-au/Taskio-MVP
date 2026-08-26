@@ -9,7 +9,6 @@ import { getE2EAuthUser } from './e2e/authBypass';
 import Login from './Login';
 import Dashboard from './Dashboard';
 import JobPostingForm from './components/JobPostingForm';
-import ClientAuthPage from './components/HomeownerAuthPage';
 import JobDetail from './JobDetail';
 import Layout from './Layout';
 import ClientDashboard from './components/HomeownerDashboard';
@@ -76,7 +75,6 @@ function App() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/tradie/signup" element={<ExpertSignUpPage />} />
         <Route path="/post-job" element={<JobPostingForm />} />
-        <Route path="/auth-and-post" element={<ClientAuthPage />} />
         <Route path="/account/deletion/confirm" element={<DeletionConfirmPage />} />
 
         {/* --- Client Routes (Protected) --- */}
