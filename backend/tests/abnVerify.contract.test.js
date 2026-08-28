@@ -50,6 +50,7 @@ function mockMakeDocRef(collectionName, id) {
       if (collectionName === 'users') {
         state.userWrites.push({
           id: docId,
+          op: 'set',
           existed: readDoc(collectionName, docId) !== undefined,
           payload: clone(payload),
         });
@@ -59,6 +60,23 @@ function mockMakeDocRef(collectionName, id) {
         ? { ...(existing || {}), ...(clone(payload) || {}) }
         : (clone(payload) || {});
       writeDoc(collectionName, docId, next);
+    },
+    async update(payload) {
+      if (collectionName === 'users') {
+        state.userWrites.push({
+          id: docId,
+          op: 'update',
+          existed: readDoc(collectionName, docId) !== undefined,
+          payload: clone(payload),
+        });
+      }
+      const existing = readDoc(collectionName, docId);
+      if (existing === undefined) {
+        const err = new Error('NOT_FOUND: no entity to update');
+        err.code = 5;
+        throw err;
+      }
+      writeDoc(collectionName, docId, { ...existing, ...(clone(payload) || {}) });
     },
   };
 }

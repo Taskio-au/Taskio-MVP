@@ -114,7 +114,7 @@ async function evaluateBaseFundingTxnBody(tx, admin, db, jobRef, jobData, pi, ev
   }
 
   if (fundingSnap.userWrite) {
-    tx.set(fundingSnap.userWrite.ref, fundingSnap.userWrite.mergeData, { merge: true });
+    tx.update(fundingSnap.userWrite.ref, fundingSnap.userWrite.mergeData);
   }
   if (fundingSnap.feeSnapshot && !fundingSnap.idempotent) {
     update.feeSnapshot = fundingSnap.feeSnapshot;

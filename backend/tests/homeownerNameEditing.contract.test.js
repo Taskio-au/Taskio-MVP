@@ -96,6 +96,15 @@ function mockMakeDocRef(collectionName, id) {
         : (mockClone(payload) || {});
       mockWriteDoc(collectionName, docId, next);
     },
+    async update(payload) {
+      const existing = mockReadDoc(collectionName, docId);
+      if (existing === undefined) {
+        const err = new Error('NOT_FOUND: no entity to update');
+        err.code = 5;
+        throw err;
+      }
+      mockWriteDoc(collectionName, docId, { ...existing, ...(mockClone(payload) || {}) });
+    },
   };
 }
 

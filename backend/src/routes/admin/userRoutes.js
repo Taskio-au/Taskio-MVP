@@ -20,6 +20,7 @@ const { is18PlusConfirmed, hasServiceLocation, hasBusinessType } = require('./sh
 const { getFoundingExpertStage } = require('../../services/expertFeeProgram');
 const feePlans = require('../../../../shared/feePlans');
 const { foundingExpertEligibilityPayload } = require('../../utils/foundingExpertEligibility');
+const { sendIfAdminUserMissing } = require('../../utils/enrolledProfile');
 const {
   foundingExpertAutoEnrollEnabled,
   scheduleMaybeAutoEnrollFoundingExpert,
@@ -535,10 +536,16 @@ router.get('/api/admin/users/:uid', requireAuth, requireAdmin, async (req, res) 
 router.put('/api/admin/users/:uid/verify', requireAuth, requireAdmin, async (req, res) => {
   try {
     const uid = req.params.uid;
-    await db.collection('users').doc(uid).set(
+    const userRef = db.collection('users').doc(uid);
+    const snap = await userRef.get();
+    if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
+    const existing = snap.data() || {};
+    const existingAudit = (existing.audit && typeof existing.audit === 'object') ? existing.audit : {};
+    await userRef.update(
       {
         verified: true,
         audit: {
+          ...existingAudit,
           verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
           verifiedBy: req.user.uid,
           nameLockedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -546,8 +553,7 @@ router.put('/api/admin/users/:uid/verify', requireAuth, requireAdmin, async (req
         adminLastTouchAt: admin.firestore.FieldValue.serverTimestamp(),
         adminLastTouchBy: req.user.uid,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
+      }
     );
 
     await writeUserAuditLog({
@@ -571,6 +577,7 @@ router.put('/api/admin/users/:uid/verify', requireAuth, requireAdmin, async (req
 
     return res.status(200).send({ message: `Successfully verified user ${uid}.` });
   } catch (error) {
+    if (sendIfAdminUserMissing(res, error)) return undefined;
     // eslint-disable-next-line no-console
     console.error('Error verifying user:', error);
     return res.status(500).send({ message: 'Error verifying user', error: error.message });
@@ -602,7 +609,7 @@ router.post('/api/admin/users/:uid/deletion/execute', requireAuth, requireAdmin,
     }
 
     // Anonymise user profile (do NOT hard-delete financial records).
-    await userRef.set(
+    await userRef.update(
       {
         status: 'deleted',
         verified: false,
@@ -621,8 +628,7 @@ router.post('/api/admin/users/:uid/deletion/execute', requireAuth, requireAdmin,
         profilePhotoURL: '',
         audit: { ...(u.audit || {}), deletedAt: admin.firestore.FieldValue.serverTimestamp(), deletedBy: req.user.uid },
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
+      }
     );
 
     // Disable sign-in (keep auth record for compliance)
@@ -639,6 +645,7 @@ router.post('/api/admin/users/:uid/deletion/execute', requireAuth, requireAdmin,
 
     return res.status(200).send({ message: 'Deletion executed (anonymised).' });
   } catch (error) {
+    if (sendIfAdminUserMissing(res, error)) return undefined;
     // eslint-disable-next-line no-console
     console.error('Error executing deletion:', error);
     return res.status(500).send({ message: 'Failed to execute deletion.' });
@@ -668,6 +675,7 @@ router.put('/api/admin/users/:uid/status', requireAuth, requireAdmin, async (req
 
     return res.status(200).send({ message: `Successfully set user ${uid} status to ${normalized === 'disabled' ? 'suspended' : 'active'}.` });
   } catch (error) {
+    if (sendIfAdminUserMissing(res, error)) return undefined;
     // eslint-disable-next-line no-console
     console.error('Error updating user status:', error);
     return res.status(500).send({ message: 'Error updating user status', error: error.message });
@@ -695,7 +703,7 @@ router.post('/api/admin/users/:uid/disable', requireAuth, requireAdmin, async (r
     if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
     const before = snap.data() || {};
 
-    await userRef.set(
+    await userRef.update(
       {
         status: 'disabled',
         disabledAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -704,8 +712,7 @@ router.post('/api/admin/users/:uid/disable', requireAuth, requireAdmin, async (r
         adminLastTouchAt: admin.firestore.FieldValue.serverTimestamp(),
         adminLastTouchBy: req.user.uid,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
+      }
     );
 
     // Disable sign-in
@@ -722,6 +729,7 @@ router.post('/api/admin/users/:uid/disable', requireAuth, requireAdmin, async (r
 
     return res.status(200).send({ message: 'User disabled.' });
   } catch (error) {
+    if (sendIfAdminUserMissing(res, error)) return undefined;
     // eslint-disable-next-line no-console
     console.error('Error disabling user:', error);
     return res.status(500).send({ message: 'Failed to disable user.' });
@@ -757,7 +765,7 @@ router.post('/api/admin/users/:uid/boost', requireAuth, requireAdmin, async (req
       ...(boostedUntilMs > 0 ? { boostedUntil: admin.firestore.Timestamp.fromMillis(boostedUntilMs) } : {}),
     };
 
-    await userRef.set(
+    await userRef.update(
       {
         boost,
         // Backward compatibility for existing UI/filtering
@@ -767,8 +775,7 @@ router.post('/api/admin/users/:uid/boost', requireAuth, requireAdmin, async (req
         adminLastTouchAt: now,
         adminLastTouchBy: req.user.uid,
         updatedAt: now,
-      },
-      { merge: true }
+      }
     );
 
     await writeUserAuditLog({
@@ -782,6 +789,7 @@ router.post('/api/admin/users/:uid/boost', requireAuth, requireAdmin, async (req
 
     return res.status(200).send({ message: isBoosted ? 'Boost enabled.' : 'Boost removed.' });
   } catch (e) {
+    if (sendIfAdminUserMissing(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/admin/users/:uid/boost failed:', e);
     return res.status(500).send({ message: 'Failed to update boost.' });
@@ -813,14 +821,13 @@ router.post('/api/admin/users/:uid/comms-log', requireAuth, requireAdmin, async 
     const prev = Array.isArray(u.adminCommsLog) ? u.adminCommsLog.slice(0, 100) : [];
     const next = [...prev, { templateId, text, copiedAt: now, copiedBy: req.user.uid }].slice(-50);
 
-    await userRef.set(
+    await userRef.update(
       {
         adminCommsLog: next,
         adminLastTouchAt: admin.firestore.FieldValue.serverTimestamp(),
         adminLastTouchBy: req.user.uid,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
+      }
     );
 
     await writeUserAuditLog({
@@ -834,6 +841,7 @@ router.post('/api/admin/users/:uid/comms-log', requireAuth, requireAdmin, async 
 
     return res.status(200).send({ lastOutreachAtMs: safeToMillis(now) });
   } catch (e) {
+    if (sendIfAdminUserMissing(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/admin/users/:uid/comms-log failed:', e);
     return res.status(500).send({ message: 'Failed to log outreach.' });
@@ -865,6 +873,10 @@ router.put('/api/admin/users/:uid/ops', requireAuth, requireAdmin, async (req, r
       adminName = req.user.uid;
     }
 
+    const userRef = db.collection('users').doc(uid);
+    const snap = await userRef.get();
+    if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
+
     const updates = {
       adminLastTouchAt: admin.firestore.FieldValue.serverTimestamp(),
       adminLastTouchBy: req.user.uid,
@@ -892,7 +904,7 @@ router.put('/api/admin/users/:uid/ops', requireAuth, requireAdmin, async (req, r
       updates.boostedBy = req.user.uid;
     }
 
-    await db.collection('users').doc(uid).set(updates, { merge: true });
+    await userRef.update(updates);
 
     await writeUserAuditLog({
       uid,
@@ -905,6 +917,7 @@ router.put('/api/admin/users/:uid/ops', requireAuth, requireAdmin, async (req, r
 
     return res.status(200).send({ message: 'Updated.' });
   } catch (error) {
+    if (sendIfAdminUserMissing(res, error)) return undefined;
     // eslint-disable-next-line no-console
     console.error('Error updating user ops fields:', error);
     return res.status(500).send({ message: 'Failed to update user.' });

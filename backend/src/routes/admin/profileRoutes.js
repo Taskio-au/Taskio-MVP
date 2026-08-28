@@ -11,7 +11,7 @@ const { sanitizePlainText } = require('./shared/text');
 const { normalizeStringArray, pruneToAllowed } = require('./shared/collections');
 const { parseNameParts } = require('./shared/names');
 const { getExpertTrustSummary } = require('../../services/expertTrustService');
-const { buildDisplayName } = require('../../utils/pii');
+const { sendIfAdminUserMissing } = require('../../utils/enrolledProfile');
 
 const router = express.Router();
 
@@ -218,15 +218,14 @@ router.post('/api/admin/migrate/expertise', requireAuth, requireAdmin, async (re
       if (!didChange) continue;
 
       touched += 1;
-      batch.set(
+      batch.update(
         db.collection('users').doc(uid),
         {
           expertiseApproved: nextApproved,
           expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
           expertiseChangeLog: log.slice(-50),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
+        }
       );
 
       await writeUserAuditLog({
@@ -311,7 +310,7 @@ router.post('/api/admin/profile-change-requests/:id/decision', requireAuth, requ
       }
 
       updateUser.updatedAt = admin.firestore.FieldValue.serverTimestamp();
-      await userRef.set(updateUser, { merge: true });
+      await userRef.update(updateUser);
     }
 
     await reqRef.set(
@@ -345,6 +344,7 @@ router.post('/api/admin/profile-change-requests/:id/decision', requireAuth, requ
 
     return res.status(200).send({ message: `Request ${decision}.` });
   } catch (e) {
+    if (sendIfAdminUserMissing(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/admin/profile-change-requests/:id/decision failed:', e);
     return res.status(500).send({ message: 'Failed to update request.' });

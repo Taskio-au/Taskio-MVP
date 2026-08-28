@@ -159,11 +159,18 @@ jest.mock('../src/firebaseAdmin', () => ({
       const ops = [];
       return {
         set: jest.fn((ref, payload, opts) => {
-          ops.push({ ref, payload, opts });
+          ops.push({ ref, payload, opts, op: 'set' });
+        }),
+        update: jest.fn((ref, payload) => {
+          ops.push({ ref, payload, op: 'update' });
         }),
         commit: jest.fn(async () => {
           for (const op of ops) {
-            await op.ref.set(op.payload, op.opts);
+            if (op.op === 'update') {
+              await op.ref.update(op.payload);
+            } else {
+              await op.ref.set(op.payload, op.opts);
+            }
           }
         }),
       };
@@ -460,6 +467,51 @@ describe('admin founding expert enrolment', () => {
     const res = await request(app).put('/api/admin/users/verify-fe-off/verify').set('x-test-admin', 'true');
     expect(res.status).toBe(200);
     expect(foundingExpertAutoSvc.scheduleMaybeAutoEnrollFoundingExpert).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 and creates no profile when admin verify targets an unknown UID', async () => {
+    const before = storeFor('users').size;
+    const res = await request(app).put('/api/admin/users/unknown-verify/verify').set('x-test-admin', 'true');
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('User not found.');
+    expect(readCollectionDoc('users', 'unknown-verify')).toBeUndefined();
+    expect(storeFor('users').size).toBe(before);
+  });
+
+  it('returns 404 and creates no profile when admin ops targets an unknown UID', async () => {
+    const before = storeFor('users').size;
+    const res = await request(app)
+      .put('/api/admin/users/unknown-ops/ops')
+      .set('x-test-admin', 'true')
+      .send({ adminNote: 'do not create' });
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe('User not found.');
+    expect(readCollectionDoc('users', 'unknown-ops')).toBeUndefined();
+    expect(storeFor('users').size).toBe(before);
+  });
+
+  it('updates ops fields on an existing profile without creating a stub', async () => {
+    seedTradie('ops-existing', { bio: 'keep me' });
+    const res = await request(app)
+      .put('/api/admin/users/ops-existing/ops')
+      .set('x-test-admin', 'true')
+      .send({ adminNote: 'reviewed' });
+    expect(res.status).toBe(200);
+    const stored = readCollectionDoc('users', 'ops-existing');
+    expect(stored.role).toBe('tradie');
+    expect(stored.bio).toBe('keep me');
+    expect(stored.adminNoteText).toBe('reviewed');
+    expect(storeFor('users').has('ops-existing')).toBe(true);
+  });
+
+  it('verifies an existing tradie without creating another profile', async () => {
+    seedTradie('verify-existing', { verified: false, audit: { enrolledAt: 'keep' } });
+    const res = await request(app).put('/api/admin/users/verify-existing/verify').set('x-test-admin', 'true');
+    expect(res.status).toBe(200);
+    const stored = readCollectionDoc('users', 'verify-existing');
+    expect(stored.verified).toBe(true);
+    expect(stored.audit.enrolledAt).toBe('keep');
+    expect(stored.role).toBe('tradie');
   });
 });
 

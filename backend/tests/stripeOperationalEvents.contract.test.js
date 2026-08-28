@@ -37,7 +37,12 @@ function makeDocRef(collectionName, id) {
       store(collectionName).set(id, options.merge ? { ...previous, ...mockClone(payload) } : mockClone(payload));
     }),
     update: jest.fn(async (payload) => {
-      const previous = store(collectionName).get(id) || {};
+      const previous = store(collectionName).get(id);
+      if (!previous) {
+        const err = new Error('NOT_FOUND: no entity to update');
+        err.code = 5;
+        throw err;
+      }
       store(collectionName).set(id, { ...previous, ...mockClone(payload) });
     }),
   };
@@ -204,6 +209,32 @@ describe('Stripe operational event handling', () => {
       entityId: 'expert-1',
       sourceReasonCodes: ['PAYOUT_FAILED'],
     }));
+  });
+
+  it('acknowledges payout.failed without creating a profile when none exists', async () => {
+    const warnSpy = jest.spyOn(require('../src/observability/logger').logger, 'warn').mockImplementation(() => require('../src/observability/logger').logger);
+
+    await _test.dispatchStripeEventHandlers({
+      id: 'evt_payout_failed_missing',
+      type: 'payout.failed',
+      account: 'acct_missing',
+      data: {
+        object: {
+          id: 'po_missing',
+          status: 'failed',
+          failure_code: 'account_closed',
+        },
+      },
+    });
+
+    expect(store('users').size).toBe(0);
+    expect(mockWorkItems).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'stripe_payout_failed_skipped',
+      expect.objectContaining({ reason: 'profile_missing' })
+    );
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toMatch(/acct_missing|expert-/);
+    warnSpy.mockRestore();
   });
 
   it('closes the refund attempt when a Stripe Refund later fails', async () => {

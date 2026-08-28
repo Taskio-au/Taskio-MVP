@@ -160,15 +160,14 @@ async function approveFoundingExpert(db, admin, { expertUid, adminUid, programId
       serverTimestamp: sv,
     });
 
-    tx.set(
+    tx.update(
       userRef,
       {
         foundingExpert,
         adminLastTouchAt: sv(),
         adminLastTouchBy: adminUid,
         updatedAt: sv(),
-      },
-      { merge: true }
+      }
     );
 
     return { duplicate: false, foundingExpert };
@@ -224,15 +223,14 @@ async function removeFoundingExpert(db, admin, { expertUid, adminUid, programId:
       removedBy: adminUid,
     };
 
-    tx.set(
+    tx.update(
       userRef,
       {
         foundingExpert: mergedFe,
         adminLastTouchAt: sv(),
         adminLastTouchBy: adminUid,
         updatedAt: sv(),
-      },
-      { merge: true }
+      }
     );
 
     return { alreadyRemoved: false, foundingExpert: mergedFe };
@@ -261,7 +259,7 @@ async function resetFoundingExpertTestProgram(db, admin, { adminUid }) {
     for (const doc of slice) {
       const data = doc.data() || {};
       const fe = data.foundingExpert && typeof data.foundingExpert === 'object' ? data.foundingExpert : {};
-      batch.set(
+      batch.update(
         doc.ref,
         {
           foundingExpert: {
@@ -272,8 +270,7 @@ async function resetFoundingExpertTestProgram(db, admin, { adminUid }) {
             testResetBy: adminUid,
           },
           updatedAt: sv,
-        },
-        { merge: true }
+        }
       );
     }
     await batch.commit();

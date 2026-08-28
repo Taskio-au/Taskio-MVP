@@ -19,7 +19,7 @@ const {
 const { upsertWorkItemFromAutomation } = require('./adminWorkItemService');
 const { refundAttemptFailedPatch } = require('./stripeIdempotency');
 const { tryFinalizeAdminFullRefund } = require('./adminFullRefundService');
-const { loadClassifiedProfile } = require('../utils/enrolledProfile');
+const { loadClassifiedProfile, isMissingDocumentError } = require('../utils/enrolledProfile');
 const {
   paymentIntentIdOf,
   evaluateChargeRefundedConfirmation,
@@ -260,25 +260,35 @@ async function handleOperationalStripeEvent(event) {
   if (event.type === 'payout.failed') {
     const accountId = String(event.account || object.destination || '').trim();
     const userDoc = await findFirstByField('users', 'stripeAccountId', accountId);
-    if (userDoc) {
-      await userDoc.ref.set({
+    if (!userDoc) {
+      logger.warn('stripe_payout_failed_skipped', { reason: 'profile_missing' });
+      return true;
+    }
+    try {
+      await userDoc.ref.update({
         stripePayoutStatus: 'failed',
         stripePayoutFailureCode: object.failure_code || null,
         stripePayoutFailureMessage: object.failure_message || null,
         requiresAdminAttention: true,
         stripeUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, { merge: true });
-      await upsertWorkItemFromAutomation({
-        entityType: 'expert',
-        entityId: userDoc.id,
-        category: 'payment',
-        priority: 'critical',
-        source: 'stripe_webhook',
-        sourceReasonCodes: ['PAYOUT_FAILED'],
-        context: { payoutId: object.id || null },
       });
+    } catch (error) {
+      if (isMissingDocumentError(error)) {
+        logger.warn('stripe_payout_failed_skipped', { reason: 'profile_missing' });
+        return true;
+      }
+      throw error;
     }
+    await upsertWorkItemFromAutomation({
+      entityType: 'expert',
+      entityId: userDoc.id,
+      category: 'payment',
+      priority: 'critical',
+      source: 'stripe_webhook',
+      sourceReasonCodes: ['PAYOUT_FAILED'],
+      context: { payoutId: object.id || null },
+    });
     return true;
   }
 
@@ -308,14 +318,22 @@ async function dispatchStripeEventHandlers(event) {
     }
 
     const onboardingStatus = mapAccountOnboardingStatus(account);
-    await classified.ref.update({
-      stripeAccountId: account.id,
-      stripeChargesEnabled: !!account.charges_enabled,
-      stripePayoutsEnabled: !!account.payouts_enabled,
-      stripeOnboardingStatus: onboardingStatus,
-      stripeRequirements: account.requirements || null,
-      stripeUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    try {
+      await classified.ref.update({
+        stripeAccountId: account.id,
+        stripeChargesEnabled: !!account.charges_enabled,
+        stripePayoutsEnabled: !!account.payouts_enabled,
+        stripeOnboardingStatus: onboardingStatus,
+        stripeRequirements: account.requirements || null,
+        stripeUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      if (isMissingDocumentError(error)) {
+        logger.warn('stripe_account_updated_skipped', { reason: 'profile_missing' });
+        return;
+      }
+      throw error;
+    }
 
     if (classified.status === 'active' && foundingExpertAutoEnrollEnabled()) {
       await scheduleMaybeAutoEnrollFoundingExpert({

@@ -59,6 +59,15 @@ jest.mock('../src/firebaseAdmin', () => ({
           const next = options.merge ? { ...existing, ...mockClone(payload) } : mockClone(payload);
           mockGetCollectionStore(name).set(id, { id, ...next });
         }),
+        update: jest.fn(async (payload) => {
+          const existing = mockGetCollectionStore(name).get(id);
+          if (!existing) {
+            const err = new Error('NOT_FOUND: no entity to update');
+            err.code = 5;
+            throw err;
+          }
+          mockGetCollectionStore(name).set(id, { ...existing, ...mockClone(payload) });
+        }),
       })),
     })),
   },

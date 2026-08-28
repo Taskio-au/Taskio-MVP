@@ -40,6 +40,16 @@ jest.mock('../src/firebaseAdmin', () => ({
               opts && opts.merge ? { ...prev, ...JSON.parse(JSON.stringify(payload)) } : JSON.parse(JSON.stringify(payload));
             mockUserStore.set(uid, next);
           }),
+          update: jest.fn(async (payload) => {
+            const uid = String(id);
+            const prev = mockUserStore.get(uid);
+            if (!prev) {
+              const err = new Error('NOT_FOUND: no entity to update');
+              err.code = 5;
+              throw err;
+            }
+            mockUserStore.set(uid, { ...prev, ...JSON.parse(JSON.stringify(payload)) });
+          }),
         })),
       };
     }),

@@ -44,4 +44,15 @@ describe('enrolledProfile classification', () => {
     expect(hasQuoteAccess({ emailVerified: true })).toBe(false);
     expect(hasQuoteAccess({})).toBe(false);
   });
+
+  it('detects Firestore missing-document errors from update()', () => {
+    const { isMissingDocumentError } = require('../src/utils/enrolledProfile');
+    const grpc = new Error('NOT_FOUND: no entity to update');
+    grpc.code = 5;
+    expect(isMissingDocumentError(grpc)).toBe(true);
+    const named = new Error('no document to update');
+    named.code = 'not-found';
+    expect(isMissingDocumentError(named)).toBe(true);
+    expect(isMissingDocumentError(new Error('permission-denied'))).toBe(false);
+  });
 });

@@ -91,6 +91,34 @@ async function loadClassifiedProfile(uid) {
   return { ref, snap, ...classifyUserProfile(snap) };
 }
 
+function isMissingDocumentError(error) {
+  const code = error?.code;
+  if (code === 5 || code === 'not-found' || code === 'NOT_FOUND' || code === 'profile_missing') {
+    return true;
+  }
+  const message = String(error?.message || '');
+  return /NOT_FOUND/i.test(message)
+    || /no entity to update/i.test(message)
+    || /no document to update/i.test(message)
+    || /missing doc/i.test(message);
+}
+
+function sendIfMissingProfile(res, error) {
+  if (!isMissingDocumentError(error)) return false;
+  sendAccountNotEnrolled(res);
+  return true;
+}
+
+function sendAdminUserNotFound(res) {
+  return res.status(404).send({ message: 'User not found.' });
+}
+
+function sendIfAdminUserMissing(res, error) {
+  if (!isMissingDocumentError(error)) return false;
+  sendAdminUserNotFound(res);
+  return true;
+}
+
 /**
  * Existing-valid-profile gate. Never creates a document.
  * Structural enrolment (recognised role + status) is separate from operational
@@ -148,4 +176,8 @@ module.exports = {
   respondIfNotValidProfile,
   loadClassifiedProfile,
   requireEnrolledProfile,
+  isMissingDocumentError,
+  sendIfMissingProfile,
+  sendAdminUserNotFound,
+  sendIfAdminUserMissing,
 };

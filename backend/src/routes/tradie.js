@@ -26,6 +26,7 @@ const {
   foundingExpertAutoEnrollEnabled,
   scheduleMaybeAutoEnrollFoundingExpert,
 } = require('../services/foundingExpertAutoEnrollmentService');
+const { isMissingDocumentError } = require('../utils/enrolledProfile');
 const { estimateExpertFeeForGross } = require('../services/expertFeeProgram');
 const {
   deriveReleasedFeeBenefitLabel,
@@ -229,14 +230,13 @@ async function ensureExpertiseApprovedPhase1({ uid, userRef, userDoc }) {
 
   if (!changed) return userDoc;
 
-  await userRef.set(
+  await userRef.update(
     {
       expertiseApproved: approved,
       expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
       expertiseChangeLog: log.slice(-50),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
+    }
   );
   const fresh = await userRef.get();
   return fresh.data() || userDoc;
@@ -262,6 +262,7 @@ router.get('/api/tradie/profile', requireAuth, requireRole('tradie'), async (req
       expertiseUpdatedAt: data.expertiseUpdatedAt || null,
     });
   } catch (e) {
+    if (isMissingDocumentError(e)) return res.status(404).send({ message: 'User not found.' });
     // eslint-disable-next-line no-console
     console.error('GET /api/tradie/profile failed:', e);
     return res.status(500).send({ message: 'Failed to load expert profile.' });
@@ -357,15 +358,14 @@ router.put('/api/tradie/expertise', requireAuth, requireRole('tradie'), async (r
     const mergedForCompletion = { ...(data || {}), expertiseApproved: final };
     const profileCompleted = computeProfileCompleted(mergedForCompletion, req.user);
 
-    await userRef.set(
+    await userRef.update(
       {
         expertiseApproved: final,
         expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         expertiseChangeLog: log.slice(-50),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         profileCompleted,
-      },
-      { merge: true }
+      }
     );
 
     if (foundingExpertAutoEnrollEnabled()) {
@@ -387,6 +387,7 @@ router.put('/api/tradie/expertise', requireAuth, requireRole('tradie'), async (r
     if (e?.code === 'PHASE1_ONLY') {
       return res.status(400).send({ message: 'This task category is not available in the current release.' });
     }
+    if (isMissingDocumentError(e)) return res.status(404).send({ message: 'User not found.' });
     // eslint-disable-next-line no-console
     console.error('PUT /api/tradie/expertise failed:', e);
     return res.status(500).send({ message: 'Failed to update expertise.' });
@@ -663,21 +664,21 @@ router.get('/api/tradie/stripe/status', requireAuth, requireRole('tradie'), asyn
     const uid = req.user.uid;
     const userRef = db.collection('users').doc(uid);
     const userDoc = await userRef.get();
-    const userData = userDoc.exists ? userDoc.data() : {};
+    if (!userDoc.exists) return res.status(404).send({ message: 'User not found.' });
+    const userData = userDoc.data() || {};
 
     // Optional live refresh (useful in dev if webhooks are not reachable)
     const refresh = req.query.refresh === 'true';
     if (refresh && userData?.stripeAccountId) {
       const account = await retrieveAccount(userData.stripeAccountId);
-      await userRef.set(
+      await userRef.update(
         {
           stripeChargesEnabled: !!account.charges_enabled,
           stripePayoutsEnabled: !!account.payouts_enabled,
           stripeRequirements: account.requirements || null,
           stripeOnboardingStatus: (account.charges_enabled && account.payouts_enabled) ? 'completed'
             : ((account.requirements?.currently_due || []).length > 0 ? 'action_required' : 'pending'),
-        },
-        { merge: true }
+        }
       );
     }
 
@@ -693,6 +694,7 @@ router.get('/api/tradie/stripe/status', requireAuth, requireRole('tradie'), asyn
     });
   } catch (error) {
     if (sendIfStripeDisabled(res, error)) return;
+    if (isMissingDocumentError(error)) return res.status(404).send({ message: 'User not found.' });
     // eslint-disable-next-line no-console
     console.error('Error getting Stripe onboarding status:', error);
     return res.status(500).send({ message: 'Failed to get Stripe onboarding status.' });
@@ -719,7 +721,7 @@ router.post('/api/tradie/stripe/onboarding-link', requireAuth, requireRole('trad
         idempotencyKey: expressAccountIdempotencyKey(uid),
       });
       stripeAccountId = account.id;
-      await userRef.set(
+      await userRef.update(
         {
           stripeAccountId,
           stripeOnboardingStatus: 'pending',
@@ -727,8 +729,7 @@ router.post('/api/tradie/stripe/onboarding-link', requireAuth, requireRole('trad
           stripePayoutsEnabled: !!account.payouts_enabled,
           stripeRequirements: account.requirements || null,
           stripeCreatedAt: new Date(),
-        },
-        { merge: true }
+        }
       );
     }
 
@@ -745,6 +746,7 @@ router.post('/api/tradie/stripe/onboarding-link', requireAuth, requireRole('trad
     return res.status(200).send({ url: link.url });
   } catch (error) {
     if (sendIfStripeDisabled(res, error)) return;
+    if (isMissingDocumentError(error)) return res.status(404).send({ message: 'User not found.' });
     // eslint-disable-next-line no-console
     console.error('Error creating Stripe onboarding link:', error);
     return res.status(500).send({ message: 'Failed to create Stripe onboarding link.' });

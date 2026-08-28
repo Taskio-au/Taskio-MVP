@@ -355,8 +355,16 @@ describe('ensureBaseJobFeeSnapshotLocked', () => {
         }
         return { exists: false, data: () => null };
       },
-      update(_ref, patch) {
-        storedJob = { ...storedJob, ...patch };
+      update(ref, patch) {
+        if (ref === jobRef) {
+          storedJob = { ...storedJob, ...patch };
+          return;
+        }
+        storedUser = {
+          ...storedUser,
+          ...patch,
+          foundingExpert: { ...storedUser.foundingExpert, ...(patch.foundingExpert || {}) },
+        };
       },
       set(_ref, patch, opts) {
         if (opts?.merge) {

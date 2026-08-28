@@ -49,11 +49,23 @@ function mockMakeDocRef(name, id) {
     }),
     set: jest.fn(async (payload, options = {}) => {
       if (name === 'users') {
-        mockState.userSetCalls.push({ payload: mockClone(payload), options: mockClone(options) });
+        mockState.userSetCalls.push({ payload: mockClone(payload), options: mockClone(options), op: 'set' });
       }
       const existing = mockGetCollectionStore(name).get(id) || {};
       const next = options.merge ? { ...existing, ...mockClone(payload) } : mockClone(payload);
       mockGetCollectionStore(name).set(id, { id, ...next });
+    }),
+    update: jest.fn(async (payload) => {
+      const existing = mockGetCollectionStore(name).get(id);
+      if (name === 'users') {
+        mockState.userSetCalls.push({ payload: mockClone(payload), op: 'update' });
+      }
+      if (!existing) {
+        const err = new Error('NOT_FOUND: no entity to update');
+        err.code = 5;
+        throw err;
+      }
+      mockGetCollectionStore(name).set(id, { ...existing, ...mockClone(payload) });
     }),
   };
 }
@@ -81,6 +93,7 @@ jest.mock('../src/firebaseAdmin', () => ({
       const tx = {
         get: (ref) => ref.get(),
         set: (ref, payload, options) => ref.set(payload, options),
+        update: (ref, payload) => ref.update(payload),
       };
       return fn(tx);
     }),

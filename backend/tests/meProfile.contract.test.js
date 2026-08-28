@@ -4,11 +4,13 @@ const request = require('supertest');
 const state = {
   collections: new Map(),
   userWrites: [],
+  deleteUserBeforeUpdate: false,
 };
 
 function resetState() {
   state.collections = new Map();
   state.userWrites = [];
+  state.deleteUserBeforeUpdate = false;
 }
 
 function getCollectionStore(name) {
@@ -45,6 +47,7 @@ function mockMakeDocRef(collectionName, id) {
       if (collectionName === 'users') {
         state.userWrites.push({
           id: docId,
+          op: 'set',
           existed: readDoc(collectionName, docId) !== undefined,
           payload: clone(payload),
         });
@@ -54,6 +57,30 @@ function mockMakeDocRef(collectionName, id) {
         ? { ...(existing || {}), ...(clone(payload) || {}) }
         : (clone(payload) || {});
       writeDoc(collectionName, docId, next);
+    },
+    async update(payload) {
+      if (collectionName === 'users') {
+        state.userWrites.push({
+          id: docId,
+          op: 'update',
+          existed: readDoc(collectionName, docId) !== undefined,
+          payload: clone(payload),
+        });
+      }
+      const existing = readDoc(collectionName, docId);
+      if (existing === undefined) {
+        const err = new Error('NOT_FOUND: no entity to update');
+        err.code = 5;
+        throw err;
+      }
+      if (state.deleteUserBeforeUpdate && collectionName === 'users') {
+        state.deleteUserBeforeUpdate = false;
+        getCollectionStore(collectionName).delete(docId);
+        const err = new Error('NOT_FOUND: no entity to update');
+        err.code = 5;
+        throw err;
+      }
+      writeDoc(collectionName, docId, { ...existing, ...(clone(payload) || {}) });
     },
   };
 }
@@ -693,5 +720,33 @@ describe('me account mutation routes reject missing and malformed profiles witho
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('account_state_invalid');
     expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('returns account_not_enrolled and creates no profile when the document disappears before update', async () => {
+    seedUser({ bio: 'before' });
+    state.deleteUserBeforeUpdate = true;
+
+    const res = await request(app)
+      .put('/api/me/profile')
+      .send({ bio: 'after the race' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDoc('users', 'tradie-1')).toBeUndefined();
+    expect(state.userWrites.some((write) => write.op === 'set' && write.existed === false)).toBe(false);
+  });
+
+  it('updates a valid existing profile without creating another document', async () => {
+    seedUser({ bio: 'before' });
+
+    const res = await request(app)
+      .put('/api/me/profile')
+      .send({ bio: 'after' });
+
+    expect(res.status).toBe(200);
+    expect(readDoc('users', 'tradie-1').bio).toBe('after');
+    expect(readDoc('users', 'tradie-1').role).toBe('tradie');
+    expect(state.userWrites.every((write) => write.existed === true || write.op === 'update')).toBe(true);
+    expect([...getCollectionStore('users').keys()]).toEqual(['tradie-1']);
   });
 });

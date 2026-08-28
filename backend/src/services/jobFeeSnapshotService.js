@@ -161,7 +161,7 @@ async function ensureBaseJobFeeSnapshotLocked(db, admin, jobRef, options = {}) {
     });
 
     if (result.userWrite) {
-      tx.set(result.userWrite.ref, result.userWrite.mergeData, { merge: true });
+      tx.update(result.userWrite.ref, result.userWrite.mergeData);
     }
   });
 }

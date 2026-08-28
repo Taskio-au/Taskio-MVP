@@ -16,6 +16,8 @@ const {
   sendAccountNotActive,
   sendAccountNotEnrolled,
   sendAccountStateInvalid,
+  sendIfMissingProfile,
+  isMissingDocumentError,
   sendQuoteAccessRequired,
   sendSignupDisabled,
 } = require('../utils/enrolledProfile');
@@ -296,7 +298,7 @@ async function mirrorAuthContactFields(classified, decodedToken) {
     return classified;
   }
   updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
-  await classified.ref.set(updates, { merge: true });
+  await classified.ref.update(updates);
   const fresh = await classified.ref.get();
   return {
     ...classified,
@@ -377,7 +379,7 @@ async function ensureExpertiseApprovedPhase1({ uid, userRef, userDoc }) {
     expertiseChangeLog: log.slice(-50),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-  await userRef.set(updates, { merge: true });
+  await userRef.update(updates);
   const fresh = await userRef.get();
   return fresh.data() || userDoc;
 }
@@ -409,19 +411,17 @@ router.get('/api/me', requireAuth, async (req, res) => {
         const hasAbn = String(data?.abn || '').trim().length > 0;
         const abnSatisfied = !needsAbn || (hasAbn && data?.abnVerified === true);
         if (hasDob && hasBusinessType && abnSatisfied) {
-          await ref.set(
-            {
-              privateDetailsLocked: true,
-              privateDetailsLockedAt: admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true }
-          );
+          await ref.update({
+            privateDetailsLocked: true,
+            privateDetailsLockedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
           data.privateDetailsLocked = true;
         }
       }
-    } catch (_) {
-      // ignore auto-heal failures
+    } catch (healErr) {
+      if (isMissingDocumentError(healErr)) throw healErr;
+      // ignore other auto-heal failures
     }
 
     const eligibility = data?.role === 'tradie'
@@ -503,6 +503,7 @@ router.get('/api/me', requireAuth, async (req, res) => {
       foundingExpertFeeProfile,
     });
   } catch (e) {
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('GET /api/me failed:', e);
     return res.status(500).send({ message: 'Failed to load profile.' });
@@ -783,7 +784,7 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
     updates.profileCompleted = derivedProfileCompleted;
     updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
 
-    await ref.set(updates, { merge: true });
+    await ref.update(updates);
 
     await writeUserAuditLog({
       uid,
@@ -825,6 +826,7 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
       eligibility: eligibility ? { canQuote: eligibility.eligible, reasons: eligibility.reasons, checklist: eligibility.checklist } : null,
     });
   } catch (e) {
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('PUT /api/me/profile failed:', e);
     return res.status(500).send({ message: 'Failed to update profile.' });
@@ -861,9 +863,8 @@ router.post('/api/me/phone/start-verify', requireAuth, async (req, res) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    await db.collection('users').doc(uid).set(
-      { phone, phoneVerified: false, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
-      { merge: true }
+    await classified.ref.update(
+      { phone, phoneVerified: false, updatedAt: admin.firestore.FieldValue.serverTimestamp() }
     );
 
     // NOTE: In production you must deliver OTP via SMS provider.
@@ -878,6 +879,7 @@ router.post('/api/me/phone/start-verify', requireAuth, async (req, res) => {
     if (e?.code === 'otp_not_configured') {
       return res.status(503).send({ message: 'Phone verification is not configured on this server.' });
     }
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/me/phone/start-verify failed:', e);
     return res.status(500).send({ message: 'Failed to start phone verification.' });
@@ -913,9 +915,8 @@ router.post('/api/me/phone/confirm-verify', requireAuth, async (req, res) => {
       { status: 'verified', verifiedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() },
       { merge: true }
     );
-    await db.collection('users').doc(uid).set(
-      { phoneVerified: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
-      { merge: true }
+    await classified.ref.update(
+      { phoneVerified: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() }
     );
 
     return res.status(200).send({ message: 'Phone verified.' });
@@ -923,6 +924,7 @@ router.post('/api/me/phone/confirm-verify', requireAuth, async (req, res) => {
     if (e?.code === 'otp_not_configured') {
       return res.status(503).send({ message: 'Phone verification is not configured on this server.' });
     }
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/me/phone/confirm-verify failed:', e);
     return res.status(500).send({ message: 'Failed to confirm phone verification.' });
@@ -982,7 +984,7 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
           ...(req.user?.email_verified === true ? { emailVerified: true } : {}),
         };
         const derivedAccountCompleted = hasDurableHomeownerAccount(nextProfile, req.user);
-        transaction.set(userRef, {
+        transaction.update(userRef, {
           phone,
           phoneVerified: true,
           quoteAccessVerified: true,
@@ -992,7 +994,7 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
           ...(firstName ? { firstName } : {}),
           ...(displayName ? { displayName } : {}),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
+        });
         return { type: 'granted', derivedAccountCompleted };
       }
 
@@ -1049,6 +1051,7 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
       },
     });
   } catch (e) {
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/me/homeowner/activate-quote-access failed:', e);
     return res.status(500).send({ message: 'Failed to activate quote access.' });
@@ -1098,7 +1101,7 @@ router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) 
       return res.status(400).send({ message: 'Add a verified email or continue with Google to unlock payment.' });
     }
 
-    await userRef.set(
+    await userRef.update(
       {
         ...(firstName ? { firstName } : {}),
         ...(existingLastName ? { lastName: existingLastName } : {}),
@@ -1110,8 +1113,7 @@ router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) 
         accountCompletionMethod: method,
         accountCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
+      }
     );
 
     return res.status(200).send({
@@ -1124,6 +1126,7 @@ router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) 
       },
     });
   } catch (e) {
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/me/homeowner/complete-account failed:', e);
     return res.status(500).send({ message: 'Failed to complete account.' });
@@ -1157,7 +1160,7 @@ router.post('/api/me/abn/verify', requireAuth, requireRole('tradie'), async (req
     const status = details.entityStatus || '';
 
     if (!isAbnCurrentlyActive(status)) {
-      await db.collection('users').doc(uid).set(
+      await db.collection('users').doc(uid).update(
         {
           abn,
           abnVerified: false,
@@ -1167,8 +1170,7 @@ router.post('/api/me/abn/verify', requireAuth, requireRole('tradie'), async (req
           abnEntityStatus: status,
           abnGstStatus: details.gst || '',
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
+        }
       );
       return res.status(400).send({
         message: 'This ABN is not currently active on the Australian Business Register.',
@@ -1181,7 +1183,7 @@ router.post('/api/me/abn/verify', requireAuth, requireRole('tradie'), async (req
       });
     }
 
-    await db.collection('users').doc(uid).set(
+    await db.collection('users').doc(uid).update(
       {
         abn,
         abnVerified: true,
@@ -1191,8 +1193,7 @@ router.post('/api/me/abn/verify', requireAuth, requireRole('tradie'), async (req
         abnEntityStatus: status,
         abnGstStatus: details.gst || '',
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
+      }
     );
 
     return res.status(200).send({
@@ -1217,6 +1218,7 @@ router.post('/api/me/abn/verify', requireAuth, requireRole('tradie'), async (req
     if (e?.code === 'ABN_LOOKUP_PARSE_ERROR' || e?.code === 'ABN_LOOKUP_EMPTY') {
       return res.status(502).send({ message: 'ABN verification is temporarily unavailable. Please try again later.' });
     }
+    if (sendIfMissingProfile(res, e)) return undefined;
     return res.status(500).send({ message: 'Failed to verify ABN.' });
   }
 });
@@ -1357,15 +1359,15 @@ router.post('/api/me/deactivate', requireAuth, async (req, res) => {
     const uid = req.user.uid;
     const classified = await loadValidProfileOrSend(uid, res);
     if (!classified) return undefined;
-    await classified.ref.set(
-      { status: 'disabled', updatedAt: admin.firestore.FieldValue.serverTimestamp() },
-      { merge: true }
+    await classified.ref.update(
+      { status: 'disabled', updatedAt: admin.firestore.FieldValue.serverTimestamp() }
     );
     await admin.auth().updateUser(uid, { disabled: true });
 
     await writeUserAuditLog({ uid, actorUid: uid, action: 'DEACTIVATE_ACCOUNT', before: null, after: null, req });
     return res.status(200).send({ message: 'Account deactivated.' });
   } catch (e) {
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/me/deactivate failed:', e);
     return res.status(500).send({ message: 'Failed to deactivate account.' });
@@ -1436,7 +1438,7 @@ router.post('/api/me/deletion/request', requireAuth, async (req, res) => {
       expiresAt: admin.firestore.Timestamp.fromDate(addDays(now, 2)), // link valid 48h
     });
 
-    await db.collection('users').doc(uid).set(
+    await classified.ref.update(
       {
         status: 'pending_deletion',
         deletion: {
@@ -1447,8 +1449,7 @@ router.post('/api/me/deletion/request', requireAuth, async (req, res) => {
           confirmTokenHash: tokenHash,
         },
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
+      }
     );
 
     await writeUserAuditLog({ uid, actorUid: uid, action: 'REQUEST_DELETION', before: null, after: { scheduledFor: scheduledFor.toISOString() }, req });
@@ -1462,6 +1463,7 @@ router.post('/api/me/deletion/request', requireAuth, async (req, res) => {
       ...(process.env.NODE_ENV !== 'production' ? { devConfirmUrl: confirmUrl } : {}),
     });
   } catch (e) {
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/me/deletion/request failed:', e);
     return res.status(500).send({ message: 'Failed to request deletion.' });
@@ -1491,16 +1493,20 @@ router.get('/api/me/deletion/confirm', async (req, res) => {
     if (classified.kind === 'invalid') return sendAccountStateInvalid(res);
 
     await tRef.set({ status: 'used', usedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-    await classified.ref.set(
-      {
-        deletion: { confirmStep2At: admin.firestore.FieldValue.serverTimestamp() },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    const existingDeletion = (classified.data?.deletion && typeof classified.data.deletion === 'object')
+      ? classified.data.deletion
+      : {};
+    await classified.ref.update({
+      deletion: {
+        ...existingDeletion,
+        confirmStep2At: admin.firestore.FieldValue.serverTimestamp(),
       },
-      { merge: true }
-    );
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     return res.status(200).send({ message: 'Deletion confirmed. Your account will be deleted after the cooling-off period unless cancelled.' });
   } catch (e) {
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('GET /api/me/deletion/confirm failed:', e);
     return res.status(500).send({ message: 'Failed to confirm deletion.' });
@@ -1515,17 +1521,21 @@ router.post('/api/me/deletion/cancel', requireAuth, async (req, res) => {
     const uid = req.user.uid;
     const classified = await loadValidProfileOrSend(uid, res);
     if (!classified) return undefined;
-    await classified.ref.set(
-      {
-        status: 'disabled',
-        deletion: { cancelledAt: admin.firestore.FieldValue.serverTimestamp() },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    const existingDeletion = (classified.data?.deletion && typeof classified.data.deletion === 'object')
+      ? classified.data.deletion
+      : {};
+    await classified.ref.update({
+      status: 'disabled',
+      deletion: {
+        ...existingDeletion,
+        cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
       },
-      { merge: true }
-    );
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
     await writeUserAuditLog({ uid, actorUid: uid, action: 'CANCEL_DELETION', before: null, after: null, req });
     return res.status(200).send({ message: 'Deletion cancelled. Your account remains deactivated.' });
   } catch (e) {
+    if (sendIfMissingProfile(res, e)) return undefined;
     // eslint-disable-next-line no-console
     console.error('POST /api/me/deletion/cancel failed:', e);
     return res.status(500).send({ message: 'Failed to cancel deletion.' });
