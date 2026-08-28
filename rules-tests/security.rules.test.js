@@ -11,6 +11,7 @@ import {
   getDoc,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import {
   getBytes,
@@ -134,9 +135,9 @@ after(async () => {
 });
 
 describe('Firestore user and admin authorization', () => {
-  test('allows homeowner self-bootstrap', async () => {
+  test('denies client creation of user profiles, including homeowner bootstrap', async () => {
     const db = firestoreFor('new-homeowner', { email: 'owner@example.test' });
-    await assertSucceeds(setDoc(doc(db, 'users/new-homeowner'), {
+    await assertFails(setDoc(doc(db, 'users/new-homeowner'), {
       uid: 'new-homeowner',
       role: 'homeowner',
       email: 'owner@example.test',
@@ -178,6 +179,31 @@ describe('Firestore user and admin authorization', () => {
     await assertFails(setDoc(doc(emailDb, 'users/new-email-user'), {
       role: 'homeowner',
       email: 'spoofed@example.test',
+    }));
+  });
+
+  test('denies client changes to role or quoteAccessVerified', async () => {
+    await seedFirestore([
+      ['users/owner-1', {
+        role: 'homeowner',
+        status: 'active',
+        quoteAccessVerified: false,
+        bio: 'old',
+      }],
+    ]);
+
+    const db = firestoreFor('owner-1');
+    await assertFails(updateDoc(doc(db, 'users/owner-1'), {
+      quoteAccessVerified: true,
+      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(db, 'users/owner-1'), {
+      role: 'tradie',
+      updatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(updateDoc(doc(db, 'users/owner-1'), {
+      bio: 'updated bio',
+      updatedAt: serverTimestamp(),
     }));
   });
 

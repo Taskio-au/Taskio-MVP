@@ -147,39 +147,9 @@ service cloud.firestore {
       // App needs to read its own profile. Admin can read all.
       allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
 
-      // Users can create/merge only their own doc (supports social login upsert).
-      // No deletes; keep history.
-      allow create: if isSignedIn()
-        && request.auth.uid == uid
-        // prevent privilege escalation via client writes
-        && !(request.resource.data.keys().hasAny([
-          'admin',
-          'abnLocked',
-          'stripeAccountId',
-          'stripeChargesEnabled',
-          'stripePayoutsEnabled',
-          'stripeOnboardingStatus',
-          'stripeRequirements',
-          'stripeUpdatedAt'
-        ]))
-        // Client-side profile bootstrap is homeowner-only. Expert/admin roles
-        // are assigned by trusted backend flows using the Admin SDK.
-        && request.resource.data.role == 'homeowner'
-        && (!request.resource.data.keys().hasAny(['uid'])
-          || request.resource.data.uid == request.auth.uid)
-        && (!request.resource.data.keys().hasAny(['email'])
-          || (
-            request.auth.token.email is string
-            && request.resource.data.email == request.auth.token.email
-          ))
-        && (!request.resource.data.keys().hasAny(['status'])
-          || request.resource.data.status == 'active')
-        && (!request.resource.data.keys().hasAny(['verified'])
-          || request.resource.data.verified == false)
-        && (!request.resource.data.keys().hasAny(['abnVerified'])
-          || request.resource.data.abnVerified == false)
-        && (!request.resource.data.keys().hasAny(['phoneVerified'])
-          || request.resource.data.phoneVerified == false);
+      // Clients cannot create user profiles. Enrolment is backend-only
+      // (register, expert-google, or phone-verified activate-quote-access).
+      allow create: if false;
 
       // Only allow safe self-service edits on profile fields.
       // Backend/admin writes can still set verification/Stripe fields via Admin SDK.
@@ -188,6 +158,7 @@ service cloud.firestore {
         && !(request.resource.data.diff(resource.data).changedKeys().hasAny([
           'admin',
           'role',
+          'quoteAccessVerified',
           'verified',
           'abnLocked',
           'stripeAccountId',
