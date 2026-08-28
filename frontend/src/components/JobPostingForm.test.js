@@ -41,6 +41,8 @@ jest.mock('../services/phoneVerification', () => ({
     return '+61412345678';
   }),
   createInvisibleRecaptcha: jest.fn(() => ({ clear: jest.fn() })),
+  ensureOfficialRecaptchaVerifier: jest.fn(() => ({ clear: jest.fn() })),
+  clearRecaptchaVerifier: jest.fn(),
   requestPhoneOtpForSignIn: jest.fn(),
   confirmPhoneOtpForSignIn: jest.fn(),
 }));

@@ -24,7 +24,7 @@ jest.mock('react-router-dom', () => ({
 jest.mock('./firebase', () => ({
   auth: {
     currentUser: null,
-    settings: {},
+    settings: { appVerificationDisabledForTesting: false },
   },
   googleProvider: {},
 }));
@@ -64,12 +64,16 @@ jest.mock('./features/auth/postAuth', () => ({
   buildExistingMethodMessage: jest.fn(async () => 'Existing account found.'),
 }));
 
-jest.mock('./services/phoneVerification', () => ({
-  normalizeAuMobileToE164: jest.fn(() => '+61405000123'),
-  createInvisibleRecaptcha: jest.fn(() => ({ verify: jest.fn() })),
-  requestPhoneOtpForSignIn: (...args) => mockRequestPhoneOtpForSignIn(...args),
-  confirmPhoneOtpForSignIn: (...args) => mockConfirmPhoneOtpForSignIn(...args),
-}));
+const mockRecaptchaVerifier = jest.fn();
+
+jest.mock('./services/phoneVerification', () => {
+  const actual = jest.requireActual('./services/phoneVerification');
+  return {
+    ...actual,
+    requestPhoneOtpForSignIn: (...args) => mockRequestPhoneOtpForSignIn(...args),
+    confirmPhoneOtpForSignIn: (...args) => mockConfirmPhoneOtpForSignIn(...args),
+  };
+});
 
 jest.mock('firebase/auth', () => ({
   fetchSignInMethodsForEmail: (...args) => mockFetchSignInMethodsForEmail(...args),
@@ -77,6 +81,9 @@ jest.mock('firebase/auth', () => ({
   sendPasswordResetEmail: (...args) => mockSendPasswordResetEmail(...args),
   signInWithEmailAndPassword: (...args) => mockSignInWithEmailAndPassword(...args),
   signInWithPopup: (...args) => mockSignInWithPopup(...args),
+  RecaptchaVerifier: function RecaptchaVerifier(...args) {
+    return mockRecaptchaVerifier(...args);
+  },
 }));
 
 const Login = require('./Login').default;
@@ -86,6 +93,12 @@ describe('Login unified auth flow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     auth.currentUser = null;
+    auth.settings.appVerificationDisabledForTesting = false;
+    mockRecaptchaVerifier.mockImplementation(() => ({
+      clear: jest.fn(),
+      verify: jest.fn(),
+      render: jest.fn(async () => 'widget-1'),
+    }));
     mockResolvePostAuthDestination.mockRejectedValue(new Error('no session'));
     mockFinalizeAuthenticatedSession.mockResolvedValue('/dashboard');
     mockFetchSignInMethodsForEmail.mockResolvedValue([]);
@@ -297,5 +310,60 @@ describe('Login unified auth flow', () => {
     expect(screen.queryByText(/this account is not enrolled/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/invalid state/i)).not.toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('constructs the official RecaptchaVerifier in testing mode with the exported Auth instance', async () => {
+    auth.settings.appVerificationDisabledForTesting = true;
+    mockRequestPhoneOtpForSignIn.mockResolvedValue({ verificationId: 'abc' });
+
+    render(<Login />);
+    fireEvent.change(screen.getByLabelText(/phone number or email/i), { target: { value: '0405 000 123' } });
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+
+    await waitFor(() => expect(mockRequestPhoneOtpForSignIn).toHaveBeenCalled());
+    expect(mockRecaptchaVerifier).toHaveBeenCalledTimes(1);
+    expect(mockRecaptchaVerifier.mock.calls[0][0]).toBe(auth);
+    expect(mockRecaptchaVerifier.mock.calls[0][1]).toBe('taskio-login-recaptcha');
+    expect(mockRecaptchaVerifier.mock.calls[0][2]).toEqual({ size: 'invisible' });
+    expect(mockRequestPhoneOtpForSignIn.mock.calls[0][0].auth).toBe(auth);
+    expect(mockRequestPhoneOtpForSignIn.mock.calls[0][0].recaptchaVerifier).toBe(mockRecaptchaVerifier.mock.results[0].value);
+  });
+
+  it('clears a failed verifier and constructs a new one on retry', async () => {
+    const first = { clear: jest.fn(), verify: jest.fn(), render: jest.fn() };
+    const second = { clear: jest.fn(), verify: jest.fn(), render: jest.fn() };
+    mockRecaptchaVerifier
+      .mockImplementationOnce(() => first)
+      .mockImplementationOnce(() => second);
+    mockRequestPhoneOtpForSignIn
+      .mockRejectedValueOnce(new Error('Could not send a verification code. Please try again.'))
+      .mockResolvedValueOnce({ verificationId: 'abc' });
+
+    render(<Login />);
+    fireEvent.change(screen.getByLabelText(/phone number or email/i), { target: { value: '0405 000 123' } });
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+
+    await waitFor(() => expect(first.clear).toHaveBeenCalledTimes(1));
+    expect(mockRecaptchaVerifier).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+
+    await waitFor(() => expect(mockRequestPhoneOtpForSignIn).toHaveBeenCalledTimes(2));
+    expect(mockRecaptchaVerifier).toHaveBeenCalledTimes(2);
+    expect(mockRequestPhoneOtpForSignIn.mock.calls[1][0].recaptchaVerifier).toBe(second);
+    expect(second.clear).not.toHaveBeenCalled();
+  });
+
+  it('does not send a phone OTP when the recaptcha container is missing', async () => {
+    const { container, unmount } = render(<Login />);
+    container.querySelector('#taskio-login-recaptcha')?.remove();
+
+    fireEvent.change(screen.getByLabelText(/phone number or email/i), { target: { value: '0405 000 123' } });
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(mockRecaptchaVerifier).not.toHaveBeenCalled();
+    expect(mockRequestPhoneOtpForSignIn).not.toHaveBeenCalled();
+    unmount();
   });
 });

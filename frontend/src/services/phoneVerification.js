@@ -46,13 +46,55 @@ export function normalizeAuMobileToE164(rawInput) {
   return s;
 }
 
+export const RECAPTCHA_CONTAINER_MISSING =
+  'Phone verification is not ready. Please try again.';
+
+export function assertRecaptchaContainerMounted(containerId) {
+  if (typeof document === 'undefined' || !containerId) {
+    const error = new Error(RECAPTCHA_CONTAINER_MISSING);
+    error.code = 'recaptcha-container-missing';
+    throw error;
+  }
+  const el = document.getElementById(containerId);
+  if (!el) {
+    const error = new Error(RECAPTCHA_CONTAINER_MISSING);
+    error.code = 'recaptcha-container-missing';
+    throw error;
+  }
+  return el;
+}
+
 export function createInvisibleRecaptcha(auth, containerId, params = {}) {
   // This project uses Firebase v12 (modular). Signature:
   // new RecaptchaVerifier(auth, containerOrId, parameters)
+  if (!auth) throw new Error('Missing auth instance.');
+  assertRecaptchaContainerMounted(containerId);
   return new RecaptchaVerifier(auth, containerId, {
     size: 'invisible',
     ...(params || {}),
   });
+}
+
+export function clearRecaptchaVerifier(verifierRef) {
+  try {
+    verifierRef?.current?.clear?.();
+  } catch (error) {
+    // ignore cleanup failures
+  }
+  if (verifierRef) verifierRef.current = null;
+}
+
+export function ensureOfficialRecaptchaVerifier({
+  auth,
+  containerId,
+  verifierRef,
+  params = {},
+} = {}) {
+  if (!auth) throw new Error('Missing auth instance.');
+  if (!verifierRef) throw new Error('Missing reCAPTCHA verifier ref.');
+  if (verifierRef.current) return verifierRef.current;
+  verifierRef.current = createInvisibleRecaptcha(auth, containerId, params);
+  return verifierRef.current;
 }
 
 function buildDuplicatePhoneError(code) {

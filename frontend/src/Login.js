@@ -25,7 +25,8 @@ import {
 } from './features/auth/utils';
 import { buildExistingMethodMessage, finalizeAuthenticatedSession } from './features/auth/postAuth';
 import {
-  createInvisibleRecaptcha,
+  clearRecaptchaVerifier,
+  ensureOfficialRecaptchaVerifier,
   requestPhoneOtpForSignIn,
   confirmPhoneOtpForSignIn,
 } from './services/phoneVerification';
@@ -132,7 +133,6 @@ export default function Login({ adminMode = false }) {
   const publicApi = useMemo(() => createApiClient(), []);
   const recaptchaVerifierRef = useRef(null);
   const recaptchaContainerId = useRef('taskio-login-recaptcha');
-  const testAppVerifierRef = useRef(null);
 
   const [authFlowState, setAuthFlowState] = useState('input');
   const [enteredIdentifier, setEnteredIdentifier] = useState('');
@@ -177,6 +177,10 @@ export default function Login({ adminMode = false }) {
     return () => window.clearInterval(timer);
   }, [resendAvailableAt]);
 
+  useEffect(() => () => {
+    clearRecaptchaVerifier(recaptchaVerifierRef);
+  }, []);
+
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
 
   const resetStepState = useCallback(() => {
@@ -187,28 +191,27 @@ export default function Login({ adminMode = false }) {
     setEmailStepVariant('magic_link');
   }, []);
 
-  const ensureRecaptchaVerifier = useCallback(() => {
-    try {
-      if (auth?.settings?.appVerificationDisabledForTesting) {
-        if (!testAppVerifierRef.current) {
-          testAppVerifierRef.current = {
-            type: 'recaptcha',
-            verify: async () => 'test',
-            clear: () => {},
-            reset: () => {},
-            _reset: () => {},
-          };
-        }
-        return testAppVerifierRef.current;
-      }
-    } catch (_) {
-      // ignore
-    }
+  const ensureRecaptchaVerifier = useCallback(() => (
+    ensureOfficialRecaptchaVerifier({
+      auth,
+      containerId: recaptchaContainerId.current,
+      verifierRef: recaptchaVerifierRef,
+    })
+  ), []);
 
-    if (recaptchaVerifierRef.current) return recaptchaVerifierRef.current;
-    recaptchaVerifierRef.current = createInvisibleRecaptcha(auth, recaptchaContainerId.current);
-    return recaptchaVerifierRef.current;
-  }, []);
+  const requestLoginPhoneOtp = useCallback(async (phoneNumberE164) => {
+    const verifier = ensureRecaptchaVerifier();
+    try {
+      return await requestPhoneOtpForSignIn({
+        auth,
+        phoneNumberE164,
+        recaptchaVerifier: verifier,
+      });
+    } catch (error) {
+      clearRecaptchaVerifier(recaptchaVerifierRef);
+      throw error;
+    }
+  }, [ensureRecaptchaVerifier]);
 
   const openResetModal = useCallback(() => {
     setResetModalOpen(true);
@@ -279,12 +282,7 @@ export default function Login({ adminMode = false }) {
     setLoading(true);
     try {
       if (detected.type === 'phone') {
-        const verifier = ensureRecaptchaVerifier();
-        const nextConfirmation = await requestPhoneOtpForSignIn({
-          auth,
-          phoneNumberE164: detected.value,
-          recaptchaVerifier: verifier,
-        });
+        const nextConfirmation = await requestLoginPhoneOtp(detected.value);
         setResolvedIdentifier(detected.value);
         setConfirmationResult(nextConfirmation);
         setOtpCode('');
@@ -448,12 +446,7 @@ export default function Login({ adminMode = false }) {
     setInfo('');
     setLoading(true);
     try {
-      const verifier = ensureRecaptchaVerifier();
-      const nextConfirmation = await requestPhoneOtpForSignIn({
-        auth,
-        phoneNumberE164: resolvedIdentifier,
-        recaptchaVerifier: verifier,
-      });
+      const nextConfirmation = await requestLoginPhoneOtp(resolvedIdentifier);
       setConfirmationResult(nextConfirmation);
       setOtpCode('');
       setResendAvailableAt(Date.now() + OTP_RESEND_MS);

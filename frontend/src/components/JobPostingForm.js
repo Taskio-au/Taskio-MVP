@@ -19,7 +19,8 @@ import {
 import TaskSummary from './job-posting/TaskSummaryCard';
 import LegalNotice from './LegalNotice';
 import {
-    createInvisibleRecaptcha,
+    clearRecaptchaVerifier,
+    ensureOfficialRecaptchaVerifier,
     normalizeAuMobileToE164,
     requestPhoneOtpForSignIn,
     confirmPhoneOtpForSignIn,
@@ -373,7 +374,6 @@ function JobPostingForm() {
     const [otpMessage, setOtpMessage] = useState('');
     const confirmationResultRef = useRef(null);
     const recaptchaVerifierRef = useRef(null);
-    const testAppVerifierRef = useRef(null);
     const recaptchaContainerId = useRef(`taskio-post-job-phone-recaptcha-${Math.random().toString(36).slice(2)}`);
     
     const totalSteps = user ? 4 : 5;
@@ -439,11 +439,7 @@ function JobPostingForm() {
     }, [currentStep, isSubmitting, otpBusy]);
 
     useEffect(() => () => {
-        try {
-            recaptchaVerifierRef.current?.clear?.();
-        } catch (error) {
-            // ignore cleanup failures
-        }
+        clearRecaptchaVerifier(recaptchaVerifierRef);
     }, []);
 
     useEffect(() => {
@@ -752,33 +748,13 @@ function JobPostingForm() {
         navigate(`/job-posted/${jobId}`);
     }, [buildTaskData, navigate, photos.length, uploadPhotosForJob]);
 
-    const ensureRecaptchaVerifier = useCallback(() => {
-        try {
-            if (auth?.settings?.appVerificationDisabledForTesting) {
-                if (!testAppVerifierRef.current) {
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.info('[Taskio] Phone verification test bypass is active; using fake app verifier.');
-                    }
-                    testAppVerifierRef.current = {
-                        type: 'recaptcha',
-                        verify: async () => 'test',
-                        clear: () => {},
-                        reset: () => {},
-                        _reset: () => {},
-                    };
-                }
-                return testAppVerifierRef.current;
-            }
-        } catch (error) {
-            // ignore
-        }
-
-        if (recaptchaVerifierRef.current) {
-            return recaptchaVerifierRef.current;
-        }
-        recaptchaVerifierRef.current = createInvisibleRecaptcha(auth, recaptchaContainerId.current);
-        return recaptchaVerifierRef.current;
-    }, []);
+    const ensureRecaptchaVerifier = useCallback(() => (
+        ensureOfficialRecaptchaVerifier({
+            auth,
+            containerId: recaptchaContainerId.current,
+            verifierRef: recaptchaVerifierRef,
+        })
+    ), []);
 
     const activateQuoteAccess = useCallback(async (token) => {
         const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -797,15 +773,19 @@ function JobPostingForm() {
         }
 
         const verifier = ensureRecaptchaVerifier();
-        const confirmation = await requestPhoneOtpForSignIn({
-            auth,
-            phoneNumberE164,
-            recaptchaVerifier: verifier,
-        });
-
-        confirmationResultRef.current = confirmation;
-        setOtpRequested(true);
-        setOtpMessage("We sent a 6-digit code to your phone.");
+        try {
+            const confirmation = await requestPhoneOtpForSignIn({
+                auth,
+                phoneNumberE164,
+                recaptchaVerifier: verifier,
+            });
+            confirmationResultRef.current = confirmation;
+            setOtpRequested(true);
+            setOtpMessage("We sent a 6-digit code to your phone.");
+        } catch (error) {
+            clearRecaptchaVerifier(recaptchaVerifierRef);
+            throw error;
+        }
     }, [ensureRecaptchaVerifier, formData.phone]);
 
     const verifyOtpAndPostTask = useCallback(async () => {

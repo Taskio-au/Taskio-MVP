@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { auth } from '../../firebase';
 import { sendEmailVerification } from 'firebase/auth';
 import { getUserProfile, updateUserProfile } from '../../services/userProfile';
-import { createInvisibleRecaptcha, normalizeAuMobileToE164, requestPhoneOtp, confirmPhoneOtp } from '../../services/phoneVerification';
+import { clearRecaptchaVerifier, ensureOfficialRecaptchaVerifier, normalizeAuMobileToE164, requestPhoneOtp, confirmPhoneOtp } from '../../services/phoneVerification';
 
 /**
  * Private Details & Verification (Tradie)
@@ -40,19 +40,12 @@ export default function PrivateDetailsVerificationCard({ onProfileRefresh, varia
   const recaptchaId = 'recaptcha-container';
   const recaptchaRef = useRef(null);
   const recaptchaWidgetIdRef = useRef(null);
-  const testAppVerifierRef = useRef(null);
 
   const hardResetRecaptcha = () => {
     // Firebase can throw "reCAPTCHA has already been rendered in this element" if a previous widget
     // wasn't fully cleaned up. Clearing the verifier is not always enough; also clear the container DOM.
-    try {
-      recaptchaRef.current?.clear?.();
-    } catch (e) {
-      // ignore
-    }
-    recaptchaRef.current = null;
+    clearRecaptchaVerifier(recaptchaRef);
     recaptchaWidgetIdRef.current = null;
-    testAppVerifierRef.current = null;
     try {
       const el = document.getElementById(recaptchaId);
       if (el) el.innerHTML = '';
@@ -62,40 +55,7 @@ export default function PrivateDetailsVerificationCard({ onProfileRefresh, varia
   };
 
   const ensureRecaptchaReady = async () => {
-    // Ensure container exists and is clean
-    try {
-      const el = document.getElementById(recaptchaId);
-      if (el && !el.innerHTML) {
-        // ok
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    // If dev bypass is enabled (auth.settings.appVerificationDisabledForTesting),
-    // do NOT instantiate or render reCAPTCHA at all (managed browsers can block it and throw "Timeout").
-    // Firebase will short-circuit verification when using Auth test phone numbers.
-    try {
-      if (auth?.settings?.appVerificationDisabledForTesting) {
-        if (!testAppVerifierRef.current) {
-          // Minimal ApplicationVerifier interface (type + verify + clear).
-          // Returning a deterministic token prevents any reCAPTCHA network/script load.
-          testAppVerifierRef.current = {
-            type: 'recaptcha',
-            verify: async () => 'test',
-            clear: () => {},
-            reset: () => {},
-            _reset: () => {},
-          };
-        }
-        return testAppVerifierRef.current;
-      }
-    } catch (e) {
-      // ignore
-    }
-
     if (!recaptchaRef.current) {
-      // wipe the container before creating a new verifier
       try {
         const el = document.getElementById(recaptchaId);
         if (el) el.innerHTML = '';
@@ -103,11 +63,16 @@ export default function PrivateDetailsVerificationCard({ onProfileRefresh, varia
         // ignore
       }
 
-      recaptchaRef.current = createInvisibleRecaptcha(auth, recaptchaId, {
-        // Avoid noisy dev crashes when reCAPTCHA expires; we'll just recreate on next send.
-        'expired-callback': () => {
-          hardResetRecaptcha();
-          setPhoneMsg('reCAPTCHA expired. Please click “Send code” again.');
+      ensureOfficialRecaptchaVerifier({
+        auth,
+        containerId: recaptchaId,
+        verifierRef: recaptchaRef,
+        params: {
+          // Avoid noisy dev crashes when reCAPTCHA expires; we'll just recreate on next send.
+          'expired-callback': () => {
+            hardResetRecaptcha();
+            setPhoneMsg('reCAPTCHA expired. Please click “Send code” again.');
+          },
         },
       });
     }
