@@ -80,10 +80,12 @@ jest.mock('firebase/auth', () => ({
 }));
 
 const Login = require('./Login').default;
+const { auth } = require('./firebase');
 
 describe('Login unified auth flow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    auth.currentUser = null;
     mockResolvePostAuthDestination.mockRejectedValue(new Error('no session'));
     mockFinalizeAuthenticatedSession.mockResolvedValue('/dashboard');
     mockFetchSignInMethodsForEmail.mockResolvedValue([]);
@@ -243,5 +245,57 @@ describe('Login unified auth flow', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { name: /enter your password/i })).toBeInTheDocument());
     expect(screen.queryByLabelText(/phone number or email/i)).not.toBeInTheDocument();
+  });
+
+  it('redirects an already-authenticated valid session through the shared resolver', async () => {
+    auth.currentUser = { uid: 'session-1' };
+    mockFinalizeAuthenticatedSession.mockResolvedValue('/tradie/dashboard');
+
+    render(<Login />);
+
+    await waitFor(() => expect(mockFinalizeAuthenticatedSession).toHaveBeenCalledWith(auth.currentUser));
+    expect(mockNavigate).toHaveBeenCalledWith('/tradie/dashboard', { replace: true });
+  });
+
+  it('shows the blocked-flow message when an existing session is not enrolled', async () => {
+    auth.currentUser = { uid: 'session-missing' };
+    const err = new Error('This account is not enrolled.');
+    err.code = 'account_not_enrolled';
+    mockFinalizeAuthenticatedSession.mockRejectedValue(err);
+
+    render(<Login />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/this account is not enrolled\./i)).toBeInTheDocument();
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('shows the blocked-flow message when an existing session has a malformed profile', async () => {
+    auth.currentUser = { uid: 'session-malformed' };
+    const err = new Error('This account is in an invalid state and needs support.');
+    err.code = 'account_state_invalid';
+    mockFinalizeAuthenticatedSession.mockRejectedValue(err);
+
+    render(<Login />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/this account is in an invalid state and needs support\./i)).toBeInTheDocument();
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a transient session failure as an enrolment block', async () => {
+    auth.currentUser = { uid: 'session-timeout' };
+    const err = new Error('timeout of 10000ms exceeded');
+    err.code = 'ECONNABORTED';
+    mockFinalizeAuthenticatedSession.mockRejectedValue(err);
+
+    render(<Login />);
+
+    await waitFor(() => expect(mockFinalizeAuthenticatedSession).toHaveBeenCalled());
+    expect(screen.queryByText(/this account is not enrolled/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/invalid state/i)).not.toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

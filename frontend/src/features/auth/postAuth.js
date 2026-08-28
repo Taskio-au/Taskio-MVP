@@ -53,8 +53,6 @@ export async function resolvePostAuthDestination(user) {
   }
 
   if (claims?.admin === true) return '/admin/dashboard';
-  if (claims?.role === 'tradie') return '/tradie/dashboard';
-  if (claims?.role === 'homeowner') return '/dashboard';
 
   try {
     const me = await api.get('/api/me');

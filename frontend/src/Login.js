@@ -23,7 +23,7 @@ import {
   resolveEmailSignIn,
   sendTaskioMagicLink,
 } from './features/auth/utils';
-import { buildExistingMethodMessage, finalizeAuthenticatedSession, resolvePostAuthDestination } from './features/auth/postAuth';
+import { buildExistingMethodMessage, finalizeAuthenticatedSession } from './features/auth/postAuth';
 import {
   createInvisibleRecaptcha,
   requestPhoneOtpForSignIn,
@@ -158,10 +158,10 @@ export default function Login({ adminMode = false }) {
 
     const run = async () => {
       try {
-        const destination = await resolvePostAuthDestination(auth.currentUser);
+        const destination = await finalizeAuthenticatedSession(auth.currentUser);
         if (!cancelled) navigate(destination, { replace: true });
-      } catch (_) {
-        // stay on login if the session cannot be resolved
+      } catch (err) {
+        if (!cancelled) setError(friendlyAuthError(err));
       }
     };
 
