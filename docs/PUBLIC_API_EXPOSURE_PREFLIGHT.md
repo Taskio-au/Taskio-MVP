@@ -33,12 +33,13 @@ Gated enrollment routes:
 
 - `POST /api/users/register` (anonymous Firebase Admin `createUser`, **expert `tradie` role only**)
 - `POST /api/users/register/expert-google` (authenticated Google expert bootstrap)
+- `POST /api/me/homeowner/activate-quote-access` (phone-verified homeowner enrolment / quote-access grant; already-verified homeowners remain idempotent when signup is off)
 
 Not gated: login, `POST /api/auth/resolve-email`, profile edits, admin, Stripe ingest.
 
 ### Homeowner registration is not available on this route
 
-`POST /api/users/register` rejects `role: 'homeowner'` with HTTP 400 before Auth `createUser` or any Firestore write. Homeowner accounts are created only by the phone-verified posting flow, so `quoteAccessVerified` can be granted only by `POST /api/me/homeowner/activate-quote-access` (which requires a phone-verified token) or `POST /api/me/homeowner/complete-account`.
+`POST /api/users/register` rejects `role: 'homeowner'` with HTTP 400 before Auth `createUser` or any Firestore write. Homeowner accounts are created only by the phone-verified posting flow. `quoteAccessVerified` is granted only by `POST /api/me/homeowner/activate-quote-access` (phone-verified token, while public signup is enabled). `POST /api/me/homeowner/complete-account` completes payment identity for an already quote-verified homeowner and never newly grants quote access. Job posting and quote viewing require `profile.quoteAccessVerified === true` with no email-based inference. Clients cannot create `users/{uid}` or change `role` / `quoteAccessVerified`.
 
 ## Anonymous endpoint inventory
 
