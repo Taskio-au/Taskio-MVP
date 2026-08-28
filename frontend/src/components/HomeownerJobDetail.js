@@ -93,7 +93,7 @@ function ClientJobDetail() {
                     if (qErr?.response?.status === 403 && code === 'quote_access_required') {
                         setQuotes([]);
                         setQuotesLocked(true);
-                        setQuotesLockReason(qErr?.response?.data?.message || 'Please complete verification to view quotes.');
+                        setQuotesLockReason(qErr?.response?.data?.message || 'Please verify your phone to view quotes.');
                     } else {
                         throw qErr;
                     }

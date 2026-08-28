@@ -21,7 +21,7 @@ describe('smoke: auth guard flow', () => {
     jest.clearAllMocks();
   });
 
-  it('creates default profile fields for newly authenticated users', async () => {
+  it('does not create a profile when none exists and reports not enrolled', async () => {
     const user = {
       uid: 'uid-1',
       email: 'owner@example.com',
@@ -29,18 +29,10 @@ describe('smoke: auth guard flow', () => {
       photoURL: '',
     };
     getDoc.mockResolvedValue({ exists: () => false, data: () => ({}) });
-    await upsertUserProfileFromAuth(user, 'password');
-    expect(setDoc).toHaveBeenCalledTimes(1);
+    const result = await upsertUserProfileFromAuth(user, 'password');
+    expect(result).toEqual({ enrolled: false, code: 'account_not_enrolled' });
+    expect(setDoc).not.toHaveBeenCalled();
     expect(updateDoc).not.toHaveBeenCalled();
-    const [, payload] = setDoc.mock.calls[0];
-    expect(payload).toEqual(
-      expect.objectContaining({
-        uid: 'uid-1',
-        role: 'homeowner',
-        status: 'active',
-        verified: false,
-      })
-    );
   });
 
   it('does not overwrite existing non-empty role/status fields on update path', async () => {
@@ -62,6 +54,21 @@ describe('smoke: auth guard flow', () => {
     expect(patch.status).toBeUndefined();
     expect(patch.email).toBeUndefined();
     expect(patch).toHaveProperty('updatedAt');
+  });
+
+  it('does not write a structurally invalid profile and reports account_state_invalid', async () => {
+    const user = {
+      uid: 'uid-3',
+      displayName: 'Stub User',
+    };
+    getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ phone: '+61400000001' }),
+    });
+    const result = await upsertUserProfileFromAuth(user, 'password');
+    expect(result).toEqual({ enrolled: false, code: 'account_state_invalid' });
+    expect(setDoc).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 });
 

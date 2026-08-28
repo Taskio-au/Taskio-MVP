@@ -21,9 +21,9 @@ export const CLIENT_ACCOUNT_COMPLETE_PAGE = {
 
 /** Client: cannot view quotes (e.g. quote_access_required) */
 export const CLIENT_QUOTES_LOCKED = {
-  title: 'Verify your account to view quotes',
+  title: 'Verify your phone to view quotes',
   bodyFallback:
-    'We need a verified account before showing Expert quotes on this task. Finish the steps in Account settings.',
+    'We need a verified phone number before showing Expert quotes on this task.',
   primaryCta: 'Open Account settings',
   help: 'Help & Support',
 };

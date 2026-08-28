@@ -7,6 +7,7 @@ const mockSignInWithEmailAndPassword = jest.fn();
 const mockSendEmailVerification = jest.fn();
 const mockSignInWithPopup = jest.fn();
 const mockUpdateProfile = jest.fn();
+const mockUpsertUserProfileFromAuth = jest.fn();
 
 jest.mock('react-router-dom', () => ({
   __esModule: true,
@@ -38,6 +39,10 @@ jest.mock('firebase/auth', () => ({
   sendEmailVerification: (...args) => mockSendEmailVerification(...args),
   signInWithPopup: (...args) => mockSignInWithPopup(...args),
   updateProfile: (...args) => mockUpdateProfile(...args),
+}));
+
+jest.mock('../utils/upsertUserProfileFromAuth', () => ({
+  upsertUserProfileFromAuth: (...args) => mockUpsertUserProfileFromAuth(...args),
 }));
 
 const ExpertSignUpPage = require('./ExpertSignUpPage').default;
@@ -139,6 +144,7 @@ describe('ExpertSignUpPage', () => {
       primaryServicePostcode: '3121',
       expertise: ['mounting_shelves'],
     })));
+    expect(mockUpsertUserProfileFromAuth).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByText(/finish expert readiness/i)).toBeInTheDocument());
   });
 });

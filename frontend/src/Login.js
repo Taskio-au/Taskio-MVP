@@ -44,7 +44,9 @@ const PROFILE_BOOTSTRAP_ERROR =
   "We signed you in, but couldn't finish setting up your account. Please try again or contact support.";
 
 function friendlyAuthError(err) {
-  const code = err?.code || '';
+  const code = err?.code || err?.response?.data?.code || '';
+  if (code === 'account_not_enrolled') return 'This account is not enrolled.';
+  if (code === 'account_state_invalid') return 'This account is in an invalid state and needs support.';
   if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
     return PUBLIC_AUTH_ERROR;
   }

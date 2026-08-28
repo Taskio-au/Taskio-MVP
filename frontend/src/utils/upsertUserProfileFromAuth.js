@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 /**
@@ -24,6 +24,14 @@ const CLIENT_UPDATE_ALLOWED_KEYS = new Set([
   'updatedAt',
 ]);
 
+const RECOGNISED_ROLES = new Set(['homeowner', 'tradie', 'admin']);
+const RECOGNISED_STATUSES = new Set(['active', 'disabled', 'pending_deletion', 'deleted']);
+
+export const ENROLMENT_ERROR_CODES = {
+  NOT_ENROLLED: 'account_not_enrolled',
+  STATE_INVALID: 'account_state_invalid',
+};
+
 function splitDisplayName(displayName) {
   const raw = String(displayName || '').trim();
   if (!raw) return { firstName: '', lastName: '', name: '' };
@@ -44,6 +52,23 @@ function validNameForRules(name) {
   return s.length >= 2 && s.length <= 80 ? s : '';
 }
 
+function classifyClientProfile(snap) {
+  if (!snap || typeof snap.exists !== 'function' || snap.exists() !== true) {
+    return { kind: 'missing', data: null };
+  }
+  const data = snap.data() || {};
+  const role = String(data.role || '').trim();
+  const status = String(data.status || '').trim();
+  if (!role || !status || !RECOGNISED_ROLES.has(role) || !RECOGNISED_STATUSES.has(status)) {
+    return { kind: 'invalid', data };
+  }
+  return { kind: 'valid', data };
+}
+
+function enrolmentResult(code) {
+  return { enrolled: false, code };
+}
+
 function devLogBootstrap(path, keys) {
   if (process.env.NODE_ENV !== 'development') return;
   // eslint-disable-next-line no-console
@@ -51,21 +76,16 @@ function devLogBootstrap(path, keys) {
 }
 
 /**
- * Safely creates or patches `users/{uid}` from an authenticated Firebase user.
+ * Update-only patch of `users/{uid}` from an authenticated Firebase user.
  *
- * - **Create** (no doc): writes bootstrap fields allowed by Firestore **create** rules.
- * - **Update** (doc exists): writes **only** fields allowed by **update** rules (see CLIENT_UPDATE_ALLOWED_KEYS).
- *   We do not send provider, uid, role, status, verified, email, or firstName/lastName on update —
- *   those are not in the allowed diff list (or role/verified are forbidden to change client-side).
- *
- * Legacy docs missing `role`: do not patch client-side; rules forbid changing `role` on update.
- * Fix via Admin SDK / backfill / support.
+ * Missing or structurally invalid profiles are not created or repaired here.
+ * Enrolment is backend-only. Permission-denied, network, and timeout errors
+ * are rethrown and must not be translated into enrolment codes.
  */
 export async function upsertUserProfileFromAuth(user, providerName, overrides = {}) {
   if (!user?.uid) throw new Error('Missing user uid');
 
   const uid = user.uid;
-  const email = nonEmpty(user.email) || nonEmpty(overrides.email);
   const photoURL = nonEmpty(user.photoURL) || nonEmpty(overrides.photoURL);
 
   const fromDisplayName = splitDisplayName(user.displayName);
@@ -75,48 +95,24 @@ export async function upsertUserProfileFromAuth(user, providerName, overrides = 
     nonEmpty(fromDisplayName.name) ||
     [nonEmpty(overrides.firstName), nonEmpty(overrides.lastName)].filter(Boolean).join(' ').trim();
 
-  const firstName = nonEmpty(overrides.firstName) || nonEmpty(fromDisplayName.firstName);
-  const lastName = nonEmpty(overrides.lastName) || nonEmpty(fromDisplayName.lastName);
-
   const ref = doc(db, 'users', uid);
   const snap = await getDoc(ref);
-  const existing = snap.exists() ? snap.data() || {} : {};
+  const classified = classifyClientProfile(snap);
 
-  if (!snap.exists()) {
-    const createPayload = {
-      uid,
-      provider: providerName,
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-    };
-
-    if (!existing.role) createPayload.role = 'homeowner';
-    if (!existing.status) createPayload.status = 'active';
-    if (typeof existing.verified !== 'boolean') createPayload.verified = false;
-
-    if (email && !existing.email) createPayload.email = email;
-    const safeName = validNameForRules(name);
-    if (safeName && !existing.name) createPayload.name = safeName;
-    if (firstName && !existing.firstName) createPayload.firstName = firstName;
-    if (lastName && !existing.lastName) createPayload.lastName = lastName;
-    if (photoURL && !existing.photoURL) createPayload.photoURL = photoURL;
-
-    devLogBootstrap('create', Object.keys(createPayload));
-    await setDoc(ref, createPayload);
-    return createPayload;
+  if (classified.kind === 'missing') {
+    return enrolmentResult(ENROLMENT_ERROR_CODES.NOT_ENROLLED);
+  }
+  if (classified.kind === 'invalid') {
+    return enrolmentResult(ENROLMENT_ERROR_CODES.STATE_INVALID);
   }
 
-  /**
-   * Existing document: only allowed update keys. Never role/verified/provider/email/uid/firstName/lastName/status.
-   * If `role` is missing on a legacy doc, server-side backfill is required — client update is denied by rules.
-   */
+  const existing = classified.data || {};
   const patch = {
     updatedAt: serverTimestamp(),
   };
 
   const safeName = validNameForRules(name);
   if (safeName && !nonEmpty(existing.name)) patch.name = safeName;
-
   if (photoURL && !nonEmpty(existing.photoURL)) patch.photoURL = photoURL;
 
   devLogBootstrap(
@@ -125,5 +121,5 @@ export async function upsertUserProfileFromAuth(user, providerName, overrides = 
   );
 
   await updateDoc(ref, patch);
-  return patch;
+  return { enrolled: true, patch };
 }
