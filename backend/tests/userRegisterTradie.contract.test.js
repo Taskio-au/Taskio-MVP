@@ -8,6 +8,7 @@ const mockState = {
   claims: [],
   storedUsers: new Map(),
   authUsers: new Map(),
+  failNextClaim: false,
 };
 
 function resetMockState() {
@@ -15,6 +16,7 @@ function resetMockState() {
   mockState.claims = [];
   mockState.storedUsers = new Map();
   mockState.authUsers = new Map();
+  mockState.failNextClaim = false;
 }
 
 jest.mock('../src/middleware/auth', () => ({
@@ -51,6 +53,12 @@ jest.mock('../src/firebaseAdmin', () => ({
         };
       }),
       setCustomUserClaims: jest.fn(async (uid, claims) => {
+        if (mockState.failNextClaim) {
+          mockState.failNextClaim = false;
+          const error = new Error('claims_unavailable');
+          error.code = 'auth/internal-error';
+          throw error;
+        }
         mockState.claims.push({ uid, claims });
       }),
       getUser: jest.fn(async (uid) => ({
@@ -75,12 +83,30 @@ jest.mock('../src/firebaseAdmin', () => ({
           exists: mockState.storedUsers.has(uid),
           data: () => mockState.storedUsers.get(uid),
         })),
-        set: jest.fn(async (payload) => {
+        set: jest.fn(async (payload, options = {}) => {
           const previous = mockState.storedUsers.get(uid) || {};
+          const next = options.merge ? { ...previous, ...payload } : { ...previous, ...payload };
+          mockState.storedUsers.set(uid, next);
+        }),
+        update: jest.fn(async (payload) => {
+          if (!mockState.storedUsers.has(uid)) {
+            const error = new Error('NOT_FOUND');
+            error.code = 5;
+            throw error;
+          }
+          const previous = mockState.storedUsers.get(uid);
           mockState.storedUsers.set(uid, { ...previous, ...payload });
         }),
       })),
     })),
+    runTransaction: jest.fn(async (fn) => {
+      const tx = {
+        get: (ref) => ref.get(),
+        set: (ref, payload, options) => ref.set(payload, options),
+        update: (ref, payload) => ref.update(payload),
+      };
+      return fn(tx);
+    }),
   },
 }));
 
@@ -469,6 +495,102 @@ describe('tradie registration contracts', () => {
       firstName: 'Jane',
       lastName: 'Expert',
     }));
+  });
+
+  it('does not overwrite an admin profile during Google expert signup', async () => {
+    mockState.storedUsers.set('google-tradie-1', {
+      role: 'admin',
+      status: 'active',
+      email: 'google.expert@example.com',
+    });
+
+    const response = await request(buildApp())
+      .post('/api/users/register/expert-google')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Expert',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+
+    expect(response.status).toBe(409);
+    expect(mockState.claims).toHaveLength(0);
+    expect(mockState.storedUsers.get('google-tradie-1')).toEqual(expect.objectContaining({
+      role: 'admin',
+      status: 'active',
+    }));
+  });
+
+  it('returns a recoverable error when the tradie claim fails after the enrolment transaction', async () => {
+    mockState.failNextClaim = true;
+
+    const response = await request(buildApp())
+      .post('/api/users/register/expert-google')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Expert',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+
+    expect(response.status).toBe(503);
+    expect(response.body.code).toBe('expert_claim_incomplete');
+    expect(mockState.claims).toHaveLength(0);
+    expect(mockState.storedUsers.get('google-tradie-1')).toEqual(expect.objectContaining({
+      role: 'tradie',
+      status: 'active',
+      firstName: 'Jane',
+    }));
+  });
+
+  it('retries claim completion for an existing tradie without changing roles', async () => {
+    mockState.storedUsers.set('google-tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      email: 'google.expert@example.com',
+      firstName: 'Jane',
+      lastName: 'Expert',
+    });
+
+    const response = await request(buildApp())
+      .post('/api/users/register/expert-google')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Expert',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+
+    expect(response.status).toBe(200);
+    expect(mockState.claims).toEqual([{ uid: 'google-tradie-1', claims: { role: 'tradie' } }]);
+    expect(mockState.storedUsers.get('google-tradie-1').role).toBe('tradie');
   });
 
   describe('public signup kill switch on enrollment routes', () => {

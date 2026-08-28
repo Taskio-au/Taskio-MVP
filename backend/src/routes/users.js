@@ -272,32 +272,76 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, requi
     }
 
     const userRef = db.collection('users').doc(uid);
-    const userSnap = await userRef.get();
-    const classified = classifyUserProfile(userSnap);
-    if (classified.kind === 'invalid') {
-      return sendAccountStateInvalid(res);
-    }
-    if (classified.kind === 'valid') {
-      if (classified.role !== 'tradie') {
-        return res.status(409).send({ message: 'This account already belongs to a different Taskio role. Please log in instead.' });
-      }
-      if (!['active'].includes(classified.status)) {
-        return sendAccountNotActive(res);
-      }
+    let transactionResult;
+    try {
+      transactionResult = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(userRef);
+        const classified = classifyUserProfile(snap);
+        if (classified.kind === 'invalid') {
+          return { type: 'invalid' };
+        }
+        if (classified.kind === 'valid') {
+          if (classified.role !== 'tradie') {
+            return { type: 'role_conflict' };
+          }
+          if (classified.status !== 'active') {
+            return { type: 'inactive' };
+          }
+        }
+
+        const payload = buildTradieUserData({
+          email,
+          firstName: String(firstName).trim(),
+          lastName: String(lastName).trim(),
+          normalizedTradieLocation: normalized.location,
+          normalizedTradieExpertise: normalized.expertise,
+        }, {
+          includeCreatedAt: classified.kind === 'missing',
+        });
+
+        if (classified.kind === 'missing') {
+          tx.set(userRef, payload);
+        } else {
+          tx.update(userRef, payload);
+        }
+        return { type: 'ok' };
+      });
+    } catch (txError) {
+      logger.warn('google_expert_registration_failed', {
+        requestId: req.requestId || null,
+        errorCode: String(txError?.code || 'transaction_failed'),
+      });
+      return res.status(500).send({
+        message: 'Error completing expert signup. Please try again.',
+        requestId: req.requestId || null,
+      });
     }
 
-    const userRecord = await admin.auth().getUser(uid);
-    const nextClaims = { ...(userRecord.customClaims || {}), role: 'tradie' };
-    await admin.auth().setCustomUserClaims(uid, nextClaims);
-    await userRef.set(buildTradieUserData({
-      email,
-      firstName: String(firstName).trim(),
-      lastName: String(lastName).trim(),
-      normalizedTradieLocation: normalized.location,
-      normalizedTradieExpertise: normalized.expertise,
-    }, {
-      includeCreatedAt: classified.kind === 'missing',
-    }), { merge: true });
+    if (transactionResult.type === 'invalid') {
+      return sendAccountStateInvalid(res);
+    }
+    if (transactionResult.type === 'role_conflict') {
+      return res.status(409).send({ message: 'This account already belongs to a different Taskio role. Please log in instead.' });
+    }
+    if (transactionResult.type === 'inactive') {
+      return sendAccountNotActive(res);
+    }
+
+    try {
+      const userRecord = await admin.auth().getUser(uid);
+      const nextClaims = { ...(userRecord.customClaims || {}), role: 'tradie' };
+      await admin.auth().setCustomUserClaims(uid, nextClaims);
+    } catch (claimError) {
+      logger.warn('google_expert_claim_incomplete', {
+        requestId: req.requestId || null,
+        errorCode: String(claimError?.code || 'unknown'),
+      });
+      return res.status(503).send({
+        message: 'Expert profile saved. Please retry to finish sign-in.',
+        code: 'expert_claim_incomplete',
+        requestId: req.requestId || null,
+      });
+    }
 
     return res.status(200).send({ message: 'Expert profile completed.', uid });
   } catch (error) {
