@@ -1,48 +1,7 @@
 'use strict';
 
 const { admin, db } = require('../firebaseAdmin');
-
-function ensureUserProfile({ defaultRole } = {}) {
-  return async (req, res, next) => {
-    const uid = req.user?.uid;
-    if (!uid) return next();
-
-    try {
-      const userRef = db.collection('users').doc(uid);
-      const snap = await userRef.get();
-      if (snap.exists) return next();
-
-      const roleFromToken = req.user?.role;
-      const role = roleFromToken || defaultRole;
-
-      // Only create a profile doc when we can confidently assign a role.
-      // For job posting we pass defaultRole='homeowner'; for other routes we may omit it.
-      if (!role) return next();
-
-      await userRef.set(
-        {
-          email: req.user?.email || '',
-          firstName: '',
-          lastName: '',
-          role,
-          status: 'active',
-          verified: false,
-          quoteAccessVerified: role === 'homeowner' && (!!req.user?.email || req.user?.email_verified === true),
-          accountCompleted: false,
-          ...(req.user?.phone_number ? { phone: req.user.phone_number, phoneVerified: true } : {}),
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('ensureUserProfile failed:', e);
-      // Don’t block the request on profile auto-heal.
-    }
-
-    return next();
-  };
-}
+const { requireEnrolledProfile } = require('../utils/enrolledProfile');
 
 async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -118,5 +77,5 @@ function requireRole(role) {
   };
 }
 
-module.exports = { requireAuth, requireAdmin, requireSuperAdmin, requireRole, ensureUserProfile };
+module.exports = { requireAuth, requireAdmin, requireSuperAdmin, requireRole, requireEnrolledProfile };
 

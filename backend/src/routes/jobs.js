@@ -3,7 +3,8 @@
 const express = require('express');
 
 const { admin, db } = require('../firebaseAdmin');
-const { requireAuth, requireRole, ensureUserProfile } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireEnrolledProfile, hasQuoteAccess, sendQuoteAccessRequired } = require('../utils/enrolledProfile');
 const { safeToMillis } = require('../utils/firestore');
 const { isNonEmptyString, isStringMax, toSafeNumber } = require('../utils/validation');
 const {
@@ -348,14 +349,6 @@ async function getHomeownerProfile(uid) {
   return snap.exists ? (snap.data() || {}) : {};
 }
 
-function hasQuoteAccess(profile, decodedToken) {
-  if (profile.quoteAccessVerified === true) return true;
-  if (profile.accountCompleted === true) return true;
-  if (decodedToken?.email_verified === true) return true;
-  if (profile.emailVerified === true) return true;
-  return false;
-}
-
 function hasCompletedHomeownerAccount(profile, decodedToken) {
   const phoneVerified = hasVerifiedPhone(profile, decodedToken);
   const emailVerified = profile.emailVerified === true || decodedToken?.email_verified === true;
@@ -371,7 +364,11 @@ function hasCompletedHomeownerAccount(profile, decodedToken) {
 /* -------------------------------------------------------------------------- */
 
 // Create Job Endpoint - PROTECTED (Homeowner)
-router.post('/api/jobs', requireAuth, ensureUserProfile({ defaultRole: 'homeowner' }), requireRole('homeowner'), async (req, res) => {
+router.post('/api/jobs', requireAuth, requireEnrolledProfile({
+  requireRole: 'homeowner',
+  requireOperationallyActive: true,
+  requireQuoteAccess: true,
+}), requireRole('homeowner'), async (req, res) => {
   try {
     const {
       jobType, primaryCategory, items, title, description, location, timeline,
@@ -491,7 +488,11 @@ router.post('/api/jobs', requireAuth, ensureUserProfile({ defaultRole: 'homeowne
   }
 });
 
-router.post('/api/jobs/:id/photos', requireAuth, ensureUserProfile({ defaultRole: 'homeowner' }), requireRole('homeowner'), async (req, res) => {
+router.post('/api/jobs/:id/photos', requireAuth, requireEnrolledProfile({
+  requireRole: 'homeowner',
+  requireOperationallyActive: true,
+  requireQuoteAccess: true,
+}), requireRole('homeowner'), async (req, res) => {
   try {
     const jobId = String(req.params.id || '').trim();
     const photos = normalizePostingPhotos(req.body?.photos, jobId);
@@ -582,13 +583,17 @@ router.get('/api/homeowner/jobs', requireAuth, requireRole('homeowner'), async (
 });
 
 // Get all quotes for a specific job (for the job owner)
-router.get('/api/jobs/:jobId/quotes', requireAuth, requireRole('homeowner'), async (req, res) => {
+router.get('/api/jobs/:jobId/quotes', requireAuth, requireEnrolledProfile({
+  requireRole: 'homeowner',
+  requireOperationallyActive: true,
+  requireQuoteAccess: true,
+}), requireRole('homeowner'), async (req, res) => {
   try {
     const { jobId } = req.params;
     const homeownerUid = req.user.uid;
     const homeownerProfile = await getHomeownerProfile(homeownerUid);
-    if (!hasQuoteAccess(homeownerProfile, req.user)) {
-      return res.status(403).send({ message: 'Please verify your phone or email to view quotes.', code: 'quote_access_required' });
+    if (!hasQuoteAccess(homeownerProfile)) {
+      return sendQuoteAccessRequired(res);
     }
 
     const jobDoc = await db.collection('jobs').doc(jobId).get();

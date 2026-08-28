@@ -165,6 +165,7 @@ function buildApp() {
 function seedBaseJob() {
   seedDoc('users', 'homeowner-1', {
     role: 'homeowner',
+    status: 'active',
     quoteAccessVerified: true,
     phoneVerified: true,
   });

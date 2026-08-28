@@ -135,6 +135,7 @@ describe('homeowner quote access and account completion gates', () => {
   it('allows quotes for a lightweight phone-first homeowner with quote access', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       accountCompleted: false,
       phoneVerified: true,
@@ -164,12 +165,14 @@ describe('homeowner quote access and account completion gates', () => {
     expect(res.body[0].flagged).toBeUndefined();
   });
 
-  it('still allows quotes for legacy email-verified homeowners without new flags', async () => {
+  it('blocks quotes for legacy email-verified homeowners without quoteAccessVerified', async () => {
     mockState.currentUser.email = 'legacy@example.com';
     mockState.currentUser.email_verified = true;
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       email: 'legacy@example.com',
+      emailVerified: true,
     });
     seedDoc('jobs', 'job-1', {
       homeownerUid: 'homeowner-1',
@@ -185,13 +188,15 @@ describe('homeowner quote access and account completion gates', () => {
 
     const res = await request(app).get('/api/jobs/job-1/quotes');
 
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('quote_access_required');
+    expect(res.body.message).toBe('Please verify your phone to view quotes.');
   });
 
   it('blocks checkout until the homeowner completes account setup', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       accountCompleted: false,
       phoneVerified: true,

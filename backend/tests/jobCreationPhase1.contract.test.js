@@ -105,6 +105,12 @@ describe('job creation Phase 1 contract', () => {
 
   beforeEach(() => {
     resetState();
+    mockGetCollectionStore('users').set('homeowner-1', {
+      id: 'homeowner-1',
+      role: 'homeowner',
+      status: 'active',
+      quoteAccessVerified: true,
+    });
     app = buildApp();
   });
 
@@ -398,5 +404,71 @@ describe('job creation Phase 1 contract', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe('Please confirm lift, stairs, and parking details.');
+  });
+
+  it('rejects job creation when quoteAccessVerified is not true', async () => {
+    mockGetCollectionStore('users').set('homeowner-1', {
+      id: 'homeowner-1',
+      role: 'homeowner',
+      status: 'active',
+      quoteAccessVerified: false,
+      emailVerified: true,
+      accountCompleted: true,
+    });
+
+    const res = await request(app)
+      .post('/api/jobs')
+      .send({
+        jobType: 'mounting_shelves',
+        description: 'I need two small floating shelves installed in the living room wall.',
+        location: {
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+          coordinates: { latitude: -37.8182, longitude: 144.9985 },
+        },
+        estimatedDuration: 'under_1_hour',
+        siteAccess: {
+          propertyType: 'apartment_unit',
+          liftAvailable: 'yes',
+          stairs: 'none',
+          parking: 'easy',
+        },
+        details: { mirrorSize: '' },
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('quote_access_required');
+    expect(readDocs('jobs')).toHaveLength(0);
+  });
+
+  it('rejects job creation when the profile is missing', async () => {
+    mockGetCollectionStore('users').delete('homeowner-1');
+
+    const res = await request(app)
+      .post('/api/jobs')
+      .send({
+        jobType: 'mounting_shelves',
+        description: 'I need two small floating shelves installed in the living room wall.',
+        location: {
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        estimatedDuration: 'under_1_hour',
+        siteAccess: {
+          propertyType: 'apartment_unit',
+          liftAvailable: 'yes',
+          stairs: 'none',
+          parking: 'easy',
+        },
+        details: { mirrorSize: '' },
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDocs('jobs')).toHaveLength(0);
   });
 });

@@ -240,6 +240,7 @@ describe('quote lifecycle contracts', () => {
   it('shows homeowners only active quote versions', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -299,6 +300,7 @@ describe('quote lifecycle contracts', () => {
   it('counts only active quotes on homeowner jobs list', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -359,6 +361,7 @@ describe('quote lifecycle contracts', () => {
   it('recovers the accepted task expert on job reads when the stored job is missing acceptedTradieUid', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -470,6 +473,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -517,6 +521,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -549,6 +554,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -590,6 +596,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -640,6 +647,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -681,6 +689,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -724,6 +733,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -784,6 +794,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -839,6 +850,7 @@ describe('quote lifecycle contracts', () => {
 
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -1080,6 +1092,7 @@ describe('quote lifecycle contracts', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
@@ -1112,6 +1125,7 @@ describe('quote lifecycle contracts', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       quoteAccessVerified: true,
       phoneVerified: true,
     });
