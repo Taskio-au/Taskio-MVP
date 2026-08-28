@@ -3,10 +3,12 @@ const request = require('supertest');
 
 const state = {
   collections: new Map(),
+  userWrites: [],
 };
 
 function resetState() {
   state.collections = new Map();
+  state.userWrites = [];
 }
 
 function getCollectionStore(name) {
@@ -40,6 +42,13 @@ function mockMakeDocRef(collectionName, id) {
       };
     },
     async set(payload, options) {
+      if (collectionName === 'users') {
+        state.userWrites.push({
+          id: docId,
+          existed: readDoc(collectionName, docId) !== undefined,
+          payload: clone(payload),
+        });
+      }
       const existing = readDoc(collectionName, docId);
       const next = options && options.merge
         ? { ...(existing || {}), ...(clone(payload) || {}) }
@@ -560,5 +569,129 @@ describe('GET /api/me foundingExpertFeeProfile', () => {
     const fep = res.body.foundingExpertFeeProfile;
     expect(fep.stage).toBe('standard_launch');
     expect(fep.badgeLabel).toBeNull();
+  });
+});
+
+describe('me account mutation routes reject missing and malformed profiles without user writes', () => {
+  let app;
+
+  beforeEach(() => {
+    resetState();
+    global.__TASKIO_ME_TEST_AUTH__ = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'tradie@example.com',
+      email_verified: true,
+    };
+    app = buildApp();
+  });
+
+  it('rejects phone start-verify for a missing profile without creating a user', async () => {
+    const res = await request(app)
+      .post('/api/me/phone/start-verify')
+      .send({ phone: '+61400000099' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDoc('users', 'tradie-1')).toBeUndefined();
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects phone start-verify for a malformed profile without writing', async () => {
+    writeDoc('users', 'tradie-1', { displayName: 'Stub' });
+
+    const res = await request(app)
+      .post('/api/me/phone/start-verify')
+      .send({ phone: '+61400000099' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(readDoc('users', 'tradie-1')).toEqual({ displayName: 'Stub' });
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects phone confirm-verify for a missing profile without creating a user', async () => {
+    const res = await request(app)
+      .post('/api/me/phone/confirm-verify')
+      .send({ code: '123456' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDoc('users', 'tradie-1')).toBeUndefined();
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects phone confirm-verify for a malformed profile without writing', async () => {
+    writeDoc('users', 'tradie-1', { phone: '+61400000099' });
+
+    const res = await request(app)
+      .post('/api/me/phone/confirm-verify')
+      .send({ code: '123456' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects deactivate for a missing profile without creating a user', async () => {
+    const res = await request(app).post('/api/me/deactivate').send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDoc('users', 'tradie-1')).toBeUndefined();
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects deactivate for a malformed profile without writing', async () => {
+    writeDoc('users', 'tradie-1', { role: 'tradie' });
+
+    const res = await request(app).post('/api/me/deactivate').send({});
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(readDoc('users', 'tradie-1')).toEqual({ role: 'tradie' });
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects deletion request for a missing profile without creating a user', async () => {
+    const res = await request(app)
+      .post('/api/me/deletion/request')
+      .send({ typed: 'DELETE', reason: 'Leaving the platform.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDoc('users', 'tradie-1')).toBeUndefined();
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects deletion request for a malformed profile without writing', async () => {
+    writeDoc('users', 'tradie-1', { email: 'tradie@example.com' });
+
+    const res = await request(app)
+      .post('/api/me/deletion/request')
+      .send({ typed: 'DELETE', reason: 'Leaving the platform.' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects deletion cancel for a missing profile without creating a user', async () => {
+    const res = await request(app).post('/api/me/deletion/cancel').send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDoc('users', 'tradie-1')).toBeUndefined();
+    expect(state.userWrites).toHaveLength(0);
+  });
+
+  it('rejects deletion cancel for a malformed profile without writing', async () => {
+    writeDoc('users', 'tradie-1', { status: 'pending_deletion' });
+
+    const res = await request(app).post('/api/me/deletion/cancel').send({});
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(state.userWrites).toHaveLength(0);
   });
 });

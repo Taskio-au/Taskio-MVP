@@ -301,6 +301,7 @@ describe('homeowner quote-access activation and deletion confirm', () => {
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('account_not_enrolled');
     expect(mockGetCollectionStore('deletion_tokens').get('token-hash').status).toBe('issued');
+    expect(mockState.userSetCalls).toHaveLength(0);
     crypto.createHash.mockRestore();
   });
 
@@ -322,6 +323,7 @@ describe('homeowner quote-access activation and deletion confirm', () => {
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('account_state_invalid');
     expect(mockGetCollectionStore('deletion_tokens').get('token-hash').status).toBe('issued');
+    expect(mockState.userSetCalls).toHaveLength(0);
     crypto.createHash.mockRestore();
   });
 

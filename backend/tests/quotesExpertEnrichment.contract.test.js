@@ -131,7 +131,6 @@ jest.mock('../src/middleware/auth', () => ({
     if (req.user?.role !== role) return res.status(403).send({ message: 'Forbidden' });
     return next();
   },
-  ensureUserProfile: () => (_req, _res, next) => next(),
 }));
 
 jest.mock('../src/services/stripe', () => ({

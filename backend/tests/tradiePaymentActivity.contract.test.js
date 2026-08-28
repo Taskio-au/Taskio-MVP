@@ -94,7 +94,6 @@ jest.mock('../src/middleware/auth', () => ({
     }
     return next();
   },
-  ensureUserProfile: () => (_req, _res, next) => next(),
 }));
 
 jest.mock('../src/utils/firestore', () => ({

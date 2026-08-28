@@ -8,10 +8,12 @@ const LEAK_GUID = 'leak-guid-SECRETVALUE-do-not-log';
 
 const state = {
   collections: new Map(),
+  userWrites: [],
 };
 
 function resetState() {
   state.collections = new Map();
+  state.userWrites = [];
 }
 
 function getCollectionStore(name) {
@@ -45,6 +47,13 @@ function mockMakeDocRef(collectionName, id) {
       };
     },
     async set(payload, options) {
+      if (collectionName === 'users') {
+        state.userWrites.push({
+          id: docId,
+          existed: readDoc(collectionName, docId) !== undefined,
+          payload: clone(payload),
+        });
+      }
       const existing = readDoc(collectionName, docId);
       const next = options && options.merge
         ? { ...(existing || {}), ...(clone(payload) || {}) }
@@ -318,6 +327,32 @@ describe('POST /api/me/abn/verify', () => {
 
     expect(limited.status).toBe(429);
     expect(limited.body.message).toMatch(/Too many ABN verification attempts/i);
+    expect(lookupAbnDetails).not.toHaveBeenCalled();
+  });
+
+  it('rejects ABN verify for a missing profile without creating a user', async () => {
+    const res = await request(app)
+      .post('/api/me/abn/verify')
+      .send({ abn: VALID_ABN });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDoc('users', 'tradie-abn-1')).toBeUndefined();
+    expect(state.userWrites).toHaveLength(0);
+    expect(lookupAbnDetails).not.toHaveBeenCalled();
+  });
+
+  it('rejects ABN verify for a malformed profile without writing', async () => {
+    writeDoc('users', 'tradie-abn-1', { displayName: 'Stub expert' });
+
+    const res = await request(app)
+      .post('/api/me/abn/verify')
+      .send({ abn: VALID_ABN });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(readDoc('users', 'tradie-abn-1')).toEqual({ displayName: 'Stub expert' });
+    expect(state.userWrites).toHaveLength(0);
     expect(lookupAbnDetails).not.toHaveBeenCalled();
   });
 });

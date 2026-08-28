@@ -67,7 +67,6 @@ jest.mock('../src/middleware/auth', () => ({
     }
     return next();
   },
-  ensureUserProfile: () => (_req, _res, next) => next(),
 }));
 
 const mockCreateExpressDashboardLoginLink = jest.fn();

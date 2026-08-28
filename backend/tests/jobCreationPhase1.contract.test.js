@@ -76,7 +76,6 @@ jest.mock('../src/middleware/auth', () => ({
     next();
   },
   requireRole: () => (_req, _res, next) => next(),
-  ensureUserProfile: () => (_req, _res, next) => next(),
 }));
 
 jest.mock('../src/services/stripe', () => ({
@@ -470,5 +469,33 @@ describe('job creation Phase 1 contract', () => {
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('account_not_enrolled');
     expect(readDocs('jobs')).toHaveLength(0);
+  });
+
+  it('rejects job photos when the homeowner profile is missing without creating a user', async () => {
+    mockGetCollectionStore('users').delete('homeowner-1');
+
+    const res = await request(app)
+      .post('/api/jobs/job-1/photos')
+      .send({ photos: [{ downloadURL: 'https://example.com/a.jpg', storagePath: 'jobs/job-1/a.jpg' }] });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(mockGetCollectionStore('users').has('homeowner-1')).toBe(false);
+    expect(readDocs('jobs')).toHaveLength(0);
+  });
+
+  it('rejects job photos when the homeowner profile is malformed without writing a user', async () => {
+    mockGetCollectionStore('users').set('homeowner-1', { id: 'homeowner-1', phone: '+61400000001' });
+
+    const res = await request(app)
+      .post('/api/jobs/job-1/photos')
+      .send({ photos: [{ downloadURL: 'https://example.com/a.jpg', storagePath: 'jobs/job-1/a.jpg' }] });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(mockGetCollectionStore('users').get('homeowner-1')).toEqual({
+      id: 'homeowner-1',
+      phone: '+61400000001',
+    });
   });
 });

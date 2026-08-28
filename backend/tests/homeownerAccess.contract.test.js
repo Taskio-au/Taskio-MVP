@@ -3,6 +3,7 @@ const request = require('supertest');
 
 const mockState = {
   collections: new Map(),
+  userWrites: [],
   currentUser: {
     uid: 'homeowner-1',
     role: 'homeowner',
@@ -13,6 +14,7 @@ const mockState = {
 
 function resetState() {
   mockState.collections = new Map();
+  mockState.userWrites = [];
   mockState.currentUser = {
     uid: 'homeowner-1',
     role: 'homeowner',
@@ -58,11 +60,17 @@ jest.mock('../src/firebaseAdmin', () => ({
           return { exists: !!existing, data: () => mockClone(existing) };
         }),
         set: jest.fn(async (payload, options = {}) => {
+          if (name === 'users') {
+            mockState.userWrites.push({ op: 'set', id, payload: mockClone(payload) });
+          }
           const existing = mockGetCollectionStore(name).get(id) || {};
           const next = options.merge ? { ...existing, ...mockClone(payload) } : mockClone(payload);
           mockGetCollectionStore(name).set(id, { id, ...next });
         }),
         update: jest.fn(async (payload) => {
+          if (name === 'users') {
+            mockState.userWrites.push({ op: 'update', id, payload: mockClone(payload) });
+          }
           const existing = mockGetCollectionStore(name).get(id) || {};
           mockGetCollectionStore(name).set(id, { ...existing, ...mockClone(payload) });
         }),
@@ -100,7 +108,6 @@ jest.mock('../src/middleware/auth', () => ({
     next();
   },
   requireRole: () => (_req, _res, next) => next(),
-  ensureUserProfile: () => (_req, _res, next) => next(),
 }));
 
 jest.mock('../src/services/stripe', () => ({
@@ -209,5 +216,46 @@ describe('homeowner quote access and account completion gates', () => {
     expect(res.status).toBe(403);
     expect(res.body.code).toBe('account_completion_required');
     expect(res.body.message).toBe('Add a verified email or continue with Google to unlock payment.');
+  });
+
+  it('lists homeowner jobs for an operationally active enrolled profile', async () => {
+    seedDoc('users', 'homeowner-1', {
+      role: 'homeowner',
+      status: 'active',
+      quoteAccessVerified: true,
+    });
+    seedDoc('jobs', 'job-list-1', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+    });
+
+    const res = await request(app).get('/api/homeowner/jobs');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].id).toBe('job-list-1');
+    expect(mockState.userWrites).toHaveLength(0);
+  });
+
+  it('rejects homeowner job listing when the profile is missing without creating a user', async () => {
+    const res = await request(app).get('/api/homeowner/jobs');
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(mockGetCollectionStore('users').has('homeowner-1')).toBe(false);
+    expect(mockState.userWrites).toHaveLength(0);
+  });
+
+  it('rejects homeowner job listing when the profile is malformed without writing', async () => {
+    seedDoc('users', 'homeowner-1', { email: 'legacy@example.com' });
+
+    const res = await request(app).get('/api/homeowner/jobs');
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(mockGetCollectionStore('users').get('homeowner-1')).toEqual(expect.objectContaining({
+      email: 'legacy@example.com',
+    }));
+    expect(mockState.userWrites).toHaveLength(0);
   });
 });
