@@ -551,7 +551,11 @@ router.get('/api/jobs/:id', requireAuth, async (req, res) => {
 });
 
 // Get Jobs for a specific Homeowner
-router.get('/api/homeowner/jobs', requireAuth, requireRole('homeowner'), async (req, res) => {
+router.get(
+  '/api/homeowner/jobs',
+  requireAuth,
+  requireEnrolledProfile({ requireRole: 'homeowner', requireOperationallyActive: true }),
+  async (req, res) => {
   try {
     const homeownerUid = req.user.uid;
 
@@ -742,7 +746,11 @@ function isHomeownerVisibleQuoteStatus(status) {
   return normalized === 'submitted' || normalized === 'accepted';
 }
 
-router.post('/api/jobs/:id/quotes', requireAuth, requireRole('tradie'), async (req, res) => {
+router.post(
+  '/api/jobs/:id/quotes',
+  requireAuth,
+  requireEnrolledProfile({ requireRole: 'tradie', requireOperationallyActive: true }),
+  async (req, res) => {
   try {
     const jobId = req.params.id;
     const tradieUid = req.user.uid;
@@ -900,8 +908,8 @@ router.post('/api/jobs/:id/quotes', requireAuth, requireRole('tradie'), async (r
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
-        // Ops: record last quote submitted (best-effort; used for admin dashboards)
-        tx.set(userRef, { lastQuoteSubmittedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        // Ops: record last quote submitted. update() cannot create a missing profile.
+        tx.update(userRef, { lastQuoteSubmittedAt: admin.firestore.FieldValue.serverTimestamp() });
       });
 
       return res.status(201).send({
@@ -928,12 +936,11 @@ router.post('/api/jobs/:id/quotes', requireAuth, requireRole('tradie'), async (r
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Ops: record last quote submitted (best-effort; used for admin dashboards)
+    // Ops: record last quote submitted. update() cannot create a missing profile.
     try {
-      await db.collection('users').doc(tradieUid).set(
-        { lastQuoteSubmittedAt: admin.firestore.FieldValue.serverTimestamp() },
-        { merge: true }
-      );
+      await db.collection('users').doc(tradieUid).update({
+        lastQuoteSubmittedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
     } catch (_) {
       // Non-blocking
     }

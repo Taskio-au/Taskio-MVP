@@ -56,6 +56,15 @@ function mockMakeDocRef(collectionName, docId) {
         options && options.merge ? mergePayload(existing, payload) : mockClone(payload) || {};
       writeCollectionDoc(collectionName, id, next);
     },
+    async update(payload) {
+      const existing = readCollectionDoc(collectionName, id);
+      if (existing === undefined) {
+        const err = new Error('NOT_FOUND');
+        err.code = 5;
+        throw err;
+      }
+      writeCollectionDoc(collectionName, id, mergePayload(existing, payload));
+    },
   };
 }
 
@@ -109,6 +118,7 @@ jest.mock('../src/services/foundingExpertAutoEnrollmentService', () => {
 
 const webhookRoutes = require('../src/routes/stripeWebhook');
 const autoSvc = require('../src/services/foundingExpertAutoEnrollmentService');
+const { logger } = require('../src/observability/logger');
 
 function buildWebhookApp() {
   const app = express();
@@ -151,7 +161,7 @@ describe('Stripe account.updated wires founding auto enrolment', () => {
 
   test('schedules auto-enrol after user stripe fields merged', async () => {
     const uid = 'webhook-fe';
-    writeCollectionDoc('users', uid, { role: 'tradie', displayName: 'FE' });
+    writeCollectionDoc('users', uid, { role: 'tradie', status: 'active', displayName: 'FE' });
 
     const evt = makeAccountUpdatedEvent(uid);
     const { constructWebhookEvent } = require('../src/services/stripe');
@@ -186,7 +196,7 @@ describe('Stripe account.updated wires founding auto enrolment', () => {
     process.env.FOUNDING_EXPERT_AUTO_ENROLL_ENABLED = 'false';
 
     const uid = 'webhook-fe-off';
-    writeCollectionDoc('users', uid, { role: 'tradie' });
+    writeCollectionDoc('users', uid, { role: 'tradie', status: 'active' });
     const evt = makeAccountUpdatedEvent(uid);
     const { constructWebhookEvent } = require('../src/services/stripe');
     constructWebhookEvent.mockReturnValueOnce(evt);
@@ -198,6 +208,107 @@ describe('Stripe account.updated wires founding auto enrolment', () => {
       .set('Content-Type', 'application/json')
       .send(Buffer.from(JSON.stringify(evt)));
 
+    expect(autoSvc.scheduleMaybeAutoEnrollFoundingExpert).not.toHaveBeenCalled();
+  });
+
+  test('acknowledges account.updated for a missing profile without creating a user', async () => {
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+    const uid = 'webhook-missing-profile';
+    const evt = makeAccountUpdatedEvent(uid);
+    const { constructWebhookEvent } = require('../src/services/stripe');
+    constructWebhookEvent.mockReturnValueOnce(evt);
+
+    const app = buildWebhookApp();
+    const res = await request(app)
+      .post('/api/stripe/webhook')
+      .set('stripe-signature', 'sig')
+      .set('Content-Type', 'application/json')
+      .send(Buffer.from(JSON.stringify(evt)));
+
+    expect(res.status).toBe(200);
+    expect(readCollectionDoc('users', uid)).toBeUndefined();
+    expect(autoSvc.scheduleMaybeAutoEnrollFoundingExpert).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'stripe_account_updated_skipped',
+      expect.objectContaining({ reason: 'profile_missing' })
+    );
+    const logged = JSON.stringify(warnSpy.mock.calls);
+    expect(logged).not.toMatch(uid);
+    expect(logged).not.toMatch(/@/);
+    warnSpy.mockRestore();
+  });
+
+  test('acknowledges account.updated for a malformed profile without creating or converting it', async () => {
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+    const uid = 'webhook-malformed-profile';
+    writeCollectionDoc('users', uid, { phone: '+61400000001' });
+    const evt = makeAccountUpdatedEvent(uid);
+    const { constructWebhookEvent } = require('../src/services/stripe');
+    constructWebhookEvent.mockReturnValueOnce(evt);
+
+    const app = buildWebhookApp();
+    const res = await request(app)
+      .post('/api/stripe/webhook')
+      .set('stripe-signature', 'sig')
+      .set('Content-Type', 'application/json')
+      .send(Buffer.from(JSON.stringify(evt)));
+
+    expect(res.status).toBe(200);
+    expect(readCollectionDoc('users', uid)).toEqual({ phone: '+61400000001' });
+    expect(autoSvc.scheduleMaybeAutoEnrollFoundingExpert).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'stripe_account_updated_skipped',
+      expect.objectContaining({ reason: 'profile_malformed' })
+    );
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toMatch(uid);
+    warnSpy.mockRestore();
+  });
+
+  test('acknowledges account.updated for a homeowner without writing Stripe fields', async () => {
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+    const uid = 'webhook-homeowner-profile';
+    writeCollectionDoc('users', uid, { role: 'homeowner', status: 'active' });
+    const evt = makeAccountUpdatedEvent(uid);
+    const { constructWebhookEvent } = require('../src/services/stripe');
+    constructWebhookEvent.mockReturnValueOnce(evt);
+
+    const app = buildWebhookApp();
+    const res = await request(app)
+      .post('/api/stripe/webhook')
+      .set('stripe-signature', 'sig')
+      .set('Content-Type', 'application/json')
+      .send(Buffer.from(JSON.stringify(evt)));
+
+    expect(res.status).toBe(200);
+    expect(readCollectionDoc('users', uid)).toEqual({ role: 'homeowner', status: 'active' });
+    expect(autoSvc.scheduleMaybeAutoEnrollFoundingExpert).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      'stripe_account_updated_skipped',
+      expect.objectContaining({ reason: 'profile_not_tradie' })
+    );
+    warnSpy.mockRestore();
+  });
+
+  test('reconciles Stripe fields on a valid inactive tradie without creating a profile', async () => {
+    const uid = 'webhook-inactive-tradie';
+    writeCollectionDoc('users', uid, { role: 'tradie', status: 'disabled' });
+    const evt = makeAccountUpdatedEvent(uid);
+    const { constructWebhookEvent } = require('../src/services/stripe');
+    constructWebhookEvent.mockReturnValueOnce(evt);
+
+    const app = buildWebhookApp();
+    const res = await request(app)
+      .post('/api/stripe/webhook')
+      .set('stripe-signature', 'sig')
+      .set('Content-Type', 'application/json')
+      .send(Buffer.from(JSON.stringify(evt)));
+
+    expect(res.status).toBe(200);
+    const u = readCollectionDoc('users', uid);
+    expect(u.role).toBe('tradie');
+    expect(u.status).toBe('disabled');
+    expect(u.stripePayoutsEnabled).toBe(true);
+    expect(u.stripeOnboardingStatus).toBe('completed');
     expect(autoSvc.scheduleMaybeAutoEnrollFoundingExpert).not.toHaveBeenCalled();
   });
 });

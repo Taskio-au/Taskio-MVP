@@ -5,6 +5,7 @@ const mockState = {
   collections: new Map(),
   variationDocs: new Map(),
   batchQueue: [],
+  userWrites: [],
   currentUser: {
     uid: 'homeowner-1',
     role: 'homeowner',
@@ -17,6 +18,7 @@ function resetState() {
   mockState.collections = new Map();
   mockState.variationDocs = new Map();
   mockState.batchQueue = [];
+  mockState.userWrites = [];
   mockState.currentUser = {
     uid: 'homeowner-1',
     role: 'homeowner',
@@ -117,10 +119,19 @@ jest.mock('../src/firebaseAdmin', () => ({
             return { exists: !!existing, data: () => mockClone(existing) };
           }),
           update: jest.fn(async (payload) => {
-            const existing = mockGetCollectionStore(name).get(jobDocId) || {};
-            mockGetCollectionStore(name).set(jobDocId, { ...existing, ...mockClone(payload) });
+            if (name === 'users') {
+              mockState.userWrites.push({ op: 'update', id: jobDocId, payload: mockClone(payload) });
+            }
+            const existing = mockGetCollectionStore(name).get(jobDocId);
+            if (name === 'users' && !existing) {
+              throw new Error('NOT_FOUND');
+            }
+            mockGetCollectionStore(name).set(jobDocId, { ...(existing || {}), ...mockClone(payload) });
           }),
           set: jest.fn(async (payload, options = {}) => {
+            if (name === 'users') {
+              mockState.userWrites.push({ op: 'set', id: jobDocId, options: mockClone(options), payload: mockClone(payload) });
+            }
             const existing = mockGetCollectionStore(name).get(jobDocId) || {};
             const next = options.merge ? { ...existing, ...mockClone(payload) } : mockClone(payload);
             mockGetCollectionStore(name).set(jobDocId, { id: jobDocId, ...next });
@@ -194,7 +205,6 @@ jest.mock('../src/middleware/auth', () => ({
     }
     return next();
   },
-  ensureUserProfile: () => (_req, _res, next) => next(),
 }));
 
 jest.mock('../src/services/stripe', () => ({
@@ -1085,6 +1095,106 @@ describe('quote lifecycle contracts', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.message).toBe('Forbidden: You are not invited to quote on this task.');
+  });
+
+  it('rejects quote submit when the tradie profile is missing without writing quotes or users', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('jobs', 'job-quote-missing', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-missing/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(mockGetCollectionStore('quotes').size).toBe(0);
+    expect(mockGetCollectionStore('users').has('tradie-1')).toBe(false);
+    expect(mockState.userWrites).toHaveLength(0);
+  });
+
+  it('rejects quote submit when the tradie profile is malformed without writing quotes or users', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', { displayName: 'Incomplete' });
+    seedDoc('jobs', 'job-quote-malformed', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-malformed/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(mockGetCollectionStore('quotes').size).toBe(0);
+    expect(mockGetCollectionStore('users').get('tradie-1')).toEqual(expect.objectContaining({
+      displayName: 'Incomplete',
+    }));
+    expect(mockState.userWrites).toHaveLength(0);
+  });
+
+  it('rejects quote submit when the tradie profile is inactive without writing quotes or users', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', { role: 'tradie', status: 'disabled' });
+    seedDoc('jobs', 'job-quote-inactive', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-inactive/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_active');
+    expect(mockGetCollectionStore('quotes').size).toBe(0);
+    expect(mockState.userWrites).toHaveLength(0);
+  });
+
+  it('rejects quote submit when the profile role is not tradie without writing quotes or users', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', { role: 'homeowner', status: 'active' });
+    seedDoc('jobs', 'job-quote-wrong-role', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-wrong-role/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toMatch(/Requires role tradie/i);
+    expect(mockGetCollectionStore('quotes').size).toBe(0);
+    expect(mockGetCollectionStore('users').get('tradie-1').role).toBe('homeowner');
+    expect(mockState.userWrites).toHaveLength(0);
   });
 
   it('does not transfer on homeowner release when Stripe is disabled', async () => {

@@ -19,6 +19,7 @@ const {
 const { upsertWorkItemFromAutomation } = require('./adminWorkItemService');
 const { refundAttemptFailedPatch } = require('./stripeIdempotency');
 const { tryFinalizeAdminFullRefund } = require('./adminFullRefundService');
+const { loadClassifiedProfile } = require('../utils/enrolledProfile');
 const {
   paymentIntentIdOf,
   evaluateChargeRefundedConfirmation,
@@ -294,29 +295,36 @@ async function dispatchStripeEventHandlers(event) {
   if (event.type === 'account.updated') {
     const account = event.data?.object;
     const uid = account?.metadata?.taskioUid;
-    if (uid) {
-      const onboardingStatus = mapAccountOnboardingStatus(account);
-      await db.collection('users').doc(uid).set(
-        {
-          stripeAccountId: account.id,
-          stripeChargesEnabled: !!account.charges_enabled,
-          stripePayoutsEnabled: !!account.payouts_enabled,
-          stripeOnboardingStatus: onboardingStatus,
-          stripeRequirements: account.requirements || null,
-          stripeUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
+    if (!uid) return;
 
-      if (foundingExpertAutoEnrollEnabled()) {
-        await scheduleMaybeAutoEnrollFoundingExpert({
-          db,
-          admin,
-          expertUid: uid,
-          trigger: 'stripe_webhook_account_updated',
-          actorUidForApproval: DEFAULT_AUTO_ACTOR_UID,
-        });
-      }
+    const classified = await loadClassifiedProfile(uid);
+    if (classified.kind !== 'valid' || classified.role !== 'tradie') {
+      let reason = 'profile_skipped';
+      if (classified.kind === 'missing') reason = 'profile_missing';
+      else if (classified.kind === 'invalid') reason = 'profile_malformed';
+      else if (classified.role !== 'tradie') reason = 'profile_not_tradie';
+      logger.warn('stripe_account_updated_skipped', { reason });
+      return;
+    }
+
+    const onboardingStatus = mapAccountOnboardingStatus(account);
+    await classified.ref.update({
+      stripeAccountId: account.id,
+      stripeChargesEnabled: !!account.charges_enabled,
+      stripePayoutsEnabled: !!account.payouts_enabled,
+      stripeOnboardingStatus: onboardingStatus,
+      stripeRequirements: account.requirements || null,
+      stripeUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    if (classified.status === 'active' && foundingExpertAutoEnrollEnabled()) {
+      await scheduleMaybeAutoEnrollFoundingExpert({
+        db,
+        admin,
+        expertUid: uid,
+        trigger: 'stripe_webhook_account_updated',
+        actorUidForApproval: DEFAULT_AUTO_ACTOR_UID,
+      });
     }
     return;
   }
