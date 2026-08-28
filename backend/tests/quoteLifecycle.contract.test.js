@@ -6,6 +6,8 @@ const mockState = {
   variationDocs: new Map(),
   batchQueue: [],
   userWrites: [],
+  autoId: 0,
+  deleteUserBeforeQuotePersist: false,
   currentUser: {
     uid: 'homeowner-1',
     role: 'homeowner',
@@ -19,6 +21,8 @@ function resetState() {
   mockState.variationDocs = new Map();
   mockState.batchQueue = [];
   mockState.userWrites = [];
+  mockState.autoId = 0;
+  mockState.deleteUserBeforeQuotePersist = false;
   mockState.currentUser = {
     uid: 'homeowner-1',
     role: 'homeowner',
@@ -110,23 +114,27 @@ jest.mock('../src/firebaseAdmin', () => ({
     })),
     collection: jest.fn((name) => ({
       doc: jest.fn((id) => {
-        const jobDocId = id;
+        const jobDocId = (id != null && String(id) !== '')
+          ? String(id)
+          : `${name}-auto-${++mockState.autoId}`;
         const ref = {
           id: jobDocId,
           _collectionName: name,
           get: jest.fn(async () => {
             const existing = mockGetCollectionStore(name).get(jobDocId);
-            return { exists: !!existing, data: () => mockClone(existing) };
+            return { exists: !!existing, data: () => mockClone(existing), ref };
           }),
           update: jest.fn(async (payload) => {
             if (name === 'users') {
               mockState.userWrites.push({ op: 'update', id: jobDocId, payload: mockClone(payload) });
             }
             const existing = mockGetCollectionStore(name).get(jobDocId);
-            if (name === 'users' && !existing) {
-              throw new Error('NOT_FOUND');
+            if (!existing) {
+              const err = new Error('NOT_FOUND: no entity to update');
+              err.code = 5;
+              throw err;
             }
-            mockGetCollectionStore(name).set(jobDocId, { ...(existing || {}), ...mockClone(payload) });
+            mockGetCollectionStore(name).set(jobDocId, { ...existing, ...mockClone(payload) });
           }),
           set: jest.fn(async (payload, options = {}) => {
             if (name === 'users') {
@@ -161,6 +169,37 @@ jest.mock('../src/firebaseAdmin', () => ({
                 }),
               };
             }
+            if (subName === 'quote_revision_requests' && name === 'jobs') {
+              const colName = `jobs/${jobDocId}/quote_revision_requests`;
+              return {
+                doc: jest.fn((rid) => {
+                  const docId = String(rid);
+                  const subRef = {
+                    id: docId,
+                    _collectionName: colName,
+                    get: jest.fn(async () => {
+                      const existing = mockGetCollectionStore(colName).get(docId);
+                      return { exists: !!existing, data: () => mockClone(existing), ref: subRef };
+                    }),
+                    set: jest.fn(async (payload, options = {}) => {
+                      const existing = mockGetCollectionStore(colName).get(docId) || {};
+                      const next = options.merge ? { ...existing, ...mockClone(payload) } : mockClone(payload);
+                      mockGetCollectionStore(colName).set(docId, next);
+                    }),
+                    update: jest.fn(async (payload) => {
+                      const existing = mockGetCollectionStore(colName).get(docId);
+                      if (!existing) {
+                        const err = new Error('NOT_FOUND: no entity to update');
+                        err.code = 5;
+                        throw err;
+                      }
+                      mockGetCollectionStore(colName).set(docId, { ...existing, ...mockClone(payload) });
+                    }),
+                  };
+                  return subRef;
+                }),
+              };
+            }
             return {
               doc: jest.fn(() => ({
                 get: jest.fn(async () => ({ exists: false, data: () => null })),
@@ -186,8 +225,15 @@ jest.mock('../src/firebaseAdmin', () => ({
     ),
     runTransaction: jest.fn(async (callback) => {
       const tx = {
-        get: (ref) => ref.get(),
+        get: async (ref) => {
+          if (mockState.deleteUserBeforeQuotePersist && ref && ref._collectionName === 'users') {
+            mockState.deleteUserBeforeQuotePersist = false;
+            mockGetCollectionStore('users').delete(ref.id);
+          }
+          return ref.get();
+        },
         update: (ref, data) => ref.update(data),
+        set: (ref, data, options) => ref.set(data, options),
       };
       return callback(tx);
     }),
@@ -1195,6 +1241,160 @@ describe('quote lifecycle contracts', () => {
     expect(mockGetCollectionStore('quotes').size).toBe(0);
     expect(mockGetCollectionStore('users').get('tradie-1').role).toBe('homeowner');
     expect(mockState.userWrites).toHaveLength(0);
+  });
+
+  it('submits a first quote atomically with lastQuoteSubmittedAt and OPEN to QUOTED', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: true,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'pending',
+    });
+    seedDoc('jobs', 'job-quote-atomic', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-atomic/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toBe('Quote submitted successfully');
+    expect(res.body.quoteId).toBeTruthy();
+    const storedQuote = mockGetCollectionStore('quotes').get(res.body.quoteId);
+    expect(storedQuote).toEqual(expect.objectContaining({
+      jobId: 'job-quote-atomic',
+      tradieUid: 'tradie-1',
+      amount: 250,
+      status: 'submitted',
+      version: 1,
+    }));
+    expect(mockGetCollectionStore('users').get('tradie-1').lastQuoteSubmittedAt).toBe('__server_ts__');
+    expect(mockGetCollectionStore('jobs').get('job-quote-atomic').status).toBe('QUOTED');
+    expect(mockState.userWrites.some((write) => write.op === 'set')).toBe(false);
+    expect(mockState.userWrites).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        op: 'update',
+        id: 'tradie-1',
+        payload: expect.objectContaining({ lastQuoteSubmittedAt: '__server_ts__' }),
+      }),
+    ]));
+  });
+
+  it('rejects quote persist when the expert profile disappears after enrolment checks', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: true,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'pending',
+    });
+    seedDoc('jobs', 'job-quote-race', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+    mockState.deleteUserBeforeQuotePersist = true;
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-race/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(mockGetCollectionStore('quotes').size).toBe(0);
+    expect(mockGetCollectionStore('users').has('tradie-1')).toBe(false);
+    expect(mockGetCollectionStore('jobs').get('job-quote-race').status).toBe('OPEN');
+    expect(mockState.userWrites).toHaveLength(0);
+  });
+
+  it('submits a revised quote atomically without creating a profile', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: true,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'pending',
+    });
+    seedDoc('jobs', 'job-quote-rev', {
+      homeownerUid: 'homeowner-1',
+      status: 'QUOTED',
+      invitedTradieUids: ['tradie-1'],
+    });
+    seedDoc('quotes', 'quote-v1', {
+      jobId: 'job-quote-rev',
+      homeownerUid: 'homeowner-1',
+      tradieUid: 'tradie-1',
+      amount: 180,
+      status: 'submitted',
+      version: 1,
+      createdAt: { _seconds: 10 },
+    });
+    seedDoc('jobs/job-quote-rev/quote_revision_requests', 'tradie-1', {
+      status: 'open',
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-rev/quotes')
+      .send({ amount: 220, message: 'Updated quote after the requested revision.' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toBe('Revised quote submitted successfully');
+    expect(res.body.quoteId).toBeTruthy();
+    expect(mockGetCollectionStore('quotes').get('quote-v1').status).toBe('superseded');
+    const revised = mockGetCollectionStore('quotes').get(res.body.quoteId);
+    expect(revised).toEqual(expect.objectContaining({
+      jobId: 'job-quote-rev',
+      tradieUid: 'tradie-1',
+      amount: 220,
+      status: 'submitted',
+      version: 2,
+      revisedFromQuoteId: 'quote-v1',
+    }));
+    expect(mockGetCollectionStore('jobs/job-quote-rev/quote_revision_requests').get('tradie-1').status).toBe('fulfilled');
+    expect(mockGetCollectionStore('users').get('tradie-1').lastQuoteSubmittedAt).toBe('__server_ts__');
+    expect(mockGetCollectionStore('jobs').get('job-quote-rev').status).toBe('QUOTED');
+    expect(mockGetCollectionStore('users').has('tradie-1')).toBe(true);
+    expect(mockState.userWrites.some((write) => write.op === 'set')).toBe(false);
   });
 
   it('does not transfer on homeowner release when Stripe is disabled', async () => {

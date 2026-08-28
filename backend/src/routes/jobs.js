@@ -4,7 +4,7 @@ const express = require('express');
 
 const { admin, db } = require('../firebaseAdmin');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { requireEnrolledProfile, hasQuoteAccess, sendQuoteAccessRequired } = require('../utils/enrolledProfile');
+const { requireEnrolledProfile, hasQuoteAccess, sendQuoteAccessRequired, sendIfMissingProfile } = require('../utils/enrolledProfile');
 const { safeToMillis } = require('../utils/firestore');
 const { isNonEmptyString, isStringMax, toSafeNumber } = require('../utils/validation');
 const {
@@ -862,7 +862,17 @@ router.post(
       const userRef = db.collection('users').doc(tradieUid);
 
       await db.runTransaction(async (tx) => {
-        const [jobFresh, prevFresh, reqFresh] = await Promise.all([tx.get(jobDoc.ref), tx.get(prevRef), tx.get(revisionReqRef)]);
+        const [jobFresh, prevFresh, reqFresh, userFresh] = await Promise.all([
+          tx.get(jobDoc.ref),
+          tx.get(prevRef),
+          tx.get(revisionReqRef),
+          tx.get(userRef),
+        ]);
+        if (!userFresh.exists) {
+          const err = new Error('NOT_FOUND: no entity to update');
+          err.code = 5;
+          throw err;
+        }
         if (!jobFresh.exists || !prevFresh.exists || !reqFresh.exists) {
           const err = new Error('not_found');
           err.code = 'not_found';
@@ -921,34 +931,41 @@ router.post(
     }
 
     // New quote (version 1) allowed if no active submitted quote exists (or after withdraw/reject/supersede).
-    const quoteRef = await db.collection('quotes').add({
-      jobId,
-      tradieUid,
-      homeownerUid: jobData.homeownerUid || null,
-      amount: amt,
-      amountCents,
-      message: message.trim(),
-      status: 'submitted',
-      version: 1,
-      flagged: quoteFlagged,
-      flagReasons: quoteFlagged ? flagReasons : [],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    const quoteRef = db.collection('quotes').doc();
+    const userRef = db.collection('users').doc(tradieUid);
+    const jobRef = db.collection('jobs').doc(jobId);
 
-    // Ops: record last quote submitted. update() cannot create a missing profile.
-    try {
-      await db.collection('users').doc(tradieUid).update({
+    await db.runTransaction(async (tx) => {
+      const userSnap = await tx.get(userRef);
+      if (!userSnap.exists) {
+        const err = new Error('NOT_FOUND: no entity to update');
+        err.code = 5;
+        throw err;
+      }
+
+      // Reads before writes: OPEN → QUOTED must not persist without the quote.
+      if (currentStatus === JOB_STATUSES.OPEN) {
+        await updateJobStatus(db, admin, jobRef, JOB_STATUSES.QUOTED, {}, tx);
+      }
+
+      tx.set(quoteRef, {
+        jobId,
+        tradieUid,
+        homeownerUid: jobData.homeownerUid || null,
+        amount: amt,
+        amountCents,
+        message: message.trim(),
+        status: 'submitted',
+        version: 1,
+        flagged: quoteFlagged,
+        flagReasons: quoteFlagged ? flagReasons : [],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      tx.update(userRef, {
         lastQuoteSubmittedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-    } catch (_) {
-      // Non-blocking
-    }
-
-    // Auto-transition job to QUOTED when first quote is submitted
-    if (currentStatus === JOB_STATUSES.OPEN) {
-      await updateJobStatus(db, admin, db.collection('jobs').doc(jobId), JOB_STATUSES.QUOTED);
-    }
+    });
 
     return res.status(201).send({
       message: 'Quote submitted successfully',
@@ -957,6 +974,7 @@ router.post(
       flagReasons: quoteFlagged ? flagReasons : undefined
     });
   } catch (error) {
+    if (sendIfMissingProfile(res, error)) return undefined;
     // eslint-disable-next-line no-console
     console.error('Error submitting quote:', error);
     return res.status(500).send({ message: 'Failed to submit quote' });
