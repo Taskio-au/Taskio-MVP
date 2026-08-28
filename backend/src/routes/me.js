@@ -7,6 +7,19 @@ const { ipKeyGenerator } = rateLimit;
 
 const { admin, db } = require('../firebaseAdmin');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const {
+  classifyUserProfile,
+  hasQuoteAccess,
+  isOperationallyActive,
+  loadClassifiedProfile,
+  respondIfNotValidProfile,
+  sendAccountNotActive,
+  sendAccountNotEnrolled,
+  sendAccountStateInvalid,
+  sendQuoteAccessRequired,
+  sendSignupDisabled,
+} = require('../utils/enrolledProfile');
+const { isPublicSignupEnabled } = require('../config/publicSignup');
 const { isValidAbn, cleanAbn } = require('../utils/abn');
 const { lookupAbnDetails, isAbnCurrentlyActive, summarizeAbnLookupError } = require('../services/abnLookup');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
@@ -262,62 +275,40 @@ function validateServiceLocation(input) {
   return { label, suburb, state, postcode, country };
 }
 
-async function getOrCreateUserDoc({ uid, decodedToken }) {
-  const userRef = db.collection('users').doc(uid);
-  const snap = await userRef.get();
-  const existing = snap.exists ? (snap.data() || {}) : null;
-
-  // Light auto-heal: keep email & emailVerified mirrored (non-authoritative but helpful for UI).
-  const email = decodedToken?.email || existing?.email || '';
-  const emailVerified = decodedToken?.email_verified === true;
-  const phone = decodedToken?.phone_number || existing?.phone || '';
-  const isHomeowner = (existing?.role || decodedToken?.role || 'homeowner') === 'homeowner';
-  const hasLegacyHomeownerAccount = isHomeowner && (emailVerified || !!email);
-  const derivedAccountCompleted = isHomeowner && hasDurableHomeownerAccount({
-    ...(existing || {}),
-    email,
-    emailVerified,
-    phone,
-    phoneVerified: !!decodedToken?.phone_number || existing?.phoneVerified === true,
-  }, decodedToken);
-
-  if (!snap.exists) {
-    await userRef.set(
-      {
-        role: existing?.role || decodedToken?.role || 'homeowner',
-        email,
-        emailVerified,
-        status: 'active',
-        verified: false,
-        phone,
-        phoneVerified: !!decodedToken?.phone_number,
-        quoteAccessVerified: hasLegacyHomeownerAccount,
-        accountCompleted: derivedAccountCompleted,
-        abnVerified: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    const fresh = await userRef.get();
-    return { ref: userRef, data: fresh.data() || {} };
+async function mirrorAuthContactFields(classified, decodedToken) {
+  const data = classified.data || {};
+  const updates = {};
+  const email = decodedToken?.email ? String(decodedToken.email).trim().toLowerCase() : '';
+  if (email && email !== String(data.email || '').trim().toLowerCase()) {
+    updates.email = email;
   }
+  if (decodedToken?.email_verified === true && data.emailVerified !== true) {
+    updates.emailVerified = true;
+  }
+  const phone = decodedToken?.phone_number ? String(decodedToken.phone_number).trim() : '';
+  if (phone && phone !== String(data.phone || '').trim()) {
+    updates.phone = phone;
+  }
+  if (decodedToken?.phone_number && data.phoneVerified !== true) {
+    updates.phoneVerified = true;
+  }
+  if (Object.keys(updates).length === 0) {
+    return classified;
+  }
+  updates.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+  await classified.ref.set(updates, { merge: true });
+  const fresh = await classified.ref.get();
+  return {
+    ...classified,
+    snap: fresh,
+    data: fresh.data() || data,
+  };
+}
 
-  // Keep email/emailVerified up to date (merge only).
-  await userRef.set(
-    {
-      email,
-      emailVerified,
-      ...(phone ? { phone } : {}),
-      ...(decodedToken?.phone_number ? { phoneVerified: true } : {}),
-      ...(isHomeowner ? { accountCompleted: derivedAccountCompleted } : {}),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  const fresh = await userRef.get();
-  return { ref: userRef, data: fresh.data() || {} };
+async function loadValidProfileOrSend(uid, res) {
+  const classified = await loadClassifiedProfile(uid);
+  if (respondIfNotValidProfile(res, classified)) return null;
+  return classified;
 }
 
 function normalizeStringArray(input, max = 50) {
@@ -398,9 +389,13 @@ async function ensureExpertiseApprovedPhase1({ uid, userRef, userDoc }) {
 router.get('/api/me', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const { ref, data: raw } = await getOrCreateUserDoc({ uid, decodedToken: req.user });
+    const classified = await loadValidProfileOrSend(uid, res);
+    if (!classified) return undefined;
+    const mirrored = await mirrorAuthContactFields(classified, req.user);
+    const ref = mirrored.ref;
+    const raw = mirrored.data;
     const data = raw?.role === 'tradie' ? await ensureExpertiseApprovedPhase1({ uid, userRef: ref, userDoc: raw }) : raw;
-    const isHomeowner = (data?.role || 'homeowner') === 'homeowner';
+    const isHomeowner = data?.role === 'homeowner';
 
     // Auto-heal: if a tradie already has private details saved, mark them as locked so locks persist after relogin.
     // (This supports legacy accounts created before the explicit confirmation flag existed.)
@@ -452,8 +447,8 @@ router.get('/api/me', requireAuth, async (req, res) => {
     return res.status(200).send({
       uid,
       profile: {
-        role: data.role || 'homeowner',
-        status: data.status || 'active',
+        role: data.role,
+        status: data.status,
         verified: !!data.verified,
         privateDetailsLocked: !!data.privateDetailsLocked,
         privateDetailsLockedAt: data.privateDetailsLockedAt || null,
@@ -521,12 +516,16 @@ router.get('/api/me', requireAuth, async (req, res) => {
 router.put('/api/me/profile', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const { ref, data: before } = await getOrCreateUserDoc({ uid, decodedToken: req.user });
+    const classified = await loadValidProfileOrSend(uid, res);
+    if (!classified) return undefined;
+    const mirrored = await mirrorAuthContactFields(classified, req.user);
+    const ref = mirrored.ref;
+    const before = mirrored.data;
 
     const body = req.body || {};
     const updates = {};
     const privateDetailsLocked = before?.privateDetailsLocked === true;
-    const isHomeowner = (before?.role || req.user?.role || 'homeowner') === 'homeowner';
+    const isHomeowner = before?.role === 'homeowner';
     let sanitizedFirstName = before?.firstName || parseNameParts(before?.displayName || before?.name || '').firstName || '';
     let sanitizedLastName = before?.lastName || parseNameParts(before?.displayName || before?.name || '').lastName || '';
     let homeownerNameChanged = false;
@@ -840,6 +839,8 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
 router.post('/api/me/phone/start-verify', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
+    const classified = await loadValidProfileOrSend(uid, res);
+    if (!classified) return undefined;
     const phone = String(req.body?.phone || '').trim();
     if (!phone) return res.status(400).send({ message: 'Phone is required.' });
     if (phone.length < 8 || phone.length > 20) return res.status(400).send({ message: 'Invalid phone number.' });
@@ -889,6 +890,8 @@ router.post('/api/me/phone/start-verify', requireAuth, async (req, res) => {
 router.post('/api/me/phone/confirm-verify', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
+    const classified = await loadValidProfileOrSend(uid, res);
+    if (!classified) return undefined;
     const code = String(req.body?.code || '').trim();
     if (!/^\d{6}$/.test(code)) return res.status(400).send({ message: 'Invalid code.' });
 
@@ -929,8 +932,8 @@ router.post('/api/me/phone/confirm-verify', requireAuth, async (req, res) => {
 router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const role = String(req.user?.role || 'homeowner').trim() || 'homeowner';
-    if (role !== 'homeowner') {
+    const tokenRole = String(req.user?.role || '').trim();
+    if (tokenRole && tokenRole !== 'homeowner') {
       return res.status(403).send({ message: 'Only homeowners can activate quote access.' });
     }
 
@@ -945,24 +948,72 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
     }
 
     const userRef = db.collection('users').doc(uid);
-    const existingSnap = await userRef.get();
-    const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
-    const displayName = firstName || String(existing.displayName || existing.name || '').trim();
-    const nextProfile = {
-      ...(existing || {}),
-      ...(firstName ? { firstName } : {}),
-      ...(displayName ? { displayName } : {}),
-      phone,
-      phoneVerified: true,
-      ...(req.user?.email ? { email: String(req.user.email).trim().toLowerCase() } : {}),
-      ...(req.user?.email_verified === true ? { emailVerified: true } : {}),
-    };
-    const derivedAccountCompleted = hasDurableHomeownerAccount(nextProfile, req.user);
+    const result = await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(userRef);
+      const classified = classifyUserProfile(snap);
+      const existing = classified.data || {};
+      const signupEnabled = isPublicSignupEnabled();
 
-    await userRef.set(
-      {
+      if (classified.kind === 'invalid') {
+        return { type: 'invalid' };
+      }
+
+      if (classified.kind === 'valid') {
+        if (classified.role !== 'homeowner') {
+          return { type: 'wrong_role' };
+        }
+        if (hasQuoteAccess(existing)) {
+          return { type: 'already', data: existing };
+        }
+        if (!signupEnabled) {
+          return { type: 'signup_disabled' };
+        }
+        if (!isOperationallyActive(classified)) {
+          return { type: 'not_active' };
+        }
+        const displayName = firstName || String(existing.displayName || existing.name || '').trim();
+        const nextProfile = {
+          ...(existing || {}),
+          ...(firstName ? { firstName } : {}),
+          ...(displayName ? { displayName } : {}),
+          phone,
+          phoneVerified: true,
+          ...(req.user?.email ? { email: String(req.user.email).trim().toLowerCase() } : {}),
+          ...(req.user?.email_verified === true ? { emailVerified: true } : {}),
+        };
+        const derivedAccountCompleted = hasDurableHomeownerAccount(nextProfile, req.user);
+        transaction.set(userRef, {
+          phone,
+          phoneVerified: true,
+          quoteAccessVerified: true,
+          accountCompleted: derivedAccountCompleted,
+          ...(req.user?.email ? { email: String(req.user.email).trim().toLowerCase() } : {}),
+          ...(req.user?.email_verified === true ? { emailVerified: true } : {}),
+          ...(firstName ? { firstName } : {}),
+          ...(displayName ? { displayName } : {}),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        return { type: 'granted', derivedAccountCompleted };
+      }
+
+      if (!signupEnabled) {
+        return { type: 'signup_disabled' };
+      }
+
+      const displayName = firstName || '';
+      const nextProfile = {
+        ...(firstName ? { firstName } : {}),
+        ...(displayName ? { displayName } : {}),
+        phone,
+        phoneVerified: true,
+        ...(req.user?.email ? { email: String(req.user.email).trim().toLowerCase() } : {}),
+        emailVerified: req.user?.email_verified === true,
+      };
+      const derivedAccountCompleted = hasDurableHomeownerAccount(nextProfile, req.user);
+      transaction.set(userRef, {
         role: 'homeowner',
-        status: existing.status || 'active',
+        status: 'active',
+        verified: false,
         phone,
         phoneVerified: true,
         quoteAccessVerified: true,
@@ -971,11 +1022,22 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
         ...(req.user?.email_verified === true ? { emailVerified: true } : {}),
         ...(firstName ? { firstName } : {}),
         ...(displayName ? { displayName } : {}),
-        createdAt: existing.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+      });
+      return { type: 'enrolled', derivedAccountCompleted };
+    });
+
+    if (result.type === 'invalid') return sendAccountStateInvalid(res);
+    if (result.type === 'signup_disabled') return sendSignupDisabled(res);
+    if (result.type === 'wrong_role') {
+      return res.status(403).send({ message: 'Only homeowners can activate quote access.' });
+    }
+    if (result.type === 'not_active') return sendAccountNotActive(res);
+
+    const derivedAccountCompleted = result.type === 'already'
+      ? hasDurableHomeownerAccount(result.data, req.user)
+      : result.derivedAccountCompleted;
 
     return res.status(200).send({
       message: 'Quote access activated.',
@@ -996,9 +1058,14 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
 router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    const role = String(req.user?.role || 'homeowner').trim() || 'homeowner';
-    if (role !== 'homeowner') {
+    const classified = await loadClassifiedProfile(uid);
+    if (classified.kind === 'missing') return sendAccountNotEnrolled(res);
+    if (classified.kind === 'invalid') return sendAccountStateInvalid(res);
+    if (classified.role !== 'homeowner') {
       return res.status(403).send({ message: 'Only homeowners can complete this account flow.' });
+    }
+    if (!hasQuoteAccess(classified.data)) {
+      return sendQuoteAccessRequired(res);
     }
 
     const method = String(req.body?.method || '').trim();
@@ -1011,9 +1078,8 @@ router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) 
       return res.status(400).send({ message: 'First name is required to continue.' });
     }
 
-    const userRef = db.collection('users').doc(uid);
-    const existingSnap = await userRef.get();
-    const existing = existingSnap.exists ? (existingSnap.data() || {}) : {};
+    const userRef = classified.ref;
+    const existing = classified.data || {};
     const phone = String(req.user?.phone_number || existing.phone || '').trim();
     const email = String(req.user?.email || existing.email || '').trim().toLowerCase();
     const existingLastName = String(existing.lastName || parseNameParts(existing.displayName || existing.name || '').lastName || '').trim();
@@ -1034,19 +1100,15 @@ router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) 
 
     await userRef.set(
       {
-        role: 'homeowner',
-        status: existing.status || 'active',
         ...(firstName ? { firstName } : {}),
         ...(existingLastName ? { lastName: existingLastName } : {}),
         ...(displayName ? { displayName } : {}),
         ...(phone ? { phone, phoneVerified: true } : {}),
         ...(email ? { email } : {}),
         emailVerified: req.user?.email_verified === true || existing.emailVerified === true,
-        quoteAccessVerified: true,
         accountCompleted: derivedAccountCompleted,
         accountCompletionMethod: method,
         accountCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdAt: existing.createdAt || admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -1055,7 +1117,7 @@ router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) 
     return res.status(200).send({
       message: 'Account completed.',
       profile: {
-        quoteAccessVerified: true,
+        quoteAccessVerified: existing.quoteAccessVerified === true,
         accountCompleted: derivedAccountCompleted,
         phoneVerified: !!phone,
         emailVerified: req.user?.email_verified === true || existing.emailVerified === true,
@@ -1074,7 +1136,16 @@ router.post('/api/me/homeowner/complete-account', requireAuth, async (req, res) 
  * Task Expert onboarding only. Marks verified only when ABR reports currently Active.
  * GST registration is not required.
  */
-router.post('/api/me/abn/verify', requireAuth, requireRole('tradie'), abnVerifyLimiter, async (req, res) => {
+router.post('/api/me/abn/verify', requireAuth, requireRole('tradie'), async (req, res, next) => {
+  const classified = await loadClassifiedProfile(req.user?.uid);
+  if (respondIfNotValidProfile(res, classified)) return undefined;
+  if (classified.role !== 'tradie') {
+    return res.status(403).send({
+      message: `Forbidden: Requires role tradie. Your role is '${classified.role}'.`,
+    });
+  }
+  return next();
+}, abnVerifyLimiter, async (req, res) => {
   try {
     const uid = req.user.uid;
     const abn = cleanAbn(req.body?.abn);
@@ -1284,7 +1355,9 @@ router.get('/api/me/profile/change-requests', requireAuth, async (req, res) => {
 router.post('/api/me/deactivate', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    await db.collection('users').doc(uid).set(
+    const classified = await loadValidProfileOrSend(uid, res);
+    if (!classified) return undefined;
+    await classified.ref.set(
       { status: 'disabled', updatedAt: admin.firestore.FieldValue.serverTimestamp() },
       { merge: true }
     );
@@ -1335,6 +1408,8 @@ async function checkDeletionConstraints({ uid }) {
 router.post('/api/me/deletion/request', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
+    const classified = await loadValidProfileOrSend(uid, res);
+    if (!classified) return undefined;
     const typed = String(req.body?.typed || '').trim();
     const reason = sanitizePlainText(req.body?.reason, 500);
     if (typed !== 'DELETE') return res.status(400).send({ message: 'Please type DELETE to confirm.' });
@@ -1411,8 +1486,12 @@ router.get('/api/me/deletion/confirm', async (req, res) => {
     if (t.status !== 'issued') return res.status(409).send({ message: 'Token already used or invalid.' });
     if (t.expiresAt?.toDate && t.expiresAt.toDate() < new Date()) return res.status(409).send({ message: 'Token expired.' });
 
+    const classified = await loadClassifiedProfile(t.uid);
+    if (classified.kind === 'missing') return sendAccountNotEnrolled(res);
+    if (classified.kind === 'invalid') return sendAccountStateInvalid(res);
+
     await tRef.set({ status: 'used', usedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
-    await db.collection('users').doc(t.uid).set(
+    await classified.ref.set(
       {
         deletion: { confirmStep2At: admin.firestore.FieldValue.serverTimestamp() },
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1434,7 +1513,9 @@ router.get('/api/me/deletion/confirm', async (req, res) => {
 router.post('/api/me/deletion/cancel', requireAuth, async (req, res) => {
   try {
     const uid = req.user.uid;
-    await db.collection('users').doc(uid).set(
+    const classified = await loadValidProfileOrSend(uid, res);
+    if (!classified) return undefined;
+    await classified.ref.set(
       {
         status: 'disabled',
         deletion: { cancelledAt: admin.firestore.FieldValue.serverTimestamp() },

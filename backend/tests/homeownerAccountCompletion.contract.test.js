@@ -111,6 +111,7 @@ describe('homeowner account completion contracts', () => {
   it('rejects phone-only completion as a durable account method', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       phone: '+61400000001',
       phoneVerified: true,
       quoteAccessVerified: true,
@@ -128,6 +129,7 @@ describe('homeowner account completion contracts', () => {
   it('requires verified email before completing the homeowner account', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       phone: '+61400000001',
       phoneVerified: true,
       email: 'saeed@example.com',
@@ -148,6 +150,7 @@ describe('homeowner account completion contracts', () => {
   it('completes the homeowner account when phone and email are verified', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       phone: '+61400000001',
       phoneVerified: true,
       email: 'saeed@example.com',
@@ -169,6 +172,7 @@ describe('homeowner account completion contracts', () => {
   it('still completes the homeowner account from a Firebase token phone without Firestore phoneVerified', async () => {
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
+      status: 'active',
       phone: '+61400000001',
       phoneVerified: false,
       email: 'saeed@example.com',
@@ -186,5 +190,51 @@ describe('homeowner account completion contracts', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.profile.accountCompleted).toBe(true);
+  });
+
+  it('does not complete a missing profile and does not create one', async () => {
+    const res = await request(app)
+      .post('/api/me/homeowner/complete-account')
+      .send({ method: 'email', firstName: 'Saeed' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(mockGetCollectionStore('users').size).toBe(0);
+  });
+
+  it('does not complete or repair a malformed profile', async () => {
+    seedDoc('users', 'homeowner-1', { phone: '+61400000001' });
+
+    const res = await request(app)
+      .post('/api/me/homeowner/complete-account')
+      .send({ method: 'email', firstName: 'Saeed' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(mockGetCollectionStore('users').get('homeowner-1').role).toBeUndefined();
+    expect(mockGetCollectionStore('users').get('homeowner-1').quoteAccessVerified).toBeUndefined();
+  });
+
+  it('does not newly grant quote access during account completion', async () => {
+    seedDoc('users', 'homeowner-1', {
+      role: 'homeowner',
+      status: 'active',
+      phone: '+61400000001',
+      phoneVerified: true,
+      email: 'saeed@example.com',
+      emailVerified: true,
+      accountCompleted: false,
+    });
+    mockState.currentUser.email = 'saeed@example.com';
+    mockState.currentUser.email_verified = true;
+
+    const res = await request(app)
+      .post('/api/me/homeowner/complete-account')
+      .send({ method: 'email', firstName: 'Saeed' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('quote_access_required');
+    expect(mockGetCollectionStore('users').get('homeowner-1').quoteAccessVerified).toBeUndefined();
+    expect(mockGetCollectionStore('users').get('homeowner-1').accountCompleted).toBe(false);
   });
 });

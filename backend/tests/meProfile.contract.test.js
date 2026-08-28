@@ -367,6 +367,24 @@ describe('me profile route contracts', () => {
     expect(res.body.profile.privateDetailsLocked).toBe(false);
     expect(readDoc('users', 'tradie-1').privateDetailsLocked).not.toBe(true);
   });
+
+  it('returns 403 account_not_enrolled when the profile is missing', async () => {
+    const res = await request(app).get('/api/me');
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('account_not_enrolled');
+    expect(readDoc('users', 'tradie-1')).toBeUndefined();
+  });
+
+  it('returns 409 account_state_invalid for a stub profile and does not write', async () => {
+    writeDoc('users', 'tradie-1', { phone: '+61400000001' });
+    const before = readDoc('users', 'tradie-1');
+
+    const res = await request(app).get('/api/me');
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('account_state_invalid');
+    expect(readDoc('users', 'tradie-1')).toEqual(before);
+  });
 });
 
 const { testProgramId } = require('../../shared/feePlans');
