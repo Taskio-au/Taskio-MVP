@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const { admin, db } = require('../firebaseAdmin');
 const { requireAuth } = require('../middleware/auth');
 const { requirePublicSignupEnabled } = require('../config/publicSignup');
+const { classifyUserProfile, sendAccountNotActive, sendAccountStateInvalid } = require('../utils/enrolledProfile');
 const { isNonEmptyString, isStringMax } = require('../utils/validation');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
 const { isSupportedMelbournePilotLocation, INNER_MELBOURNE_LAUNCH_MESSAGE } = require('../../../shared/auLocations');
@@ -272,9 +273,17 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, requi
 
     const userRef = db.collection('users').doc(uid);
     const userSnap = await userRef.get();
-    const existingUser = userSnap.exists ? (userSnap.data() || {}) : {};
-    if (existingUser.role && existingUser.role !== 'tradie') {
-      return res.status(409).send({ message: 'This account already belongs to a different Taskio role. Please log in instead.' });
+    const classified = classifyUserProfile(userSnap);
+    if (classified.kind === 'invalid') {
+      return sendAccountStateInvalid(res);
+    }
+    if (classified.kind === 'valid') {
+      if (classified.role !== 'tradie') {
+        return res.status(409).send({ message: 'This account already belongs to a different Taskio role. Please log in instead.' });
+      }
+      if (!['active'].includes(classified.status)) {
+        return sendAccountNotActive(res);
+      }
     }
 
     const userRecord = await admin.auth().getUser(uid);
@@ -287,7 +296,7 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, requi
       normalizedTradieLocation: normalized.location,
       normalizedTradieExpertise: normalized.expertise,
     }, {
-      includeCreatedAt: !userSnap.exists,
+      includeCreatedAt: classified.kind === 'missing',
     }), { merge: true });
 
     return res.status(200).send({ message: 'Expert profile completed.', uid });

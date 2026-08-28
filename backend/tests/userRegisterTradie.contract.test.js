@@ -352,6 +352,7 @@ describe('tradie registration contracts', () => {
   it('rejects Google expert signup when the signed-in account already has another role', async () => {
     mockState.storedUsers.set('google-tradie-1', {
       role: 'homeowner',
+      status: 'active',
       email: 'google.expert@example.com',
     });
 
@@ -375,6 +376,99 @@ describe('tradie registration contracts', () => {
 
     expect(response.status).toBe(409);
     expect(response.body.message).toMatch(/different Taskio role/i);
+    expect(mockState.claims).toHaveLength(0);
+  });
+
+  it('rejects Google expert signup for a malformed profile without writes or claims', async () => {
+    mockState.storedUsers.set('google-tradie-1', {});
+
+    const response = await request(buildApp())
+      .post('/api/users/register/expert-google')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Expert',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe('account_state_invalid');
+    expect(mockState.claims).toHaveLength(0);
+    expect(mockState.storedUsers.get('google-tradie-1')).toEqual({});
+  });
+
+  it('rejects Google expert signup for an unknown role without converting the profile', async () => {
+    mockState.storedUsers.set('google-tradie-1', {
+      role: 'mystery',
+      status: 'active',
+    });
+
+    const response = await request(buildApp())
+      .post('/api/users/register/expert-google')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Expert',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe('account_state_invalid');
+    expect(mockState.claims).toHaveLength(0);
+    expect(mockState.storedUsers.get('google-tradie-1').role).toBe('mystery');
+  });
+
+  it('updates an existing valid tradie during Google expert signup', async () => {
+    mockState.storedUsers.set('google-tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      email: 'google.expert@example.com',
+      firstName: 'Old',
+    });
+
+    const response = await request(buildApp())
+      .post('/api/users/register/expert-google')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Expert',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+
+    expect(response.status).toBe(200);
+    expect(mockState.claims).toContainEqual({ uid: 'google-tradie-1', claims: { role: 'tradie' } });
+    expect(mockState.storedUsers.get('google-tradie-1')).toEqual(expect.objectContaining({
+      role: 'tradie',
+      firstName: 'Jane',
+      lastName: 'Expert',
+    }));
   });
 
   describe('public signup kill switch on enrollment routes', () => {
