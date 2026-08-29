@@ -1,0 +1,33 @@
+{
+  "hosting": {
+    "site": "taskio-v2-staging",
+    "public": "staging-hosting-placeholder",
+    "ignore": [
+      "firebase.json",
+      "firebase.staging.hosting.json",
+      "frontend/build/**",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+        ]
+      },
+      {
+        "source": "**/*.@(html|css)",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+        ]
+      }
+    ]
+  }
+}
