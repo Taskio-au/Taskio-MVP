@@ -1,6 +1,7 @@
 import { resolveE2EAuthEnabled } from '../config/e2eAuthConfig';
+import { e2eAuthEnvFromProcess } from '../config/runtimeEnv';
 
-const E2E_AUTH_ENABLED = resolveE2EAuthEnabled(process.env);
+const E2E_AUTH_ENABLED = resolveE2EAuthEnabled(e2eAuthEnvFromProcess());
 const E2E_USER_STORAGE_KEY = 'taskio.e2e.user';
 
 function safeReadRawUser() {

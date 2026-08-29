@@ -6,19 +6,23 @@ import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { resolveFirebaseConfig } from './config/firebaseConfig';
 import { resolveAppCheckConfig } from './config/appCheckConfig';
+import { appCheckEnvFromProcess, firebaseEnvFromProcess } from './config/runtimeEnv';
 
-const productionFirebaseConfig = {
-  apiKey: 'AIzaSyAVmOP2j8VIMHWRz9o49JHKqyiszQ5qMOg',
-  authDomain: 'taskio-v2.firebaseapp.com',
-  projectId: 'taskio-v2',
-  // IMPORTANT: this must be the actual Storage bucket name for the project.
-  // Some Firebase projects use `<projectId>.firebasestorage.app` instead of `<projectId>.appspot.com`.
-  storageBucket: 'taskio-v2.firebasestorage.app',
-  messagingSenderId: '848916998874',
-  appId: '1:848916998874:web:718d57c9621cb15461d3e3',
-};
+const productionFirebaseFallback =
+  process.env.REACT_APP_FIREBASE_EXPECTED_PROJECT_ID === 'taskio-v2-staging'
+    ? undefined
+    : {
+      apiKey: 'AIzaSyAVmOP2j8VIMHWRz9o49JHKqyiszQ5qMOg',
+      authDomain: 'taskio-v2.firebaseapp.com',
+      projectId: 'taskio-v2',
+      // IMPORTANT: this must be the actual Storage bucket name for the project.
+      // Some Firebase projects use `<projectId>.firebasestorage.app` instead of `<projectId>.appspot.com`.
+      storageBucket: 'taskio-v2.firebasestorage.app',
+      messagingSenderId: '848916998874',
+      appId: '1:848916998874:web:718d57c9621cb15461d3e3',
+    };
 
-const firebaseConfig = resolveFirebaseConfig(process.env, productionFirebaseConfig);
+const firebaseConfig = resolveFirebaseConfig(firebaseEnvFromProcess(), productionFirebaseFallback);
 
 const app = initializeApp(firebaseConfig);
 
@@ -28,7 +32,7 @@ const app = initializeApp(firebaseConfig);
 // - REACT_APP_APPCHECK_SITE_KEY=<reCAPTCHA v3 site key>
 // For local dev you can use a debug token:
 // - REACT_APP_APPCHECK_DEBUG_TOKEN=true (or a specific debug token string)
-const appCheckConfig = resolveAppCheckConfig(process.env);
+const appCheckConfig = resolveAppCheckConfig(appCheckEnvFromProcess());
 try {
   if (appCheckConfig.debugToken) {
     const g = typeof window !== 'undefined' ? window : {};
@@ -49,16 +53,24 @@ try {
 
 export const auth = getAuth(app);
 
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, '__TASKIO_PHONE_RECAPTCHA_TESTING_BYPASS__', {
+    configurable: true,
+    enumerable: false,
+    get: () => auth.settings.appVerificationDisabledForTesting === true,
+  });
+}
+
 // Optional dev-only escape hatch: disable reCAPTCHA for Phone Auth when running locally.
 // Use ONLY with Firebase Auth test phone numbers (Firebase Console → Authentication → Phone).
 // Enable by setting in `frontend/.env`:
 //   REACT_APP_DISABLE_PHONE_RECAPTCHA=true
-try {
-  if (process.env.NODE_ENV !== 'production' && process.env.REACT_APP_DISABLE_PHONE_RECAPTCHA === 'true') {
-    auth.settings.appVerificationDisabledForTesting = true;
-  }
-} catch (e) {
-  // ignore
+// Keep this assignment out of try/catch so production minifiers can drop it.
+if (
+  process.env.NODE_ENV !== 'production'
+  && process.env.REACT_APP_DISABLE_PHONE_RECAPTCHA === 'true'
+) {
+  auth.settings.appVerificationDisabledForTesting = true;
 }
 
 export const db = getFirestore(app);
@@ -73,14 +85,13 @@ export const storage = getStorage(app);
 //   REACT_APP_USE_STORAGE_EMULATOR=true
 //   REACT_APP_STORAGE_EMULATOR_HOST=localhost
 //   REACT_APP_STORAGE_EMULATOR_PORT=9199
-try {
-  if (process.env.NODE_ENV !== 'production' && process.env.REACT_APP_USE_STORAGE_EMULATOR === 'true') {
-    const host = process.env.REACT_APP_STORAGE_EMULATOR_HOST || 'localhost';
-    const port = Number(process.env.REACT_APP_STORAGE_EMULATOR_PORT || 9199);
-    connectStorageEmulator(storage, host, port);
-  }
-} catch (e) {
-  // ignore
+if (
+  process.env.NODE_ENV !== 'production'
+  && process.env.REACT_APP_USE_STORAGE_EMULATOR === 'true'
+) {
+  const host = process.env.REACT_APP_STORAGE_EMULATOR_HOST || 'localhost';
+  const port = Number(process.env.REACT_APP_STORAGE_EMULATOR_PORT || 9199);
+  connectStorageEmulator(storage, host, port);
 }
 
 export const googleProvider = new GoogleAuthProvider();

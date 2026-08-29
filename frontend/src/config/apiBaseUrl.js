@@ -1,6 +1,15 @@
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '[::1]']);
 
-export function resolveApiBaseUrl(env = process.env) {
+function developmentDefaultApiBaseUrl() {
+  // process.env.NODE_ENV is compile-time inlined so staging/production minification
+  // can drop the localhost API fallback instead of shipping it in executable assets.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('REACT_APP_API_BASE_URL is required for a production build.');
+  }
+  return 'http://localhost:8000';
+}
+
+export function resolveApiBaseUrl(env = {}) {
   const configured = String(env.REACT_APP_API_BASE_URL || '').trim();
   const isProductionBuild = env.NODE_ENV === 'production';
 
@@ -8,7 +17,7 @@ export function resolveApiBaseUrl(env = process.env) {
     if (isProductionBuild) {
       throw new Error('REACT_APP_API_BASE_URL is required for a production build.');
     }
-    return 'http://localhost:8000';
+    return developmentDefaultApiBaseUrl();
   }
 
   let parsed;

@@ -23,8 +23,9 @@ test('uses the existing production configuration when no environment override is
   expect(resolveFirebaseConfig({}, productionConfig)).toBe(productionConfig);
 });
 
-test('uses a complete staging environment configuration', () => {
-  expect(resolveFirebaseConfig(stagingEnv, productionConfig)).toEqual({
+test('uses a complete staging environment configuration and ignores the production fallback', () => {
+  const fallback = { ...productionConfig };
+  expect(resolveFirebaseConfig(stagingEnv, fallback)).toEqual({
     apiKey: 'staging-api-key',
     authDomain: 'taskio-v2-staging.firebaseapp.com',
     projectId: 'taskio-v2-staging',
@@ -32,6 +33,7 @@ test('uses a complete staging environment configuration', () => {
     messagingSenderId: 'staging-sender-id',
     appId: 'staging-app-id',
   });
+  expect(resolveFirebaseConfig(stagingEnv, fallback)).not.toBe(fallback);
 });
 
 test('rejects an environment override without an expected project ID', () => {
@@ -46,14 +48,16 @@ test('rejects a partial Firebase environment configuration', () => {
   expect(() => resolveFirebaseConfig({
     REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: 'taskio-v2-staging',
     REACT_APP_FIREBASE_PROJECT_ID: 'taskio-v2-staging',
-  }, productionConfig)).toThrow('Incomplete Firebase configuration');
+  }, productionConfig)).toThrow(
+    'REACT_APP_FIREBASE_EXPECTED_PROJECT_ID requires complete explicit Firebase configuration',
+  );
 });
 
-test('rejects falling back to production when a staging build is expected', () => {
+test('never selects the production fallback when an expected project ID is supplied', () => {
   expect(() => resolveFirebaseConfig({
     REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: 'taskio-v2-staging',
   }, productionConfig)).toThrow(
-    'Firebase project mismatch: expected taskio-v2-staging, received taskio-v2.',
+    'REACT_APP_FIREBASE_EXPECTED_PROJECT_ID requires complete explicit Firebase configuration',
   );
 });
 
@@ -82,4 +86,11 @@ test('rejects a Firebase Storage bucket from another environment', () => {
   }, productionConfig)).toThrow(
     'Firebase Storage bucket does not belong to expected project taskio-v2-staging.',
   );
+});
+
+test('accepts the appspot Storage bucket for the expected project', () => {
+  expect(resolveFirebaseConfig({
+    ...stagingEnv,
+    REACT_APP_FIREBASE_STORAGE_BUCKET: 'taskio-v2-staging.appspot.com',
+  }, productionConfig).storageBucket).toBe('taskio-v2-staging.appspot.com');
 });

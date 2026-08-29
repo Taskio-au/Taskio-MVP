@@ -7,7 +7,13 @@ const FIREBASE_ENV_KEYS = {
   appId: 'REACT_APP_FIREBASE_APP_ID',
 };
 
-function validateExpectedProject(config, expectedProjectId) {
+export const EXPECTED_FIREBASE_PROJECT_ENV = 'REACT_APP_FIREBASE_EXPECTED_PROJECT_ID';
+
+function missingFirebaseEnvKeys(env) {
+  return Object.values(FIREBASE_ENV_KEYS).filter((envKey) => !env[envKey]);
+}
+
+export function validateExpectedProject(config, expectedProjectId) {
   if (!expectedProjectId) {
     return;
   }
@@ -36,33 +42,37 @@ function validateExpectedProject(config, expectedProjectId) {
   }
 }
 
+function explicitFirebaseConfig(env) {
+  return Object.fromEntries(
+    Object.entries(FIREBASE_ENV_KEYS).map(([configKey, envKey]) => [configKey, env[envKey]]),
+  );
+}
+
 export function resolveFirebaseConfig(env, fallbackConfig) {
   const configuredEntries = Object.entries(FIREBASE_ENV_KEYS)
     .filter(([, envKey]) => Boolean(env[envKey]));
-  const expectedProjectId = env.REACT_APP_FIREBASE_EXPECTED_PROJECT_ID;
+  const expectedProjectId = String(env[EXPECTED_FIREBASE_PROJECT_ENV] || '').trim();
+
+  if (expectedProjectId) {
+    const missingKeys = missingFirebaseEnvKeys(env);
+    if (missingKeys.length) {
+      throw new Error(
+        `${EXPECTED_FIREBASE_PROJECT_ENV} requires complete explicit Firebase configuration. Missing: ${missingKeys.join(', ')}.`,
+      );
+    }
+    const config = explicitFirebaseConfig(env);
+    validateExpectedProject(config, expectedProjectId);
+    return config;
+  }
 
   if (configuredEntries.length === 0) {
-    validateExpectedProject(fallbackConfig, expectedProjectId);
+    if (!fallbackConfig) {
+      throw new Error('Firebase configuration is missing.');
+    }
     return fallbackConfig;
   }
 
-  if (!expectedProjectId) {
-    throw new Error(
-      'Firebase environment override requires REACT_APP_FIREBASE_EXPECTED_PROJECT_ID.',
-    );
-  }
-
-  if (configuredEntries.length !== Object.keys(FIREBASE_ENV_KEYS).length) {
-    const missingKeys = Object.values(FIREBASE_ENV_KEYS)
-      .filter((envKey) => !env[envKey]);
-
-    throw new Error(`Incomplete Firebase configuration. Missing: ${missingKeys.join(', ')}.`);
-  }
-
-  const config = Object.fromEntries(
-    Object.entries(FIREBASE_ENV_KEYS).map(([configKey, envKey]) => [configKey, env[envKey]]),
+  throw new Error(
+    'Firebase environment override requires REACT_APP_FIREBASE_EXPECTED_PROJECT_ID.',
   );
-
-  validateExpectedProject(config, expectedProjectId);
-  return config;
 }

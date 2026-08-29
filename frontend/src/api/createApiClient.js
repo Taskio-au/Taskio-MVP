@@ -2,8 +2,9 @@ import axios from 'axios';
 import { auth } from '../firebase';
 import { getE2EAuthUser } from '../e2e/authBypass';
 import { resolveApiBaseUrl } from '../config/apiBaseUrl';
+import { apiEnvFromProcess } from '../config/runtimeEnv';
 
-export const API_BASE_URL = resolveApiBaseUrl(process.env);
+export const API_BASE_URL = resolveApiBaseUrl(apiEnvFromProcess());
 
 export function createApiClient({ forceRefreshToken = false } = {}) {
   const client = axios.create({ baseURL: API_BASE_URL });

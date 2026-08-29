@@ -1,4 +1,4 @@
-export function resolveE2EAuthEnabled(env = process.env) {
+export function resolveE2EAuthEnabled(env = {}) {
   const enabled = env.REACT_APP_E2E_AUTH_BYPASS === 'true';
   if (env.NODE_ENV === 'production' && enabled) {
     const safeHarnessBuild = env.REACT_APP_E2E_HARNESS_BUILD === 'true'

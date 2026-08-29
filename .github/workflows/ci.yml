@@ -36,6 +36,12 @@ jobs:
       CI: true
       REACT_APP_API_BASE_URL: https://api.taskio.com.au
       REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: taskio-v2
+      REACT_APP_FIREBASE_API_KEY: AIzaSyAVmOP2j8VIMHWRz9o49JHKqyiszQ5qMOg
+      REACT_APP_FIREBASE_AUTH_DOMAIN: taskio-v2.firebaseapp.com
+      REACT_APP_FIREBASE_PROJECT_ID: taskio-v2
+      REACT_APP_FIREBASE_STORAGE_BUCKET: taskio-v2.firebasestorage.app
+      REACT_APP_FIREBASE_MESSAGING_SENDER_ID: "848916998874"
+      REACT_APP_FIREBASE_APP_ID: "1:848916998874:web:718d57c9621cb15461d3e3"
       REACT_APP_E2E_AUTH_BYPASS: "false"
     steps:
       - uses: actions/checkout@v5
