@@ -2,24 +2,10 @@
 
 const { spawnSync } = require('child_process');
 const {
+  parseStagingDeployArgv,
   buildHostingDeployPlan,
   buildHostingClonePlan,
-  STAGING_PROJECT_ID,
 } = require('./stagingHostingLib.cjs');
-
-function parseArgs(argv) {
-  const parsed = { _: [] };
-  for (let i = 0; i < argv.length; i += 1) {
-    const token = argv[i];
-    if (token === '--execute') parsed.execute = true;
-    else if (token === '--dry-run') parsed.dryRun = true;
-    else if (token === '--project') parsed.project = argv[++i];
-    else if (token === '--config') parsed.config = argv[++i];
-    else if (token === '--clone-version') parsed.cloneVersion = argv[++i];
-    else parsed._.push(token);
-  }
-  return parsed;
-}
 
 function printPlan(plan) {
   const rendered = [plan.command, ...plan.args].join(' ');
@@ -27,10 +13,10 @@ function printPlan(plan) {
 }
 
 function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const args = parseStagingDeployArgv(process.argv.slice(2));
   if (args.cloneVersion) {
     const plan = buildHostingClonePlan({
-      project: args.project || STAGING_PROJECT_ID,
+      project: args.project,
       versionId: args.cloneVersion,
     });
     printPlan(plan);

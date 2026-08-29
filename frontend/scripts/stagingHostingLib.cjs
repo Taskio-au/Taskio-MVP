@@ -8,6 +8,8 @@ const PRODUCTION_PROJECT_ID = 'taskio-v2';
 const STAGING_API_HOST = 'taskio-api-staging-d6mdcsrwea-ts.a.run.app';
 const PRODUCTION_API_HOST = 'api.taskio.com.au';
 const STAGING_API_URL = `https://${STAGING_API_HOST}`;
+const NO_STORE_CACHE = 'no-store, max-age=0, must-revalidate';
+const ROBOTS_HEADER = 'noindex, nofollow, noarchive';
 
 const FIREBASE_ENV_KEYS = [
   'REACT_APP_FIREBASE_API_KEY',
@@ -44,8 +46,104 @@ const STAGING_REACT_APP_ALLOWLIST = new Set([
   'REACT_APP_APPCHECK_SITE_KEY',
 ]);
 
+const OS_ESSENTIAL_NAMES = [
+  'PATH',
+  'PATHEXT',
+  'SystemRoot',
+  'SYSTEMROOT',
+  'windir',
+  'WINDIR',
+  'ComSpec',
+  'COMSPEC',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
+  'HOME',
+  'USERPROFILE',
+  'HOMEDRIVE',
+  'HOMEPATH',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'ProgramData',
+  'ProgramFiles',
+  'ProgramFiles(x86)',
+  'ProgramW6432',
+  'CommonProgramFiles',
+  'CommonProgramFiles(x86)',
+  'SystemDrive',
+  'SYSTEMDRIVE',
+  'OS',
+  'PROCESSOR_ARCHITECTURE',
+  'NUMBER_OF_PROCESSORS',
+  'USER',
+  'USERNAME',
+  'LOGNAME',
+  'SHELL',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TZ',
+  'TERM',
+  'PUBLIC',
+  'ALLUSERSPROFILE',
+  'COMPUTERNAME',
+  'USERDOMAIN',
+  'SESSIONNAME',
+  'PROMPT',
+];
+
+const ALLOWED_DEPLOY_FLAGS = new Set([
+  '--execute',
+  '--dry-run',
+  '--project',
+  '--config',
+  '--clone-version',
+]);
+
+const FORBIDDEN_OVERRIDE_FLAGS = new Set([
+  '--site',
+  '--channel',
+  '--version',
+  '--only',
+  '--token',
+  '--except',
+  '--message',
+]);
+
 function repoRootFromScripts() {
   return path.resolve(__dirname, '..', '..');
+}
+
+function isForbiddenChildEnvKey(key) {
+  const upper = String(key).toUpperCase();
+  if (upper === 'NODE_OPTIONS') return true;
+  if (upper === 'FIREBASE_TOKEN' || upper === 'FIREBASE_AUTH_TOKEN') return true;
+  if (upper.startsWith('TASKIO_STAGING_SCAN_')) return true;
+  if (upper === 'GOOGLE_APPLICATION_CREDENTIALS' || upper === 'GOOGLE_GHA_CREDS_PATH') return true;
+  if (upper.startsWith('CLOUDSDK_') || upper.startsWith('GCLOUD_')) return true;
+  if (upper === 'NPM_TOKEN' || upper === 'NODE_AUTH_TOKEN' || upper === 'NPM_CONFIG_TOKEN') return true;
+  if (upper === 'GITHUB_TOKEN' || upper === 'GH_TOKEN') return true;
+  if (upper.startsWith('NPM_CONFIG_')) return true;
+  return false;
+}
+
+function pickEnvKey(env, name) {
+  if (Object.prototype.hasOwnProperty.call(env, name) && env[name] != null && env[name] !== '') {
+    return name;
+  }
+  const found = Object.keys(env).find((key) => key.toLowerCase() === name.toLowerCase());
+  if (found && env[found] != null && env[found] !== '') return found;
+  return null;
+}
+
+function copyOsEssentials(dest, env) {
+  const copied = new Set();
+  for (const name of OS_ESSENTIAL_NAMES) {
+    const key = pickEnvKey(env, name);
+    if (!key || copied.has(key.toLowerCase()) || isForbiddenChildEnvKey(key)) continue;
+    dest[key] = env[key];
+    copied.add(key.toLowerCase());
+  }
 }
 
 function collectDotenvReactAppKeys(frontendRoot) {
@@ -62,6 +160,15 @@ function collectDotenvReactAppKeys(frontendRoot) {
       if (match) names.add(match[1]);
     }
   }
+  return names;
+}
+
+function unapprovedReactAppKeyNames(env, frontendRoot) {
+  const names = collectDotenvReactAppKeys(frontendRoot);
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('REACT_APP_')) names.add(key);
+  }
+  for (const allowed of STAGING_REACT_APP_ALLOWLIST) names.delete(allowed);
   return names;
 }
 
@@ -151,33 +258,39 @@ function assertStagingBuildEnv(env) {
 
 function stagingBuildChildEnv(env, frontendRoot = path.resolve(__dirname, '..')) {
   assertStagingBuildEnv(env);
-  const child = { ...env };
-  const allow = new Set(STAGING_REACT_APP_ALLOWLIST);
-  if (!String(env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '').trim()) {
-    allow.delete('REACT_APP_STRIPE_PUBLISHABLE_KEY');
+  const child = {};
+  copyOsEssentials(child, env);
+
+  child.NODE_ENV = 'production';
+  child.CI = 'true';
+  child.GENERATE_SOURCEMAP = 'false';
+  child.INLINE_RUNTIME_CHUNK = 'false';
+
+  child.REACT_APP_FIREBASE_EXPECTED_PROJECT_ID = String(env.REACT_APP_FIREBASE_EXPECTED_PROJECT_ID).trim();
+  for (const key of FIREBASE_ENV_KEYS) {
+    child[key] = String(env[key]).trim();
   }
-  if (String(env.REACT_APP_APPCHECK_ENABLED || '').trim() !== 'true') {
-    allow.delete('REACT_APP_APPCHECK_ENABLED');
-    allow.delete('REACT_APP_APPCHECK_SITE_KEY');
+  child.REACT_APP_API_BASE_URL = String(env.REACT_APP_API_BASE_URL).trim();
+
+  const stripeKey = String(env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '').trim();
+  if (stripeKey) {
+    child.REACT_APP_STRIPE_PUBLISHABLE_KEY = stripeKey;
   }
 
-  const keysToBlank = new Set([
-    ...Object.keys(child).filter((key) => key.startsWith('REACT_APP_')),
-    ...collectDotenvReactAppKeys(frontendRoot),
-  ]);
-  for (const key of keysToBlank) {
-    if (!allow.has(key)) {
-      child[key] = '';
-    }
+  if (String(env.REACT_APP_APPCHECK_ENABLED || '').trim() === 'true') {
+    child.REACT_APP_APPCHECK_ENABLED = 'true';
+    child.REACT_APP_APPCHECK_SITE_KEY = String(env.REACT_APP_APPCHECK_SITE_KEY || '').trim();
   }
 
   child.REACT_APP_DISABLE_PHONE_RECAPTCHA = 'false';
   child.REACT_APP_E2E_AUTH_BYPASS = 'false';
-  child.REACT_APP_E2E_HARNESS_BUILD = '';
-  child.GENERATE_SOURCEMAP = 'false';
-  child.INLINE_RUNTIME_CHUNK = 'false';
-  child.CI = child.CI || 'true';
+
+  for (const key of unapprovedReactAppKeyNames(env, frontendRoot)) {
+    child[key] = '';
+  }
   child.REACT_APP_APPCHECK_DEBUG_TOKEN = '';
+  child.REACT_APP_E2E_HARNESS_BUILD = '';
+
   return child;
 }
 
@@ -216,19 +329,18 @@ function loadOptionalFixtures(env) {
 }
 
 function containsTestingBypassAssignment(text) {
-  const source = String(text);
-  const assignment = /appVerificationDisabledForTesting\s*(?<![<>!=])=(?!=)\s*(?:true|!0)\b/g;
-  let match;
-  while ((match = assignment.exec(source))) {
-    const around = source.slice(Math.max(0, match.index - 280), match.index + match[0].length + 40);
-    if (/emulator/i.test(around)) continue;
-    return true;
-  }
-  return false;
+  return /\bauth\.settings\.appVerificationDisabledForTesting\s*(?<![<>!=])=(?!=)\s*(?:true|!0)\b/.test(String(text));
 }
 
 function containsLoopbackApiBase(text) {
-  return /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):\d+/i.test(String(text));
+  const source = String(text);
+  return (
+    /REACT_APP_API_BASE_URL["']?\s*[:=]\s*["']https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/i.test(source)
+    || /(?:API_BASE_URL|apiBaseUrl|baseURL)["']?\s*[:=]\s*["']https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/i.test(source)
+    || /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):8000\b/i.test(source)
+    || /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?\/(?:api|v1)\b/i.test(source)
+    || /return\s*["']https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/i.test(source)
+  );
 }
 
 function scanText(text, fixtures) {
@@ -307,7 +419,90 @@ function resolveHostingConfigPath(configArg, root) {
   return path.join(root, base);
 }
 
-function buildHostingDeployPlan({ project, config, execute = false, extraArgs = [] } = {}) {
+function parseEqualsFlag(token) {
+  const equals = String(token).indexOf('=');
+  if (equals <= 0) return null;
+  return {
+    flag: token.slice(0, equals),
+    value: token.slice(equals + 1),
+  };
+}
+
+function parseStagingDeployArgv(argv) {
+  const parsed = {};
+  const seen = {
+    project: false,
+    config: false,
+    cloneVersion: false,
+    execute: false,
+    dryRun: false,
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = String(argv[i] || '');
+    const inline = parseEqualsFlag(token);
+    const flag = inline ? inline.flag : token;
+
+    if (FORBIDDEN_OVERRIDE_FLAGS.has(flag) || flag === '-P' || flag === '-c') {
+      throw new Error(`Refusing ${flag}. Staging Hosting pins project, site, channel and version.`);
+    }
+    if (inline && (flag === '--project' || flag === '--config' || flag === '--clone-version')) {
+      throw new Error(`Refusing inline ${flag}=. Use a separate argument.`);
+    }
+    if (!ALLOWED_DEPLOY_FLAGS.has(flag)) {
+      throw new Error(`Unknown or overriding staging Hosting argument: ${flag || token}`);
+    }
+
+    if (flag === '--execute') {
+      if (seen.execute) throw new Error('Duplicate --execute is refused.');
+      seen.execute = true;
+      parsed.execute = true;
+      continue;
+    }
+    if (flag === '--dry-run') {
+      if (seen.dryRun) throw new Error('Duplicate --dry-run is refused.');
+      seen.dryRun = true;
+      parsed.dryRun = true;
+      continue;
+    }
+    if (flag === '--project') {
+      if (seen.project) throw new Error('Duplicate --project is refused.');
+      seen.project = true;
+      parsed.project = argv[++i];
+      if (!parsed.project || String(parsed.project).startsWith('-')) {
+        throw new Error('Missing --project. Staging Hosting requires taskio-v2-staging.');
+      }
+      continue;
+    }
+    if (flag === '--config') {
+      if (seen.config) throw new Error('Duplicate --config is refused.');
+      seen.config = true;
+      parsed.config = argv[++i];
+      if (!parsed.config || String(parsed.config).startsWith('-')) {
+        throw new Error('Refusing firebase.json or a missing Hosting config.');
+      }
+      continue;
+    }
+    if (flag === '--clone-version') {
+      if (seen.cloneVersion) throw new Error('Duplicate --clone-version is refused.');
+      seen.cloneVersion = true;
+      parsed.cloneVersion = argv[++i];
+      if (!parsed.cloneVersion || String(parsed.cloneVersion).startsWith('-')) {
+        throw new Error('Clone version must be a bare Hosting version ID used as site@VERSION_ID.');
+      }
+    }
+  }
+
+  return parsed;
+}
+
+function buildHostingDeployPlan(options = {}) {
+  for (const key of Object.keys(options)) {
+    if (!['project', 'config', 'execute'].includes(key)) {
+      throw new Error(`Unsupported deploy plan option: ${key}`);
+    }
+  }
+  const { project, config, execute = false } = options;
   if (!project) {
     throw new Error('Missing --project. Staging Hosting requires taskio-v2-staging.');
   }
@@ -316,27 +511,34 @@ function buildHostingDeployPlan({ project, config, execute = false, extraArgs = 
   }
   const root = repoRootFromScripts();
   const configPath = resolveHostingConfigPath(config, root);
-  const args = [
-    'deploy',
-    '--project',
-    STAGING_PROJECT_ID,
-    '--only',
-    'hosting',
-    '--config',
-    configPath,
-    ...extraArgs,
-  ];
   return {
     command: 'firebase',
-    args,
+    args: [
+      'deploy',
+      '--project',
+      STAGING_PROJECT_ID,
+      '--only',
+      'hosting',
+      '--config',
+      configPath,
+    ],
     cwd: root,
     execute: execute === true,
     dryRun: execute !== true,
   };
 }
 
-function buildHostingClonePlan({ project, versionId } = {}) {
-  if (!project || project !== STAGING_PROJECT_ID) {
+function buildHostingClonePlan(options = {}) {
+  for (const key of Object.keys(options)) {
+    if (!['project', 'versionId'].includes(key)) {
+      throw new Error(`Unsupported clone plan option: ${key}`);
+    }
+  }
+  const { project, versionId } = options;
+  if (!project) {
+    throw new Error(`Clone requires --project ${STAGING_PROJECT_ID}.`);
+  }
+  if (project !== STAGING_PROJECT_ID) {
     throw new Error(`Clone requires --project ${STAGING_PROJECT_ID}.`);
   }
   if (!versionId || String(versionId).includes(':') || String(versionId).startsWith('@')) {
@@ -358,23 +560,62 @@ function buildHostingClonePlan({ project, versionId } = {}) {
   };
 }
 
+function firebaseSourceMatches(source, requestPath) {
+  if (source === '**') return true;
+  if (source === '/') return requestPath === '/';
+  if (source === '**/*.html') return requestPath.endsWith('.html');
+  if (source === '**/*.@(html|css)') return /\.(html|css)$/.test(requestPath);
+  if (source === '**/*.@(js|css|woff2)') return /\.(js|css|woff2)$/.test(requestPath);
+  return source === requestPath;
+}
+
+function headersForHostingRequest(config, requestPath) {
+  const headers = {};
+  for (const rule of config.hosting.headers || []) {
+    if (!firebaseSourceMatches(rule.source, requestPath)) continue;
+    for (const header of rule.headers || []) {
+      headers[header.key] = header.value;
+    }
+  }
+  return headers;
+}
+
+function loadStagingHostingConfig(fileName) {
+  const configPath = resolveHostingConfigPath(fileName, repoRootFromScripts());
+  return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+}
+
+function assertNoImmutableCache(config) {
+  const serialized = JSON.stringify(config);
+  if (/immutable/i.test(serialized) || /max-age=31536000/i.test(serialized)) {
+    throw new Error('Staging Hosting must not set immutable long-cache headers.');
+  }
+}
+
 module.exports = {
   STAGING_PROJECT_ID,
   PRODUCTION_PROJECT_ID,
   STAGING_API_HOST,
   PRODUCTION_API_HOST,
   STAGING_API_URL,
+  NO_STORE_CACHE,
+  ROBOTS_HEADER,
   ALLOWED_HOSTING_CONFIGS,
   containsProductionProjectId,
   assertStagingBuildEnv,
   stagingBuildChildEnv,
+  isForbiddenChildEnvKey,
   listSourceMapFiles,
   scanStagingBundle,
   scanText,
   containsTestingBypassAssignment,
   containsLoopbackApiBase,
+  parseStagingDeployArgv,
   buildHostingDeployPlan,
   buildHostingClonePlan,
   resolveHostingConfigPath,
+  headersForHostingRequest,
+  loadStagingHostingConfig,
+  assertNoImmutableCache,
   repoRootFromScripts,
 };
