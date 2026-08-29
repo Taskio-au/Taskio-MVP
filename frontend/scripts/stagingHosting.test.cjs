@@ -18,10 +18,14 @@ const {
   parseStagingDeployArgv,
   buildHostingDeployPlan,
   buildHostingClonePlan,
+  assertSafeDeployPlanArgs,
+  resolveFirebaseToolsCliEntry,
+  buildFirebaseSpawnSpec,
   headersForHostingRequest,
   loadStagingHostingConfig,
   assertNoImmutableCache,
 } = require('./stagingHostingLib.cjs');
+const { executeHostingDeployPlan } = require('./deploy-staging-hosting.js');
 
 const validEnv = {
   REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: STAGING_PROJECT_ID,
@@ -43,6 +47,18 @@ const windowsEssentials = {
 
 function assertMissingKey(object, key) {
   assert.equal(Object.prototype.hasOwnProperty.call(object, key), false, `forbidden key present: ${key}`);
+}
+
+function createFakeFirebaseTools(t, metadata = { bin: { firebase: './lib/bin/firebase.js' } }) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'taskio-firebase-tools-'));
+  const packageDir = path.join(root, 'node_modules', 'firebase-tools');
+  const packageJsonPath = path.join(packageDir, 'package.json');
+  const entry = path.join(packageDir, 'lib', 'bin', 'firebase.js');
+  fs.mkdirSync(path.dirname(entry), { recursive: true });
+  fs.writeFileSync(packageJsonPath, JSON.stringify(metadata));
+  fs.writeFileSync(entry, '#!/usr/bin/env node\n');
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  return { root, packageDir, packageJsonPath, entry };
 }
 
 test('boundary-aware production project matching does not fire on staging', () => {
@@ -274,6 +290,166 @@ test('clone plan uses site@VERSION_ID and requires an explicit staging project',
     project: STAGING_PROJECT_ID,
     versionId: ':abc123def',
   }), /bare Hosting version ID/);
+  assert.throws(() => buildHostingClonePlan({
+    project: STAGING_PROJECT_ID,
+    versionId: '--help',
+  }), /bare Hosting version ID/);
+  assert.throws(() => parseStagingDeployArgv([
+    '--project', STAGING_PROJECT_ID,
+    '--clone-version', '--help',
+  ]), /bare Hosting version ID/);
+});
+
+test('safe deploy-plan validation refuses any change to the pinned command shape', () => {
+  const plan = buildHostingDeployPlan({
+    project: STAGING_PROJECT_ID,
+    config: 'firebase.staging.hosting.json',
+    execute: true,
+  });
+  assert.doesNotThrow(() => assertSafeDeployPlanArgs(plan));
+  assert.throws(() => assertSafeDeployPlanArgs({ ...plan, args: [...plan.args, '--debug'] }), /unsafe/);
+  assert.throws(() => assertSafeDeployPlanArgs({
+    ...plan,
+    args: plan.args.map((value, index) => (index === 2 ? 'taskio-v2' : value)),
+  }), /unsafe/);
+  assert.throws(() => assertSafeDeployPlanArgs({ ...plan, execute: false, dryRun: true }), /dry-run/);
+});
+
+test('firebase-tools CLI resolution accepts the installed package entry', (t) => {
+  const fixture = createFakeFirebaseTools(t);
+  const resolved = resolveFirebaseToolsCliEntry({
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+  });
+  assert.equal(resolved, fs.realpathSync(fixture.entry));
+});
+
+test('firebase-tools CLI resolution fails closed for invalid package states', (t) => {
+  const fixture = createFakeFirebaseTools(t);
+  assert.throws(() => resolveFirebaseToolsCliEntry({
+    repoRoot: fixture.root,
+    resolvePackage: () => { throw new Error('missing'); },
+  }), /Unable to resolve/);
+  assert.throws(() => resolveFirebaseToolsCliEntry({
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+    readFileSync: () => '{',
+  }), /valid firebase-tools package metadata/);
+
+  fs.writeFileSync(fixture.packageJsonPath, JSON.stringify({ bin: {} }));
+  assert.throws(() => resolveFirebaseToolsCliEntry({
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+  }), /safe relative bin\.firebase/);
+
+  fs.writeFileSync(fixture.packageJsonPath, JSON.stringify({ bin: { firebase: '../outside.js' } }));
+  assert.throws(() => resolveFirebaseToolsCliEntry({
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+  }), /inside its package/);
+
+  fs.writeFileSync(fixture.packageJsonPath, JSON.stringify({ bin: { firebase: './missing.js' } }));
+  assert.throws(() => resolveFirebaseToolsCliEntry({
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+  }), /installed firebase-tools CLI entry/);
+
+  fs.writeFileSync(fixture.packageJsonPath, JSON.stringify({ bin: { firebase: './lib/bin' } }));
+  assert.throws(() => resolveFirebaseToolsCliEntry({
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+  }), /not a regular file/);
+});
+
+test('Windows spawn spec uses Node and the installed firebase-tools entry without a shell', (t) => {
+  const fixture = createFakeFirebaseTools(t);
+  const plan = buildHostingDeployPlan({
+    project: STAGING_PROJECT_ID,
+    config: 'firebase.staging.placeholder.json',
+    execute: true,
+  });
+  const spec = buildFirebaseSpawnSpec(plan, {
+    platform: 'win32',
+    nodeExecutable: 'C:\\Program Files\\nodejs\\node.exe',
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+  });
+  assert.equal(spec.command, 'C:\\Program Files\\nodejs\\node.exe');
+  assert.equal(spec.args[0], fs.realpathSync(fixture.entry));
+  assert.deepEqual(spec.args.slice(1), plan.args);
+  assert.equal(spec.shell, false);
+});
+
+test('POSIX spawn spec preserves the validated argv array and disables the shell', () => {
+  const plan = buildHostingDeployPlan({
+    project: STAGING_PROJECT_ID,
+    config: 'firebase.staging.hosting.json',
+    execute: true,
+  });
+  const spec = buildFirebaseSpawnSpec(plan, { platform: 'linux' });
+  assert.equal(spec.command, 'firebase');
+  assert.deepEqual(spec.args, plan.args);
+  assert.notEqual(spec.args, plan.args);
+  assert.equal(spec.shell, false);
+});
+
+test('execution resolves before spawn and fails closed without invoking a process', () => {
+  const plan = buildHostingDeployPlan({
+    project: STAGING_PROJECT_ID,
+    config: 'firebase.staging.hosting.json',
+    execute: true,
+  });
+  let spawnCalls = 0;
+  assert.throws(() => executeHostingDeployPlan(plan, {
+    platform: 'win32',
+    resolvePackage: () => { throw new Error('missing'); },
+    spawnSync: () => { spawnCalls += 1; return { status: 0 }; },
+  }), /Unable to resolve/);
+  assert.equal(spawnCalls, 0);
+});
+
+test('execution spawns the exact Windows Node entry and reports process failures', (t) => {
+  const fixture = createFakeFirebaseTools(t);
+  const plan = buildHostingDeployPlan({
+    project: STAGING_PROJECT_ID,
+    config: 'firebase.staging.hosting.json',
+    execute: true,
+  });
+  let captured;
+  executeHostingDeployPlan(plan, {
+    platform: 'win32',
+    nodeExecutable: 'node-test.exe',
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+    stdio: 'pipe',
+    spawnSync: (command, args, options) => {
+      captured = { command, args, options };
+      return { status: 0 };
+    },
+  });
+  assert.equal(captured.command, 'node-test.exe');
+  assert.equal(captured.args[0], fs.realpathSync(fixture.entry));
+  assert.deepEqual(captured.args.slice(1), plan.args);
+  assert.equal(captured.options.shell, false);
+  assert.equal(captured.options.cwd, plan.cwd);
+
+  assert.throws(() => executeHostingDeployPlan(plan, {
+    platform: 'linux',
+    spawnSync: () => ({ error: new Error('ENOENT'), status: null }),
+  }), /ENOENT/);
+  assert.throws(() => executeHostingDeployPlan(plan, {
+    platform: 'linux',
+    spawnSync: () => ({ status: 1 }),
+  }), /deploy command failed/);
+});
+
+test('deploy production sources contain no Windows command-shell fallback', () => {
+  const script = fs.readFileSync(path.join(__dirname, 'deploy-staging-hosting.js'), 'utf8');
+  const library = fs.readFileSync(path.join(__dirname, 'stagingHostingLib.cjs'), 'utf8');
+  assert.equal(script.includes('shell: true'), false);
+  assert.equal(library.includes('shell: true'), false);
+  assert.equal(script.includes('firebase.cmd'), false);
+  assert.equal(library.includes('firebase.cmd'), false);
 });
 
 test('staging Hosting configs pin no-store on /, rewritten SPA routes and static assets', () => {

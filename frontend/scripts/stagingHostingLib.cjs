@@ -541,7 +541,12 @@ function buildHostingClonePlan(options = {}) {
   if (project !== STAGING_PROJECT_ID) {
     throw new Error(`Clone requires --project ${STAGING_PROJECT_ID}.`);
   }
-  if (!versionId || String(versionId).includes(':') || String(versionId).startsWith('@')) {
+  if (
+    !versionId
+    || String(versionId).startsWith('-')
+    || String(versionId).includes(':')
+    || String(versionId).startsWith('@')
+  ) {
     throw new Error('Clone version must be a bare Hosting version ID used as site@VERSION_ID.');
   }
   if (!/^[A-Za-z0-9_-]+$/.test(versionId)) {
@@ -557,6 +562,104 @@ function buildHostingClonePlan(options = {}) {
       STAGING_PROJECT_ID,
     ],
     dryRun: true,
+  };
+}
+
+function assertSafeDeployPlanArgs(plan) {
+  const root = repoRootFromScripts();
+  const allowedConfigPaths = ALLOWED_HOSTING_CONFIGS.map((config) => path.join(root, config));
+  const args = plan && Array.isArray(plan.args) ? plan.args : [];
+
+  if (!plan || plan.command !== 'firebase' || plan.cwd !== root) {
+    throw new Error('Refusing an invalid Firebase Hosting deploy plan.');
+  }
+  if (plan.execute !== true || plan.dryRun !== false) {
+    throw new Error('Refusing to spawn a dry-run Firebase Hosting deploy plan.');
+  }
+  if (
+    args.length !== 7
+    || args[0] !== 'deploy'
+    || args[1] !== '--project'
+    || args[2] !== STAGING_PROJECT_ID
+    || args[3] !== '--only'
+    || args[4] !== 'hosting'
+    || args[5] !== '--config'
+    || !allowedConfigPaths.includes(args[6])
+  ) {
+    throw new Error('Refusing unsafe Firebase Hosting deploy arguments.');
+  }
+  return plan;
+}
+
+function isPathInside(parent, candidate) {
+  const relative = path.relative(parent, candidate);
+  return relative !== '' && !relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative);
+}
+
+function resolveFirebaseToolsCliEntry(options = {}) {
+  const root = options.repoRoot || repoRootFromScripts();
+  const resolvePackage = options.resolvePackage || ((request, resolveOptions) => require.resolve(request, resolveOptions));
+  const readFileSync = options.readFileSync || fs.readFileSync;
+  const realpathSync = options.realpathSync || fs.realpathSync;
+  const statSync = options.statSync || fs.statSync;
+
+  let packageJsonPath;
+  try {
+    packageJsonPath = resolvePackage('firebase-tools/package.json', { paths: [root] });
+  } catch (_error) {
+    throw new Error('Unable to resolve the repository firebase-tools package. Run npm ci at the repository root.');
+  }
+
+  let metadata;
+  try {
+    metadata = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+  } catch (_error) {
+    throw new Error('Unable to read valid firebase-tools package metadata.');
+  }
+
+  const binEntry = typeof metadata.bin === 'string' ? metadata.bin : metadata.bin && metadata.bin.firebase;
+  if (typeof binEntry !== 'string' || !binEntry.trim() || path.isAbsolute(binEntry)) {
+    throw new Error('firebase-tools package metadata does not declare a safe relative bin.firebase entry.');
+  }
+
+  const packageDir = path.dirname(packageJsonPath);
+  const candidate = path.resolve(packageDir, binEntry);
+  if (!isPathInside(packageDir, candidate)) {
+    throw new Error('firebase-tools bin.firebase must stay inside its package directory.');
+  }
+
+  let realPackageDir;
+  let realEntry;
+  let entryStat;
+  try {
+    realPackageDir = realpathSync(packageDir);
+    realEntry = realpathSync(candidate);
+    entryStat = statSync(realEntry);
+  } catch (_error) {
+    throw new Error('Unable to resolve the installed firebase-tools CLI entry.');
+  }
+  if (!isPathInside(realPackageDir, realEntry) || !entryStat.isFile()) {
+    throw new Error('The installed firebase-tools CLI entry is not a regular file inside its package.');
+  }
+  return realEntry;
+}
+
+function buildFirebaseSpawnSpec(plan, options = {}) {
+  assertSafeDeployPlanArgs(plan);
+  const platform = options.platform || process.platform;
+  if (platform !== 'win32') {
+    return {
+      command: plan.command,
+      args: [...plan.args],
+      shell: false,
+    };
+  }
+
+  const entry = resolveFirebaseToolsCliEntry(options);
+  return {
+    command: options.nodeExecutable || process.execPath,
+    args: [entry, ...plan.args],
+    shell: false,
   };
 }
 
@@ -613,6 +716,9 @@ module.exports = {
   parseStagingDeployArgv,
   buildHostingDeployPlan,
   buildHostingClonePlan,
+  assertSafeDeployPlanArgs,
+  resolveFirebaseToolsCliEntry,
+  buildFirebaseSpawnSpec,
   resolveHostingConfigPath,
   headersForHostingRequest,
   loadStagingHostingConfig,

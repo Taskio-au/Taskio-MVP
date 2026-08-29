@@ -5,6 +5,7 @@ const {
   parseStagingDeployArgv,
   buildHostingDeployPlan,
   buildHostingClonePlan,
+  buildFirebaseSpawnSpec,
 } = require('./stagingHostingLib.cjs');
 
 function printPlan(plan) {
@@ -12,8 +13,25 @@ function printPlan(plan) {
   process.stdout.write(`${plan.dryRun ? '[dry-run] ' : ''}${rendered}\n`);
 }
 
-function main() {
-  const args = parseStagingDeployArgv(process.argv.slice(2));
+function executeHostingDeployPlan(plan, options = {}) {
+  const spawn = options.spawnSync || spawnSync;
+  const spec = buildFirebaseSpawnSpec(plan, options);
+  const result = spawn(spec.command, spec.args, {
+    cwd: plan.cwd,
+    stdio: options.stdio || 'inherit',
+    shell: spec.shell,
+  });
+  if (result.error) {
+    throw new Error(`Firebase Hosting deploy command failed: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error('Firebase Hosting deploy command failed.');
+  }
+  return result;
+}
+
+function main(argv = process.argv.slice(2)) {
+  const args = parseStagingDeployArgv(argv);
   if (args.cloneVersion) {
     const plan = buildHostingClonePlan({
       project: args.project,
@@ -29,19 +47,16 @@ function main() {
   });
   printPlan(plan);
   if (!plan.execute) return;
-  const result = spawnSync(plan.command, plan.args, {
-    cwd: plan.cwd,
-    stdio: 'inherit',
-    shell: false,
-  });
-  if (result.status !== 0) {
-    throw new Error('Firebase Hosting deploy command failed.');
+  executeHostingDeployPlan(plan);
+}
+
+if (require.main === module) {
+  try {
+    main();
+  } catch (err) {
+    console.error('[staging-deploy]', err && err.message);
+    process.exit(1);
   }
 }
 
-try {
-  main();
-} catch (err) {
-  console.error('[staging-deploy]', err && err.message);
-  process.exit(1);
-}
+module.exports = { main, executeHostingDeployPlan };
