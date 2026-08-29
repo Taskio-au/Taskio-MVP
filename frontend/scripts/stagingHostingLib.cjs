@@ -1,0 +1,380 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const STAGING_PROJECT_ID = 'taskio-v2-staging';
+const PRODUCTION_PROJECT_ID = 'taskio-v2';
+const STAGING_API_HOST = 'taskio-api-staging-d6mdcsrwea-ts.a.run.app';
+const PRODUCTION_API_HOST = 'api.taskio.com.au';
+const STAGING_API_URL = `https://${STAGING_API_HOST}`;
+
+const FIREBASE_ENV_KEYS = [
+  'REACT_APP_FIREBASE_API_KEY',
+  'REACT_APP_FIREBASE_AUTH_DOMAIN',
+  'REACT_APP_FIREBASE_PROJECT_ID',
+  'REACT_APP_FIREBASE_STORAGE_BUCKET',
+  'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
+  'REACT_APP_FIREBASE_APP_ID',
+];
+
+const ALLOWED_HOSTING_CONFIGS = [
+  'firebase.staging.placeholder.json',
+  'firebase.staging.hosting.json',
+];
+
+const PRODUCTION_FALLBACK_FINGERPRINTS = [
+  'AIzaSyAVmOP2j8VIMHWRz9o49JHKqyiszQ5qMOg',
+  'taskio-v2.firebaseapp.com',
+  'taskio-v2.firebasestorage.app',
+  '848916998874',
+  '1:848916998874:web:718d57c9621cb15461d3e3',
+];
+
+const SCAN_EXTENSIONS = new Set(['.html', '.js', '.css', '.json', '.webmanifest', '.txt']);
+
+const STAGING_REACT_APP_ALLOWLIST = new Set([
+  'REACT_APP_FIREBASE_EXPECTED_PROJECT_ID',
+  ...FIREBASE_ENV_KEYS,
+  'REACT_APP_API_BASE_URL',
+  'REACT_APP_STRIPE_PUBLISHABLE_KEY',
+  'REACT_APP_DISABLE_PHONE_RECAPTCHA',
+  'REACT_APP_E2E_AUTH_BYPASS',
+  'REACT_APP_APPCHECK_ENABLED',
+  'REACT_APP_APPCHECK_SITE_KEY',
+]);
+
+function repoRootFromScripts() {
+  return path.resolve(__dirname, '..', '..');
+}
+
+function collectDotenvReactAppKeys(frontendRoot) {
+  const names = new Set();
+  const files = ['.env', '.env.local', '.env.production', '.env.production.local'];
+  for (const file of files) {
+    const fullPath = path.join(frontendRoot, file);
+    if (!fs.existsSync(fullPath)) continue;
+    const text = fs.readFileSync(fullPath, 'utf8');
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const match = trimmed.match(/^(?:export\s+)?(REACT_APP_[A-Z0-9_]+)\s*=/);
+      if (match) names.add(match[1]);
+    }
+  }
+  return names;
+}
+
+function containsProductionProjectId(text) {
+  return /(?:^|[^a-z0-9-])taskio-v2(?!-staging)(?:[^a-z0-9-]|$)/i.test(String(text));
+}
+
+function parseApiUrl(value, label) {
+  let parsed;
+  try {
+    parsed = new URL(String(value || '').trim());
+  } catch (_error) {
+    throw new Error(`${label} must be an absolute URL.`);
+  }
+  return parsed;
+}
+
+function assertStagingBuildEnv(env) {
+  const expectedProject = String(env.REACT_APP_FIREBASE_EXPECTED_PROJECT_ID || '').trim();
+  if (!expectedProject) {
+    throw new Error('REACT_APP_FIREBASE_EXPECTED_PROJECT_ID is required for a staging build.');
+  }
+  if (expectedProject !== STAGING_PROJECT_ID) {
+    throw new Error(`Staging build expected project must be ${STAGING_PROJECT_ID}.`);
+  }
+
+  const missing = FIREBASE_ENV_KEYS.filter((key) => !String(env[key] || '').trim());
+  if (missing.length) {
+    throw new Error(`Staging build requires complete explicit Firebase configuration. Missing: ${missing.join(', ')}.`);
+  }
+
+  if (String(env.REACT_APP_FIREBASE_PROJECT_ID).trim() === PRODUCTION_PROJECT_ID) {
+    throw new Error('REACT_APP_FIREBASE_PROJECT_ID must be taskio-v2-staging.');
+  }
+  if (String(env.REACT_APP_FIREBASE_PROJECT_ID).trim() !== STAGING_PROJECT_ID) {
+    throw new Error('REACT_APP_FIREBASE_PROJECT_ID must be taskio-v2-staging.');
+  }
+  if (String(env.REACT_APP_FIREBASE_AUTH_DOMAIN).trim() !== `${STAGING_PROJECT_ID}.firebaseapp.com`) {
+    throw new Error('REACT_APP_FIREBASE_AUTH_DOMAIN must belong to taskio-v2-staging.');
+  }
+  const storageBucket = String(env.REACT_APP_FIREBASE_STORAGE_BUCKET).trim();
+  if (
+    storageBucket !== `${STAGING_PROJECT_ID}.firebasestorage.app`
+    && storageBucket !== `${STAGING_PROJECT_ID}.appspot.com`
+  ) {
+    throw new Error('REACT_APP_FIREBASE_STORAGE_BUCKET must belong to taskio-v2-staging.');
+  }
+
+  const apiUrl = parseApiUrl(env.REACT_APP_API_BASE_URL, 'REACT_APP_API_BASE_URL');
+  if (apiUrl.protocol !== 'https:') {
+    throw new Error('Staging API URL must use HTTPS.');
+  }
+  if (apiUrl.hostname !== STAGING_API_HOST) {
+    throw new Error(`Staging API URL must use host ${STAGING_API_HOST}.`);
+  }
+  if (apiUrl.hostname === PRODUCTION_API_HOST || /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]/i.test(apiUrl.hostname)) {
+    throw new Error('Staging API URL must not use a production or loopback host.');
+  }
+
+  const stripeKey = String(env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '').trim();
+  if (stripeKey) {
+    if (stripeKey.startsWith('pk_live_')) {
+      throw new Error('Staging builds must not embed a live Stripe publishable key.');
+    }
+    if (!stripeKey.startsWith('pk_test_')) {
+      throw new Error('If supplied, REACT_APP_STRIPE_PUBLISHABLE_KEY must be a pk_test_ key.');
+    }
+  }
+
+  if (String(env.REACT_APP_DISABLE_PHONE_RECAPTCHA || '').toLowerCase() === 'true') {
+    throw new Error('REACT_APP_DISABLE_PHONE_RECAPTCHA must not be true for a staging production build.');
+  }
+  if (String(env.REACT_APP_E2E_AUTH_BYPASS || '').toLowerCase() === 'true') {
+    throw new Error('REACT_APP_E2E_AUTH_BYPASS must not be true for a staging production build.');
+  }
+  if (String(env.REACT_APP_APPCHECK_DEBUG_TOKEN || '').trim()) {
+    throw new Error('REACT_APP_APPCHECK_DEBUG_TOKEN is forbidden in staging production builds.');
+  }
+
+  for (const key of FIREBASE_ENV_KEYS) {
+    const value = String(env[key] || '').trim();
+    if (PRODUCTION_FALLBACK_FINGERPRINTS.includes(value)) {
+      throw new Error(`${key} must not reuse the production Firebase fallback.`);
+    }
+  }
+}
+
+function stagingBuildChildEnv(env, frontendRoot = path.resolve(__dirname, '..')) {
+  assertStagingBuildEnv(env);
+  const child = { ...env };
+  const allow = new Set(STAGING_REACT_APP_ALLOWLIST);
+  if (!String(env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '').trim()) {
+    allow.delete('REACT_APP_STRIPE_PUBLISHABLE_KEY');
+  }
+  if (String(env.REACT_APP_APPCHECK_ENABLED || '').trim() !== 'true') {
+    allow.delete('REACT_APP_APPCHECK_ENABLED');
+    allow.delete('REACT_APP_APPCHECK_SITE_KEY');
+  }
+
+  const keysToBlank = new Set([
+    ...Object.keys(child).filter((key) => key.startsWith('REACT_APP_')),
+    ...collectDotenvReactAppKeys(frontendRoot),
+  ]);
+  for (const key of keysToBlank) {
+    if (!allow.has(key)) {
+      child[key] = '';
+    }
+  }
+
+  child.REACT_APP_DISABLE_PHONE_RECAPTCHA = 'false';
+  child.REACT_APP_E2E_AUTH_BYPASS = 'false';
+  child.REACT_APP_E2E_HARNESS_BUILD = '';
+  child.GENERATE_SOURCEMAP = 'false';
+  child.INLINE_RUNTIME_CHUNK = 'false';
+  child.CI = child.CI || 'true';
+  child.REACT_APP_APPCHECK_DEBUG_TOKEN = '';
+  return child;
+}
+
+function walkFiles(dir, files = []) {
+  if (!fs.existsSync(dir)) return files;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkFiles(full, files);
+    else files.push(full);
+  }
+  return files;
+}
+
+function listSourceMapFiles(buildDir) {
+  return walkFiles(buildDir).filter((file) => file.endsWith('.map'));
+}
+
+function isScanTarget(filePath) {
+  if (filePath.endsWith('.map')) return false;
+  return SCAN_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
+function loadOptionalFixtures(env) {
+  const filePath = String(env.TASKIO_STAGING_SCAN_FIXTURE_FILE || '').trim();
+  if (filePath) {
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return {
+      phone: parsed.phone ? String(parsed.phone) : '',
+      otp: parsed.otp ? String(parsed.otp) : '',
+    };
+  }
+  return {
+    phone: String(env.TASKIO_STAGING_SCAN_PHONE || ''),
+    otp: String(env.TASKIO_STAGING_SCAN_OTP || ''),
+  };
+}
+
+function containsTestingBypassAssignment(text) {
+  const source = String(text);
+  const assignment = /appVerificationDisabledForTesting\s*(?<![<>!=])=(?!=)\s*(?:true|!0)\b/g;
+  let match;
+  while ((match = assignment.exec(source))) {
+    const around = source.slice(Math.max(0, match.index - 280), match.index + match[0].length + 40);
+    if (/emulator/i.test(around)) continue;
+    return true;
+  }
+  return false;
+}
+
+function containsLoopbackApiBase(text) {
+  return /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):\d+/i.test(String(text));
+}
+
+function scanText(text, fixtures) {
+  const findings = [];
+  if (containsTestingBypassAssignment(text)) {
+    findings.push('application testing-bypass assignment is present');
+  }
+  if (/REACT_APP_DISABLE_PHONE_RECAPTCHA["']?\s*[:=]\s*["']true["']/.test(text)) {
+    findings.push('testing-bypass env compiled as true');
+  }
+  if (containsProductionProjectId(text)) {
+    findings.push('production Firebase project identifier is present');
+  }
+  if (PRODUCTION_FALLBACK_FINGERPRINTS.some((fingerprint) => fingerprint && text.includes(fingerprint))) {
+    findings.push('production Firebase fallback identifier is present');
+  }
+  if (text.includes(PRODUCTION_API_HOST)) {
+    findings.push('production API host is present');
+  }
+  if (containsLoopbackApiBase(text)) {
+    findings.push('localhost or loopback API base is present');
+  }
+  if (/\bpk_live_/.test(text)) {
+    findings.push('live Stripe publishable key is present');
+  }
+  if (fixtures.phone && text.includes(fixtures.phone)) {
+    findings.push('configured phone fixture is present');
+  }
+  if (fixtures.otp && text.includes(fixtures.otp)) {
+    findings.push('configured OTP fixture is present');
+  }
+  return findings;
+}
+
+function scanStagingBundle(buildDir, env = process.env) {
+  if (!fs.existsSync(buildDir)) {
+    throw new Error(`Staging build directory is missing: ${buildDir}`);
+  }
+  const maps = listSourceMapFiles(buildDir);
+  if (maps.length) {
+    throw new Error('Staging build must not contain source map files.');
+  }
+  const fixtures = loadOptionalFixtures(env);
+  const files = walkFiles(buildDir).filter(isScanTarget);
+  const allFindings = [];
+  let combined = '';
+  for (const file of files) {
+    const text = fs.readFileSync(file, 'utf8');
+    combined += `\n${text}`;
+    const findings = scanText(text, fixtures);
+    for (const finding of findings) {
+      allFindings.push({ file: path.relative(buildDir, file).replace(/\\/g, '/'), finding });
+    }
+  }
+  if (!combined.includes(STAGING_PROJECT_ID)) {
+    allFindings.push({ file: '.', finding: 'staging project identifier is missing' });
+  }
+  if (!combined.includes(STAGING_API_HOST)) {
+    allFindings.push({ file: '.', finding: 'staging API host is missing' });
+  }
+  if (allFindings.length) {
+    const summary = allFindings.map((item) => `${item.file}: ${item.finding}`).join('; ');
+    throw new Error(`Staging bundle scan failed: ${summary}`);
+  }
+  return { ok: true, filesScanned: files.length };
+}
+
+function resolveHostingConfigPath(configArg, root) {
+  const base = path.basename(String(configArg || ''));
+  if (!base || base === 'firebase.json') {
+    throw new Error('Refusing firebase.json or a missing Hosting config.');
+  }
+  if (!ALLOWED_HOSTING_CONFIGS.includes(base)) {
+    throw new Error(`Unknown staging Hosting config: ${base}`);
+  }
+  return path.join(root, base);
+}
+
+function buildHostingDeployPlan({ project, config, execute = false, extraArgs = [] } = {}) {
+  if (!project) {
+    throw new Error('Missing --project. Staging Hosting requires taskio-v2-staging.');
+  }
+  if (project === PRODUCTION_PROJECT_ID || project !== STAGING_PROJECT_ID) {
+    throw new Error(`Refusing project ${project}. Staging Hosting accepts only ${STAGING_PROJECT_ID}.`);
+  }
+  const root = repoRootFromScripts();
+  const configPath = resolveHostingConfigPath(config, root);
+  const args = [
+    'deploy',
+    '--project',
+    STAGING_PROJECT_ID,
+    '--only',
+    'hosting',
+    '--config',
+    configPath,
+    ...extraArgs,
+  ];
+  return {
+    command: 'firebase',
+    args,
+    cwd: root,
+    execute: execute === true,
+    dryRun: execute !== true,
+  };
+}
+
+function buildHostingClonePlan({ project, versionId } = {}) {
+  if (!project || project !== STAGING_PROJECT_ID) {
+    throw new Error(`Clone requires --project ${STAGING_PROJECT_ID}.`);
+  }
+  if (!versionId || String(versionId).includes(':') || String(versionId).startsWith('@')) {
+    throw new Error('Clone version must be a bare Hosting version ID used as site@VERSION_ID.');
+  }
+  if (!/^[A-Za-z0-9_-]+$/.test(versionId)) {
+    throw new Error('Clone version ID has an unexpected shape.');
+  }
+  return {
+    command: 'firebase',
+    args: [
+      'hosting:clone',
+      `${STAGING_PROJECT_ID}@${versionId}`,
+      `${STAGING_PROJECT_ID}:live`,
+      '--project',
+      STAGING_PROJECT_ID,
+    ],
+    dryRun: true,
+  };
+}
+
+module.exports = {
+  STAGING_PROJECT_ID,
+  PRODUCTION_PROJECT_ID,
+  STAGING_API_HOST,
+  PRODUCTION_API_HOST,
+  STAGING_API_URL,
+  ALLOWED_HOSTING_CONFIGS,
+  containsProductionProjectId,
+  assertStagingBuildEnv,
+  stagingBuildChildEnv,
+  listSourceMapFiles,
+  scanStagingBundle,
+  scanText,
+  containsTestingBypassAssignment,
+  containsLoopbackApiBase,
+  buildHostingDeployPlan,
+  buildHostingClonePlan,
+  resolveHostingConfigPath,
+  repoRootFromScripts,
+};
