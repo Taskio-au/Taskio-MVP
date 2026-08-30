@@ -164,6 +164,28 @@ test('staging build env refuses production API, live Stripe and testing bypass',
   }), /expected project must be/);
 });
 
+test('staging App Check debug token is forbidden and enabled requires a public site key', () => {
+  assert.throws(() => assertStagingBuildEnv({
+    ...validEnv,
+    REACT_APP_APPCHECK_DEBUG_TOKEN: 'true',
+  }), /APPCHECK_DEBUG_TOKEN is forbidden/);
+  assert.throws(() => assertStagingBuildEnv({
+    ...validEnv,
+    REACT_APP_APPCHECK_ENABLED: 'true',
+  }), /requires REACT_APP_APPCHECK_SITE_KEY/);
+  const child = stagingBuildChildEnv({
+    ...validEnv,
+    ...windowsEssentials,
+    REACT_APP_APPCHECK_ENABLED: 'true',
+    REACT_APP_APPCHECK_SITE_KEY: 'staging-public-site-key',
+    REACT_APP_APPCHECK_PROVIDER: 'recaptcha-enterprise',
+  });
+  assert.equal(child.REACT_APP_APPCHECK_ENABLED, 'true');
+  assert.equal(child.REACT_APP_APPCHECK_SITE_KEY, 'staging-public-site-key');
+  assert.equal(child.REACT_APP_APPCHECK_PROVIDER, 'recaptcha-enterprise');
+  assert.equal(child.REACT_APP_APPCHECK_DEBUG_TOKEN, '');
+});
+
 test('scan fails on production identifiers and bypass assignment, not SDK property names', () => {
   const fixtures = { phone: '', otp: '' };
   assert.deepEqual(scanText('appVerificationDisabledForTesting', fixtures), []);
@@ -183,6 +205,11 @@ test('scan fails on production identifiers and bypass assignment, not SDK proper
   assert.ok(scanText('REACT_APP_API_BASE_URL:"http://localhost"', fixtures).length);
   assert.ok(scanText('https://localhost:8000/api', fixtures).length);
   assert.ok(scanText('pk_live_abc', fixtures).length);
+  assert.ok(
+    scanText('REACT_APP_APPCHECK_DEBUG_TOKEN:"true"', fixtures)[0]
+      .includes('App Check debug token'),
+  );
+  assert.deepEqual(scanText('FIREBASE_APPCHECK_DEBUG_TOKEN', fixtures), []);
 });
 
 test('scan equality-checks fixtures without using generic digit matching', () => {

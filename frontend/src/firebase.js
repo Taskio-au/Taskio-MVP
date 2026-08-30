@@ -3,9 +3,10 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider, ReCaptchaV3Provider } from 'firebase/app-check';
 import { resolveFirebaseConfig } from './config/firebaseConfig';
 import { resolveAppCheckConfig } from './config/appCheckConfig';
+import { initializeTaskioAppCheck } from './config/appCheckInit';
 import { appCheckEnvFromProcess, firebaseEnvFromProcess } from './config/runtimeEnv';
 
 const productionFirebaseFallback =
@@ -26,27 +27,23 @@ const firebaseConfig = resolveFirebaseConfig(firebaseEnvFromProcess(), productio
 
 const app = initializeApp(firebaseConfig);
 
-// Optional App Check (recommended for production).
+// Optional App Check. Safe default is disabled (no provider). See docs/APP_CHECK.md.
 // Enable with:
 // - REACT_APP_APPCHECK_ENABLED=true
-// - REACT_APP_APPCHECK_SITE_KEY=<reCAPTCHA v3 site key>
-// For local dev you can use a debug token:
+// - REACT_APP_APPCHECK_SITE_KEY=<public reCAPTCHA site key>
+// - REACT_APP_APPCHECK_PROVIDER=recaptcha-v3 (default) or recaptcha-enterprise
+// Local/dev only (forbidden in production and staging Hosting builds):
 // - REACT_APP_APPCHECK_DEBUG_TOKEN=true (or a specific debug token string)
 const appCheckConfig = resolveAppCheckConfig(appCheckEnvFromProcess());
 try {
-  if (appCheckConfig.debugToken) {
-    const g = typeof window !== 'undefined' ? window : {};
-    g.FIREBASE_APPCHECK_DEBUG_TOKEN =
-      appCheckConfig.debugToken === 'true'
-        ? true
-        : appCheckConfig.debugToken;
-  }
-  if (appCheckConfig.enabled) {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(appCheckConfig.siteKey),
-      isTokenAutoRefreshEnabled: true,
-    });
-  }
+  initializeTaskioAppCheck({
+    app,
+    config: appCheckConfig,
+    windowRef: typeof window !== 'undefined' ? window : undefined,
+    initializeAppCheckFn: initializeAppCheck,
+    recaptchaV3Provider: ReCaptchaV3Provider,
+    recaptchaEnterpriseProvider: ReCaptchaEnterpriseProvider,
+  });
 } catch (e) {
   if (process.env.NODE_ENV === 'production') throw e;
 }

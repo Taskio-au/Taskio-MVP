@@ -44,6 +44,7 @@ const STAGING_REACT_APP_ALLOWLIST = new Set([
   'REACT_APP_E2E_AUTH_BYPASS',
   'REACT_APP_APPCHECK_ENABLED',
   'REACT_APP_APPCHECK_SITE_KEY',
+  'REACT_APP_APPCHECK_PROVIDER',
 ]);
 // Intentionally omitted: REACT_APP_PUBLIC_ACQUISITION_ENABLED — staging stays invite-only.
 
@@ -248,6 +249,10 @@ function assertStagingBuildEnv(env) {
   if (String(env.REACT_APP_APPCHECK_DEBUG_TOKEN || '').trim()) {
     throw new Error('REACT_APP_APPCHECK_DEBUG_TOKEN is forbidden in staging production builds.');
   }
+  if (String(env.REACT_APP_APPCHECK_ENABLED || '').trim() === 'true'
+    && !String(env.REACT_APP_APPCHECK_SITE_KEY || '').trim()) {
+    throw new Error('REACT_APP_APPCHECK_ENABLED=true requires REACT_APP_APPCHECK_SITE_KEY.');
+  }
 
   for (const key of FIREBASE_ENV_KEYS) {
     const value = String(env[key] || '').trim();
@@ -281,6 +286,8 @@ function stagingBuildChildEnv(env, frontendRoot = path.resolve(__dirname, '..'))
   if (String(env.REACT_APP_APPCHECK_ENABLED || '').trim() === 'true') {
     child.REACT_APP_APPCHECK_ENABLED = 'true';
     child.REACT_APP_APPCHECK_SITE_KEY = String(env.REACT_APP_APPCHECK_SITE_KEY || '').trim();
+    const provider = String(env.REACT_APP_APPCHECK_PROVIDER || '').trim();
+    if (provider) child.REACT_APP_APPCHECK_PROVIDER = provider;
   }
 
   child.REACT_APP_DISABLE_PHONE_RECAPTCHA = 'false';
@@ -351,6 +358,9 @@ function scanText(text, fixtures) {
   }
   if (/REACT_APP_DISABLE_PHONE_RECAPTCHA["']?\s*[:=]\s*["']true["']/.test(text)) {
     findings.push('testing-bypass env compiled as true');
+  }
+  if (/REACT_APP_APPCHECK_DEBUG_TOKEN["']?\s*[:=]\s*["'](?:true|[^"']+)["']/.test(text)) {
+    findings.push('App Check debug token env compiled');
   }
   if (containsProductionProjectId(text)) {
     findings.push('production Firebase project identifier is present');

@@ -30,4 +30,4 @@ npm run e2e
 
 ## Production build safety
 
-Production builds require an HTTPS API origin, a matching expected Firebase project ID, and E2E bypass disabled. App Check configuration fails closed when it is enabled without a site key and rejects production debug tokens. Deployment is a separate, owner-approved operation; a successful build does not deploy anything.
+Production builds require an HTTPS API origin, a matching expected Firebase project ID, and E2E bypass disabled. App Check is disabled by default; when enabled it fails closed without a public site key and rejects production debug tokens. See `docs/APP_CHECK.md`. Deployment is a separate, owner-approved operation; a successful build does not deploy anything.
