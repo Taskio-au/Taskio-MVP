@@ -10,15 +10,10 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
-import { loadStripe } from '@stripe/stripe-js';
 import { canUseVariations, isVariationReadOnly, isPaymentSecured } from '../utils/jobStateHelpers';
 import { createApiClient } from '../api/createApiClient';
 import { getVariationStatusLabel } from '../utils/variationStatusLabels';
-
-const stripePromise = process.env.REACT_APP_E2E_AUTH_BYPASS !== 'true'
-  && process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY)
-  : null;
+import { navigateToStripeHostedCheckout } from '../utils/stripeHostedCheckoutUrl';
 
 function centsToAud(cents) {
   const n = Number(cents || 0);
@@ -165,14 +160,12 @@ export default function VariationPanel({ jobId, job, onPendingVariationPayment }
     setFiles((p) => p.filter((_, i) => i !== idx));
   };
 
-  const redirectToStripe = async (sessionId) => {
-    const stripe = await stripePromise;
-    if (!stripe) {
-      setError('Stripe failed to load. Please refresh and try again.');
-      return;
+  const goToStripeCheckout = (checkoutUrl) => {
+    try {
+      navigateToStripeHostedCheckout(checkoutUrl);
+    } catch (_e) {
+      setError('Payment could not start. Please try again.');
     }
-    const { error: stripeErr } = await stripe.redirectToCheckout({ sessionId });
-    if (stripeErr) setError('Payment could not start. Please try again.');
   };
 
   const submitVariation = async () => {
@@ -247,8 +240,8 @@ export default function VariationPanel({ jobId, job, onPendingVariationPayment }
     try {
       const api = createApiClient();
       const { data } = await api.post(`/api/jobs/${jobId}/variations/${variationId}/approve`);
-      if (data?.sessionId) {
-        await redirectToStripe(data.sessionId);
+      if (data?.checkoutUrl) {
+        goToStripeCheckout(data.checkoutUrl);
       } else {
         writeSystemMessage(`Variation approved (#${String(variationId).slice(0, 6)}).`).catch(() => {});
       }
@@ -283,8 +276,10 @@ export default function VariationPanel({ jobId, job, onPendingVariationPayment }
     try {
       const api = createApiClient();
       const { data } = await api.post(`/api/jobs/${jobId}/variations/${variationId}/checkout`);
-      if (data?.sessionId) {
-        await redirectToStripe(data.sessionId);
+      if (data?.checkoutUrl) {
+        goToStripeCheckout(data.checkoutUrl);
+      } else {
+        setError('Payment could not start. Please try again.');
       }
     } catch (e) {
       console.error('Continue variation payment failed:', e);

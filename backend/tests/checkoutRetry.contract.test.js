@@ -68,6 +68,14 @@ const mockRetrieveCheckoutSession = jest.fn();
 const mockCreateCheckoutSession = jest.fn();
 const mockRetrievePaymentIntent = jest.fn();
 
+function hostedCheckoutUrl(sessionId) {
+  return `https://checkout.stripe.com/c/pay/${sessionId}`;
+}
+
+function stripeCheckoutSession(id, extra = {}) {
+  return { id, url: hostedCheckoutUrl(id), ...extra };
+}
+
 jest.mock('../src/firebaseAdmin', () => ({
   admin: {
     firestore: {
@@ -247,7 +255,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
   describe('First-time checkout', () => {
     it('transitions QUOTED job to AWAITING_FUNDING and returns a new session ID', async () => {
       seedQuotedJobAndQuote();
-      mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_new_abc', payment_intent: 'pi_new_abc' });
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_new_abc', { payment_intent: 'pi_new_abc' }));
 
       const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(424242);
       const res = await request(app)
@@ -258,6 +266,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.sessionId).toBe('cs_new_abc');
+      expect(res.body.checkoutUrl).toBe(hostedCheckoutUrl('cs_new_abc'));
       expect(res.body.reused).toBeFalsy();
 
       const job = readDoc('jobs', 'job-1');
@@ -277,7 +286,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
 
     it('sets cancel_url and success_url pointing back to the task', async () => {
       seedQuotedJobAndQuote();
-      mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_new_abc' });
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_new_abc'));
 
       await request(app)
         .post('/api/jobs/job-1/checkout')
@@ -289,12 +298,60 @@ describe('POST /api/jobs/:jobId/checkout', () => {
       );
       expect(callArgs.cancelUrl).toBe('http://localhost:3000/job/job-1?checkout=cancel');
     });
+
+    it('returns the Stripe-created hosted Checkout URL and ignores a client-supplied checkoutUrl', async () => {
+      seedQuotedJobAndQuote();
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_new_abc'));
+
+      const res = await request(app)
+        .post('/api/jobs/job-1/checkout')
+        .send({ quoteId: 'quote-1', checkoutUrl: 'https://evil.example/phish' })
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(200);
+      expect(res.body.checkoutUrl).toBe(hostedCheckoutUrl('cs_new_abc'));
+      expect(res.body.checkoutUrl).not.toContain('evil.example');
+      expect(mockCreateCheckoutSession.mock.calls[0][0].successUrl).toMatch(/\/job\/job-1\?checkout=success/);
+    });
+
+    it('fails closed when Stripe omits the hosted Checkout URL', async () => {
+      seedQuotedJobAndQuote();
+      mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_new_abc', payment_intent: 'pi_new_abc' });
+
+      const res = await request(app)
+        .post('/api/jobs/job-1/checkout')
+        .send({ quoteId: 'quote-1' })
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(500);
+      expect(res.body.checkoutUrl).toBeUndefined();
+    });
+
+    it('fails closed when Stripe returns a non-Checkout URL', async () => {
+      seedQuotedJobAndQuote();
+      mockCreateCheckoutSession.mockResolvedValue({
+        id: 'cs_new_abc',
+        url: 'https://evil.example/c/pay/cs_new_abc',
+      });
+
+      const res = await request(app)
+        .post('/api/jobs/job-1/checkout')
+        .send({ quoteId: 'quote-1' })
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(500);
+      expect(res.body.checkoutUrl).toBeUndefined();
+    });
   });
 
   describe('Retry after abandoned Stripe Checkout (AWAITING_FUNDING, same quote)', () => {
     it('reuses the existing open Stripe session', async () => {
       seedAwaitingFundingJob();
-      mockRetrieveCheckoutSession.mockResolvedValue({ status: 'open', payment_status: 'unpaid' });
+      mockRetrieveCheckoutSession.mockResolvedValue({
+        status: 'open',
+        payment_status: 'unpaid',
+        url: hostedCheckoutUrl('cs_existing_123'),
+      });
 
       const res = await request(app)
         .post('/api/jobs/job-1/checkout')
@@ -302,6 +359,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.sessionId).toBe('cs_existing_123');
+      expect(res.body.checkoutUrl).toBe(hostedCheckoutUrl('cs_existing_123'));
       expect(res.body.reused).toBe(true);
       // Should NOT have created a new session
       expect(mockCreateCheckoutSession).not.toHaveBeenCalled();
@@ -310,7 +368,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
     it('creates a fresh session when the existing one is expired', async () => {
       seedAwaitingFundingJob();
       mockRetrieveCheckoutSession.mockResolvedValue({ status: 'expired', payment_status: 'unpaid' });
-      mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_fresh_456', payment_intent: 'pi_fresh_456' });
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_fresh_456', { payment_intent: 'pi_fresh_456' }));
 
       const res = await request(app)
         .post('/api/jobs/job-1/checkout')
@@ -328,7 +386,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
     it('fails closed when retrieveCheckoutSession throws', async () => {
       seedAwaitingFundingJob();
       mockRetrieveCheckoutSession.mockRejectedValue(new Error('stripe_fetch_error'));
-      mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_fallback_789' });
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_fallback_789'));
 
       const res = await request(app)
         .post('/api/jobs/job-1/checkout')
@@ -341,7 +399,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
 
     it('creates a fresh session when no previous session was saved on the job', async () => {
       seedAwaitingFundingJob({ paymentCheckoutSessionId: null });
-      mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_no_prior_111' });
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_no_prior_111'));
 
       const res = await request(app)
         .post('/api/jobs/job-1/checkout')
@@ -355,7 +413,11 @@ describe('POST /api/jobs/:jobId/checkout', () => {
 
     it('does NOT transition job status (stays AWAITING_FUNDING) on retry', async () => {
       seedAwaitingFundingJob();
-      mockRetrieveCheckoutSession.mockResolvedValue({ status: 'open', payment_status: 'unpaid' });
+      mockRetrieveCheckoutSession.mockResolvedValue({
+        status: 'open',
+        payment_status: 'unpaid',
+        url: hostedCheckoutUrl('cs_existing_123'),
+      });
 
       await request(app)
         .post('/api/jobs/job-1/checkout')
@@ -374,7 +436,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
         arrivals += 1;
         if (arrivals === 2) releaseBoth();
         await bothArrived;
-        return { id: 'cs_shared', payment_intent: 'pi_shared' };
+        return stripeCheckoutSession('cs_shared', { payment_intent: 'pi_shared' });
       });
 
       const makeRequest = () => request(app)
@@ -553,7 +615,7 @@ describe('POST /api/jobs/:jobId/checkout', () => {
     process.env.STRIPE_SECRET_KEY = 'sk_test_present_but_disabled';
     try {
       seedQuotedJobAndQuote();
-      mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_should_not_exist' });
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_should_not_exist'));
 
       const res = await request(app)
         .post('/api/jobs/job-1/checkout')

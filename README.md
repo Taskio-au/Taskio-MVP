@@ -184,13 +184,13 @@ FRONTEND_URL=http://localhost:3000
 
 Set these in a local `frontend/.env` (never commit it):
 
-- **REACT_APP_STRIPE_PUBLISHABLE_KEY**: Stripe publishable key (`pk_test_...`)
 - **REACT_APP_API_BASE_URL** (optional for local work): defaults to `http://localhost:8000` — suitable for local development only; production builds must point at a real API base URL, not localhost
+
+Hosted Stripe Checkout uses the Checkout Session URL returned by `POST /api/jobs/:jobId/checkout`. The frontend does **not** require `REACT_APP_STRIPE_PUBLISHABLE_KEY` or Stripe.js for that flow.
 
 Example (placeholders only):
 
 ```sh
-REACT_APP_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
 REACT_APP_API_BASE_URL=http://localhost:8000
 ```
 

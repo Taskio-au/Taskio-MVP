@@ -82,7 +82,10 @@ const server = http.createServer(async (req, res) => {
         });
       }
 
-      return send(res, 200, { sessionId: 'cs_test_taskio_e2e_123' });
+      return send(res, 200, {
+        sessionId: 'cs_test_taskio_e2e_123',
+        checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_test_taskio_e2e_123',
+      });
     }
 
     if (req.method === 'POST' && path === '/api/e2e/payment/start') {

@@ -376,13 +376,18 @@ describe('admin job route contracts', () => {
       paymentCurrency: 'aud',
     });
     mockRetrieveCheckoutSession.mockResolvedValue({ status: 'expired', payment_status: 'unpaid' });
-    mockCreateCheckoutSession.mockResolvedValue({ id: 'cs_test_1', payment_intent: 'pi_new' });
+    mockCreateCheckoutSession.mockResolvedValue({
+      id: 'cs_test_1',
+      payment_intent: 'pi_new',
+      url: 'https://checkout.stripe.com/c/pay/cs_test_1',
+    });
 
     const res = await request(app).post('/api/admin/jobs/rj1/retry-payment');
 
     expect(res.status).toBe(200);
     expect(res.body.kind).toBe('checkout');
     expect(res.body.sessionId).toBe('cs_test_1');
+    expect(res.body.checkoutUrl).toBe('https://checkout.stripe.com/c/pay/cs_test_1');
     expect(mockCreateCheckoutSession).toHaveBeenCalled();
     expect(mockCreateCheckoutSession.mock.calls[0][0].idempotencyKey).toBe(
       'taskio_checkout_rj1_q1_g1'

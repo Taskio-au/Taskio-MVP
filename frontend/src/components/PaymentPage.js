@@ -9,14 +9,7 @@ import { BrandLogo } from '../design/components';
 import { CLIENT_PAYMENT_GATE } from '../constants/blockedFlowCopy';
 import { PageLoadingShell } from './ui/AsyncPageStates';
 import PageMain from './ui/PageMain';
-
-import { loadStripe } from '@stripe/stripe-js';
-
-// The browser harness must never load Stripe.js or contact Stripe. It exercises
-// the local API gate only; real checkout redirects remain covered by mocks.
-const stripePromise = process.env.REACT_APP_E2E_AUTH_BYPASS === 'true'
-    ? Promise.resolve(null)
-    : loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '');
+import { navigateToStripeHostedCheckout } from '../utils/stripeHostedCheckoutUrl';
 
 const api = createApiClient();
 
@@ -86,26 +79,19 @@ function PaymentPage() {
     const { jobId, quoteId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const [sessionId, setSessionId] = useState('');
+    const [checkoutUrl, setCheckoutUrl] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [redirecting, setRedirecting] = useState(false);
     const [needsAccountCompletion, setNeedsAccountCompletion] = useState(false);
     const backToTaskPath = jobId ? `/job/${jobId}` : '/dashboard';
-    const stripeConfigured = Boolean(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY);
 
-    const redirectToCheckout = useCallback(async (sid) => {
-        if (!sid) return;
+    const goToStripeCheckout = useCallback((url) => {
         try {
             setRedirecting(true);
-            const stripe = await stripePromise;
-            if (!stripe) {
-                setError('Stripe failed to load. Please refresh and try again.');
-                return;
-            }
-            const { error: stripeErr } = await stripe.redirectToCheckout({ sessionId: sid });
-            if (stripeErr) setError('Payment couldn\'t start. Please try again.');
-        } finally {
+            navigateToStripeHostedCheckout(url);
+        } catch (_e) {
+            setError('Payment couldn\'t start. Please try again.');
             setRedirecting(false);
         }
     }, []);
@@ -115,11 +101,6 @@ function PaymentPage() {
             const user = auth.currentUser || getE2EAuthUser();
             if (!user) {
                 navigate('/login');
-                return;
-            }
-            if (!stripeConfigured) {
-                setError('Stripe is not configured in this environment. Please contact support or try again later.');
-                setLoading(false);
                 return;
             }
             try {
@@ -133,12 +114,12 @@ function PaymentPage() {
                     });
                     return;
                 }
-                const sid = response?.data?.sessionId;
-                if (!sid) {
+                const url = response?.data?.checkoutUrl;
+                if (!url) {
                     setError('Payment couldn\'t start. Please try again.');
                     return;
                 }
-                setSessionId(sid);
+                setCheckoutUrl(url);
             } catch (err) {
                 console.error("Error creating checkout session:", err);
                 const code = err?.response?.data?.code;
@@ -154,14 +135,14 @@ function PaymentPage() {
         };
 
         createCheckoutSession();
-    }, [jobId, quoteId, navigate, stripeConfigured]);
+    }, [jobId, quoteId, navigate]);
 
-    // Auto-redirect once sessionId is ready.
+    // Auto-navigate once the server-returned Stripe Checkout URL is ready.
     useEffect(() => {
-        if (sessionId) {
-            redirectToCheckout(sessionId);
+        if (checkoutUrl) {
+            goToStripeCheckout(checkoutUrl);
         }
-    }, [sessionId, redirectToCheckout]);
+    }, [checkoutUrl, goToStripeCheckout]);
 
     if (loading) {
         return (
@@ -275,8 +256,8 @@ function PaymentPage() {
                 <button
                     type="button"
                     className="payment-pay-cta"
-                    onClick={() => redirectToCheckout(sessionId)}
-                    disabled={!sessionId || redirecting}
+                    onClick={() => goToStripeCheckout(checkoutUrl)}
+                    disabled={!checkoutUrl || redirecting}
                     style={styles.payButton}
                 >
                     {redirecting ? 'Redirecting to Stripe…' : 'Continue to checkout'}

@@ -10,7 +10,6 @@ const safeEnv = {
   REACT_APP_E2E_AUTH_BYPASS: 'true',
   REACT_APP_E2E_HARNESS_BUILD: 'true',
   REACT_APP_API_BASE_URL: 'http://127.0.0.1:3800',
-  REACT_APP_STRIPE_PUBLISHABLE_KEY: 'pk_test_taskio_e2e',
   REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: 'demo-taskio-e2e',
   REACT_APP_FIREBASE_API_KEY: 'demo-api-key',
   REACT_APP_FIREBASE_AUTH_DOMAIN: 'demo-taskio-e2e.firebaseapp.com',

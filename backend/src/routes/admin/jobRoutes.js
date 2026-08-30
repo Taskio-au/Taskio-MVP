@@ -31,6 +31,7 @@ const {
   jobCheckoutIdempotencyKey,
   allocateCheckoutGeneration,
 } = require('../../services/stripeIdempotency');
+const { toHostedCheckoutPayload, isHostedCheckoutUrlError } = require('../../utils/stripeHostedCheckoutUrl');
 
 const router = express.Router();
 
@@ -1052,7 +1053,10 @@ router.post('/api/admin/jobs/:jobId/retry-payment', requireAuth, requireSuperAdm
           const existingSession = await retrieveCheckoutSession(existingSessionId);
           const canReuse = existingSession?.status === 'open' && existingSession?.payment_status === 'unpaid';
           if (canReuse) {
-            return res.status(200).send({ kind: 'checkout', sessionId: existingSessionId, reused: true });
+            return res.status(200).send(toHostedCheckoutPayload(
+              { id: existingSessionId, url: existingSession.url },
+              { kind: 'checkout', reused: true },
+            ));
           }
           replaceSessionId = existingSessionId;
         } catch (_) {
@@ -1115,7 +1119,7 @@ router.post('/api/admin/jobs/:jobId/retry-payment', requireAuth, requireSuperAdm
         metadata: { sessionId: session.id },
       });
 
-      return res.status(200).send({ kind: 'checkout', sessionId: session.id, reused: false });
+      return res.status(200).send(toHostedCheckoutPayload(session, { kind: 'checkout', reused: false }));
     }
 
     if (ps === 'refund_failed' || ps === 'refund_pending') {
@@ -1148,6 +1152,9 @@ router.post('/api/admin/jobs/:jobId/retry-payment', requireAuth, requireSuperAdm
       message: `Retry is only for failed funding (payment_failed while awaiting funding) or refund_failed. Current paymentState: ${ps || '—'}`,
     });
   } catch (error) {
+    if (isHostedCheckoutUrlError(error)) {
+      return res.status(500).send({ message: 'Failed to retry payment.' });
+    }
     if (sendIfStripeDisabled(res, error)) return;
     if (error && error.code === 'stripe_not_configured') {
       return res.status(400).send({ message: 'Stripe is not configured on the server.' });

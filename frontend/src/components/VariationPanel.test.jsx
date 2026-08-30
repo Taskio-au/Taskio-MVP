@@ -44,12 +44,6 @@ jest.mock('firebase/storage', () => ({
   uploadBytesResumable: jest.fn(),
 }));
 
-jest.mock('@stripe/stripe-js', () => ({
-  loadStripe: jest.fn(() => Promise.resolve({
-    redirectToCheckout: jest.fn(() => Promise.resolve({ error: null })),
-  })),
-}));
-
 jest.mock('../utils/jobStateHelpers', () => ({
   canUseVariations: jest.fn(),
   isVariationReadOnly: jest.fn(),

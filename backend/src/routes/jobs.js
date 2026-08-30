@@ -43,6 +43,7 @@ const {
   homeownerCancelRefundKey,
   allocateCheckoutGeneration,
 } = require('../services/stripeIdempotency');
+const { toHostedCheckoutPayload, isHostedCheckoutUrlError } = require('../utils/stripeHostedCheckoutUrl');
 
 const router = express.Router();
 
@@ -687,7 +688,7 @@ async function reconcileBaseQuoteStripeBeforeNewCheckout(jobRef) {
         const sess = await retrieveCheckoutSession(sid);
         const canReuseOpen = sess?.status === 'open' && sess?.payment_status === 'unpaid';
         if (canReuseOpen) {
-          return { kind: 'reuse_open', sessionId: sid };
+          return { kind: 'reuse_open', sessionId: sid, url: sess.url };
         }
         if (sess?.payment_status === 'paid') {
           let piRaw = sess.payment_intent;
@@ -1323,7 +1324,10 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
       });
     }
     if (reco.kind === 'reuse_open') {
-      return res.status(200).send({ sessionId: reco.sessionId, reused: true });
+      return res.status(200).send(toHostedCheckoutPayload(
+        { id: reco.sessionId, url: reco.url },
+        { reused: true },
+      ));
     }
     if (reco.kind === 'retry_later') {
       return res.status(202).send({
@@ -1427,8 +1431,11 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
       paymentUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return res.status(200).send({ sessionId: session.id });
+    return res.status(200).send(toHostedCheckoutPayload(session));
   } catch (error) {
+    if (isHostedCheckoutUrlError(error)) {
+      return res.status(500).send({ message: 'Failed to initialize Stripe Checkout.' });
+    }
     if (error?.code === 'not_found') return res.status(404).send({ message: 'Task or quote not found.' });
     if (error?.code === 'forbidden') return res.status(403).send({ message: 'Forbidden: You do not own this task.' });
     if (error?.code === 'mismatch') return res.status(400).send({ message: 'Mismatch: This quote does not belong to the specified task.' });
@@ -1998,7 +2005,7 @@ async function inspectStoredCheckoutSession(sessionId) {
   try {
     const session = await retrieveCheckoutSession(sessionId);
     if (session?.status === 'open' && session?.payment_status === 'unpaid') {
-      return { kind: 'reuse', sessionId };
+      return { kind: 'reuse', sessionId, url: session.url };
     }
     return { kind: 'replace', replaceSessionId: sessionId };
   } catch (_) {
@@ -2150,7 +2157,10 @@ router.post(
 
       const inspected = await inspectStoredCheckoutSession(claimed.checkoutSessionId);
       if (inspected.kind === 'reuse') {
-        return res.status(200).send({ status: 'awaiting_payment', sessionId: inspected.sessionId, reused: true });
+        return res.status(200).send(toHostedCheckoutPayload(
+          { id: inspected.sessionId, url: inspected.url },
+          { status: 'awaiting_payment', reused: true },
+        ));
       }
       if (inspected.kind === 'retry_later') {
         return res.status(202).send({
@@ -2201,8 +2211,11 @@ router.post(
         action: 'CLIENT_VARIATION_AWAITING_PAYMENT',
         metadata: { variationId, amountInCents, sessionId: session.id },
       });
-      return res.status(200).send({ status: 'awaiting_payment', sessionId: session.id });
+      return res.status(200).send(toHostedCheckoutPayload(session, { status: 'awaiting_payment' }));
     } catch (e) {
+      if (isHostedCheckoutUrlError(e)) {
+        return res.status(500).send({ message: 'Failed to approve variation. Please try again.' });
+      }
       if (e?.code === 'not_found') return res.status(404).send({ message: 'Variation not found.' });
       if (e?.code === 'already_paid') return res.status(409).send({ message: 'This variation has already been paid.' });
       if (e?.code === 'not_pending') return res.status(409).send({ message: 'This variation is not pending review.' });
@@ -2252,7 +2265,10 @@ router.post(
 
       const inspected = await inspectStoredCheckoutSession(variation.checkoutSessionId);
       if (inspected.kind === 'reuse') {
-        return res.status(200).send({ sessionId: inspected.sessionId, reused: true });
+        return res.status(200).send(toHostedCheckoutPayload(
+          { id: inspected.sessionId, url: inspected.url },
+          { reused: true },
+        ));
       }
       if (inspected.kind === 'retry_later') {
         return res.status(202).send({
@@ -2298,8 +2314,11 @@ router.post(
         paymentCheckoutReplacementFor: null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      return res.status(200).send({ sessionId: retrySession.id });
+      return res.status(200).send(toHostedCheckoutPayload(retrySession));
     } catch (e) {
+      if (isHostedCheckoutUrlError(e)) {
+        return res.status(500).send({ message: 'Failed to start payment. Please try again.' });
+      }
       if (e?.code === 'not_found') return res.status(404).send({ message: 'Variation not found.' });
       if (sendIfStripeDisabled(res, e)) return;
       // eslint-disable-next-line no-console

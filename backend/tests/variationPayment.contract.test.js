@@ -26,7 +26,12 @@ const mockState = {
 function resetState() {
   mockState.collections = new Map();
   mockState.jobEventAdds = [];
-  mockState.stripeSession = { id: 'cs_test_123', status: 'open', payment_status: 'unpaid' };
+  mockState.stripeSession = {
+    id: 'cs_test_123',
+    status: 'open',
+    payment_status: 'unpaid',
+    url: 'https://checkout.stripe.com/c/pay/cs_test_123',
+  };
   mockState.currentUser = { uid: 'homeowner-1', role: 'homeowner', email: 'client@test.com', email_verified: true };
 }
 
@@ -440,6 +445,7 @@ describe('POST /api/jobs/:jobId/variations/:variationId/approve', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('awaiting_payment');
     expect(res.body.sessionId).toBe('cs_test_123');
+    expect(res.body.checkoutUrl).toBe('https://checkout.stripe.com/c/pay/cs_test_123');
 
     const v = getVariation('job-1', 'var-1');
     expect(v.status).toBe('awaiting_payment');
@@ -563,7 +569,12 @@ describe('POST /api/jobs/:jobId/variations/:variationId/approve', () => {
     seedActiveJob();
     seedPendingVariation('job-1', 'var-1', { priceChangeCents: 5000 });
     const { createCheckoutSession } = require('../src/services/stripe');
-    createCheckoutSession.mockResolvedValue({ id: 'cs_shared_var', status: 'open', payment_status: 'unpaid' });
+    createCheckoutSession.mockResolvedValue({
+      id: 'cs_shared_var',
+      status: 'open',
+      payment_status: 'unpaid',
+      url: 'https://checkout.stripe.com/c/pay/cs_shared_var',
+    });
 
     const app = buildApp();
     const makeRequest = () => request(app)
@@ -674,7 +685,12 @@ describe('POST /api/jobs/:jobId/variations/:variationId/checkout', () => {
       priceChangeCents: 5000,
       checkoutSessionId: 'cs_open',
     });
-    mockState.stripeSession = { id: 'cs_open', status: 'open', payment_status: 'unpaid' };
+    mockState.stripeSession = {
+      id: 'cs_open',
+      status: 'open',
+      payment_status: 'unpaid',
+      url: 'https://checkout.stripe.com/c/pay/cs_open',
+    };
 
     const { retrieveCheckoutSession } = require('../src/services/stripe');
     retrieveCheckoutSession.mockResolvedValueOnce(mockState.stripeSession);
@@ -685,6 +701,7 @@ describe('POST /api/jobs/:jobId/variations/:variationId/checkout', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.sessionId).toBe('cs_open');
+    expect(res.body.checkoutUrl).toBe('https://checkout.stripe.com/c/pay/cs_open');
     expect(res.body.reused).toBe(true);
 
     const { createCheckoutSession } = require('../src/services/stripe');
@@ -703,7 +720,12 @@ describe('POST /api/jobs/:jobId/variations/:variationId/checkout', () => {
     retrieveCheckoutSession.mockResolvedValueOnce({ id: 'cs_expired', status: 'expired', payment_status: 'unpaid' });
 
     const { createCheckoutSession } = require('../src/services/stripe');
-    createCheckoutSession.mockResolvedValueOnce({ id: 'cs_new_456', status: 'open', payment_status: 'unpaid' });
+    createCheckoutSession.mockResolvedValueOnce({
+      id: 'cs_new_456',
+      status: 'open',
+      payment_status: 'unpaid',
+      url: 'https://checkout.stripe.com/c/pay/cs_new_456',
+    });
 
     const res = await request(buildApp())
       .post('/api/jobs/job-1/variations/var-1/checkout')
@@ -711,6 +733,7 @@ describe('POST /api/jobs/:jobId/variations/:variationId/checkout', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.sessionId).toBe('cs_new_456');
+    expect(res.body.checkoutUrl).toBe('https://checkout.stripe.com/c/pay/cs_new_456');
     expect(res.body.reused).toBeUndefined();
 
     const v = getVariation('job-1', 'var-1');
