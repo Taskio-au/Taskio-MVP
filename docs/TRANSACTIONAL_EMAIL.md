@@ -7,12 +7,14 @@ Essential status email for the private Melbourne MVP. Not marketing, newsletters
 | Gate | State |
 |---|---|
 | P03 email application logic | CODE COMPLETE |
-| P03 email testing | LOCAL / CI READY |
+| P03 email testing | **PASS** (local / CI) |
 | P03 real provider delivery | **NOT VERIFIED** |
 | P03 staging delivery | **NOT VERIFIED** |
-| P03 production delivery | **NOT VERIFIED** |
+| P03 production delivery | **NOT CONFIGURED / NOT VERIFIED** |
+| P03 Postmark | Staging server created; SMTP token owner-stored; exposed credentials rotated; **manual review pending** |
+| P03 domain auth | `taskio.com.au` DKIM / Return-Path **NOT complete**. DNS is separate approval work. |
 
-Templates and local tests are not proof of delivery. Production activation is a separate approval.
+Templates and local tests are not proof of delivery. Production activation is a separate approval. Next action: wait for Postmark approval, then controlled staging-only activation and one owner-controlled delivery test. `EMAIL_ENABLED` remains false; do not treat DKIM/Return-Path as complete.
 
 ## Purpose
 
