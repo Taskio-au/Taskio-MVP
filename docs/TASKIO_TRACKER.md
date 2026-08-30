@@ -6,16 +6,17 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-08-30 tracker sync (authoritative).** Stage 4 Boundaries 1–3 are complete on `taskio-v2-staging`. Historical pickups below that say “PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH”, “do not restore Hosting”, or “do not require staging frontend / Hosting work” are **superseded**. Production PRE-LAUNCH FREEZE is unchanged.
+> **2026-08-30 B4A–C (authoritative).** GREEN invite-only source `9c2efc7` is live on staging Hosting. Authoritative B4 API is `taskio-api-staging-00063-qak` (Stripe TEST key-rotation). It supersedes the stale serving reference `taskio-api-staging-00030-m9x`. B4A–C **PASS**. Do **not** start B4D/E/F. Production PRE-LAUNCH FREEZE is unchanged. Historical pickups below that say “PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH”, “do not restore Hosting”, or “do not require staging frontend / Hosting work” remain **superseded**.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
+- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e` (`9c2efc7` `feat(frontend): present the Melbourne MVP as invite-only`). CI run [`33291968690`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33291968690) **success**.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
   - `56cc028` `docs: sync tracker after Stage 4 wrapper reconciliation` — **pushed**; CI run `33286833098` **success**.
 - Superseded local SHAs (backup only, not canonical): `4e4a068`, `1cb2f9a`, `119d923` on `backup/stage4-local-119d923`.
-- Owner decisions 2026-08-30 (private Melbourne MVP): invite-only enrollment; keep post-job OTP architecture for later public launch; founding experts invite-only; B4A–C prepared as one AMBER package (no OTP/writes); 10% + founding fee model unchanged; bank payout **pre-launch** (not B4A–C); variations not required for launch; minimal staging refund/admin drill **pre-launch**; cancellation rule unchanged; reviews unchanged; transactional email **pre-launch**; AI must not block launch; freeze 8 suburbs + Phase 1 catalog; legal review **pre-launch** (staging drafts OK); App Check **pre-launch**; privacy-conscious analytics **required** (no ad pixels); production remains frozen.
+- Owner decisions 2026-08-30 (private Melbourne MVP): invite-only enrollment; keep post-job OTP architecture for later public launch; founding experts invite-only; B4A–C **executed and PASS** on current serving API `00063-qak`; 10% + founding fee model unchanged; bank payout **pre-launch** (not B4A–C); variations not required for launch; minimal staging refund/admin drill **pre-launch**; cancellation rule unchanged; reviews unchanged; transactional email **pre-launch**; AI must not block launch; freeze 8 suburbs + Phase 1 catalog; legal review **pre-launch** (staging drafts OK); App Check **pre-launch**; privacy-conscious analytics **required** (no ad pixels); production remains frozen.
 - Local gcloud / `.firebaserc` default project remains **`taskio-v2`**. Staging commands must pass `--project=taskio-v2-staging` explicitly.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission.
 
@@ -25,28 +26,39 @@
 |---|---|---|
 | 1 | **DONE / pushed / CI green** | Hosting configs, fail-closed Firebase resolver, build/scan/deploy wrapper. Landed at `127f8c2`. CI run `33241796405`. Commits `f6b3b04`, `ad14d5e`, `681da2b`, `127f8c2`. |
 | 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
-| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Do not roll back the successful SPA release without a new approval. Hosted D3 journey **not** started. No OTP sent. |
+| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Invite-only SPA refresh of `9c2efc7` is now live (see Hosting below). Hosted D3 / B4D–F **not** started. No OTP sent. |
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
-| 4 | **NOT STARTED** | Combined **B4A–C** AMBER package to be presented after GREEN invite-only work. Excludes OTP, signup, writes, Stripe, App Check, deploy, production. |
+| 4 | **B4A–C PASS** | Hosted invite-only preflight + existing synthetic homeowner/expert/admin login + authenticated read-only dashboards against `00063-qak`. No OTP, no new Auth users, no job/quote/Stripe object writes, no Cloud Run traffic change. B4D/E/F **not** started. |
 
-**Exact next pickup:** GREEN G01–G05 locally complete. Present **one** B4A–C AMBER approval package. Do not execute hosted B4 until Saeed approves that package.
+**Exact next pickup:** B4A–C complete. Do **not** start B4D/E/F, OTP, job creation, quotes, Stripe objects, App Check, Cloud Run deploy/traffic, or production. Next is a **separate AMBER package** for B4D/E/F or remaining pre-launch gates (P01–P06).
 
-**Staging Cloud Run (Boundary 2, accepted):**
+**Staging Cloud Run (authoritative B4 / current serving):**
 
 - URL: `https://taskio-api-staging-d6mdcsrwea-ts.a.run.app`
-- Serving 100%: `taskio-api-staging-00030-m9x` (also service template)
+- Serving 100%: `taskio-api-staging-00063-qak` (tag `stripe-key-rotate`; also service template)
+- This **supersedes** the stale B4 serving reference `taskio-api-staging-00030-m9x`. Reason: accepted staging Stripe TEST secret/key-rotation revision. Same container digest and closed-signup/browser CORS posture as `00030-m9x`; only `STRIPE_SECRET_KEY` secret **version** changed (`:1` → `:3`). Do **not** roll traffic back to `00030-m9x` merely to satisfy old approval text. Preserve `00030-m9x` as historical closed-signup evidence.
 - Public signup remains **CLOSED**: serving/template `TASKIO_PUBLIC_SIGNUP_ENABLED=false`; Auth `disabledUserSignup=true`
-- Do **not** route traffic to open-signup revision `taskio-api-staging-d3o039629`
-- Stripe on this API remains TEST mode (`STRIPE_EXPECTED_LIVEMODE=false`)
+- Do **not** route traffic to open-signup revision `taskio-api-staging-d3o039629` (still 0%)
+- Stripe on this API remains TEST mode (`STRIPE_ENABLED=true`, `STRIPE_EXPECTED_LIVEMODE=false`)
+- No Cloud Run deploy or traffic mutation occurred during B4
 
-**Staging Hosting (Boundary 3, accepted):**
+**Staging Hosting (Boundary 3 + 2026-08-30 invite-only refresh):**
 
 - `https://taskio-v2-staging.web.app/`
 - `https://taskio-v2-staging.firebaseapp.com/`
-- Live SPA version: `d5a5f1e893f0dee0`
+- Live SPA version: `66888d3b5a527558` (CI-green `9c2efc7` invite-only bundle `main.52121089.js`)
+- Immediate previous known-good SPA (rollback for this refresh): `d5a5f1e893f0dee0` → `taskio-v2-staging@d5a5f1e893f0dee0` to `taskio-v2-staging:live` if a later approved restore is required
 - Placeholder rollback version (still FINALIZED): `c6d84a0333abec1f` → `taskio-v2-staging@c6d84a0333abec1f` to `taskio-v2-staging:live` if a later approved restore is required
 - Headers: `X-Robots-Tag: noindex, nofollow, noarchive` and `Cache-Control: no-store, max-age=0, must-revalidate`
 - Deploy wrapper accepts only `--project taskio-v2-staging` and `firebase.staging.placeholder.json` / `firebase.staging.hosting.json` (never `firebase.json`)
+
+**B4A–C evidence (2026-08-30):**
+
+- B4A PASS: both Hosting domains serve invite-only landing, `/login`, `/get-started`, `/post-job` (no guest OTP), `/tradie/signup`, `/terms`, `/privacy`; unauthenticated `/dashboard` redirects to `/login`; noindex/no-store; staging API host in bundle; no `pk_live_`; public acquisition off.
+- B4B PASS: existing synthetic homeowner and expert signed in through `/login`; existing synthetic admin signed in through `/admin` (public `/login` correctly withholds password strategy for admin emails). No new Auth users (count remained 3). No OTP/SMS.
+- B4C PASS: homeowner dashboard + existing job `iB30tmEnf4cAOC3vDC2W` (TSK-9801) view; expert dashboard + tasks + same job view; admin dashboard + existing job/user view. Staging API calls were GETs except login `POST /api/auth/resolve-email` for public login.
+- Inherent session effects: Firebase Auth last-sign-in/session refresh; SPA post-auth `users/{uid}` `updatedAt` via `upsertUserProfileFromAuth`. No job/quote/payment/release objects created. Stripe.js telemetry hosts only (`js.stripe.com` / `m.stripe.com` / `r.stripe.com`); no `api.stripe.com`.
+- App Check/Auth/IAM/Cloud Run configuration unchanged. Open-signup revision `d3o039629` remained at 0%.
 
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
 
@@ -58,16 +70,16 @@
 
 ### Owner MVP backlog (2026-08-30)
 
-**1. Core private MVP (GREEN now; B4A–C AMBER next)**
+**1. Core private MVP (GREEN landed; B4A–C PASS)**
 
 | ID | Objective | Env | Approval |
 |---|---|---|---|
-| G01 | Invite-only / private-launch UX; preserve post-job OTP architecture behind flag | repo | GREEN **local** |
-| G02 | Stale-doc cleanup (status, release plan, README CI, A49, IAM note, browser-connectivity) | repo | GREEN **local** |
-| G03 | Legal draft banners + cancellation copy as draft | repo | GREEN **local** |
-| G04 | Hide AI controls when Gemini returns `fallback` | repo | GREEN **local** |
-| G05 | Analytics taxonomy + PII-safe `trackEvent` (no GA account yet) | repo | GREEN **local** |
-| B4A-C | Read-only hosted SPA + existing synthetic login + authenticated read | staging | **AMBER** (one package; not executed) |
+| G01 | Invite-only / private-launch UX; preserve post-job OTP architecture behind flag | repo | GREEN **pushed** `9c2efc7` |
+| G02 | Stale-doc cleanup (status, release plan, README CI, A49, IAM note, browser-connectivity) | repo | GREEN **pushed** `11c7f7d` |
+| G03 | Legal draft banners + cancellation copy as draft | repo | GREEN **pushed** `9c2efc7` |
+| G04 | Hide AI controls when Gemini returns `fallback` | repo | GREEN **pushed** `9c2efc7` |
+| G05 | Analytics taxonomy + PII-safe `trackEvent` (no GA account yet) | repo | GREEN **pushed** `9c2efc7` |
+| B4A-C | Read-only hosted SPA + existing synthetic login + authenticated read | staging | **PASS** on `00063-qak` + Hosting `66888d3b5a527558` |
 
 **2. Pre-launch gates (before first real production users; not B4A–C)**
 
@@ -88,7 +100,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** GREEN G01–G05 implemented locally (this batch). Next: **one** B4A–C AMBER package for Saeed — do not execute hosted B4 until approved. Do not send OTP. Do not start B4D/E/F. Production remains frozen.
+**Exact next pickup:** B4A–C **PASS**. Do not send OTP. Do not start B4D/E/F. Production remains frozen. Next requires a **new AMBER package** (B4D/E/F or P01–P06).
 
 ## 2026-08-23 expert phone-verification consistency
 
@@ -106,7 +118,7 @@ Minimal staging Stripe TEST lifecycle is complete on `taskio-v2-staging`. Produc
 
 ### Infrastructure / current source
 
-> **Superseded for live staging topology 2026-08-30.** The serving API is now `taskio-api-staging-00030-m9x` (closed signup, CORS for staging Hosting + localhost). Staging Hosting serves the scanned SPA. This subsection remains the 2026-08-23 Stripe-lifecycle evidence snapshot.
+> **Superseded for live staging topology 2026-08-30.** Current serving API is `taskio-api-staging-00063-qak` (Stripe TEST key-rotation; closed signup; CORS for staging Hosting + localhost). Historical closed-signup CORS revision `taskio-api-staging-00030-m9x` remains evidence only and is **not** the live serving revision. Staging Hosting now serves the invite-only `9c2efc7` SPA (`66888d3b5a527558`). This subsection remains the 2026-08-23 Stripe-lifecycle evidence snapshot.
 
 - Source checkpoint before this tracker-only commit: `b2e7bc707e9bfcbcc6ed679b09764d6668999d64`
 - Staging project: `taskio-v2-staging`
@@ -204,7 +216,7 @@ Normal browser/user connectivity, intended production API exposure, or a trusted
 
 ### Exact next pickup
 
-> **Superseded 2026-08-30.** Current pickup is GREEN private-launch UX, then one **B4A–C AMBER** package. Do not execute hosted B4 until Saeed approves that package.
+> **Superseded 2026-08-30 (B4A–C complete).** Current pickup is a **separate AMBER package** for B4D/E/F or pre-launch gates. Do not start B4D/E/F from this tracker line.
 
 **Historical pickup (2026-08-23, superseded):** PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH. Application hardening for a later public-API decision is in `docs/PUBLIC_API_EXPOSURE_PREFLIGHT.md`. Do not treat that document as deployment approval.
 
@@ -353,7 +365,7 @@ Use the safest practical environment for those final tests while production rema
 
 ### Exact next pickup
 
-> **Superseded 2026-08-30.** Current pickup is GREEN private-launch UX, then one **B4A–C AMBER** package. The instruction “do not require staging frontend / DNS / Hosting work” is obsolete: Stage 4 Boundary 3 deployed the scanned SPA to `taskio-v2-staging` Hosting. Production freeze and “do not change production” remain in force.
+> **Superseded 2026-08-30 (B4A–C complete).** Current pickup is a **separate AMBER package** for B4D/E/F or pre-launch gates. The instruction “do not require staging frontend / DNS / Hosting work” is obsolete: Stage 4 Boundary 3 deployed the scanned SPA, and the invite-only `9c2efc7` refresh is live. Production freeze and “do not change production” remain in force.
 
 **Historical pickup (superseded):** FINAL STAGING READINESS REVIEW. Consolidate the completed minimal staging evidence, classify remaining Stripe paths as required-before-launch vs optional, review browser → API connectivity, review security/observability/rollback/backup/cleanup, decide synthetic-data retention, review legal readiness, and produce the remaining production-preflight checklist.
 
@@ -2392,7 +2404,9 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-23 | `develop` / Connect dual webhook | staging | Webhook runtime gained isolated `POST /api/stripe/connect-webhook` (`STRIPE_CONNECT_WEBHOOK_SECRET`) beside platform `POST /api/stripe/webhook` (`STRIPE_WEBHOOK_SECRET`). Cross-secret HMAC isolation; both 404 when Stripe disabled. Private API still gets neither signing secret. | Focused webhook/HMAC/livemode/OIDC/secret-boundary tests; full backend suite; `node --check`; `git diff --check` | Repository source only until CI is green; then staging images rolled to existing services with webhook still `STRIPE_ENABLED=false` and private | Next: two empty staging webhook Secret Manager resources, then public webhook + two Stripe TEST destinations |
 | 2026-08-24 | `develop` / public-API hardening | none | Source-only: `super_admin` on admin refund/manual-release; `TASKIO_PUBLIC_SIGNUP_ENABLED` production fail-closed; `/health/metrics` admin-only; public-API preflight doc. Staging expert-release gate recorded PASS. No Cloud Run IAM, deploy, Firebase, Stripe, or production change. | Backend full suite; `node --check`; `git diff --check` | Pushed to `origin/develop` only after tests green. **Not deployed.** | Next: PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH — separate approval |
 
-| 2026-08-30 | `develop` / local GREEN | G01–G05 | Owner MVP answers recorded. Invite-only private-launch UX (post-job OTP kept behind flag). Draft legal banners. Hide AI on Gemini `fallback`. Analytics taxonomy + PII-safe `trackEvent` (no GA account). Stale status/release/README/A49/IAM/browser-connectivity docs corrected without mutating production. | `npm --prefix frontend run verify`: maintainability pass; Jest 69 suites / 465 tests; stagingHosting 22/22. No e2e re-run in this batch. | None. No commit push, deploy, OTP, Auth user, Stripe, App Check, SMTP, or production change. | Present combined **B4A–C AMBER** package. Do not execute until Saeed approves. |
+| 2026-08-30 | `develop` / `9c2efc7` | G01–G05 | Owner MVP answers recorded. Invite-only private-launch UX (post-job OTP kept behind flag). Draft legal banners. Hide AI on Gemini `fallback`. Analytics taxonomy + PII-safe `trackEvent` (no GA account). Stale status/release/README/A49/IAM/browser-connectivity docs corrected without mutating production. | `npm --prefix frontend run verify`: maintainability pass; Jest 69 suites / 465 tests; stagingHosting 22/22. No e2e re-run in this batch. | Pushed `11c7f7d` + `9c2efc7`. CI `33291968690` success. | Then B4A–C against current serving API |
+
+| 2026-08-30 | `develop` / `9c2efc7` | B4A–C | Read-only attestation of `taskio-api-staging-00063-qak` (supersedes stale `00030-m9x` serving ref; Stripe TEST key-rotation; same image digest; `STRIPE_SECRET_KEY` version `:1`→`:3`). Staging Hosting deployed `9c2efc7` invite-only SPA version `66888d3b5a527558` (previous `d5a5f1e893f0dee0`). B4A hosted preflight PASS both domains. B4B existing synthetic homeowner/expert via `/login`; admin via `/admin`. B4C read-only dashboards/jobs/users. Auth user count remained 3. `disabledUserSignup=true`. No OTP/SMS, no signup, no job/quote writes, no Stripe objects (`api.stripe.com` unused). No Cloud Run traffic mutation. Production Hosting still `cffca9d87ce03901`. | Hosting wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json --execute`; bundle scan; Playwright hosted journeys; Identity Toolkit downloadAccount count; Hosting live channel GET | Tracker-only local commit. **Not pushed.** No Cloud Run/API/webhook/Functions/Auth/IAM/Stripe secret change | Do **not** start B4D/E/F. Next is a separate AMBER package. Production remains frozen. |
 
 ## Required final report template
 
