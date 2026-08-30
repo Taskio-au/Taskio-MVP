@@ -6,11 +6,11 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-08-30 P04 GREEN analytics (local) + P05 on origin.** P05 evidence `695c299` **pushed**; CI [`33308907690`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308907690) **success**. Pushed App Check HEAD remains `6b41bd3` plus evidence `695c299`. P04 product analytics is **CODE COMPLETE** locally with `REACT_APP_ANALYTICS_ENABLED` default false. **P04 STAGING GA4 / DELIVERY: NOT CONFIGURED / NOT VERIFIED.** **P04 PRODUCTION ANALYTICS: NOT ENABLED.** P05 staging enforcement **NOT ENABLED**. P03 Postmark still **pending**. Staging API still **100%** `taskio-api-staging-54aed8b`; Hosting still **`70429316be0dd106`**. P01 / P02B not started. Production PRE-LAUNCH FREEZE is unchanged.
+> **2026-08-30 P04 GREEN analytics on origin.** P04 `0a3b83a` + `e7ffbf0` **pushed**; CI [`33310943590`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33310943590) **success**. **P04 STAGING GA4 PROPERTY / MEASUREMENT ID: NOT CONFIGURED.** **P04 STAGING EVENT DELIVERY: NOT VERIFIED.** **P04 PRODUCTION ANALYTICS: NOT ENABLED.** Live staging Hosting remains **`70429316be0dd106`** (`main.535a3e06.js`); no `googletagmanager.com` / gtag.js load; no ad pixels. P05 enforcement **off**. P03 Postmark still **pending**. API still **100%** `taskio-api-staging-54aed8b`. P01 / P02B not started. Production PRE-LAUNCH FREEZE is unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- P05 App Check GREEN **pushed** through `695c299`; CI [`33308907690`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308907690) **success**. Staging App Check activation **not started**. P04 analytics GREEN is **local only** until push approval.
+- P04 analytics GREEN **pushed** through `e7ffbf0`; CI [`33310943590`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33310943590) **success**. Staging GA4 activation **not started**. P05 App Check GREEN remains on origin through `695c299`; staging enforcement **not started**.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
@@ -30,7 +30,7 @@
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
 | 4 | **B4A–G + P02A PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. **Stopped before bank payout and admin/super_admin refund.** |
 
-**Exact next pickup:** **P03 STAGING EMAIL (Postmark) remains pending.** P04 analytics GREEN is local-only until a push approval. Do **not** create a GA4 property, enable analytics on Hosting, start App Check staging enforcement, start P01, or start P02B without a new approval. Production remains frozen.
+**Exact next pickup:** **P03 STAGING EMAIL (Postmark) remains pending.** P04 application code is on origin with analytics **disabled**. Do **not** create a GA4 property, add a measurement ID, enable analytics on Hosting, start App Check staging enforcement, start P01, or start P02B without a new approval. Production remains frozen.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -165,8 +165,10 @@
 
 - Reuses G05 `trackEvent` taxonomy. Provider is GA4 `gtag.js` only when `REACT_APP_ANALYTICS_ENABLED=true` and a public `G-` measurement ID is set. Default off. No ad pixels / session replay.
 - Events fire after successful mutations (or bounded once-per-session / once-per-transition). Payloads are allowlisted; PII keys dropped. Amounts use buckets. No job/user IDs in payloads.
-- Local tests: `npm --prefix frontend run verify` **PASS** (maintainability; Jest **74/74** **492/492**; stagingHosting **24/24**). `npm --prefix frontend run e2e` **4/4**. `git diff --check` **PASS**. Backend/Functions not re-run (untouched).
-- Local commits (unpushed): `0a3b83a` application; this docs commit. **Do not push P04 until a push approval.**
+- Local tests: `npm --prefix frontend run verify` **PASS** (maintainability; Jest **74/74** **492/492**; stagingHosting **24/24**). `npm --prefix frontend run e2e` **4/4**. `git diff --check` **PASS**.
+- Push/CI: `0a3b83a` + `e7ffbf0` **pushed**; CI [`33310943590`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33310943590) **success** (frontend, backend, functions, security-rules, api-image, webhook-image, browser-smoke). No Hosting/Functions/Cloud Run/GA4 Console change.
+- Live staging (`https://taskio-v2-staging.web.app/`, Hosting **`70429316be0dd106`**, bundle `main.535a3e06.js`): HTML has no gtag/GTM script; JS has no `googletagmanager.com`; no `fbq` / `ttq` / Hotjar / FullStory / `AW-` tag. Pre-P04 bundle may call `window.gtag` **if already present** (G05 no-op); gtag.js is **not loaded**.
+- See `docs/ANALYTICS.md`. **Do not create a GA4 property or deploy Hosting analytics without a new approval.**
 
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
 
@@ -200,7 +202,7 @@
 | P01 | Stripe TEST connected-account **bank payout** path | AMBER |
 | P02 | Minimal staging admin refund / permission drill | P02A **PASS** (homeowner unreleased full refund). P02B privileged **super_admin** exception refund **NOT PROVEN** / optional later AMBER |
 | P03 | Essential transactional email (SMTP secrets) | GREEN application logic **on origin** (`EMAIL_ENABLED=false`). Delivery **NOT VERIFIED**. Postmark staging activation is a separate AMBER package. |
-| P04 | GA4/provider setup for analytics (no ad pixels) | GREEN application code **local** (disabled default). Staging GA4 **NOT CONFIGURED**. See `docs/ANALYTICS.md`. |
+| P04 | GA4/provider setup for analytics (no ad pixels) | GREEN **on origin** `e7ffbf0`; CI `33310943590` **success**. Staging GA4 **NOT CONFIGURED**. Overall **PARTIAL**. See `docs/ANALYTICS.md`. |
 | P05 | Staging App Check validation + production enforcement decision | GREEN **on origin** `6b41bd3`; CI `33308449769` **success**. Provider/token/enforcement **NOT CONFIGURED / NOT ENABLED**. Overall **PARTIAL**. See `docs/APP_CHECK.md`. |
 | P06 | Final Terms/Privacy owner + preferably AU legal review | owner / legal |
 
@@ -212,7 +214,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **P03 STAGING EMAIL (Postmark) remains pending.** P04 analytics GREEN is local-only until a push approval. Do **not** create a GA4 property, enable analytics on Hosting, start App Check staging enforcement, start P01, or start P02B without a new approval. Production remains frozen.
+**Exact next pickup:** **P03 STAGING EMAIL (Postmark) remains pending.** P04 application code is on origin with analytics **disabled**. Do **not** create a GA4 property, add a measurement ID, enable analytics on Hosting, start App Check staging enforcement, start P01, or start P02B without a new approval. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 

@@ -8,10 +8,12 @@ Privacy-conscious product analytics for the private Melbourne MVP. GREEN applica
 |---|---|
 | P04 analytics architecture | DECIDED |
 | P04 application code | CODE COMPLETE |
-| P04 local testing | **PASS** (repo only) |
-| P04 staging GA4 config | **NOT CONFIGURED** |
-| P04 staging delivery | **NOT VERIFIED** |
+| P04 local / CI testing | **PASS** (`e7ffbf0`; CI `33310943590`) |
+| P04 staging GA4 property | **NOT CONFIGURED** |
+| P04 staging measurement ID | **NOT CONFIGURED** |
+| P04 staging event delivery | **NOT VERIFIED** |
 | P04 production analytics | **NOT ENABLED** |
+| P04 overall | **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION** |
 
 Do not mark P04 fully PASS until staging receives real events.
 
