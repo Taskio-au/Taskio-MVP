@@ -6,11 +6,11 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-08-30 B4D–E (authoritative).** B4A–C evidence commit `48f5570` is on `origin/develop` (CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**). Hosted B4D–E **PASS** on `taskio-api-staging-00063-qak` + Hosting `66888d3b5a527558`. **B4F is not approved.** Production PRE-LAUNCH FREEZE is unchanged.
+> **2026-08-30 B4F PARTIAL (authoritative).** B4D–E evidence `4883fa8` is on `origin/develop` (CI [`33294487920`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33294487920) **success**). **Payment / webhook core PASS** on `taskio-api-staging-00063-qak` + Hosting `66888d3b5a527558`: existing quote accepted; one Stripe TEST Checkout Session funded AUD 120; job `HntNSWerak2NJreuvFlX` / TSK-5507 remains **FUNDED / in_escrow**. **Normal hosted browser Checkout handoff BLOCKED** (`redirectToCheckout(sessionId)` vs API secret `:3` account mismatch); operator completed the same Session URL. **Do not mark B4F fully DONE** until the corrected hosted flow is deployed and retested on a **new** unfunded job. **No release / transfer / payout / refund.** Production PRE-LAUNCH FREEZE is unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e`. B4A–C evidence: `48f5570e3b47a81162e82fa0cf51210ab01b3845` **pushed**; CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**.
+- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e`. B4A–C evidence: `48f5570e3b47a81162e82fa0cf51210ab01b3845` **pushed**; CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**. B4D–E evidence: `4883fa888c34c1c924f4b9da656515836721fae9` **pushed**; CI [`33294487920`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33294487920) **success**.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
@@ -28,9 +28,9 @@
 | 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
 | 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Invite-only SPA refresh of `9c2efc7` is live (Hosting `66888d3b5a527558`). |
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
-| 4 | **B4A–E PASS** | B4A–C read-only **PASS**. B4D–E write journey **PASS** (one synthetic job + one admin invite + one synthetic quote). **B4F not started / not approved.** |
+| 4 | **B4A–E PASS; B4F PARTIAL** | B4A–C read-only **PASS**. B4D–E write journey **PASS**. B4F payment/webhook **PASS** (TSK-5507 `FUNDED` / `in_escrow`). **Hosted Checkout handoff BLOCKED** until Session-URL remediation is deployed and retested. **Stopped before release.** |
 
-**Exact next pickup:** **B4F — controlled browser quote acceptance / Stripe TEST funding decision.** B4F is **not** approved. Do not accept the quote, Checkout, or fund without a new AMBER package.
+**Exact next pickup:** **AMBER — push Checkout Session URL remediation + CI + staging API + Hosting deploy + new synthetic hosted funding retest.** Do **not** reuse TSK-5507 for the retest. Do **not** click Approve & Release / Mark complete / Cancel / refund.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -70,6 +70,17 @@
 - B4E PASS: existing synthetic expert submitted one quote `BCoGSMWsh7BGpdLdInlP`; amount **AUD 120.00**; status **submitted**; fee estimate **standard launch** 10% (`Taskio fee $12.00`, expert receives `$108.00`). Homeowner job detail showed the received quote. **Did not** click Accept & fund / Pay / Checkout.
 - Intended writes only: one job, one invite, one quote, plus `POST /api/tradie/fee-estimate` (fee math, not Stripe) and ordinary login session/`updatedAt` metadata.
 - No OTP; Auth user count remained **3**; `disabledUserSignup=true`; no `api.stripe.com`; API still `00063-qak`; Hosting still `66888d3b5a527558`; production Hosting still `cffca9d87ce03901`.
+- B4D–E tracker commit `4883fa8` **pushed** to `origin/develop`. CI `33294487920` **success**.
+
+**B4F evidence (2026-08-30) — PARTIAL:**
+
+- **B4F payment / webhook core: PASS.** Existing synthetic homeowner accepted quote `BCoGSMWsh7BGpdLdInlP` via hosted **Accept & fund task** on job `HntNSWerak2NJreuvFlX` / **TSK-5507**. Backend created one Stripe TEST Checkout Session (`cs_test_a1yggMjWM5dPKv83EAgfH5DzFNflE9mnqbgKkC2Pdfael4NrELxDVj6NEA`). One successful TEST payment **AUD 120.00**. Webhooks reconciled. Job remains **FUNDED** / `paymentState=in_escrow` / `paymentStatus=succeeded`. Fee locked **standard_launch** 10% (Taskio **$12.00**, expert **$108.00**). No duplicate payment. No release/transfer/payout/refund/dispute. API `00063-qak`; Hosting `66888d3b5a527558`.
+- **B4F normal hosted browser handoff: BLOCKED / REMEDIATION REQUIRED.** Live SPA still uses Stripe.js `redirectToCheckout({ sessionId })`. Hosting bundle TEST publishable-key account does not match API secret `taskio-staging-stripe-secret-key` version `:3`, so Checkout could not retrieve the Session. Operator completed **the same already-created Session** via its Stripe-hosted URL. Payment integrity is proven; the normal end-user redirect is not.
+- **B4F overall: PARTIAL.** Do not mark fully DONE until corrected source is deployed and a **new** synthetic job/quote proves Accept & fund → automatic navigation to the server-returned Checkout Session URL → Stripe TEST pay → webhook reconcile. **Do not reuse TSK-5507** for that retest.
+- Stripe TEST objects (no secrets): Session `cs_test_a1ygg…NEA` complete/paid `livemode=false`; PI `pi_3UA1mLGdq6QKDpuT18HMqQIU` succeeded; Charge `ch_3UA1mLGdq6QKDpuT1GYoEl3y` captured, not refunded/disputed. Webhooks `checkout.session.completed` + `payment_intent.succeeded` processed in `stripe_events`.
+- **GREEN Checkout Session URL remediation (local, not pushed/deployed):** backend returns validated `checkoutUrl` from Stripe Session `url` (HTTPS `checkout.stripe.com` pay path only; client-supplied URLs ignored). Frontend `window.location.assign(checkoutUrl)`. `@stripe/stripe-js` removed; hosted Checkout no longer requires `REACT_APP_STRIPE_PUBLISHABLE_KEY`. This removes the pre-payment Stripe.js load that produced `js.stripe.com` telemetry in B4A–C. Tests: backend 72/811; frontend verify 72/474 + stagingHosting 22/22; Playwright e2e 4/4. **Not live on staging until AMBER deploy.**
+- **Read-only Connect consistency (secret `:3`, no mutation):** platform TEST account `acct_1Rrhf7Gdq6QKDpuT`. Expert connected account `acct_1U7VjdKCF5W6OUwD` retrieved successfully (Express, AU, `charges_enabled`, `payouts_enabled`, `transfers=active`, `currently_due=0`). **Not a key-rotation disconnect.** TSK-5507 remains the preferred later release/Connect-transfer candidate. Do not execute release now.
+- Preserve TSK-5507 **FUNDED / in_escrow**. Do not click Approve & Release, Mark complete, Cancel/refund.
 
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
 
@@ -81,7 +92,7 @@
 
 ### Owner MVP backlog (2026-08-30)
 
-**1. Core private MVP (GREEN landed; B4A–E PASS)**
+**1. Core private MVP (GREEN landed; B4A–E PASS; B4F PARTIAL)**
 
 | ID | Objective | Env | Approval |
 |---|---|---|---|
@@ -91,7 +102,8 @@
 | G04 | Hide AI controls when Gemini returns `fallback` | repo | GREEN **pushed** `9c2efc7` |
 | G05 | Analytics taxonomy + PII-safe `trackEvent` (no GA account yet) | repo | GREEN **pushed** `9c2efc7` |
 | B4A-C | Read-only hosted SPA + existing synthetic login + authenticated read | staging | **PASS** (evidence `48f5570`, CI `33293590455`) |
-| B4D-E | Authenticated synthetic job + invite + one quote (stop before accept/Checkout) | staging | **PASS** job `HntNSWerak2NJreuvFlX` / TSK-5507; quote `BCoGSMWsh7BGpdLdInlP` AUD 120 |
+| B4D-E | Authenticated synthetic job + invite + one quote (stop before accept/Checkout) | staging | **PASS** job `HntNSWerak2NJreuvFlX` / TSK-5507; quote `BCoGSMWsh7BGpdLdInlP` AUD 120; evidence `4883fa8`, CI `33294487920` |
+| B4F | Hosted quote acceptance + Stripe TEST funding (stop before release) | staging | **PARTIAL** — payment/webhook **PASS** (`FUNDED` / `in_escrow`, AUD 120, standard_launch 10%); hosted `redirectToCheckout` handoff **BLOCKED**. TSK-5507 preserved. GREEN Session-URL remediation local, not deployed. |
 
 **2. Pre-launch gates (before first real production users; not B4A–C)**
 
@@ -112,7 +124,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **B4F — controlled browser quote acceptance / Stripe TEST funding decision.** Not approved. Do not click Accept & fund / Checkout.
+**Exact next pickup:** **AMBER package:** push Session-URL source + tracker; require CI green; deploy staging API (`00063-qak` successor) and staging Hosting; verify; run a **new** synthetic hosted funding journey (Accept & fund → automatic Checkout URL navigation). STOP before release. Do **not** auto-start release on TSK-5507.
 
 ## 2026-08-23 expert phone-verification consistency
 
@@ -2420,7 +2432,9 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 
 | 2026-08-30 | `develop` / `48f5570` | B4A–C | Read-only attestation of `taskio-api-staging-00063-qak` (supersedes stale `00030-m9x` serving ref; Stripe TEST key-rotation; same image digest; `STRIPE_SECRET_KEY` version `:1`→`:3`). Staging Hosting deployed `9c2efc7` invite-only SPA version `66888d3b5a527558` (previous `d5a5f1e893f0dee0`). B4A hosted preflight PASS both domains. B4B existing synthetic homeowner/expert via `/login`; admin via `/admin`. B4C read-only dashboards/jobs/users. Auth user count remained 3. `disabledUserSignup=true`. No OTP/SMS, no signup, no job/quote writes, no Stripe objects (`api.stripe.com` unused). No Cloud Run traffic mutation. Production Hosting still `cffca9d87ce03901`. | Hosting wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json --execute`; bundle scan; Playwright hosted journeys; Identity Toolkit downloadAccount count; Hosting live channel GET | Tracker commit `48f5570` **pushed**. CI `33293590455` success. No Cloud Run/API/webhook/Functions/Auth/IAM/Stripe secret change | Then B4D–E write journey |
 
-| 2026-08-30 | `develop` / `48f5570` | B4D–E | Hosted authenticated homeowner created synthetic job `HntNSWerak2NJreuvFlX` (TSK-5507, Hanging / picture frames, Richmond). Admin invite of existing synthetic expert required (`POST /api/admin/jobs/.../assign`). Expert quote `BCoGSMWsh7BGpdLdInlP` AUD 120 submitted; fee display standard 10% ($12 / $108). Homeowner saw quote. Stopped before Accept & fund / Checkout. No OTP, Auth count 3, signup closed, no Stripe objects, API `00063-qak`, Hosting `66888d3b5a527558`. | Hosted Playwright journey; Identity Toolkit user count; Hosting live GET; Cloud Run traffic describe | Local tracker evidence commit. **Not pushed.** | **B4F** quote acceptance / Stripe TEST funding — **not approved** |
+| 2026-08-30 | `develop` / `4883fa8` | B4D–E | Hosted authenticated homeowner created synthetic job `HntNSWerak2NJreuvFlX` (TSK-5507, Hanging / picture frames, Richmond). Admin invite of existing synthetic expert required (`POST /api/admin/jobs/.../assign`). Expert quote `BCoGSMWsh7BGpdLdInlP` AUD 120 submitted; fee display standard 10% ($12 / $108). Homeowner saw quote. Stopped before Accept & fund / Checkout. No OTP, Auth count 3, signup closed, no Stripe objects, API `00063-qak`, Hosting `66888d3b5a527558`. | Hosted Playwright journey; Identity Toolkit user count; Hosting live GET; Cloud Run traffic describe | Tracker commit `4883fa8` **pushed**. CI `33294487920` success. No Cloud Run/Hosting/Auth/IAM/App Check change | Then B4F (approved and executed in the following row) |
+
+| 2026-08-30 | `develop` / local B4F tracker | B4F | **PARTIAL.** Payment/webhook **PASS**: quote `BCoGSMWsh7BGpdLdInlP` accepted; Session `cs_test_a1yggMjWM5dPKv83EAgfH5DzFNflE9mnqbgKkC2Pdfael4NrELxDVj6NEA` paid AUD 120 `livemode=false`; PI/Charge succeeded; webhooks processed; job TSK-5507 `FUNDED` / `in_escrow`; fee standard_launch 10% ($12/$108). **Hosted handoff BLOCKED:** SPA `redirectToCheckout(sessionId)` vs API secret `:3` account mismatch; same Session completed via Stripe-hosted URL. No duplicate payment. No OTP/new users. Signup closed. **No release/transfer/payout/refund.** API `00063-qak`; Hosting `66888d3b5a527558`. Connect read-only: expert `acct_1U7VjdKCF5W6OUwD` accessible on platform `acct_1Rrhf7Gdq6QKDpuT`. GREEN Session-URL remediation is a separate local commit (not pushed/deployed). | Hosted Playwright + Stripe retrieve + Firestore/`stripe_events` + Identity Toolkit + Hosting/Cloud Run describe; later GREEN tests local only | Docs evidence amended locally. **Not pushed.** | **AMBER:** push + CI + staging API/Hosting deploy + new synthetic Checkout URL funding retest |
 
 ## Required final report template
 
