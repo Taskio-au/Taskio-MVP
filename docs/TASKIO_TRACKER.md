@@ -6,11 +6,11 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-08-30 B4A–C (authoritative).** GREEN invite-only source `9c2efc7` is live on staging Hosting. Authoritative B4 API is `taskio-api-staging-00063-qak` (Stripe TEST key-rotation). It supersedes the stale serving reference `taskio-api-staging-00030-m9x`. B4A–C **PASS**. Do **not** start B4D/E/F. Production PRE-LAUNCH FREEZE is unchanged. Historical pickups below that say “PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH”, “do not restore Hosting”, or “do not require staging frontend / Hosting work” remain **superseded**.
+> **2026-08-30 B4D–E (authoritative).** B4A–C evidence commit `48f5570` is on `origin/develop` (CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**). Hosted B4D–E **PASS** on `taskio-api-staging-00063-qak` + Hosting `66888d3b5a527558`. **B4F is not approved.** Production PRE-LAUNCH FREEZE is unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e` (`9c2efc7` `feat(frontend): present the Melbourne MVP as invite-only`). CI run [`33291968690`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33291968690) **success**.
+- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e`. B4A–C evidence: `48f5570e3b47a81162e82fa0cf51210ab01b3845` **pushed**; CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
@@ -26,11 +26,11 @@
 |---|---|---|
 | 1 | **DONE / pushed / CI green** | Hosting configs, fail-closed Firebase resolver, build/scan/deploy wrapper. Landed at `127f8c2`. CI run `33241796405`. Commits `f6b3b04`, `ad14d5e`, `681da2b`, `127f8c2`. |
 | 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
-| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Invite-only SPA refresh of `9c2efc7` is now live (see Hosting below). Hosted D3 / B4D–F **not** started. No OTP sent. |
+| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Invite-only SPA refresh of `9c2efc7` is live (Hosting `66888d3b5a527558`). |
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
-| 4 | **B4A–C PASS** | Hosted invite-only preflight + existing synthetic homeowner/expert/admin login + authenticated read-only dashboards against `00063-qak`. No OTP, no new Auth users, no job/quote/Stripe object writes, no Cloud Run traffic change. B4D/E/F **not** started. |
+| 4 | **B4A–E PASS** | B4A–C read-only **PASS**. B4D–E write journey **PASS** (one synthetic job + one admin invite + one synthetic quote). **B4F not started / not approved.** |
 
-**Exact next pickup:** B4A–C complete. Do **not** start B4D/E/F, OTP, job creation, quotes, Stripe objects, App Check, Cloud Run deploy/traffic, or production. Next is a **separate AMBER package** for B4D/E/F or remaining pre-launch gates (P01–P06).
+**Exact next pickup:** **B4F — controlled browser quote acceptance / Stripe TEST funding decision.** B4F is **not** approved. Do not accept the quote, Checkout, or fund without a new AMBER package.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -59,6 +59,17 @@
 - B4C PASS: homeowner dashboard + existing job `iB30tmEnf4cAOC3vDC2W` (TSK-9801) view; expert dashboard + tasks + same job view; admin dashboard + existing job/user view. Staging API calls were GETs except login `POST /api/auth/resolve-email` for public login.
 - Inherent session effects: Firebase Auth last-sign-in/session refresh; SPA post-auth `users/{uid}` `updatedAt` via `upsertUserProfileFromAuth`. No job/quote/payment/release objects created. Stripe.js telemetry hosts only (`js.stripe.com` / `m.stripe.com` / `r.stripe.com`); no `api.stripe.com`.
 - App Check/Auth/IAM/Cloud Run configuration unchanged. Open-signup revision `d3o039629` remained at 0%.
+- B4A–C tracker commit `48f5570` **pushed** to `origin/develop`. CI `33293590455` **success**.
+
+**B4D–E evidence (2026-08-30):**
+
+- B4D PASS: existing synthetic homeowner posted one authenticated job via hosted `/post-job` (4 steps; guest phone/OTP step absent). No OTP/SMS. No new Auth user.
+- Job ID `HntNSWerak2NJreuvFlX`; display ref **TSK-5507**; category **Hanging** / `hanging_picture_frames`; suburb **Richmond**; initial status **OPEN** then **QUOTED** after B4E; `homeownerUid` matches existing synthetic homeowner; `paymentState=null`.
+- Job create write: `POST /api/jobs` only (no photos). `invitedTradieUids` starts empty — experts are **not** auto-matched.
+- Admin assignment **required** (manually operated MVP). One hosted admin invite: `POST /api/admin/jobs/HntNSWerak2NJreuvFlX/assign` of the existing synthetic expert only (`Invite selected (1)`). Verification/eligibility unchanged.
+- B4E PASS: existing synthetic expert submitted one quote `BCoGSMWsh7BGpdLdInlP`; amount **AUD 120.00**; status **submitted**; fee estimate **standard launch** 10% (`Taskio fee $12.00`, expert receives `$108.00`). Homeowner job detail showed the received quote. **Did not** click Accept & fund / Pay / Checkout.
+- Intended writes only: one job, one invite, one quote, plus `POST /api/tradie/fee-estimate` (fee math, not Stripe) and ordinary login session/`updatedAt` metadata.
+- No OTP; Auth user count remained **3**; `disabledUserSignup=true`; no `api.stripe.com`; API still `00063-qak`; Hosting still `66888d3b5a527558`; production Hosting still `cffca9d87ce03901`.
 
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
 
@@ -70,7 +81,7 @@
 
 ### Owner MVP backlog (2026-08-30)
 
-**1. Core private MVP (GREEN landed; B4A–C PASS)**
+**1. Core private MVP (GREEN landed; B4A–E PASS)**
 
 | ID | Objective | Env | Approval |
 |---|---|---|---|
@@ -79,7 +90,8 @@
 | G03 | Legal draft banners + cancellation copy as draft | repo | GREEN **pushed** `9c2efc7` |
 | G04 | Hide AI controls when Gemini returns `fallback` | repo | GREEN **pushed** `9c2efc7` |
 | G05 | Analytics taxonomy + PII-safe `trackEvent` (no GA account yet) | repo | GREEN **pushed** `9c2efc7` |
-| B4A-C | Read-only hosted SPA + existing synthetic login + authenticated read | staging | **PASS** on `00063-qak` + Hosting `66888d3b5a527558` |
+| B4A-C | Read-only hosted SPA + existing synthetic login + authenticated read | staging | **PASS** (evidence `48f5570`, CI `33293590455`) |
+| B4D-E | Authenticated synthetic job + invite + one quote (stop before accept/Checkout) | staging | **PASS** job `HntNSWerak2NJreuvFlX` / TSK-5507; quote `BCoGSMWsh7BGpdLdInlP` AUD 120 |
 
 **2. Pre-launch gates (before first real production users; not B4A–C)**
 
@@ -100,7 +112,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** B4A–C **PASS**. Do not send OTP. Do not start B4D/E/F. Production remains frozen. Next requires a **new AMBER package** (B4D/E/F or P01–P06).
+**Exact next pickup:** **B4F — controlled browser quote acceptance / Stripe TEST funding decision.** Not approved. Do not click Accept & fund / Checkout.
 
 ## 2026-08-23 expert phone-verification consistency
 
@@ -2406,7 +2418,9 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 
 | 2026-08-30 | `develop` / `9c2efc7` | G01–G05 | Owner MVP answers recorded. Invite-only private-launch UX (post-job OTP kept behind flag). Draft legal banners. Hide AI on Gemini `fallback`. Analytics taxonomy + PII-safe `trackEvent` (no GA account). Stale status/release/README/A49/IAM/browser-connectivity docs corrected without mutating production. | `npm --prefix frontend run verify`: maintainability pass; Jest 69 suites / 465 tests; stagingHosting 22/22. No e2e re-run in this batch. | Pushed `11c7f7d` + `9c2efc7`. CI `33291968690` success. | Then B4A–C against current serving API |
 
-| 2026-08-30 | `develop` / `9c2efc7` | B4A–C | Read-only attestation of `taskio-api-staging-00063-qak` (supersedes stale `00030-m9x` serving ref; Stripe TEST key-rotation; same image digest; `STRIPE_SECRET_KEY` version `:1`→`:3`). Staging Hosting deployed `9c2efc7` invite-only SPA version `66888d3b5a527558` (previous `d5a5f1e893f0dee0`). B4A hosted preflight PASS both domains. B4B existing synthetic homeowner/expert via `/login`; admin via `/admin`. B4C read-only dashboards/jobs/users. Auth user count remained 3. `disabledUserSignup=true`. No OTP/SMS, no signup, no job/quote writes, no Stripe objects (`api.stripe.com` unused). No Cloud Run traffic mutation. Production Hosting still `cffca9d87ce03901`. | Hosting wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json --execute`; bundle scan; Playwright hosted journeys; Identity Toolkit downloadAccount count; Hosting live channel GET | Tracker-only local commit. **Not pushed.** No Cloud Run/API/webhook/Functions/Auth/IAM/Stripe secret change | Do **not** start B4D/E/F. Next is a separate AMBER package. Production remains frozen. |
+| 2026-08-30 | `develop` / `48f5570` | B4A–C | Read-only attestation of `taskio-api-staging-00063-qak` (supersedes stale `00030-m9x` serving ref; Stripe TEST key-rotation; same image digest; `STRIPE_SECRET_KEY` version `:1`→`:3`). Staging Hosting deployed `9c2efc7` invite-only SPA version `66888d3b5a527558` (previous `d5a5f1e893f0dee0`). B4A hosted preflight PASS both domains. B4B existing synthetic homeowner/expert via `/login`; admin via `/admin`. B4C read-only dashboards/jobs/users. Auth user count remained 3. `disabledUserSignup=true`. No OTP/SMS, no signup, no job/quote writes, no Stripe objects (`api.stripe.com` unused). No Cloud Run traffic mutation. Production Hosting still `cffca9d87ce03901`. | Hosting wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json --execute`; bundle scan; Playwright hosted journeys; Identity Toolkit downloadAccount count; Hosting live channel GET | Tracker commit `48f5570` **pushed**. CI `33293590455` success. No Cloud Run/API/webhook/Functions/Auth/IAM/Stripe secret change | Then B4D–E write journey |
+
+| 2026-08-30 | `develop` / `48f5570` | B4D–E | Hosted authenticated homeowner created synthetic job `HntNSWerak2NJreuvFlX` (TSK-5507, Hanging / picture frames, Richmond). Admin invite of existing synthetic expert required (`POST /api/admin/jobs/.../assign`). Expert quote `BCoGSMWsh7BGpdLdInlP` AUD 120 submitted; fee display standard 10% ($12 / $108). Homeowner saw quote. Stopped before Accept & fund / Checkout. No OTP, Auth count 3, signup closed, no Stripe objects, API `00063-qak`, Hosting `66888d3b5a527558`. | Hosted Playwright journey; Identity Toolkit user count; Hosting live GET; Cloud Run traffic describe | Local tracker evidence commit. **Not pushed.** | **B4F** quote acceptance / Stripe TEST funding — **not approved** |
 
 ## Required final report template
 
