@@ -6,29 +6,54 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
+> **2026-08-30 tracker sync (authoritative).** Stage 4 Boundaries 1–3 are complete on `taskio-v2-staging`. Historical pickups below that say “PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH”, “do not restore Hosting”, or “do not require staging frontend / Hosting work” are **superseded**. Production PRE-LAUNCH FREEZE is unchanged.
+
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Latest repository batch: `security: harden API for public browser access`. Prior docs-only HEAD `02d39ed14fb67576285c5fbad6d3cf7bee27d514`. Deployed staging application source remains `b2e7bc707e9bfcbcc6ed679b09764d6668999d64` until a **separate** deploy approval. This batch is source/tests/docs only.
-- **PRE-LAUNCH FREEZE remains fully in force.** `taskio.com.au` is maintenance only. No public SPA. Production signup stays disabled (`TASKIO_PUBLIC_SIGNUP_ENABLED` missing/`false`). Production API remains IAM-private. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
-- Staging/test work remains the **minimal staging validation bench** only. This decision does **not** authorize production changes, Cloud Run public IAM, or a staging deploy of this commit.
+- Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
+  - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution` — first **published** Windows fail-closed implementation (parent of later synthesis). Remote CI run `33245239158` was green on this commit.
+  - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms` — synthesis on top of `f56bc3e`: repository `firebase-tools` CLI entry + `process.execPath` on **Windows and POSIX**, `realpath` containment, fail closed before spawn, no PATH / `firebase.cmd` / `shell: true` fallback.
+  - this tracker commit records that reconciliation (do not treat the superseded local-only stack as canonical).
+- Superseded local SHAs (do not amend; kept only on local backup branch `backup/stage4-local-119d923`, **not** on `origin/develop`): `4e4a068`, `1cb2f9a`, `119d923`. Those commits were an alternate all-platform implementation that diverged from `f56bc3e`; their security intent was folded into `58ed427` rather than cherry-picked.
+- Local gcloud / `.firebaserc` default project remains **`taskio-v2`**. Staging commands must pass `--project=taskio-v2-staging` explicitly.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission.
 - Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
-**Staging gates now COMPLETE (`taskio-v2-staging`, Stripe TEST only):**
+### Stage 4 (`taskio-v2-staging` only)
 
-- expert verified-Firebase-phone consistency fix deployed
-- minimum staging Firebase Auth runtime IAM established using custom role `projects/taskio-v2-staging/roles/taskioStagingAuthUserManager` with only `firebaseauth.users.create`, `firebaseauth.users.get`, `firebaseauth.users.update`, `firebaseauth.users.delete`
-- synthetic homeowner / expert / admin identities prepared
-- Stripe TEST Express onboarding complete
-- expert `eligibility=true`
-- platform webhook HMAC → OIDC → private API gate passed
-- duplicate webhook / idempotency gate passed
-- Connected Accounts webhook gate passed
-- genuine Checkout / payment lifecycle passed
-- genuine funded homeowner cancellation / full-refund lifecycle passed
-- **EXPERT RELEASE / CONNECT TRANSFER GATE: PASS** (2026-08-24). Proven: expert complete → homeowner release → Stripe TEST Connect transfer. **Not** proven: connected-account bank payout.
+| Boundary | Status | Notes |
+|---|---|---|
+| 1 | **DONE / pushed / CI green** | Hosting configs, fail-closed Firebase resolver, build/scan/deploy wrapper. Landed at `127f8c2`. CI run `33241796405`. Commits `f6b3b04`, `ad14d5e`, `681da2b`, `127f8c2`. |
+| 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
+| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Do not roll back the successful SPA release without a new approval. Hosted D3 journey **not** started. No OTP sent. |
+| 3 follow-up | **repo reconciled; lands on origin with the approved `develop` push** | Published `f56bc3e` (Windows fail-closed + `realpath`) then `58ed427` (same resolver + `process.execPath` on all platforms). No PATH `firebase`, no `firebase.cmd`, no `shell: true`. Clone IDs starting with `-` rejected. Do not start from superseded local SHAs `4e4a068` / `1cb2f9a`. |
+| 4 | **NOT STARTED** | Do not start or mutate staging for Boundary 4 until Saeed explicitly approves that boundary. |
 
-**Exact next pickup:** PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH. Do **not** make Cloud Run public, deploy this commit, enable signup, restore Hosting, or touch production without a new decision/approval.
+**Staging Cloud Run (Boundary 2, accepted):**
+
+- URL: `https://taskio-api-staging-d6mdcsrwea-ts.a.run.app`
+- Serving 100%: `taskio-api-staging-00030-m9x` (also service template)
+- Public signup remains **CLOSED**: serving/template `TASKIO_PUBLIC_SIGNUP_ENABLED=false`; Auth `disabledUserSignup=true`
+- Do **not** route traffic to open-signup revision `taskio-api-staging-d3o039629`
+- Stripe on this API remains TEST mode (`STRIPE_EXPECTED_LIVEMODE=false`)
+
+**Staging Hosting (Boundary 3, accepted):**
+
+- `https://taskio-v2-staging.web.app/`
+- `https://taskio-v2-staging.firebaseapp.com/`
+- Live SPA version: `d5a5f1e893f0dee0`
+- Placeholder rollback version (still FINALIZED): `c6d84a0333abec1f` → `taskio-v2-staging@c6d84a0333abec1f` to `taskio-v2-staging:live` if a later approved restore is required
+- Headers: `X-Robots-Tag: noindex, nofollow, noarchive` and `Cache-Control: no-store, max-age=0, must-revalidate`
+- Deploy wrapper accepts only `--project taskio-v2-staging` and `firebase.staging.placeholder.json` / `firebase.staging.hosting.json` (never `firebase.json`)
+
+**Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
+
+- `taskio.com.au` is maintenance only. Production Hosting is **not** the staging SPA.
+- Production signup stays disabled. Production API remains IAM-private. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
+
+**Earlier staging Stripe TEST gates remain COMPLETE** (do not re-run without a new decision): expert phone-claim consistency, Auth runtime IAM custom role, synthetic homeowner/expert/admin identities, TEST Express onboarding, webhook HMAC → OIDC, duplicate/idempotency, Connected Accounts webhook, genuine Checkout, funded homeowner full refund, expert release / Connect transfer (2026-08-24). **Not** proven: connected-account bank payout.
+
+**Exact next pickup:** Boundary 4 planning / approval. Do not start Boundary 4 or mutate staging until Saeed explicitly approves the boundary.
 
 ## 2026-08-23 expert phone-verification consistency
 
@@ -46,12 +71,13 @@ Minimal staging Stripe TEST lifecycle is complete on `taskio-v2-staging`. Produc
 
 ### Infrastructure / current source
 
+> **Superseded for live staging topology 2026-08-30.** The serving API is now `taskio-api-staging-00030-m9x` (closed signup, CORS for staging Hosting + localhost). Staging Hosting serves the scanned SPA. This subsection remains the 2026-08-23 Stripe-lifecycle evidence snapshot.
+
 - Source checkpoint before this tracker-only commit: `b2e7bc707e9bfcbcc6ed679b09764d6668999d64`
 - Staging project: `taskio-v2-staging`
-- API revision: `taskio-api-staging-00007-bnh`
-- Webhook revision: `taskio-stripe-webhook-staging-00007-8tx`
-- API remains IAM-private
-- Webhook remains the only public staging Cloud Run application service
+- API revision **at that Stripe rehearsal:** `taskio-api-staging-00007-bnh`
+- Webhook revision **at that Stripe rehearsal:** `taskio-stripe-webhook-staging-00007-8tx`
+- At that rehearsal the API was IAM-private and the webhook was the only public staging Cloud Run application service
 - Stripe TEST only (`livemode=false`)
 - Production unchanged / frozen
 
@@ -141,9 +167,11 @@ Normal browser/user connectivity, intended production API exposure, or a trusted
 
 ### Exact next pickup
 
-**PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH.** Application hardening for a later public-API decision is in `docs/PUBLIC_API_EXPOSURE_PREFLIGHT.md`. Do not treat that document as deployment approval.
+> **Superseded 2026-08-30.** Current pickup is **Boundary 4 planning / approval**. Staging Hosting SPA and closed-signup CORS API are already live on `taskio-v2-staging`. Do not start Boundary 4 or mutate staging until Saeed explicitly approves that boundary.
 
-Next session should not start Cloud Run public IAM, staging deploy of this commit, signup enablement, Hosting restore, or LIVE Stripe without a new owner approval.
+**Historical pickup (2026-08-23, superseded):** PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH. Application hardening for a later public-API decision is in `docs/PUBLIC_API_EXPOSURE_PREFLIGHT.md`. Do not treat that document as deployment approval.
+
+Historical next-session instruction (superseded): do not start Cloud Run public IAM, staging deploy of that commit, signup enablement, Hosting restore, or LIVE Stripe without a new owner approval. Staging Hosting restore/deploy later occurred under Stage 4 Boundary 3 with separate approval.
 
 Do **not** start variation testing, release/payout testing, dispute testing, admin manual refund testing, or production changes without a new decision/approval.
 
@@ -288,11 +316,13 @@ Use the safest practical environment for those final tests while production rema
 
 ### Exact next pickup
 
-**FINAL STAGING READINESS REVIEW.** Consolidate the completed minimal staging evidence, classify remaining Stripe paths as required-before-launch vs optional, review browser → API connectivity, review security/observability/rollback/backup/cleanup, decide synthetic-data retention, review legal readiness, and produce the remaining production-preflight checklist.
+> **Superseded 2026-08-30.** Current pickup is **Boundary 4 planning / approval**. The instruction “do not require staging frontend / DNS / Hosting work” is obsolete: Stage 4 Boundary 3 deployed the scanned SPA to `taskio-v2-staging` Hosting. Production freeze and “do not change production” remain in force.
+
+**Historical pickup (superseded):** FINAL STAGING READINESS REVIEW. Consolidate the completed minimal staging evidence, classify remaining Stripe paths as required-before-launch vs optional, review browser → API connectivity, review security/observability/rollback/backup/cleanup, decide synthetic-data retention, review legal readiness, and produce the remaining production-preflight checklist.
 
 Do **not** start variation, release/payout, dispute, or admin manual refund testing, and do **not** change production, without a new decision/approval.
 
-Platform HMAC, duplicate-resend/idempotency, Connected Accounts HMAC, genuine Checkout funding, and funded homeowner full-refund gates already passed. Do **not** require staging frontend / DNS / Hosting work. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
+Platform HMAC, duplicate-resend/idempotency, Connected Accounts HMAC, genuine Checkout funding, and funded homeowner full-refund gates already passed. Operational checklist: `docs/STAGING_WEBHOOK_DEPLOYMENT_PREFLIGHT.md`.
 
 ## 2026-08-22 staging deployment safety and operator preflight
 
