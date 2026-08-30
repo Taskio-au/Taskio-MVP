@@ -66,6 +66,7 @@ Frontend build-time values:
 - `REACT_APP_API_BASE_URL`
 - `REACT_APP_APPCHECK_ENABLED` (safe default unset/false; do not enable until registration is approved)
 - `REACT_APP_APPCHECK_SITE_KEY` only after App Check registration is approved (public site key). See `docs/APP_CHECK.md`. Optional `REACT_APP_APPCHECK_PROVIDER=recaptcha-v3` (default) or `recaptcha-enterprise`.
+- `REACT_APP_ANALYTICS_ENABLED` (safe default unset/false). `REACT_APP_GA_MEASUREMENT_ID` only after a GA4 property is approved. See `docs/ANALYTICS.md`.
 
 `CRON_SECRET` is intentionally absent. `REACT_APP_E2E_AUTH_BYPASS` must be `false`. `REACT_APP_APPCHECK_DEBUG_TOKEN`, `TASKIO_SHOW_DEV_OTP`, `FOUNDING_EXPERT_TEST_MODE`, and `ENABLE_SET_ADMIN_ENDPOINT` must be absent/disabled.
 

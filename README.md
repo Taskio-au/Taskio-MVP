@@ -156,6 +156,13 @@ For local dev only (forbidden in production/staging Hosting builds):
 
 - `REACT_APP_APPCHECK_DEBUG_TOKEN=true`
 
+### Product analytics (optional; disabled by default)
+
+See `docs/ANALYTICS.md`. No ad pixels. Public GA4 measurement ID only.
+
+- `REACT_APP_ANALYTICS_ENABLED=true`
+- `REACT_APP_GA_MEASUREMENT_ID=G-XXXXXXXX`
+
 ## Stripe Payments (Real Payment Flow)
 
 Taskio uses **Stripe Checkout** to collect task payment securely, with webhook-driven payment confirmation.

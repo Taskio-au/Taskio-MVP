@@ -20,7 +20,7 @@
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- App Check registration/enforcement, SMTP/transactional email **delivery**, live Stripe, public signup, and production SPA restore remain separate gates. P03 application logic is on origin with `EMAIL_ENABLED=false`; Postmark staging delivery is **NOT VERIFIED**. P05 App Check application code is repo-ready with enforcement **off**.
+- App Check registration/enforcement, SMTP/transactional email **delivery**, live Stripe, public signup, and production SPA restore remain separate gates. P03 application logic is on origin with `EMAIL_ENABLED=false`; Postmark staging delivery is **NOT VERIFIED**. P05 App Check enforcement **off**. P04 analytics GREEN is **local** (`REACT_APP_ANALYTICS_ENABLED` default false); staging GA4 **NOT CONFIGURED**; production analytics **NOT ENABLED**.
 - Legal Terms/Privacy remain drafts until owner (and preferably Australian legal) review before first real users.
 
 ## Next release decision
