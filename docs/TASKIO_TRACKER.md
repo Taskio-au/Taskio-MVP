@@ -6,11 +6,11 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-08-30 P05 GREEN App Check readiness (local) + P03 code on origin.** Pushed HEAD `59615ac2d4148f73729c5c67642e354eac12d953` (CI [`33304560661`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33304560661) **success**). P05 App Check architecture **DECIDED**; application code **CODE COMPLETE** locally with `REACT_APP_APPCHECK_ENABLED` default false. **P05 STAGING PROVIDER / ENFORCEMENT: NOT CONFIGURED / NOT ENABLED.** **P05 PRODUCTION ENFORCEMENT: NOT ENABLED.** P03 Postmark / `EMAIL_ENABLED` cloud activation still **pending**. Staging API still **100%** `taskio-api-staging-54aed8b`; Hosting still **`70429316be0dd106`**. P01 / P02B not started. Production PRE-LAUNCH FREEZE is unchanged.
+> **2026-08-30 P05 GREEN App Check on origin.** Pushed HEAD `6b41bd3780bef5e6803bd1b4711665454ac9ec75` (CI [`33308449769`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308449769) **success**). P05 architecture **DECIDED**; application code **CODE COMPLETE**; local/CI testing **PASS**. **P05 STAGING PROVIDER / TOKEN GENERATION: NOT CONFIGURED / NOT VERIFIED.** **P05 FIRESTORE / STORAGE / PRODUCTION ENFORCEMENT: NOT ENABLED.** **P05 OVERALL: PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION.** P03 Postmark / `EMAIL_ENABLED` cloud activation still **pending**. Staging API still **100%** `taskio-api-staging-54aed8b`; Hosting still **`70429316be0dd106`**. No App Check Console/Hosting/Functions/API deploy in this push. P01 / P02B not started. Production PRE-LAUNCH FREEZE is unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- P02A evidence `78db4e6` **pushed**; CI [`33302994264`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302994264) **success**. P03 email application logic **pushed** through `59615ac`; CI [`33304560661`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33304560661) **success**. **P03 STAGING DELIVERY: NOT VERIFIED** (Postmark approval pending). P05 App Check GREEN is **local only** until push approval.
+- P02A evidence `78db4e6` **pushed**; CI [`33302994264`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302994264) **success**. P03 email application logic **pushed** through `59615ac`; CI [`33304560661`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33304560661) **success**. **P03 STAGING DELIVERY: NOT VERIFIED** (Postmark approval pending). P05 App Check GREEN **pushed** `6b41bd3`; CI [`33308449769`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308449769) **success**. Staging App Check activation **not started**.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
@@ -30,7 +30,7 @@
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
 | 4 | **B4A–G + P02A PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. **Stopped before bank payout and admin/super_admin refund.** |
 
-**Exact next pickup:** **P03 STAGING EMAIL (Postmark) remains pending owner credentials/sender/recipient.** P05 App Check GREEN is local-only until a push approval. Do **not** enable App Check enforcement, configure a site key in Firebase Console, start P01, or start P02B without a new approval. Production remains frozen.
+**Exact next pickup:** **P03 STAGING EMAIL (Postmark) remains pending owner credentials/sender/recipient.** P05 App Check GREEN is on origin. Do **not** start the staging App Check AMBER package, configure a site key in Firebase Console, enable enforcement, start P01, or start P02B without a new approval. Production remains frozen.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -158,6 +158,7 @@
 - Functions / Cloud Run / Firestore rules: unchanged. No site keys created. No Console App Check registration. No enforcement.
 - Local/debug: Firebase debug token only in non-production when enabled. Staging Hosting wrapper blanks and forbids `REACT_APP_APPCHECK_DEBUG_TOKEN`. e2e/browser-smoke keep App Check disabled.
 - Local tests (enforcement still off): `npm --prefix frontend run verify` pass (maintainability; Jest **74/74** suites **482/482**; stagingHosting **23/23**). `npm --prefix backend test` **72/72** suites **811/811**. `npm run test:functions` **26/26**. `npm --prefix frontend run e2e` **4/4**. No Functions/API App Check middleware to test.
+- Push/CI: `7c9831a` + `6b41bd3` **pushed** to `origin/develop`. CI [`33308449769`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308449769) **success** (security-rules, frontend, backend, functions, api-image, webhook-image, browser-smoke). No Hosting/Functions/Cloud Run/Auth/IAM/App Check Console change. Staging Hosting remains **`70429316be0dd106`**. API remains **100%** `taskio-api-staging-54aed8b`.
 - See `docs/APP_CHECK.md` for the future staging AMBER package. **Do not execute it without a new approval.**
 
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
@@ -193,7 +194,7 @@
 | P02 | Minimal staging admin refund / permission drill | P02A **PASS** (homeowner unreleased full refund). P02B privileged **super_admin** exception refund **NOT PROVEN** / optional later AMBER |
 | P03 | Essential transactional email (SMTP secrets) | GREEN application logic **on origin** (`EMAIL_ENABLED=false`). Delivery **NOT VERIFIED**. Postmark staging activation is a separate AMBER package. |
 | P04 | GA4/provider setup for analytics (no ad pixels) | AMBER |
-| P05 | Staging App Check validation + production enforcement decision | GREEN application code **local** (disabled default). Provider/enforcement **NOT CONFIGURED / NOT ENABLED**. See `docs/APP_CHECK.md`. |
+| P05 | Staging App Check validation + production enforcement decision | GREEN **on origin** `6b41bd3`; CI `33308449769` **success**. Provider/token/enforcement **NOT CONFIGURED / NOT ENABLED**. Overall **PARTIAL**. See `docs/APP_CHECK.md`. |
 | P06 | Final Terms/Privacy owner + preferably AU legal review | owner / legal |
 
 **3. Nice-to-have / post-core**
@@ -204,7 +205,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **P03 STAGING EMAIL (Postmark) remains pending owner credentials/sender/recipient.** P05 App Check GREEN is local-only until a push approval. Do **not** enable App Check enforcement, configure a site key in Firebase Console, start P01, or start P02B without a new approval. Production remains frozen.
+**Exact next pickup:** **P03 STAGING EMAIL (Postmark) remains pending owner credentials/sender/recipient.** P05 App Check GREEN is on origin. Do **not** start the staging App Check AMBER package, configure a site key in Firebase Console, enable enforcement, start P01, or start P02B without a new approval. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 

@@ -8,10 +8,13 @@ Firebase App Check for the private Melbourne MVP. This document is GREEN applica
 |---|---|
 | P05 App Check architecture | DECIDED |
 | P05 App Check application code | CODE COMPLETE |
-| P05 App Check local testing | PASS (enforcement still disabled) |
+| P05 App Check local / CI testing | **PASS** (CI [`33308449769`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308449769)) |
 | P05 staging provider config | **NOT CONFIGURED** |
-| P05 staging enforcement | **NOT ENABLED** |
+| P05 staging token generation | **NOT VERIFIED** |
+| P05 Firestore enforcement | **NOT ENABLED** |
+| P05 Storage enforcement | **NOT ENABLED** |
 | P05 production enforcement | **NOT ENABLED** |
+| P05 overall | **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION** |
 
 Do not mark P05 fully PASS until controlled staging enforcement has been validated.
 
