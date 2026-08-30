@@ -3,13 +3,28 @@ const {
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
-const nodemailer = require("nodemailer");
 const logger = require("firebase-functions/logger");
+const {getMailConfig} = require("./email/config");
+const {sendTransactionalEmail} = require("./email/send");
+const {resolveTrustedEmail} = require("./email/recipients");
+const {
+  isQuoteSubmissionTransition,
+  isEscrowFundedTransition,
+  isTaskCompletedTransition,
+  isPaymentReleasedTransition,
+  isRefundCompletedTransition,
+} = require("./email/transitions");
+const {
+  notifyQuoteReceived,
+  notifyPaymentSecured,
+  notifyTaskCompleted,
+  notifyPaymentReleased,
+  notifyRefundCompleted,
+} = require("./email/dispatch");
 
 admin.initializeApp();
 
 const CHAT_EMAIL_THROTTLE_MS = 15 * 60 * 1000;
-let cachedMailTransporter = null;
 
 /**
  * Returns flag reasons (categories) for a text message.
@@ -168,26 +183,6 @@ function isTimestampLike(timestamp) {
 }
 
 /**
- * @param {Object<string, any>} before
- * @param {Object<string, any>} after
- * @return {boolean}
- */
-function isQuoteSubmissionTransition(before = {}, after = {}) {
-  return before.status !== "submitted" && after.status === "submitted";
-}
-
-/**
- * @param {Object<string, any>} before
- * @param {Object<string, any>} after
- * @return {boolean}
- */
-function isEscrowFundedTransition(before = {}, after = {}) {
-  return (before.paymentState !== "in_escrow" &&
-      after.paymentState === "in_escrow") ||
-    (before.status !== "FUNDED" && after.status === "FUNDED");
-}
-
-/**
  * @param {string} uid
  * @param {string} fallbackRole
  * @return {Promise<Object<string, any>>}
@@ -211,56 +206,8 @@ async function getUserIdentity(uid, fallbackRole) {
     profile,
     authUser,
     displayName,
-    email: String(profile.email || ((authUser && authUser.email) || "")).trim(),
+    email: resolveTrustedEmail(authUser, profile),
   };
-}
-
-/**
- * @return {Object<string, any>|null}
- */
-function getMailConfig() {
-  const {
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_USER,
-    SMTP_PASS,
-    CHAT_EMAIL_FROM,
-    TASKIO_APP_URL,
-  } = process.env;
-
-  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS ||
-      !CHAT_EMAIL_FROM || !TASKIO_APP_URL) {
-    return null;
-  }
-
-  return {
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: Number(SMTP_PORT) === 465,
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-    from: CHAT_EMAIL_FROM,
-    appUrl: String(TASKIO_APP_URL).replace(/\/+$/, ""),
-  };
-}
-
-/**
- * @return {Promise<any>}
- */
-async function getMailTransporter() {
-  const config = getMailConfig();
-  if (!config) return null;
-  if (!cachedMailTransporter) {
-    cachedMailTransporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: config.auth,
-    });
-  }
-  return cachedMailTransporter;
 }
 
 /**
@@ -288,9 +235,6 @@ async function maybeSendChatEmail(args) {
     return;
   }
 
-  const transporter = await getMailTransporter();
-  if (!transporter) return;
-
   const recipientRole =
     recipient && recipient.profile && recipient.profile.role === "tradie" ?
       "tradie" :
@@ -303,8 +247,9 @@ async function maybeSendChatEmail(args) {
   const subject = `New message about ${trimText(jobTitle || "your task", 80)}`;
   const preview = getNotificationPreview(message);
 
-  await transporter.sendMail({
-    from: config.from,
+  const result = await sendTransactionalEmail({
+    event: "chat_message",
+    jobId,
     to: recipient.email,
     subject,
     text:
@@ -313,6 +258,7 @@ async function maybeSendChatEmail(args) {
       `Open chat: ${openUrl}`,
     html: buildChatEmailHtml({senderName, jobTitle, preview, openUrl}),
   });
+  if (!result.sent) return;
 
   await recipientThreadRef.set(
     {
@@ -533,43 +479,25 @@ exports.notifyHomeownerOnQuoteSubmitted = onDocumentCreated(
 
     const homeownerUid = data.homeownerUid;
     const jobId = data.jobId;
-    if (!homeownerUid || !jobId) return;
+    const quoteId = event.params && event.params.quoteId;
+    if (!homeownerUid || !jobId || !quoteId) return;
 
     try {
-      const jobDoc = await admin
-        .firestore()
-        .collection("jobs")
-        .doc(jobId)
+      const jobDoc = await admin.firestore().collection("jobs").doc(jobId)
         .get();
       const job = jobDoc.exists ? (jobDoc.data() || {}) : {};
-      const title = job.title || "your job";
-
-      const notifRef = admin
-        .firestore()
-        .collection("users")
-        .doc(homeownerUid)
-        .collection("notifications")
-        .doc(`quote_${event.params.quoteId}`);
-
-      await notifRef.set(
-        {
-          type: "quote_submitted",
-          title: "New quote received",
-          body: `You received a new quote for “${title}”.`,
-          jobId,
-          quoteId: event.params.quoteId,
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      );
+      await notifyQuoteReceived({
+        quoteId,
+        jobId,
+        homeownerUid,
+        job,
+        quote: data,
+      });
     } catch (error) {
       logger.error("quote_submitted_notification_failed", {
-        quoteId: event.params && event.params.quoteId,
+        quoteId,
         error: error && error.message ? error.message : "unknown",
       });
-      throw error;
     }
   },
 );
@@ -595,24 +523,19 @@ exports.notifyHomeownerOnQuoteSubmittedUpdate = onDocumentUpdated(
       const firestore = admin.firestore();
       const jobDoc = await firestore.collection("jobs").doc(jobId).get();
       const job = jobDoc.exists ? (jobDoc.data() || {}) : {};
-      await firestore.collection("users").doc(homeownerUid)
-        .collection("notifications").doc(`quote_${quoteId}`).set({
-          type: "quote_submitted",
-          title: "New quote received",
-          body: `You received a new quote for "${job.title || "your job"}".`,
-          jobId,
-          quoteId,
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, {merge: true});
+      await notifyQuoteReceived({
+        quoteId,
+        jobId,
+        homeownerUid,
+        job,
+        quote: after,
+      });
     } catch (error) {
       logger.error("quote_submitted_update_notification_failed", {
         jobId,
         quoteId,
         error: error && error.message ? error.message : "unknown",
       });
-      throw error;
     }
   },
 );
@@ -633,41 +556,24 @@ exports.notifyTradieOnEscrowFunded = onDocumentUpdated(
     const after = afterSnap ? (afterSnap.data() || {}) : {};
     if (!jobId) return;
 
-    const fundedNow = isEscrowFundedTransition(before, after);
-    if (!fundedNow) return;
-
-    const tradieUid = after.acceptedTradieUid || null;
-    if (!tradieUid) return;
-
     try {
-      const title = after.title || "a job";
-      const notifRef = admin
-        .firestore()
-        .collection("users")
-        .doc(tradieUid)
-        .collection("notifications")
-        .doc(`funded_${jobId}`);
-
-      await notifRef.set(
-        {
-          type: "escrow_funded",
-          title: "Payment secured",
-          body:
-            `Payment has been secured for “${title}”. ` +
-            "You can now message the Client and start work when ready.",
-          jobId,
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      );
+      if (isEscrowFundedTransition(before, after)) {
+        await notifyPaymentSecured({jobId, job: after});
+      }
+      if (isTaskCompletedTransition(before, after)) {
+        await notifyTaskCompleted({jobId, job: after});
+      }
+      if (isPaymentReleasedTransition(before, after)) {
+        await notifyPaymentReleased({jobId, job: after});
+      }
+      if (isRefundCompletedTransition(before, after)) {
+        await notifyRefundCompleted({jobId, job: after});
+      }
     } catch (error) {
-      logger.error("escrow_funded_notification_failed", {
+      logger.error("job_lifecycle_notification_failed", {
         jobId,
         error: error && error.message ? error.message : "unknown",
       });
-      throw error;
     }
   },
 );
@@ -678,7 +584,10 @@ exports._test = {
   getMessagePreview,
   getNotificationPreview,
   isEscrowFundedTransition,
+  isPaymentReleasedTransition,
   isQuoteSubmissionTransition,
+  isRefundCompletedTransition,
+  isTaskCompletedTransition,
   matchKeywordSets,
   processRiskyJobMessage,
   trimText,
