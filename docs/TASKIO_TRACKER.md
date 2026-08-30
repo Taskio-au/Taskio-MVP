@@ -6,11 +6,11 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-08-30 B4G PASS (authoritative).** B4F evidence `66bb84cc4dcc2b45075fe922c6932a9940aed4c7` is on `origin/develop` (CI [`33301623028`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33301623028) **success**). Staging API still **100%** `taskio-api-staging-54aed8b`; Hosting still **`70429316be0dd106`**. Hosted Expert **Mark task as completed** then Homeowner **Approve work & release payment** on `HntNSWerak2NJreuvFlX` / **TSK-5507** created exactly **ONE** Stripe TEST Connect transfer `tr_3UA1mLGdq6QKDpuT1g2pZQFm` (`livemode=false`, AUD **108.00**, destination `acct_1U7VjdKCF5W6OUwD`). Job is **PAID / released**. **CONNECT TRANSFER: PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN.** TSK-3881 remains **FUNDED / in_escrow / unreleased**. Production PRE-LAUNCH FREEZE is unchanged.
+> **2026-08-30 P02A PASS (authoritative).** B4G evidence `705464f7e0d83052e2063350704ed514ed64b85c` is on `origin/develop` (CI [`33302509679`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302509679) **success**). Staging API still **100%** `taskio-api-staging-54aed8b`; Hosting still **`70429316be0dd106`**. Hosted Homeowner **Cancel task** on `fu8pWO3D4BY4DCo1s36u` / **TSK-3881** created exactly **ONE** Stripe TEST full refund `re_3UA2jUGdq6QKDpuT1wDiOLhj` (AUD **90.00**, `charge.refunded=true`). Job is **REFUNDED / refunded**. No Expert transfer. **PRE-RELEASE FULL REFUND: PROVEN.** **ADMIN PRIVILEGED EXCEPTION REFUND: NOT PROVEN.** **CONNECT TRANSFER: PROVEN** (TSK-5507 unchanged). **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN.** Production PRE-LAUNCH FREEZE is unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e`. B4A–C evidence: `48f5570e3b47a81162e82fa0cf51210ab01b3845` **pushed**; CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**. B4D–E evidence: `4883fa888c34c1c924f4b9da656515836721fae9` **pushed**; CI [`33294487920`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33294487920) **success**. B4F Checkout remediation `54aed8b` **pushed**; CI [`33297343725`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33297343725) **success**. B4F retest evidence `66bb84c` **pushed**; CI [`33301623028`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33301623028) **success**.
+- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e`. B4A–C evidence: `48f5570e3b47a81162e82fa0cf51210ab01b3845` **pushed**; CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**. B4D–E evidence: `4883fa888c34c1c924f4b9da656515836721fae9` **pushed**; CI [`33294487920`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33294487920) **success**. B4F Checkout remediation `54aed8b` **pushed**; CI [`33297343725`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33297343725) **success**. B4F retest evidence `66bb84c` **pushed**; CI [`33301623028`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33301623028) **success**. B4G evidence `705464f` **pushed**; CI [`33302509679`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302509679) **success**.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
@@ -28,9 +28,9 @@
 | 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
 | 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Invite-only SPA with Checkout Session URL navigation is live (Hosting `70429316be0dd106`; previous `66888d3b5a527558`). |
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
-| 4 | **B4A–G PASS** | B4A–C read-only **PASS**. B4D–E write journey **PASS**. B4F hosted Checkout **PASS** (TSK-3881 `FUNDED` / `in_escrow`). B4G hosted completion + **Approve & Release** **PASS** (TSK-5507 `PAID` / `released`; one TEST Connect transfer). TSK-3881 preserved funded/unreleased. **Stopped before bank payout.** |
+| 4 | **B4A–G + P02A PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. **Stopped before bank payout and admin/super_admin refund.** |
 
-**Exact next pickup:** **POST-B4G OPERATIONAL DECISION.** Candidates: connected-account bank payout proof using the released TEST funds; minimal admin refund/exception drill using preserved TSK-3881; transactional email; App Check; analytics activation; legal readiness. Do **not** auto-start any of them.
+**Exact next pickup:** **POST-P02A OPERATIONAL DECISION.** Candidates: connected-account bank payout proof (P01); optional P02B privileged admin/super_admin exception refund (not required to prove the homeowner unreleased-cancel policy); transactional email; App Check; analytics activation; legal readiness. Do **not** auto-start any of them.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -110,8 +110,33 @@
 - Expert UI: job chip **Released to your Stripe account**; chat “Payment released. This task is closed.”; no Mark complete; **does not claim a bank payout**. `/payments`: TSK-5507 **$120.00 / $12.00 / $108.00** **Released to Stripe**. Available now **$0.00**; pending in Stripe includes this release. Copy “Bank payout timing is managed by Stripe” is a timing disclaimer, not proof of a bank payout.
 - Admin UI: **Released to Stripe**; Client paid **$120.00**; Taskio fee **$12.00**; Expert released **$108.00**; Base transfer ID `tr_3UA1mLGdq6QKDpuT1g2pZQFm` visible. No repair required.
 - **NO** bank payout object (platform or connected). **NO** refund. **NO** dispute. **NO** new Checkout Session / PaymentIntent / Charge (still the original TSK-5507 funding objects). **NO** OTP / new Auth user.
-- **TSK-3881** `fu8pWO3D4BY4DCo1s36u` remains **FUNDED** / `in_escrow` / `succeeded`, quote `CqywhWbZZWARfEDBoW6D`, unreleased/unrefunded. Reserved for a later separate operational test.
+- **TSK-3881** `fu8pWO3D4BY4DCo1s36u` was reserved funded/unreleased at B4G close; **fully refunded in P02A** (see P02A evidence below).
 - **CONNECT TRANSFER: PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN.**
+
+**P02A evidence (2026-08-30) — PASS:**
+
+- B4G evidence commit `705464f7e0d83052e2063350704ed514ed64b85c` (`docs: record B4G hosted completion and Connect transfer PASS`) **pushed** to `origin/develop` (no force). CI [`33302509679`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302509679) **success** (security-rules, frontend, backend, functions, api-image, webhook-image, browser-smoke).
+- Staging unchanged: API **100%** `taskio-api-staging-54aed8b`; Hosting **`70429316be0dd106`**; Stripe TEST secret `:3`; signup **CLOSED**; Auth users **3**. Production Hosting still `cffca9d87ce03901`. gcloud default still `taskio-v2`.
+- Read-only preflight: Homeowner **Cancel task** on `FUNDED` + `in_escrow` (work not started) is `POST /api/jobs/:id/cancel` (homeowner owner only). Creates a **full** Stripe Refund on the existing PaymentIntent (`amount` omitted → entire charge), reason `requested_by_customer`, idempotency `taskio_homeowner_cancel_{jobId}`. Persist is **synchronous** `REFUND_PENDING` / `refund_pending` + `refundId`. Webhooks `charge.refunded` and `refund.updated` (succeeded) confirm via `confirmBaseFullyRefunded` then `tryFinalizeAdminFullRefund` → `REFUNDED` / `refunded`. No Connect transfer. TSK-3881 had no variations.
+- Stripe refundability: Session `cs_test_a1Z1lRIPA155ZS1XiIhT5W4Q2xxLPIZq8Dk6vQgPoUNkTfxQBg7Q1ZD3xC` complete/paid; PI `pi_3UA2jUGdq6QKDpuT1mXg2gyb` succeeded; Charge `ch_3UA2jUGdq6QKDpuT1U0btylZ` captured, `amount_refunded=0`, `refunded=false`, not disputed; all `livemode=false`. No prior refund/transfer.
+- Hosted UI before click: TSK-3881 **Payment secured**, **Plans changed? You can cancel before work starts. Payment will be refunded according to Taskio's cancellation policy.**, **Cancel task** once, no release CTA. Confirm dialog **Cancel this task?** / “If payment is funded but unreleased, Taskio will begin the applicable refund workflow. Released funds require support review.”
+- **P02A PASS:** existing synthetic Homeowner, hosted `/job/fu8pWO3D4BY4DCo1s36u`, confirmed **Cancel task** once. `POST /api/jobs/fu8pWO3D4BY4DCo1s36u/cancel` **200** “Refund started.” `status=REFUND_PENDING`, `refundId=re_3UA2jUGdq6QKDpuT1wDiOLhj`. Writes: login `resolve-email` + that cancel only.
+- Stripe TEST Refund (exactly one):
+  - ID: `re_3UA2jUGdq6QKDpuT1wDiOLhj`
+  - amount **9000** `aud` (AUD **90.00**); status **succeeded**; reason `requested_by_customer`
+  - Charge `ch_3UA2jUGdq6QKDpuT1U0btylZ`; PaymentIntent `pi_3UA2jUGdq6QKDpuT1mXg2gyb`
+  - created `2026-08-30T08:52:33Z`
+  - Charge after: `refunded=true`, `amount_refunded=9000`, `livemode=false`, not disputed
+  - Related TEST events (`livemode=false`, `pending_webhooks=0`): `refund.created` `evt_3UA2jUGdq6QKDpuT1ZLNG0mH`; `charge.refunded` `evt_3UA2jUGdq6QKDpuT1YZqisDn` **processed** in `stripe_events`; `refund.updated` `evt_3UA2jUGdq6QKDpuT1gGZSsAX` **processed** in `stripe_events`; `charge.refund.updated` `evt_3UA2jUGdq6QKDpuT16694YMw` (not persisted; not a Taskio handler).
+- Final TSK-3881: `status=REFUNDED`, `paymentState=refunded`, `paymentStatus=succeeded`, `refundId=re_3UA2jUGdq6QKDpuT1wDiOLhj`, `refundStatus=succeeded`, `baseRefundConfirmed=true`, `refundedAt=2026-08-30T08:52:37.355Z`, `transferId` absent. Quote `CqywhWbZZWARfEDBoW6D` still **accepted** AUD 90 (historical). Fee snapshot remains locked **standard_launch** 10% (Taskio **$9.00** / expert **$81.00**) as historical pricing — **Taskio retained AUD 0.00** from this cancelled payment; Expert received **no** transfer.
+- Homeowner UI: **Refund completed**; Payment **Refunded**; success “Task cancelled.”; Cancel/Release CTAs gone (count **0**).
+- Expert UI: **Refund completed** / **Refunded**; no Mark complete; not “Released to your Stripe account”; quote still shown as accepted historical **$90**.
+- Admin UI: **Refund Completed**; Payment **refunded (succeeded)**; API `refundId=re_3UA2jUGdq6QKDpuT1wDiOLhj`; `releasedToStripe=false`; no Refund client / Mark refunded CTAs; no writes; no repair. Fee breakdown still displays snapshot Client paid / Taskio fee / Expert amount as historical figures, not a live retention.
+- Idempotency: Cancel CTA removed; `REFUNDED` is not a homeowner-cancelable status (would 409); Stripe key `taskio_homeowner_cancel_fu8pWO3D4BY4DCo1s36u`; Stripe search: **one** refund. Second cancel was **not** clicked.
+- **NO** Connect transfer for TSK-3881. **NO** payout. **NO** dispute. **NO** new Checkout/PI/Charge. **NO** OTP / new Auth user.
+- **TSK-5507** unchanged `PAID` / `released` / `transferId=tr_3UA1mLGdq6QKDpuT1g2pZQFm`, transfer not reversed, `refundId` absent.
+- **PRE-RELEASE FULL REFUND: PROVEN.** **ADMIN PRIVILEGED EXCEPTION REFUND: NOT PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN.**
+- P02B recommendation: `POST /api/admin/jobs/:jobId/refund` exists and requires **admin + super_admin**. Intended for exception/dispute refunds when homeowner cancel is unavailable (work started, completed, disputed) or webhook-miss fallback `mark-refunded`. P02A does **not** execute that path. A separate P02B is **advisable later** if ops-exception coverage is wanted before real users; it is **not** required to prove the MVP unreleased-cancel policy. Do not auto-start P02B.
 
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
 
@@ -119,7 +144,7 @@
 - Production signup stays disabled. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
 - **Documentation note (do not mutate production to “fix” this):** ledger item **A03** records that public Cloud Run invocation was enabled on `taskio-api` (`invoker-iam-disabled`) with unauthenticated `/health/live` 200. The freeze policy above still forbids further production API/IAM/Hosting/Stripe changes. Treat A03 as historical evidence; reconciling live invoker policy is a separate RED decision.
 
-**Earlier staging Stripe TEST gates remain COMPLETE** (do not re-run without a new decision): expert phone-claim consistency, Auth runtime IAM custom role, synthetic homeowner/expert/admin identities, TEST Express onboarding, webhook HMAC → OIDC, duplicate/idempotency, Connected Accounts webhook, genuine Checkout, funded homeowner full refund, expert release / Connect transfer (2026-08-24 API path; **2026-08-30 B4G hosted path on TSK-5507**). **CONNECT TRANSFER: PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN** (pre-launch AMBER gate P01).
+**Earlier staging Stripe TEST gates remain COMPLETE** (do not re-run without a new decision): expert phone-claim consistency, Auth runtime IAM custom role, synthetic homeowner/expert/admin identities, TEST Express onboarding, webhook HMAC → OIDC, duplicate/idempotency, Connected Accounts webhook, genuine Checkout, funded homeowner full refund (2026-08-24 API path; **2026-08-30 P02A hosted path on TSK-3881**), expert release / Connect transfer (2026-08-24 API path; **2026-08-30 B4G hosted path on TSK-5507**). **PRE-RELEASE FULL REFUND: PROVEN.** **ADMIN PRIVILEGED EXCEPTION REFUND: NOT PROVEN.** **CONNECT TRANSFER: PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN** (pre-launch AMBER gate P01).
 
 ### Owner MVP backlog (2026-08-30)
 
@@ -135,14 +160,15 @@
 | B4A-C | Read-only hosted SPA + existing synthetic login + authenticated read | staging | **PASS** (evidence `48f5570`, CI `33293590455`) |
 | B4D-E | Authenticated synthetic job + invite + one quote (stop before accept/Checkout) | staging | **PASS** job `HntNSWerak2NJreuvFlX` / TSK-5507; quote `BCoGSMWsh7BGpdLdInlP` AUD 120; evidence `4883fa8`, CI `33294487920` |
 | B4F | Hosted quote acceptance + Stripe TEST funding (stop before release) | staging | **PASS** — TSK-3881 `FUNDED` / `in_escrow` AUD 90, automatic `checkoutUrl` redirect, `54aed8b` API + Hosting `70429316be0dd106`. Evidence `66bb84c` **pushed**; CI `33301623028`. |
-| B4G | Hosted Expert Mark complete + Homeowner Approve & Release + one TEST Connect transfer | staging | **PASS** — TSK-5507 `PAID` / `released`; transfer `tr_3UA1mLGdq6QKDpuT1g2pZQFm` AUD 108 `livemode=false` → `acct_1U7VjdKCF5W6OUwD`. **No bank payout.** TSK-3881 preserved funded/unreleased. |
+| B4G | Hosted Expert Mark complete + Homeowner Approve & Release + one TEST Connect transfer | staging | **PASS** — TSK-5507 `PAID` / `released`; transfer `tr_3UA1mLGdq6QKDpuT1g2pZQFm` AUD 108 `livemode=false` → `acct_1U7VjdKCF5W6OUwD`. Evidence `705464f` **pushed**; CI `33302509679`. |
+| P02A | Hosted Homeowner cancel of funded/unreleased job + full Stripe TEST refund | staging | **PASS** — TSK-3881 `REFUNDED`; refund `re_3UA2jUGdq6QKDpuT1wDiOLhj` AUD 90. **No transfer.** Admin/super_admin refund **not** executed. |
 
 **2. Pre-launch gates (before first real production users; not B4A–C)**
 
 | ID | Objective | Approval |
 |---|---|---|
 | P01 | Stripe TEST connected-account **bank payout** path | AMBER |
-| P02 | Minimal staging admin refund / permission drill | AMBER (`super_admin` only if required) |
+| P02 | Minimal staging admin refund / permission drill | P02A **PASS** (homeowner unreleased full refund). P02B privileged **super_admin** exception refund **NOT PROVEN** / optional later AMBER |
 | P03 | Essential transactional email (SMTP secrets) | AMBER |
 | P04 | GA4/provider setup for analytics (no ad pixels) | AMBER |
 | P05 | Staging App Check validation + production enforcement decision | AMBER then RED for prod |
@@ -156,7 +182,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **POST-B4G OPERATIONAL DECISION.** Candidates: connected-account bank payout proof (released TEST funds on Expert `acct_1U7VjdKCF5W6OUwD`); minimal admin refund/exception drill on preserved TSK-3881; transactional email; App Check; analytics activation; legal readiness. Do **not** auto-start any of them.
+**Exact next pickup:** **POST-P02A OPERATIONAL DECISION.** Candidates: connected-account bank payout proof (released TEST funds on Expert `acct_1U7VjdKCF5W6OUwD`); optional P02B super_admin exception refund (no remaining funded-unreleased synthetic job — would need a new funded job under a new approval); transactional email; App Check; analytics activation; legal readiness. Do **not** auto-start any of them.
 
 ## 2026-08-23 expert phone-verification consistency
 
