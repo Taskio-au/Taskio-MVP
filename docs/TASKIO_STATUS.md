@@ -20,7 +20,7 @@
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- App Check registration/enforcement, SMTP, live Stripe, public signup, and production SPA restore remain separate gates.
+- App Check registration/enforcement, SMTP/transactional email **delivery**, live Stripe, public signup, and production SPA restore remain separate gates. P03 application logic is in repo with `EMAIL_ENABLED=false`; real provider send is **NOT VERIFIED**.
 - Legal Terms/Privacy remain drafts until owner (and preferably Australian legal) review before first real users.
 
 ## Next release decision

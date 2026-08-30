@@ -6,11 +6,11 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-08-30 P02A PASS (authoritative).** B4G evidence `705464f7e0d83052e2063350704ed514ed64b85c` is on `origin/develop` (CI [`33302509679`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302509679) **success**). Staging API still **100%** `taskio-api-staging-54aed8b`; Hosting still **`70429316be0dd106`**. Hosted Homeowner **Cancel task** on `fu8pWO3D4BY4DCo1s36u` / **TSK-3881** created exactly **ONE** Stripe TEST full refund `re_3UA2jUGdq6QKDpuT1wDiOLhj` (AUD **90.00**, `charge.refunded=true`). Job is **REFUNDED / refunded**. No Expert transfer. **PRE-RELEASE FULL REFUND: PROVEN.** **ADMIN PRIVILEGED EXCEPTION REFUND: NOT PROVEN.** **CONNECT TRANSFER: PROVEN** (TSK-5507 unchanged). **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN.** Production PRE-LAUNCH FREEZE is unchanged.
+> **2026-08-30 P03 GREEN (email application logic) + P02A evidence on origin.** P02A evidence `78db4e615e77af7a88991fe42e55342cc2e079ff` is on `origin/develop` (CI [`33302994264`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302994264) **success**). P03 transactional email is **CODE COMPLETE** / **LOCAL CI READY** with `EMAIL_ENABLED=false`. **P03 REAL PROVIDER / STAGING / PRODUCTION DELIVERY: NOT VERIFIED.** SMTP/provider not configured. Staging API still **100%** `taskio-api-staging-54aed8b`; Hosting still **`70429316be0dd106`**. **PRE-RELEASE FULL REFUND: PROVEN.** **CONNECT TRANSFER: PROVEN.** **ADMIN PRIVILEGED EXCEPTION REFUND: NOT PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN.** P02B was not started. P01 was not started. Production PRE-LAUNCH FREEZE is unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e`. B4A–C evidence: `48f5570e3b47a81162e82fa0cf51210ab01b3845` **pushed**; CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**. B4D–E evidence: `4883fa888c34c1c924f4b9da656515836721fae9` **pushed**; CI [`33294487920`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33294487920) **success**. B4F Checkout remediation `54aed8b` **pushed**; CI [`33297343725`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33297343725) **success**. B4F retest evidence `66bb84c` **pushed**; CI [`33301623028`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33301623028) **success**. B4G evidence `705464f` **pushed**; CI [`33302509679`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302509679) **success**.
+- Canonical GREEN invite-only source: `9c2efc76ceaf0adf03d5ea34f7ef9ef5d34d522e`. B4A–C evidence: `48f5570e3b47a81162e82fa0cf51210ab01b3845` **pushed**; CI [`33293590455`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33293590455) **success**. B4D–E evidence: `4883fa888c34c1c924f4b9da656515836721fae9` **pushed**; CI [`33294487920`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33294487920) **success**. B4F Checkout remediation `54aed8b` **pushed**; CI [`33297343725`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33297343725) **success**. B4F retest evidence `66bb84c` **pushed**; CI [`33301623028`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33301623028) **success**. B4G evidence `705464f` **pushed**; CI [`33302509679`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302509679) **success**. P02A evidence `78db4e6` **pushed**; CI [`33302994264`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302994264) **success**. P03 email application logic is **local only** until AMBER push approval.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
@@ -30,7 +30,7 @@
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
 | 4 | **B4A–G + P02A PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. **Stopped before bank payout and admin/super_admin refund.** |
 
-**Exact next pickup:** **POST-P02A OPERATIONAL DECISION.** Candidates: connected-account bank payout proof (P01); optional P02B privileged admin/super_admin exception refund (not required to prove the homeowner unreleased-cancel policy); transactional email; App Check; analytics activation; legal readiness. Do **not** auto-start any of them.
+**Exact next pickup:** **P03 STAGING EMAIL ACTIVATION (AMBER — not executed).** Application logic is local. Do **not** push P03 until AMBER approval. Do **not** configure SMTP, send real email, start P01 (bank payout), or start P02B. Production remains frozen.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -138,6 +138,19 @@
 - **PRE-RELEASE FULL REFUND: PROVEN.** **ADMIN PRIVILEGED EXCEPTION REFUND: NOT PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN.**
 - P02B recommendation: `POST /api/admin/jobs/:jobId/refund` exists and requires **admin + super_admin**. Intended for exception/dispute refunds when homeowner cancel is unavailable (work started, completed, disputed) or webhook-miss fallback `mark-refunded`. P02A does **not** execute that path. A separate P02B is **advisable later** if ops-exception coverage is wanted before real users; it is **not** required to prove the MVP unreleased-cancel policy. Do not auto-start P02B.
 
+**P03 evidence (2026-08-30) — GREEN application logic; delivery NOT VERIFIED:**
+
+- P02A evidence commit `78db4e615e77af7a88991fe42e55342cc2e079ff` (`docs: record P02A hosted cancellation and full TEST refund PASS`) **pushed** to `origin/develop` (no force). CI [`33302994264`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302994264) **success**.
+- Architecture audit: email is owned by **Firebase Functions** (nodemailer SMTP), not Cloud Run. Previously only chat called `sendMail`, and only when SMTP env names were all set (absent secrets → no send). There was no `EMAIL_ENABLED` flag. Quote submitted and funding created **in-app** Firestore notifications only. No completion / release / refund email. Recipients already came from Auth/profile, not client `to`/`cc`/`bcc`. Chat HTML escape (A58) unchanged. Payment/job API never sent email, so email failure could not fail a charge/transfer/refund.
+- Gaps closed in GREEN: no enable flag; no E01–E05 email; chat `sendMail` could throw after the Firestore write; weak recipient checks; no trusted-link helper; no EMAIL_ENABLED default.
+- Events implemented: **E01–E05**. **E06 skipped** (no current verification-approved / account-disabled product trigger).
+- Implementation: `functions/email/*` + existing Functions triggers (`notifyHomeownerOnQuoteSubmitted`, `notifyHomeownerOnQuoteSubmittedUpdate`, `notifyTradieOnEscrowFunded` expanded for complete/release/refund). `EMAIL_ENABLED=false` default. Best-effort send (never throws). Deterministic notification IDs + `emailSentAt`. Auth email preferred. Links from `TASKIO_APP_URL` origin only.
+- **P03 EMAIL APPLICATION LOGIC: CODE COMPLETE.** **P03 EMAIL TESTING: LOCAL / CI READY** (`npm --prefix functions run lint` pass; `node --check functions/index.js` pass; `npm run test:functions` **26/26** pass including existing chat HTML-escape test; no real SMTP send). **P03 REAL PROVIDER DELIVERY: NOT VERIFIED.** **P03 STAGING DELIVERY: NOT VERIFIED.** **P03 PRODUCTION DELIVERY: NOT VERIFIED.**
+- SMTP/provider **not configured**. No real send. No Functions/Cloud Run/Hosting deploy for P03. P03 commits are **local only** until AMBER push approval (`a3fdeba` application logic; docs commit follows).
+- Read-only Stripe TEST Connect check (no payout created): Expert `acct_1U7VjdKCF5W6OUwD` `livemode=false`; **available AUD 0.00**; **pending AUD 126.00**; payout objects **0**. No automatic TEST payout. **P01 not executed** and not yet practically testable until available funds or a later automatic payout.
+- **P02B was not started.**
+- See `docs/TRANSACTIONAL_EMAIL.md`.
+
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
 
 - `taskio.com.au` is maintenance only. Production Hosting is **not** the staging SPA.
@@ -161,7 +174,7 @@
 | B4D-E | Authenticated synthetic job + invite + one quote (stop before accept/Checkout) | staging | **PASS** job `HntNSWerak2NJreuvFlX` / TSK-5507; quote `BCoGSMWsh7BGpdLdInlP` AUD 120; evidence `4883fa8`, CI `33294487920` |
 | B4F | Hosted quote acceptance + Stripe TEST funding (stop before release) | staging | **PASS** — TSK-3881 `FUNDED` / `in_escrow` AUD 90, automatic `checkoutUrl` redirect, `54aed8b` API + Hosting `70429316be0dd106`. Evidence `66bb84c` **pushed**; CI `33301623028`. |
 | B4G | Hosted Expert Mark complete + Homeowner Approve & Release + one TEST Connect transfer | staging | **PASS** — TSK-5507 `PAID` / `released`; transfer `tr_3UA1mLGdq6QKDpuT1g2pZQFm` AUD 108 `livemode=false` → `acct_1U7VjdKCF5W6OUwD`. Evidence `705464f` **pushed**; CI `33302509679`. |
-| P02A | Hosted Homeowner cancel of funded/unreleased job + full Stripe TEST refund | staging | **PASS** — TSK-3881 `REFUNDED`; refund `re_3UA2jUGdq6QKDpuT1wDiOLhj` AUD 90. **No transfer.** Admin/super_admin refund **not** executed. |
+| P02A | Hosted Homeowner cancel of funded/unreleased job + full Stripe TEST refund | staging | **PASS** — TSK-3881 `REFUNDED`; refund `re_3UA2jUGdq6QKDpuT1wDiOLhj` AUD 90. **No transfer.** Admin/super_admin refund **not** executed. Evidence `78db4e6` **pushed**; CI `33302994264`. |
 
 **2. Pre-launch gates (before first real production users; not B4A–C)**
 
@@ -169,7 +182,7 @@
 |---|---|---|
 | P01 | Stripe TEST connected-account **bank payout** path | AMBER |
 | P02 | Minimal staging admin refund / permission drill | P02A **PASS** (homeowner unreleased full refund). P02B privileged **super_admin** exception refund **NOT PROVEN** / optional later AMBER |
-| P03 | Essential transactional email (SMTP secrets) | AMBER |
+| P03 | Essential transactional email (SMTP secrets) | GREEN application logic **local** (`EMAIL_ENABLED=false`). Delivery **NOT VERIFIED**. Staging activation is a separate AMBER package. |
 | P04 | GA4/provider setup for analytics (no ad pixels) | AMBER |
 | P05 | Staging App Check validation + production enforcement decision | AMBER then RED for prod |
 | P06 | Final Terms/Privacy owner + preferably AU legal review | owner / legal |
@@ -182,7 +195,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **POST-P02A OPERATIONAL DECISION.** Candidates: connected-account bank payout proof (released TEST funds on Expert `acct_1U7VjdKCF5W6OUwD`); optional P02B super_admin exception refund (no remaining funded-unreleased synthetic job — would need a new funded job under a new approval); transactional email; App Check; analytics activation; legal readiness. Do **not** auto-start any of them.
+**Exact next pickup:** **P03 STAGING EMAIL ACTIVATION (AMBER — not executed).** Do not push P03, configure SMTP, send email, start P01, or start P02B without a new approval. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 
