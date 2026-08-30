@@ -26,6 +26,10 @@ jest.mock('../firebase', () => ({
   googleProvider: {},
 }));
 
+jest.mock('../config/publicAcquisitionConfig', () => ({
+  isPublicAcquisitionEnabled: () => true,
+}));
+
 jest.mock('./profile/GoogleBrand', () => ({
   GoogleActionButton: ({ children, ...props }) => <button type="button" {...props}>{children}</button>,
 }));

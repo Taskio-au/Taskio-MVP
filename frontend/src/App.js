@@ -16,7 +16,7 @@ import ClientJobDetail from './components/HomeownerJobDetail';
 import PaymentPage from './components/PaymentPage';
 import JobPostSuccessPage from './components/JobPostSuccessPage';
 import LandingPage from './components/LandingPage';
-import ExpertSignUpPage from './components/ExpertSignUpPage';
+import ExpertSignUpRoute from './components/ExpertSignUpRoute';
 import ExpertDashboard from './components/TradieDashboard';
 import TradieTasksPage from './components/TradieTasksPage';
 import ExpertJobDetail from './components/TradieJobDetail';
@@ -73,7 +73,7 @@ function App() {
         <Route path="/get-started" element={<GetStartedPage />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsPage />} />
-        <Route path="/tradie/signup" element={<ExpertSignUpPage />} />
+        <Route path="/tradie/signup" element={<ExpertSignUpRoute />} />
         <Route path="/post-job" element={<JobPostingForm />} />
         <Route path="/account/deletion/confirm" element={<DeletionConfirmPage />} />
 

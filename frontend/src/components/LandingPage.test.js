@@ -30,8 +30,9 @@ describe('LandingPage', () => {
     );
 
     expect(screen.getByRole('heading', { name: /indoor help without the chase/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /post your task for free/i })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /become an expert/i }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /log in if you were invited/i })).toBeInTheDocument();
+    expect(screen.getByText(/invite-only launch/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /become an expert/i })).not.toBeInTheDocument();
     expect(screen.getAllByText(/verified experts/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/one flow for small indoor jobs/i)).toBeInTheDocument();
     expect(screen.getByText(/trusted local experts/i)).toBeInTheDocument();

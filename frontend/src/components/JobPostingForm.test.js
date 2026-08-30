@@ -47,6 +47,10 @@ jest.mock('../services/phoneVerification', () => ({
   confirmPhoneOtpForSignIn: jest.fn(),
 }));
 
+jest.mock('../config/publicAcquisitionConfig', () => ({
+  isPublicAcquisitionEnabled: () => true,
+}));
+
 const JobPostingForm = require('./JobPostingForm').default;
 
 function renderForm() {

@@ -162,9 +162,8 @@ function QuoteSubmissionCard({
   eligibilityLoading,
   eligibility,
   aiBusy,
-  onRunAiQuoteAssistant,
-  aiError,
-  aiAssumptions,
+  onRunAiQuoteAssistant, aiError,
+  aiAssumptions, aiAvailable = true,
   quoteData,
   onQuoteChange,
   aiSuggestedRange,
@@ -386,7 +385,7 @@ function QuoteSubmissionCard({
               </div>
             </div>
           )}
-
+          {aiAvailable && (
           <div style={styles.aiBox} className="tradie-quote-ai-box">
             <div style={{ fontWeight: 800, marginBottom: 6 }}>AI Quote Assistant</div>
             <div style={{ fontSize: 13, color: '#555', marginBottom: 10 }}>
@@ -420,6 +419,7 @@ function QuoteSubmissionCard({
               </div>
             )}
           </div>
+          )}
 
           {(!myQuote || myQuote.status !== 'submitted' || revisionRequest) && (
             <form onSubmit={onQuoteSubmit} style={{ marginTop: 0 }} className="tradie-quote-form">

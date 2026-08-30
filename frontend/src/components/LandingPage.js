@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { ArrowRight, BadgeCheck, CreditCard, MapPin, MessageSquareText, ShieldCheck, Sparkles } from 'lucide-react';
 import { auth } from '../firebase';
+import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
+import { ANALYTICS_EVENTS, trackEvent } from '../config/analytics';
 import {
   Button,
   Card,
@@ -157,6 +159,17 @@ function LandingPage() {
   const authState = useAuthState(auth) || [];
   const user = authState[0] || null;
   const homeHref = user ? '/dashboard' : '/';
+  const publicAcquisition = isPublicAcquisitionEnabled();
+  const expertEntry = publicAcquisition ? '/tradie/signup' : '/get-started';
+
+  useEffect(() => {
+    trackEvent(ANALYTICS_EVENTS.LANDING_VIEWED, { surface: 'landing' });
+  }, []);
+
+  const goLogin = (surface) => {
+    trackEvent(ANALYTICS_EVENTS.LOGIN_CTA_CLICKED, { surface });
+    navigate('/login');
+  };
 
   return (
     <div className="landing-page">
@@ -165,10 +178,14 @@ function LandingPage() {
         actionsClassName="landing-nav"
         actions={
           <nav className="landing-nav" aria-label="Primary">
-            <Link className="landing-nav-link landing-nav-link--expert-secondary" to="/tradie/signup">
-              Become an Expert
-            </Link>
-            <Button variant="secondary" onClick={() => navigate('/login')}>
+            {publicAcquisition ? (
+              <Link className="landing-nav-link landing-nav-link--expert-secondary" to="/tradie/signup">
+                Become an Expert
+              </Link>
+            ) : (
+              <span className="landing-nav-link landing-nav-link--expert-secondary">Invite-only launch</span>
+            )}
+            <Button variant="secondary" onClick={() => goLogin('header')}>
               Log in
             </Button>
           </nav>
@@ -179,21 +196,36 @@ function LandingPage() {
         <section className="landing-hero">
           <div className="landing-hero-grid">
             <div className="landing-hero-copy-wrap">
-              <div className="landing-eyebrow">Inner Melbourne · indoor jobs</div>
+              <div className="landing-eyebrow">
+                {publicAcquisition ? 'Inner Melbourne · indoor jobs' : 'Private early access · Inner Melbourne'}
+              </div>
               <h1 className="landing-hero-title">Indoor help without the chase.</h1>
               <p className="landing-hero-copy">
                 Quotes from verified Experts for indoor jobs—pay through Taskio when it's right.
+                {publicAcquisition ? '' : ' This Melbourne launch is invite-only.'}
               </p>
               <div className="landing-hero-actions">
-                <Button size="lg" variant="accent" onClick={() => navigate('/post-job')}>
-                  Post your task for free
-                </Button>
+                {publicAcquisition ? (
+                  <Button size="lg" variant="accent" onClick={() => navigate('/post-job')}>
+                    Post your task for free
+                  </Button>
+                ) : (
+                  <Button size="lg" variant="accent" onClick={() => goLogin('hero')}>
+                    Log in if you were invited
+                  </Button>
+                )}
               </div>
               <p className="landing-hero-expert-path">
-                <Link className="landing-hero-expert-link" to="/tradie/signup">
-                  Become an Expert
-                </Link>
-                <span className="landing-hero-expert-path-meta"> — inner Melbourne</span>
+                {publicAcquisition ? (
+                  <>
+                    <Link className="landing-hero-expert-link" to="/tradie/signup">
+                      Become an Expert
+                    </Link>
+                    <span className="landing-hero-expert-path-meta"> — inner Melbourne</span>
+                  </>
+                ) : (
+                  <span className="landing-hero-expert-path-meta">Experts are invited and verified by Taskio.</span>
+                )}
               </p>
               <div className="landing-hero-proof" aria-label="How Taskio protects Clients">
                 {trustBadges.map((badge) => (
@@ -267,7 +299,7 @@ function LandingPage() {
                 as="button"
                 type="button"
                 className="landing-category-card"
-                onClick={() => navigate('/post-job')}
+                onClick={() => (publicAcquisition || user ? navigate('/post-job') : goLogin('category'))}
                 padding={0}
                 aria-label={`Post a task: ${service.name}`}
               >
@@ -400,12 +432,18 @@ function LandingPage() {
             </div>
             <div className="landing-cta-actions">
               <div className="landing-cta-note">Free to post. Pay through Taskio when you approve.</div>
-              <Button size="lg" variant="accent" onClick={() => navigate('/post-job')}>
-                Post a task
+              <Button size="lg" variant="accent" onClick={() => (publicAcquisition || user ? navigate('/post-job') : goLogin('cta'))}>
+                {publicAcquisition ? 'Post a task' : 'Log in'}
               </Button>
-              <Link className="landing-cta-expert-link" to="/tradie/signup">
-                Become an Expert
-              </Link>
+              {publicAcquisition ? (
+                <Link className="landing-cta-expert-link" to="/tradie/signup">
+                  Become an Expert
+                </Link>
+              ) : (
+                <Link className="landing-cta-expert-link" to="/get-started">
+                  How invite-only access works
+                </Link>
+              )}
             </div>
           </div>
         </section>
@@ -422,10 +460,10 @@ function LandingPage() {
             </div>
             <nav className="landing-footer-nav" aria-label="Footer">
               <div className="landing-footer-links">
-                <Link to="/post-job">Post a task</Link>
+                {publicAcquisition ? <Link to="/post-job">Post a task</Link> : <Link to="/login">Post a task</Link>}
                 <Link to="/login">Log in</Link>
-                <Link to="/tradie/signup" className="landing-footer-expert-link">
-                  Become an Expert
+                <Link to={expertEntry} className="landing-footer-expert-link">
+                  {publicAcquisition ? 'Become an Expert' : 'Expert access'}
                 </Link>
                 <Link to="/privacy">Privacy</Link>
                 <Link to="/terms">Terms</Link>

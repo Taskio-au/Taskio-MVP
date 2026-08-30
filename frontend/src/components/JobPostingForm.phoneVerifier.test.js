@@ -51,6 +51,10 @@ jest.mock('../services/phoneVerification', () => {
   };
 });
 
+jest.mock('../config/publicAcquisitionConfig', () => ({
+  isPublicAcquisitionEnabled: () => true,
+}));
+
 const JobPostingForm = require('./JobPostingForm').default;
 const { auth } = require('../firebase');
 

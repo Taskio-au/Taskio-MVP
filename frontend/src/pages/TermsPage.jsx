@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BrandLogo, Button, Card, PageHeader } from '../design/components';
+import LegalDraftBanner from '../components/LegalDraftBanner';
 
 const shellStyle = {
   minHeight: '100vh',
@@ -31,6 +32,7 @@ export default function TermsPage() {
           </Button>
         </div>
         <Card tone="elevated" style={{ display: 'grid', gap: 20 }}>
+          <LegalDraftBanner />
           <PageHeader
             eyebrow="Taskio legal"
             title="Terms of Use"
@@ -83,6 +85,11 @@ export default function TermsPage() {
             </section>
             <section>
               <h2 style={{ marginBottom: 8, color: '#111827' }}>Disputes and refunds</h2>
+              <p style={{ margin: 0 }}>
+                Current product rule for this private launch: if a task is funded but Expert payment has not been
+                released, the funded unreleased amount can be refunded. After release, Taskio does not automatically
+                refund the Client; remaining issues go through support, dispute, or admin processes.
+              </p>
               <p style={{ margin: 0 }}>
                 If you need help with a payment or task issue, use the in-app support flow. Taskio will handle requests
                 in line with the rules set out under Payments and payment processing, including any manual support

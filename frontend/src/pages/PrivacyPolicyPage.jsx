@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BrandLogo, Button, Card, PageHeader } from '../design/components';
+import LegalDraftBanner from '../components/LegalDraftBanner';
 
 const shellStyle = {
   minHeight: '100vh',
@@ -31,6 +32,7 @@ export default function PrivacyPolicyPage() {
           </Button>
         </div>
         <Card tone="elevated" style={{ display: 'grid', gap: 20 }}>
+          <LegalDraftBanner />
           <PageHeader
             eyebrow="Taskio legal"
             title="Privacy Policy"
@@ -65,6 +67,15 @@ export default function PrivacyPolicyPage() {
                 Support tickets, task records, and audit logs may be retained for service delivery, fraud prevention,
                 dispute handling, finance obligations, and legal compliance. For pilot questions, contact support through
                 the in-app support flow.
+              </p>
+            </section>
+            <section>
+              <h2 style={{ marginBottom: 8, color: '#111827' }}>Product analytics</h2>
+              <p style={{ margin: 0 }}>
+                Taskio may record coarse product-funnel events (for example that a landing page was viewed or that a
+                job was created) to operate the private Melbourne launch. Those events must not include phone numbers,
+                emails, OTPs, or user-entered job descriptions. Advertising or remarketing pixels are not used at this
+                stage.
               </p>
             </section>
             <section>

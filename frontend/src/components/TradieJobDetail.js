@@ -21,7 +21,6 @@ function ExpertJobDetail() {
     const { jobId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-
     const [job, setJob] = useState(null);
     const [quoteData, setQuoteData] = useState({ amount: '', message: '' });
     const [loading, setLoading] = useState(true);
@@ -34,7 +33,7 @@ function ExpertJobDetail() {
     const [myQuote, setMyQuote] = useState(null);
     const [revisionRequest, setRevisionRequest] = useState(null);
     const [withdrawing, setWithdrawing] = useState(false);
-    const [aiBusy, setAiBusy] = useState(false);
+    const [aiBusy, setAiBusy] = useState(false); const [aiAssistAvailable, setAiAssistAvailable] = useState(true);
     const [aiError, setAiError] = useState('');
     const [aiAssumptions, setAiAssumptions] = useState([]);
     const [eligibility, setEligibility] = useState(() => buildTaskExpertEligibilityView(null));
@@ -232,6 +231,7 @@ function ExpertJobDetail() {
             const token = await user.getIdToken();
             const config = { headers: { Authorization: `Bearer ${token}` } };
             const res = await api.post('/api/quote-assistant', { jobId }, config);
+            if (res?.data?.fallback) { setAiAssistAvailable(false); return; }
             const message = res?.data?.message;
             const assumptions = Array.isArray(res?.data?.assumptions) ? res.data.assumptions : [];
             if (message) {
@@ -950,7 +950,7 @@ function ExpertJobDetail() {
                     aiBusy={aiBusy}
                     onRunAiQuoteAssistant={runAiQuoteAssistant}
                     aiError={aiError}
-                    aiAssumptions={aiAssumptions}
+                    aiAssumptions={aiAssumptions} aiAvailable={aiAssistAvailable}
                     quoteData={quoteData}
                     onQuoteChange={handleQuoteChange}
                     aiSuggestedRange={null}

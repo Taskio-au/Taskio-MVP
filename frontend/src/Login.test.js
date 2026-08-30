@@ -245,7 +245,7 @@ describe('Login unified auth flow', () => {
   it('keeps get started pointed at the dedicated signup entry and hides admin affordances', () => {
     render(<Login />);
 
-    expect(screen.getByRole('link', { name: /get started/i })).toHaveAttribute('href', '/get-started');
+    expect(screen.getByRole('link', { name: /how access works/i })).toHaveAttribute('href', '/get-started');
     expect(screen.queryByText(/admin sign in/i)).not.toBeInTheDocument();
   });
 

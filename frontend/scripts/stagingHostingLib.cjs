@@ -45,6 +45,7 @@ const STAGING_REACT_APP_ALLOWLIST = new Set([
   'REACT_APP_APPCHECK_ENABLED',
   'REACT_APP_APPCHECK_SITE_KEY',
 ]);
+// Intentionally omitted: REACT_APP_PUBLIC_ACQUISITION_ENABLED — staging stays invite-only.
 
 const OS_ESSENTIAL_NAMES = [
   'PATH',

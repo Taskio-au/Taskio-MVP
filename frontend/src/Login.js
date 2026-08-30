@@ -661,7 +661,8 @@ export default function Login({ adminMode = false }) {
           <div style={styles.footer}>
             {!adminMode ? (
               <p style={styles.footerText}>
-                Don&apos;t have an account? <Link to="/get-started" style={styles.link}>Get started</Link>
+                Private Melbourne launch — invited accounts only.{' '}
+                <Link to="/get-started" style={styles.link}>How access works</Link>
               </p>
             ) : (
               <Link to="/login" style={styles.adminLink}>

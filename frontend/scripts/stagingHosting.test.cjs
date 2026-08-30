@@ -87,6 +87,15 @@ test('staging build env accepts complete staging inputs and forces bypass off', 
   assert.equal(child.ComSpec, windowsEssentials.ComSpec);
 });
 
+test('staging build blanks public-acquisition even if the operator env enables it', () => {
+  const child = stagingBuildChildEnv({
+    ...validEnv,
+    ...windowsEssentials,
+    REACT_APP_PUBLIC_ACQUISITION_ENABLED: 'true',
+  });
+  assert.equal(child.REACT_APP_PUBLIC_ACQUISITION_ENABLED, '');
+});
+
 test('staging child env is an allowlist and drops scanner fixtures and tokens', () => {
   const child = stagingBuildChildEnv({
     ...validEnv,

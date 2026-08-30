@@ -4,13 +4,13 @@ import { useLocation } from 'react-router-dom';
 const ORIGIN = 'https://taskio.com.au';
 
 const PUBLIC_METADATA = {
-  '/': ['Taskio | Small indoor tasks in Melbourne', 'Post a small indoor task, compare expert quotes, and keep payment and messages together with Taskio.'],
+  '/': ['Taskio | Small indoor tasks in Melbourne', 'Private early-access Taskio in inner Melbourne. Invited Clients and Experts log in to post tasks, compare quotes, and pay through Taskio.'],
   '/post-job': ['Post a Task | Taskio', 'Describe one or more small indoor task items and request whole-job quotes from Taskio experts.'],
-  '/get-started': ['Get Started | Taskio', 'Choose whether you need a task completed or want to offer expert services through Taskio.'],
+  '/get-started': ['Get Started | Taskio', 'Taskio private Melbourne launch is invite-only. Invited Clients and Experts can log in.'],
   '/login': ['Log in | Taskio', 'Log in securely to manage your Taskio tasks, quotes, messages, and payments.'],
   '/privacy': ['Privacy Policy | Taskio', 'Read how Taskio handles personal information and privacy requests.'],
   '/terms': ['Terms of Use | Taskio', 'Read the terms that govern use of the Taskio marketplace.'],
-  '/tradie/signup': ['Join as an Expert | Taskio', 'Apply to offer approved small indoor services as a Taskio expert.'],
+  '/tradie/signup': ['Join as an Expert | Taskio', 'Expert enrollment for the private Melbourne launch is invite-only.'],
 };
 
 function upsertMeta(selector, attributes) {

@@ -64,20 +64,10 @@ test('public launch page labels examples and exposes route metadata without fict
   expect(overflow).toBe(false);
 });
 
-test('task brief accepts multiple category items, quantities, and a custom item', async ({ page }) => {
+test('task brief page is invite-only for unauthenticated visitors', async ({ page }) => {
   await page.goto('/post-job');
 
-  await page.getByRole('button', { name: 'Mounting' }).click();
-  await page.getByRole('checkbox', { name: /TV mounting/i }).check();
-  await page.getByRole('checkbox', { name: /Shelves/i }).check();
-  await page.getByLabel('TV mounting quantity').fill('2');
-  await page.getByLabel('Shelves quantity').fill('3');
-  await page.getByRole('checkbox', { name: /Something else within this category/i }).check();
-  await page.getByLabel('Custom task item description').fill('Mount a lightweight indoor noticeboard');
-  await page.getByLabel('Something else within this category quantity').fill('4');
-  await page.getByLabel('Description *').fill('Mount the selected items securely on an indoor plaster wall.');
-
-  await expect(page.getByLabel('TV mounting quantity')).toHaveValue('2');
-  await expect(page.getByLabel('Shelves quantity')).toHaveValue('3');
-  await expect(page.getByRole('button', { name: 'Next' })).toBeEnabled();
+  await expect(page.getByRole('heading', { name: /log in to post a task/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /log in/i })).toBeVisible();
+  await expect(page.getByText(/guest phone signup is not open/i)).toBeVisible();
 });
