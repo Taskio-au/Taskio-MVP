@@ -380,16 +380,22 @@ test('Windows spawn spec uses Node and the installed firebase-tools entry withou
   assert.equal(spec.shell, false);
 });
 
-test('POSIX spawn spec preserves the validated argv array and disables the shell', () => {
+test('POSIX spawn spec uses Node and the installed firebase-tools entry without a shell', (t) => {
+  const fixture = createFakeFirebaseTools(t);
   const plan = buildHostingDeployPlan({
     project: STAGING_PROJECT_ID,
     config: 'firebase.staging.hosting.json',
     execute: true,
   });
-  const spec = buildFirebaseSpawnSpec(plan, { platform: 'linux' });
-  assert.equal(spec.command, 'firebase');
-  assert.deepEqual(spec.args, plan.args);
-  assert.notEqual(spec.args, plan.args);
+  const spec = buildFirebaseSpawnSpec(plan, {
+    platform: 'linux',
+    nodeExecutable: '/usr/bin/node',
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
+  });
+  assert.equal(spec.command, '/usr/bin/node');
+  assert.equal(spec.args[0], fs.realpathSync(fixture.entry));
+  assert.deepEqual(spec.args.slice(1), plan.args);
   assert.equal(spec.shell, false);
 });
 
@@ -399,13 +405,15 @@ test('execution resolves before spawn and fails closed without invoking a proces
     config: 'firebase.staging.hosting.json',
     execute: true,
   });
-  let spawnCalls = 0;
-  assert.throws(() => executeHostingDeployPlan(plan, {
-    platform: 'win32',
-    resolvePackage: () => { throw new Error('missing'); },
-    spawnSync: () => { spawnCalls += 1; return { status: 0 }; },
-  }), /Unable to resolve/);
-  assert.equal(spawnCalls, 0);
+  for (const platform of ['win32', 'linux']) {
+    let spawnCalls = 0;
+    assert.throws(() => executeHostingDeployPlan(plan, {
+      platform,
+      resolvePackage: () => { throw new Error('missing'); },
+      spawnSync: () => { spawnCalls += 1; return { status: 0 }; },
+    }), /Unable to resolve/);
+    assert.equal(spawnCalls, 0, `${platform} spawned after resolution failure`);
+  }
 });
 
 test('execution spawns the exact Windows Node entry and reports process failures', (t) => {
@@ -435,10 +443,16 @@ test('execution spawns the exact Windows Node entry and reports process failures
 
   assert.throws(() => executeHostingDeployPlan(plan, {
     platform: 'linux',
+    nodeExecutable: 'node-test.exe',
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
     spawnSync: () => ({ error: new Error('ENOENT'), status: null }),
   }), /ENOENT/);
   assert.throws(() => executeHostingDeployPlan(plan, {
     platform: 'linux',
+    nodeExecutable: 'node-test.exe',
+    repoRoot: fixture.root,
+    resolvePackage: () => fixture.packageJsonPath,
     spawnSync: () => ({ status: 1 }),
   }), /deploy command failed/);
 });
@@ -450,6 +464,8 @@ test('deploy production sources contain no Windows command-shell fallback', () =
   assert.equal(library.includes('shell: true'), false);
   assert.equal(script.includes('firebase.cmd'), false);
   assert.equal(library.includes('firebase.cmd'), false);
+  assert.equal(library.includes("if (platform !== 'win32')"), false);
+  assert.equal(library.includes('command: plan.command'), false);
 });
 
 test('staging Hosting configs pin no-store on /, rewritten SPA routes and static assets', () => {

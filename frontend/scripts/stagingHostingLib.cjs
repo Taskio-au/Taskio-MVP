@@ -646,15 +646,6 @@ function resolveFirebaseToolsCliEntry(options = {}) {
 
 function buildFirebaseSpawnSpec(plan, options = {}) {
   assertSafeDeployPlanArgs(plan);
-  const platform = options.platform || process.platform;
-  if (platform !== 'win32') {
-    return {
-      command: plan.command,
-      args: [...plan.args],
-      shell: false,
-    };
-  }
-
   const entry = resolveFirebaseToolsCliEntry(options);
   return {
     command: options.nodeExecutable || process.execPath,
