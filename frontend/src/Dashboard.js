@@ -18,6 +18,7 @@ import useAdminDashboardQueryState from './features/admin/dashboard/useAdminDash
 import { jobIdsMatchingWorkflowFilters } from './features/admin/utils/workflowQueueFilters';
 import { buildDashboardTabUrl } from './features/admin/utils/adminDashboardTabUrl';
 import { phase1ExpertiseCatalog } from './shared/expertiseCatalog';
+import { ANALYTICS_EVENTS, trackEvent } from './config/analytics';
 import { dashboardStyles } from './styles/dashboardStyles';
 import { createApiClient, API_BASE_URL } from './api/createApiClient';
 import { PageLoadingShell } from './components/ui/AsyncPageStates';
@@ -540,6 +541,7 @@ function Dashboard({ variant = 'default' }) {
     try {
       setInviting(true);
       await api.post(`/api/admin/jobs/${jobId}/assign`, { tradieUid: uid });
+      trackEvent(ANALYTICS_EVENTS.EXPERT_INVITED, { role: 'admin', count: 1 });
       showClientToast('Invite sent');
       closeInviteModal();
       await fetchData();

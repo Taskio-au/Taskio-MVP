@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { ArrowRight, BadgeCheck, CreditCard, MapPin, MessageSquareText, ShieldCheck, Sparkles } from 'lucide-react';
 import { auth } from '../firebase';
 import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
-import { ANALYTICS_EVENTS, trackEvent } from '../config/analytics';
+import { ANALYTICS_EVENTS, trackEvent, trackEventOnce } from '../config/analytics';
 import {
   Button,
   Card,
@@ -161,10 +161,7 @@ function LandingPage() {
   const homeHref = user ? '/dashboard' : '/';
   const publicAcquisition = isPublicAcquisitionEnabled();
   const expertEntry = publicAcquisition ? '/tradie/signup' : '/get-started';
-
-  useEffect(() => {
-    trackEvent(ANALYTICS_EVENTS.LANDING_VIEWED, { surface: 'landing' });
-  }, []);
+  trackEventOnce(ANALYTICS_EVENTS.LANDING_VIEWED, 'session', { surface: 'landing' });
 
   const goLogin = (surface) => {
     trackEvent(ANALYTICS_EVENTS.LOGIN_CTA_CLICKED, { surface });

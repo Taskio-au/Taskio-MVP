@@ -10,6 +10,7 @@ import { CLIENT_PAYMENT_GATE } from '../constants/blockedFlowCopy';
 import { PageLoadingShell } from './ui/AsyncPageStates';
 import PageMain from './ui/PageMain';
 import { navigateToStripeHostedCheckout } from '../utils/stripeHostedCheckoutUrl';
+import { ANALYTICS_EVENTS, trackEventOnce } from '../config/analytics';
 
 const api = createApiClient();
 
@@ -119,6 +120,9 @@ function PaymentPage() {
                     setError('Payment couldn\'t start. Please try again.');
                     return;
                 }
+                const onceKey = `${jobId}:${quoteId}`;
+                trackEventOnce(ANALYTICS_EVENTS.QUOTE_ACCEPTED, onceKey, { role: 'homeowner', result: 'success' });
+                trackEventOnce(ANALYTICS_EVENTS.CHECKOUT_STARTED, onceKey, { role: 'homeowner', source: 'payment_page' });
                 setCheckoutUrl(url);
             } catch (err) {
                 console.error("Error creating checkout session:", err);

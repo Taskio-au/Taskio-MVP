@@ -4,6 +4,19 @@ import './index.css';
 import App from './App';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import reportWebVitals from './reportWebVitals';
+import { resolveAnalyticsConfig } from './config/analyticsConfig';
+import { initializeTaskioAnalytics } from './config/analyticsInit';
+import { analyticsEnvFromProcess } from './config/runtimeEnv';
+
+try {
+  initializeTaskioAnalytics({
+    config: resolveAnalyticsConfig(analyticsEnvFromProcess()),
+    windowRef: typeof window !== 'undefined' ? window : undefined,
+    documentRef: typeof document !== 'undefined' ? document : undefined,
+  });
+} catch (_err) {
+  // Analytics init must never block the app.
+}
 
 function sendWebVitals(metric) {
   if (process.env.NODE_ENV !== 'production') return;
@@ -11,15 +24,6 @@ function sendWebVitals(metric) {
 
   if (typeof window.__TASKIO_REPORT_WEB_VITALS__ === 'function') {
     window.__TASKIO_REPORT_WEB_VITALS__(metric);
-  }
-
-  if (typeof window.gtag === 'function') {
-    window.gtag('event', metric.name, {
-      event_category: 'Web Vitals',
-      value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
-      event_label: metric.id,
-      non_interaction: true,
-    });
   }
 }
 

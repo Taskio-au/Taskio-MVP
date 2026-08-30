@@ -34,6 +34,15 @@ export function appCheckEnvFromProcess() {
   };
 }
 
+export function analyticsEnvFromProcess() {
+  return {
+    NODE_ENV: process.env.NODE_ENV,
+    REACT_APP_ANALYTICS_ENABLED: process.env.REACT_APP_ANALYTICS_ENABLED,
+    REACT_APP_GA_MEASUREMENT_ID: process.env.REACT_APP_GA_MEASUREMENT_ID,
+    REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: process.env.REACT_APP_FIREBASE_EXPECTED_PROJECT_ID,
+  };
+}
+
 export function e2eAuthEnvFromProcess() {
   return {
     NODE_ENV: process.env.NODE_ENV,

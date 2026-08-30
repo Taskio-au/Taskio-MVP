@@ -23,6 +23,7 @@ import { isEscrowFunded } from '../utils/homeownerDashboardCards';
 import { getClientPaymentStateLabel } from '../utils/paymentStoryLabels';
 import { CLIENT_ACCOUNT_INCOMPLETE } from '../constants/blockedFlowCopy';
 import { getJobDisplayLayers } from '../utils/jobDisplayFromJob';
+import { jobLooksPaid, trackPaymentReleased, trackPaymentSucceeded, trackReviewSubmitted, useHomeownerJobAnalytics } from '../config/homeownerJobAnalytics';
 import { PageLoadingShell, PageErrorShell } from './ui/AsyncPageStates';
 import PageMain from './ui/PageMain';
 import { canRequestCancellationAfterStart } from '../utils/jobStateHelpers';
@@ -127,6 +128,7 @@ function ClientJobDetail() {
 
         fetchData();
     }, [jobId, navigate, refetchKey]);
+    useHomeownerJobAnalytics({ jobId, quotes, job, ready: !loading });
 
     // Banner when returning from /payment/:jobId/:quoteId with payment already recovered
     useEffect(() => {
@@ -173,16 +175,6 @@ function ClientJobDetail() {
         const v = qs.get('checkout');
         const stripeSessionId = qs.get('session_id');
 
-        const jobLooksPaid = (j) => {
-            if (!j) return false;
-            const ns = normalizeStatus(j.status);
-            return (
-                j.paymentState === 'in_escrow' ||
-                j.paymentStatus === 'succeeded' ||
-                [JOB_STATUSES.FUNDED, JOB_STATUSES.IN_PROGRESS, JOB_STATUSES.COMPLETED, JOB_STATUSES.PAID].includes(ns)
-            );
-        };
-
         if (v === 'success') {
             setError('');
             setSuccess('');
@@ -213,6 +205,7 @@ function ClientJobDetail() {
                             if (jobLooksPaid(nextJob)) {
                                 setConfirmingPayment(false);
                                 setSuccess('Payment secured. The Expert can now start the work.');
+                                trackPaymentSucceeded(jobId);
                                 return;
                             }
                         } catch (_) {
@@ -437,6 +430,7 @@ function ClientJobDetail() {
             const token = await user.getIdToken();
             const config = { headers: { Authorization: `Bearer ${token}` } };
             await api.post(`/api/jobs/${jobId}/release`, {}, config);
+            trackPaymentReleased();
             setSuccess('You approved completion — payment is released. The Expert’s payout is processed by Stripe.');
             // Audit trail (system message)
             try {
@@ -580,6 +574,7 @@ function ClientJobDetail() {
             const token = await user.getIdToken();
             const config = { headers: { Authorization: `Bearer ${token}` } };
             await api.post(`/api/jobs/${jobId}/review`, { rating: reviewForm.rating, text: reviewForm.text }, config);
+            trackReviewSubmitted('homeowner');
             setReviewSuccess('Thanks! Your review has been submitted.');
             const rr = await api.get(`/api/jobs/${jobId}/review`, config);
             setReview(rr.data?.review || null);

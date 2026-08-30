@@ -24,6 +24,7 @@ import {
   sendTaskioMagicLink,
 } from './features/auth/utils';
 import { buildExistingMethodMessage, finalizeAuthenticatedSession } from './features/auth/postAuth';
+import { ANALYTICS_EVENTS, trackEvent } from './config/analytics';
 import {
   clearRecaptchaVerifier,
   ensureOfficialRecaptchaVerifier,
@@ -32,7 +33,6 @@ import {
 } from './services/phoneVerification';
 
 const OTP_RESEND_MS = 30000;
-
 function inferResolutionFromMethods(methods = []) {
   const availableMethods = Array.isArray(methods) ? methods : [];
   if (availableMethods.includes('password')) return 'password';
@@ -349,11 +349,13 @@ export default function Login({ adminMode = false }) {
 
     setLoading(true);
     try {
+      trackEvent(ANALYTICS_EVENTS.LOGIN_STARTED, { surface: 'password', role: 'homeowner' });
       const credential = await signInWithEmailAndPassword(auth, resolvedIdentifier, password);
       const destination = await finalizeAuthenticatedSession(credential.user, {
         providerName: 'password',
         profileOverrides: { email: resolvedIdentifier },
       });
+      trackEvent(ANALYTICS_EVENTS.LOGIN_SUCCEEDED, { surface: 'password' });
       navigate(destination, { replace: true });
     } catch (err) {
       setError(friendlyAuthError(err));
@@ -367,6 +369,7 @@ export default function Login({ adminMode = false }) {
     setInfo('');
     setLoading(true);
     try {
+      trackEvent(ANALYTICS_EVENTS.LOGIN_STARTED, { surface: 'google' });
       const credential = await signInWithPopup(auth, googleProvider);
       const additionalInfo = getAdditionalUserInfo(credential);
       if (additionalInfo?.isNewUser === true) {
@@ -377,6 +380,7 @@ export default function Login({ adminMode = false }) {
         providerName: 'google',
         profileOverrides: { email: credential.user?.email || '' },
       });
+      trackEvent(ANALYTICS_EVENTS.LOGIN_SUCCEEDED, { surface: 'google' });
       navigate(destination, { replace: true });
     } catch (err) {
       if (err?.code === 'auth/account-exists-with-different-credential') {
@@ -427,11 +431,13 @@ export default function Login({ adminMode = false }) {
     setInfo('');
     setLoading(true);
     try {
+      trackEvent(ANALYTICS_EVENTS.LOGIN_STARTED, { surface: 'phone' });
       const result = await confirmPhoneOtpForSignIn({
         confirmationResult,
         code: otpCode,
       });
       const destination = await finalizeAuthenticatedSession(result.user, { providerName: 'phone' });
+      trackEvent(ANALYTICS_EVENTS.LOGIN_SUCCEEDED, { surface: 'phone' });
       navigate(destination, { replace: true });
     } catch (err) {
       setError(friendlyAuthError(err));

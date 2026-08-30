@@ -6,6 +6,7 @@ import { createApiClient } from '../api/createApiClient';
 import BrandLogo from '../design/components/BrandLogo';
 import { getClientAccountStatus } from '../utils/homeownerAccount';
 import { CLIENT_ACCOUNT_COMPLETE_PAGE } from '../constants/blockedFlowCopy';
+import { ANALYTICS_EVENTS, trackEvent } from '../config/analytics';
 
 const api = createApiClient();
 
@@ -66,6 +67,7 @@ export default function CompleteClientAccountPage() {
       method,
       firstName: String(firstName || '').trim(),
     }, config);
+    trackEvent(ANALYTICS_EVENTS.ACCOUNT_ACTIVATION_COMPLETED, { role: 'homeowner', result: 'success' });
     navigate(nextPath, { replace: true });
   };
 

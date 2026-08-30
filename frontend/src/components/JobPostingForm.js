@@ -28,6 +28,8 @@ import {
 import '../styles/publicPageHeader.css';
 import PublicPageHeader from './PublicPageHeader';
 import './JobPostingForm.css';
+import { ANALYTICS_EVENTS, trackEvent, trackEventOnce } from '../config/analytics';
+import { coercePilotSuburb } from '../config/analyticsConfig';
 import { InlineErrorCardWithNavLinks } from './ui/AsyncPageStates';
 import { getPostJobFlowErrorPresentation } from '../utils/userFacingApiErrors';
 import InviteOnlyNotice from './InviteOnlyNotice';
@@ -429,7 +431,7 @@ function JobPostingForm() {
     const aiUndoId = useId();
     const locationHeadingId = useId();
     const locationSelectId = useId();
-
+    trackEventOnce(ANALYTICS_EVENTS.JOB_POST_STARTED, 'session', { role: 'homeowner', surface: 'post_job' });
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(newUser => {
@@ -672,7 +674,18 @@ function JobPostingForm() {
         }
     }, [acceptedLegal, currentStep, formData, formErrors.location, includesMirror, otpCode, otpRequested, phase1TextScopeError, photoRequirement, photos.length]);
 
-    const nextStep = useCallback(() => setCurrentStep(prev => Math.min(prev + 1, totalSteps)), [totalSteps]);
+    const nextStep = useCallback(() => {
+        setCurrentStep((prev) => {
+            const next = Math.min(prev + 1, totalSteps);
+            if (next !== prev) {
+                trackEvent(ANALYTICS_EVENTS.JOB_POST_STEP_COMPLETED, {
+                    role: 'homeowner',
+                    step: prev,
+                });
+            }
+            return next;
+        });
+    }, [totalSteps]);
     const prevStep = useCallback(() => setCurrentStep(prev => Math.max(1, prev - 1)), []);
 
     const handleFormKeyDown = (e) => {
@@ -742,6 +755,14 @@ function JobPostingForm() {
         if (!jobId) {
             throw new Error('Missing created job ID.');
         }
+        const category = String(selectedTopLevelGroup?.sourceCategory || formData.jobType || '').trim().slice(0, 40);
+        const suburb = coercePilotSuburb(formData.location?.suburb);
+        trackEvent(ANALYTICS_EVENTS.JOB_CREATED, {
+            role: 'homeowner',
+            ...(category ? { category } : {}),
+            ...(suburb ? { suburb } : {}),
+        });
+        trackEvent(ANALYTICS_EVENTS.JOB_POST_COMPLETED, { role: 'homeowner' });
         if (photos.length > 0) {
             setPhotoUploadBusy(true);
             try {
@@ -753,7 +774,7 @@ function JobPostingForm() {
         }
         sessionStorage.removeItem('taskio_job_draft');
         navigate(`/job-posted/${jobId}`);
-    }, [buildTaskData, navigate, photos.length, uploadPhotosForJob]);
+    }, [buildTaskData, formData.jobType, formData.location, navigate, photos.length, selectedTopLevelGroup, uploadPhotosForJob]);
 
     const ensureRecaptchaVerifier = useCallback(() => (
         ensureOfficialRecaptchaVerifier({

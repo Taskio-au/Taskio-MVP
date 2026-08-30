@@ -14,6 +14,7 @@ import { buildTaskExpertEligibilityView } from '../utils/taskExpertEligibility';
 import { formatTaskRefRowLabelFromJob } from '../utils/taskReference';
 import { getExpertPaymentStateLabel } from '../utils/paymentStoryLabels';
 import { getJobDisplayLayers } from '../utils/jobDisplayFromJob';
+import { trackJobMarkedComplete, trackQuoteSubmitted, trackReviewSubmitted } from '../config/expertJobAnalytics';
 
 const api = createApiClient();
 
@@ -33,8 +34,7 @@ function ExpertJobDetail() {
     const [myQuote, setMyQuote] = useState(null);
     const [revisionRequest, setRevisionRequest] = useState(null);
     const [withdrawing, setWithdrawing] = useState(false);
-    const [aiBusy, setAiBusy] = useState(false); const [aiAssistAvailable, setAiAssistAvailable] = useState(true);
-    const [aiError, setAiError] = useState('');
+    const [aiBusy, setAiBusy] = useState(false); const [aiAssistAvailable, setAiAssistAvailable] = useState(true); const [aiError, setAiError] = useState('');
     const [aiAssumptions, setAiAssumptions] = useState([]);
     const [eligibility, setEligibility] = useState(() => buildTaskExpertEligibilityView(null));
     const [eligibilityLoading, setEligibilityLoading] = useState(true);
@@ -203,7 +203,7 @@ function ExpertJobDetail() {
             };
             
             // Using the existing endpoint to post a quote
-            await api.post(`/api/jobs/${jobId}/quotes`, payload, config);
+            await api.post(`/api/jobs/${jobId}/quotes`, payload, config); trackQuoteSubmitted(quoteData.amount);
             setSuccess('Your quote has been submitted successfully! The client will be notified.');
             setQuoteData({ amount: '', message: '' }); // Clear form
             await loadQuotePage({ preserveLoading: true });
@@ -275,7 +275,7 @@ function ExpertJobDetail() {
             if (!user) return navigate('/');
             const token = await user.getIdToken();
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            await api.post(`/api/jobs/${jobId}/complete`, {}, config);
+            await api.post(`/api/jobs/${jobId}/complete`, {}, config); trackJobMarkedComplete();
             setSuccess('Task marked as complete. Waiting for client approval.');
             // Audit trail (system message)
             try {
@@ -312,7 +312,7 @@ function ExpertJobDetail() {
             if (!user) return navigate('/');
             const token = await user.getIdToken();
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            await api.post(`/api/jobs/${jobId}/review`, clientReviewForm, config);
+            await api.post(`/api/jobs/${jobId}/review`, clientReviewForm, config); trackReviewSubmitted('tradie');
             const res = await api.get(`/api/jobs/${jobId}/review`, config);
             setClientReview(res.data?.review || null);
         } catch (e) {

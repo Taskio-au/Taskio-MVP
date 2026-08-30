@@ -186,6 +186,26 @@ test('staging App Check debug token is forbidden and enabled requires a public s
   assert.equal(child.REACT_APP_APPCHECK_DEBUG_TOKEN, '');
 });
 
+test('staging analytics enabled requires a GA4 measurement ID and stays off by default', () => {
+  assert.throws(() => assertStagingBuildEnv({
+    ...validEnv,
+    REACT_APP_ANALYTICS_ENABLED: 'true',
+  }), /requires REACT_APP_GA_MEASUREMENT_ID/);
+  const child = stagingBuildChildEnv({
+    ...validEnv,
+    ...windowsEssentials,
+    REACT_APP_ANALYTICS_ENABLED: 'true',
+    REACT_APP_GA_MEASUREMENT_ID: 'G-STAGINGONLY1',
+  });
+  assert.equal(child.REACT_APP_ANALYTICS_ENABLED, 'true');
+  assert.equal(child.REACT_APP_GA_MEASUREMENT_ID, 'G-STAGINGONLY1');
+  const disabled = stagingBuildChildEnv({
+    ...validEnv,
+    ...windowsEssentials,
+  });
+  assert.equal(disabled.REACT_APP_ANALYTICS_ENABLED, undefined);
+});
+
 test('scan fails on production identifiers and bypass assignment, not SDK property names', () => {
   const fixtures = { phone: '', otp: '' };
   assert.deepEqual(scanText('appVerificationDisabledForTesting', fixtures), []);
@@ -210,6 +230,8 @@ test('scan fails on production identifiers and bypass assignment, not SDK proper
       .includes('App Check debug token'),
   );
   assert.deepEqual(scanText('FIREBASE_APPCHECK_DEBUG_TOKEN', fixtures), []);
+  assert.ok(scanText('fbq("init","123")', fixtures)[0].includes('advertising'));
+  assert.ok(scanText('gtag("config","AW-123")', fixtures)[0].includes('advertising'));
 });
 
 test('scan equality-checks fixtures without using generic digit matching', () => {

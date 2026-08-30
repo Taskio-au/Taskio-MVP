@@ -18,6 +18,7 @@ import VariationsSection from './features/admin/job-detail/VariationsSection';
 import PaymentFeeBreakdownPanel from './features/admin/job-detail/PaymentFeeBreakdownPanel';
 import SelectedExpertSection from './features/admin/job-detail/SelectedExpertSection';
 import AppHeader from './components/AppHeader';
+import { ANALYTICS_EVENTS, trackEvent } from './config/analytics';
 import { PageLoadingShell } from './components/ui/AsyncPageStates';
 import { addDoc, collection, doc as fsDoc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { phase1ExpertiseCatalog } from './shared/expertiseCatalog';
@@ -433,6 +434,7 @@ function JobDetail() {
             const token = await current.getIdToken();
             const config = { headers: { Authorization: `Bearer ${token}` } };
             await api.post(`/api/admin/jobs/${jobId}/assign`, { tradieUid: id }, config);
+            trackEvent(ANALYTICS_EVENTS.EXPERT_INVITED, { role: 'admin', count: 1 });
             setAdminMsg('Invite sent.');
             setSelectedInviteUids((prev) => prev.filter((x) => x !== id));
             await fetchData();
@@ -453,9 +455,13 @@ function JobDetail() {
             if (!current) throw new Error('Not authenticated');
             const token = await current.getIdToken();
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            await Promise.allSettled(
+            const results = await Promise.allSettled(
                 selectedInviteUids.map((uid) => api.post(`/api/admin/jobs/${jobId}/assign`, { tradieUid: uid }, config))
             );
+            const invited = results.filter((result) => result.status === 'fulfilled').length;
+            if (invited > 0) {
+                trackEvent(ANALYTICS_EVENTS.EXPERT_INVITED, { role: 'admin', count: invited });
+            }
             setSelectedInviteUids([]);
             setAdminMsg('Invites sent.');
             await fetchData();
