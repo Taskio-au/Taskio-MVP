@@ -14,13 +14,13 @@
 - Security rules are covered by Firestore/Storage emulator tests using demo project IDs only.
 - Cloud Functions have emulator-backed retry/idempotency tests.
 - Frontend and backend have isolated local suites. CI (Node 24) builds the production frontend, runs Playwright browser-smoke against a local mock server, rules tests, Functions tests, and API/webhook image builds.
-- Staging Cloud Run `taskio-api-staging` (closed signup, CORS for staging Hosting + localhost) and staging Hosting SPA are live. Production SPA is not restored.
+- Staging Cloud Run `taskio-api-staging` (closed signup, CORS for staging Hosting + localhost) and staging Hosting SPA are live. B4A–G and P02A hosted journeys **PASS**. Production SPA is not restored. P05 App Check application code is in-repo with enforcement **off**.
 - Production deployment artifacts and rollback steps are in `docs/TASKIO_RELEASE_PLAN.md`. Commands there remain **NOT EXECUTED** unless Saeed names an exact `taskio-v2` batch.
 
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- App Check registration/enforcement, SMTP/transactional email **delivery**, live Stripe, public signup, and production SPA restore remain separate gates. P03 application logic is in repo with `EMAIL_ENABLED=false`; real provider send is **NOT VERIFIED**.
+- App Check registration/enforcement, SMTP/transactional email **delivery**, live Stripe, public signup, and production SPA restore remain separate gates. P03 application logic is on origin with `EMAIL_ENABLED=false`; Postmark staging delivery is **NOT VERIFIED**. P05 App Check application code is repo-ready with enforcement **off**.
 - Legal Terms/Privacy remain drafts until owner (and preferably Australian legal) review before first real users.
 
 ## Next release decision

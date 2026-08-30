@@ -144,14 +144,15 @@ Example env templates (do **not** commit real `.env` files):
 - **Gemini API keys must be backend-only** (use `backend/.env` → `GEMINI_API_KEY`).
 - Do **not** place Gemini keys in frontend env vars (never `REACT_APP_*`).
 
-### App Check (optional hardening)
+### App Check (optional hardening; enforcement off)
 
-Frontend scaffolding is in `frontend/src/firebase.js` behind env toggles:
+Frontend scaffolding is in `frontend/src/firebase.js` / `frontend/src/config/appCheck*.js`. Safe default is disabled. See `docs/APP_CHECK.md`.
 
 - `REACT_APP_APPCHECK_ENABLED=true`
-- `REACT_APP_APPCHECK_SITE_KEY=<reCAPTCHA v3 site key>`
+- `REACT_APP_APPCHECK_SITE_KEY=<public reCAPTCHA site key>`
+- `REACT_APP_APPCHECK_PROVIDER=recaptcha-v3` (default) or `recaptcha-enterprise`
 
-For local dev, you can use a debug token:
+For local dev only (forbidden in production/staging Hosting builds):
 
 - `REACT_APP_APPCHECK_DEBUG_TOKEN=true`
 
