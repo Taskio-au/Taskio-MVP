@@ -1,6 +1,10 @@
 # Taskio production release plan
 
-> Status: **NOT EXECUTED**. This repository-only plan targets `taskio-v2` after a separate, exact owner approval. It must never be used for `taskio-v2-staging`, which is frozen and excluded.
+> Status: **NOT EXECUTED** for production. This plan targets `taskio-v2` after a separate, exact owner approval.
+>
+> Historical wording that treated `taskio-v2-staging` as frozen/excluded is **superseded**. Staging is a temporary validation bench: Stage 4 Boundaries 1–3 are complete; Boundary 4 is not started. **Do not** use the production commands below against staging. Staging Hosting/Cloud Run use the staging wrappers and `--project=taskio-v2-staging` only.
+>
+> Production Hosting currently serves the maintenance page (`firebase.maintenance.json`). Restoring the SPA is a separate RED approval.
 
 ## Prepared repository artifacts
 

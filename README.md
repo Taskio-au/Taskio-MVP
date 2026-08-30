@@ -122,11 +122,15 @@ GitHub Actions workflow: `.github/workflows/ci.yml`
 
 - Triggers: `pull_request`, and `push` to `main` and `develop`
 - Permissions: read-only (`contents: read`); no deployment jobs
-- **Frontend (Node 20):** `npm ci` → `npm run verify` → `npm run build`
-- **Backend (Node 20):** `npm ci` → syntax checks → `npm test` with `NODE_ENV=test`
-- **Functions (Node 24):** `npm ci` → `node --check index.js` → `npm run lint`
+- Node **24** for all jobs (see `.nvmrc`)
+- **security-rules:** Firestore/Storage emulator tests
+- **frontend:** `npm ci` → `npm run verify` → `npm run build`
+- **backend:** `npm ci` → syntax checks → `npm test` with `NODE_ENV=test`
+- **functions:** `npm ci` → `node --check` → lint → Functions emulator tests
+- **browser-smoke:** Playwright Chromium against a local mock/e2e harness (no real Firebase project)
+- **api-image** / **webhook-image:** Docker image layout/smoke checks
 
-Not covered by CI yet (still open work): Playwright E2E, Firestore/Storage rules tests, and Functions unit/integration tests. CI also does not run `npm audit` as a merge gate.
+CI does not deploy. CI also does not run `npm audit` as a merge gate.
 
 ## Environment variables (recommended)
 

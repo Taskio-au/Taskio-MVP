@@ -11,13 +11,13 @@
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
-  - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution` — first **published** Windows fail-closed implementation (parent of later synthesis). Remote CI run `33245239158` was green on this commit.
-  - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms` — synthesis on top of `f56bc3e`: repository `firebase-tools` CLI entry + `process.execPath` on **Windows and POSIX**, `realpath` containment, fail closed before spawn, no PATH / `firebase.cmd` / `shell: true` fallback.
-  - this tracker commit records that reconciliation (do not treat the superseded local-only stack as canonical).
-- Superseded local SHAs (do not amend; kept only on local backup branch `backup/stage4-local-119d923`, **not** on `origin/develop`): `4e4a068`, `1cb2f9a`, `119d923`. Those commits were an alternate all-platform implementation that diverged from `f56bc3e`; their security intent was folded into `58ed427` rather than cherry-picked.
+  - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
+  - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
+  - `56cc028` `docs: sync tracker after Stage 4 wrapper reconciliation` — **pushed**; CI run `33286833098` **success**.
+- Superseded local SHAs (backup only, not canonical): `4e4a068`, `1cb2f9a`, `119d923` on `backup/stage4-local-119d923`.
+- Owner decisions 2026-08-30 (private Melbourne MVP): invite-only enrollment; keep post-job OTP architecture for later public launch; founding experts invite-only; B4A–C prepared as one AMBER package (no OTP/writes); 10% + founding fee model unchanged; bank payout **pre-launch** (not B4A–C); variations not required for launch; minimal staging refund/admin drill **pre-launch**; cancellation rule unchanged; reviews unchanged; transactional email **pre-launch**; AI must not block launch; freeze 8 suburbs + Phase 1 catalog; legal review **pre-launch** (staging drafts OK); App Check **pre-launch**; privacy-conscious analytics **required** (no ad pixels); production remains frozen.
 - Local gcloud / `.firebaserc` default project remains **`taskio-v2`**. Staging commands must pass `--project=taskio-v2-staging` explicitly.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission.
-- Gemini repository configuration now targets stable `gemini-3.6-flash` over the existing REST `v1` integration; local mocks verify the request and no live Gemini call was made.
 
 ### Stage 4 (`taskio-v2-staging` only)
 
@@ -26,8 +26,10 @@
 | 1 | **DONE / pushed / CI green** | Hosting configs, fail-closed Firebase resolver, build/scan/deploy wrapper. Landed at `127f8c2`. CI run `33241796405`. Commits `f6b3b04`, `ad14d5e`, `681da2b`, `127f8c2`. |
 | 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
 | 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Do not roll back the successful SPA release without a new approval. Hosted D3 journey **not** started. No OTP sent. |
-| 3 follow-up | **repo reconciled; lands on origin with the approved `develop` push** | Published `f56bc3e` (Windows fail-closed + `realpath`) then `58ed427` (same resolver + `process.execPath` on all platforms). No PATH `firebase`, no `firebase.cmd`, no `shell: true`. Clone IDs starting with `-` rejected. Do not start from superseded local SHAs `4e4a068` / `1cb2f9a`. |
-| 4 | **NOT STARTED** | Do not start or mutate staging for Boundary 4 until Saeed explicitly approves that boundary. |
+| 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
+| 4 | **NOT STARTED** | Combined **B4A–C** AMBER package to be presented after GREEN invite-only work. Excludes OTP, signup, writes, Stripe, App Check, deploy, production. |
+
+**Exact next pickup:** GREEN G01–G05 locally complete. Present **one** B4A–C AMBER approval package. Do not execute hosted B4 until Saeed approves that package.
 
 **Staging Cloud Run (Boundary 2, accepted):**
 
@@ -49,11 +51,44 @@
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
 
 - `taskio.com.au` is maintenance only. Production Hosting is **not** the staging SPA.
-- Production signup stays disabled. Production API remains IAM-private. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
+- Production signup stays disabled. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
+- **Documentation note (do not mutate production to “fix” this):** ledger item **A03** records that public Cloud Run invocation was enabled on `taskio-api` (`invoker-iam-disabled`) with unauthenticated `/health/live` 200. The freeze policy above still forbids further production API/IAM/Hosting/Stripe changes. Treat A03 as historical evidence; reconciling live invoker policy is a separate RED decision.
 
-**Earlier staging Stripe TEST gates remain COMPLETE** (do not re-run without a new decision): expert phone-claim consistency, Auth runtime IAM custom role, synthetic homeowner/expert/admin identities, TEST Express onboarding, webhook HMAC → OIDC, duplicate/idempotency, Connected Accounts webhook, genuine Checkout, funded homeowner full refund, expert release / Connect transfer (2026-08-24). **Not** proven: connected-account bank payout.
+**Earlier staging Stripe TEST gates remain COMPLETE** (do not re-run without a new decision): expert phone-claim consistency, Auth runtime IAM custom role, synthetic homeowner/expert/admin identities, TEST Express onboarding, webhook HMAC → OIDC, duplicate/idempotency, Connected Accounts webhook, genuine Checkout, funded homeowner full refund, expert release / Connect transfer (2026-08-24). **Not** proven: connected-account **bank payout** (now a **pre-launch AMBER gate**, not a B4A–C blocker).
 
-**Exact next pickup:** Boundary 4 planning / approval. Do not start Boundary 4 or mutate staging until Saeed explicitly approves the boundary.
+### Owner MVP backlog (2026-08-30)
+
+**1. Core private MVP (GREEN now; B4A–C AMBER next)**
+
+| ID | Objective | Env | Approval |
+|---|---|---|---|
+| G01 | Invite-only / private-launch UX; preserve post-job OTP architecture behind flag | repo | GREEN **local** |
+| G02 | Stale-doc cleanup (status, release plan, README CI, A49, IAM note, browser-connectivity) | repo | GREEN **local** |
+| G03 | Legal draft banners + cancellation copy as draft | repo | GREEN **local** |
+| G04 | Hide AI controls when Gemini returns `fallback` | repo | GREEN **local** |
+| G05 | Analytics taxonomy + PII-safe `trackEvent` (no GA account yet) | repo | GREEN **local** |
+| B4A-C | Read-only hosted SPA + existing synthetic login + authenticated read | staging | **AMBER** (one package; not executed) |
+
+**2. Pre-launch gates (before first real production users; not B4A–C)**
+
+| ID | Objective | Approval |
+|---|---|---|
+| P01 | Stripe TEST connected-account **bank payout** path | AMBER |
+| P02 | Minimal staging admin refund / permission drill | AMBER (`super_admin` only if required) |
+| P03 | Essential transactional email (SMTP secrets) | AMBER |
+| P04 | GA4/provider setup for analytics (no ad pixels) | AMBER |
+| P05 | Staging App Check validation + production enforcement decision | AMBER then RED for prod |
+| P06 | Final Terms/Privacy owner + preferably AU legal review | owner / legal |
+
+**3. Nice-to-have / post-core**
+
+| ID | Objective |
+|---|---|
+| N01 | Paid variations hosted proof |
+| N02 | Public waitlist (only if useful after GREEN) |
+| N03 | Full automated dispute system |
+
+**Exact next pickup:** GREEN G01–G05 implemented locally (this batch). Next: **one** B4A–C AMBER package for Saeed — do not execute hosted B4 until approved. Do not send OTP. Do not start B4D/E/F. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 
@@ -152,9 +187,11 @@ These paths were **not** tested and are **not** approved by the payment PASS not
 - admin manual / `super_admin` refund workflow
 - post-payout refund behavior
 
-Do not treat them as automatic launch blockers unless the existing release plan requires them. Next session should first assess whether each is actually required before launch.
+Owner 2026-08-30: connected-account **bank payout** and a **minimal staging refund/admin drill** are **pre-launch gates** (not B4A–C). Paid variations remain optional. Do not start those AMBER packages from this GREEN batch.
 
 ### Unresolved pre-launch architecture point
+
+> **Superseded 2026-08-30 for staging.** Staging Hosting SPA + CORS API already make a normal browser able to call `taskio-api-staging` from the staging origins. Remaining gap is **hosted user-journey proof** (Boundary 4), not “can the SPA reach the API.” Production SPA is still maintenance-only; production API invoker policy is historical A03 evidence plus freeze (see checkpoint).
 
 The dual-header method:
 
@@ -167,7 +204,7 @@ Normal browser/user connectivity, intended production API exposure, or a trusted
 
 ### Exact next pickup
 
-> **Superseded 2026-08-30.** Current pickup is **Boundary 4 planning / approval**. Staging Hosting SPA and closed-signup CORS API are already live on `taskio-v2-staging`. Do not start Boundary 4 or mutate staging until Saeed explicitly approves that boundary.
+> **Superseded 2026-08-30.** Current pickup is GREEN private-launch UX, then one **B4A–C AMBER** package. Do not execute hosted B4 until Saeed approves that package.
 
 **Historical pickup (2026-08-23, superseded):** PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH. Application hardening for a later public-API decision is in `docs/PUBLIC_API_EXPOSURE_PREFLIGHT.md`. Do not treat that document as deployment approval.
 
@@ -316,7 +353,7 @@ Use the safest practical environment for those final tests while production rema
 
 ### Exact next pickup
 
-> **Superseded 2026-08-30.** Current pickup is **Boundary 4 planning / approval**. The instruction “do not require staging frontend / DNS / Hosting work” is obsolete: Stage 4 Boundary 3 deployed the scanned SPA to `taskio-v2-staging` Hosting. Production freeze and “do not change production” remain in force.
+> **Superseded 2026-08-30.** Current pickup is GREEN private-launch UX, then one **B4A–C AMBER** package. The instruction “do not require staging frontend / DNS / Hosting work” is obsolete: Stage 4 Boundary 3 deployed the scanned SPA to `taskio-v2-staging` Hosting. Production freeze and “do not change production” remain in force.
 
 **Historical pickup (superseded):** FINAL STAGING READINESS REVIEW. Consolidate the completed minimal staging evidence, classify remaining Stripe paths as required-before-launch vs optional, review browser → API connectivity, review security/observability/rollback/backup/cleanup, decide synthetic-data retention, review legal readiness, and produce the remaining production-preflight checklist.
 
@@ -1008,7 +1045,7 @@ This ledger records current evidence without erasing the historical baseline in 
 | A21 | COMPLETED | CI runs production frontend build plus Playwright Chromium smoke tests against a local mock server; no real Firebase project is addressable by the harness. |
 | A41 | COMPLETED | `.nvmrc`, package engines, Dockerfile, Functions and all CI jobs align on Node 24. |
 | A42 | COMPLETED | Playwright reports/results, Firebase local state, emulator/debug logs, builds and dependencies are ignored. |
-| A49 | SUPERSEDED | Staging excluded by owner decision; `taskio-v2-staging` remains frozen and was not accessed or modified. |
+| A49 | SUPERSEDED | **2026-08-23 decision** excluded staging. **Superseded 2026-08-30:** Stage 4 Boundaries 1–3 used `taskio-v2-staging` as a temporary bench. Do not treat this row as current policy. |
 | A50 | COMPLETED | Hosting-only maintenance deployed to default site `taskio-v2`. Live version `654a7615bfa2b420`; rollback version `530f735512a2e5ee`. Default Firebase domains serve the no-store/noindex maintenance page on ordinary routes. Functions/rules/indexes/Cloud Run/IAM/staging untouched. Canonical apex is not attached to this Hosting site. |
 | A51 | COMPLETED | Production API URL resolver rejects missing, local, HTTP, credentialed, and malformed endpoints; CI/build configuration and tests added. |
 | A52 | COMPLETED | Backend and frontend now normalise every case variant of `completed` to `COMPLETED`; `PAID` remains explicit, with release-evidence compatibility for genuine legacy paid records; parity tests pass. |
@@ -1078,7 +1115,7 @@ This table supersedes the intermediate ledger above. `COMPLETED` means the repos
 | A46 | COMPLETED | The one-off mojibake repair script was removed after reference and need checks. |
 | A47 | COMPLETED | Express release-audit paths use the structured request logger; Functions errors are structured/rethrown through idempotent handlers without sensitive message data. |
 | A48 | COMPLETED | Playwright expanded from two to four tests, covering account payment gating, combined lifecycle/risk flow, launch truth/metadata/responsiveness, and multi-item task briefs; local and CI runs pass. |
-| A49 | SUPERSEDED | Staging is excluded by owner decision; no staging access or modification occurred during revised-authority implementation. |
+| A49 | SUPERSEDED | **2026-08-23:** staging excluded. **Superseded 2026-08-30:** Stage 4 B1–3 used staging as a temporary bench. |
 | A50 | COMPLETED | Hosting-only maintenance deployed to default site `taskio-v2`. Live version `654a7615bfa2b420`; rollback version `530f735512a2e5ee`. `taskio-v2.web.app` and `taskio-v2.firebaseapp.com` serve the maintenance page on root and app routes with `Cache-Control: no-store` and `X-Robots-Tag: noindex, nofollow`. Functions remain ACTIVE unchanged. Canonical `taskio.com.au` is not attached to this Hosting site. |
 | A51 | COMPLETED | Production API resolver rejects missing, malformed, credentialed, HTTP, and loopback endpoints; isolated demo harness exception is triple-guarded; tests/build pass. |
 | A52 | COMPLETED | All `completed` case variants normalize to `COMPLETED`; `PAID` stays explicit with a release-evidence path for genuine legacy paid records; parity tests pass. |
@@ -2354,6 +2391,8 @@ The tracker is complete when every ID below is one of: **Done and verified**, **
 | 2026-08-23 | `develop` / A2 secret-separation | staging | Main API no longer requires `STRIPE_WEBHOOK_SECRET` at startup or readiness. Webhook-only runtime remains the sole HMAC secret holder. Legacy private HMAC route fails closed without a signing secret. No Cloud Run/Stripe/IAM mutation in the repository batch. | Focused Stripe/env tests; full backend suite; `node --check`; `git diff --check`; staging images rebuilt from new HEAD, not deployed | Pushed the repository commit. Cloud Build image rebuild on `taskio-v2-staging` only. Existing Cloud Run left `STRIPE_ENABLED=false` | Next: Stripe TEST wiring approval |
 | 2026-08-23 | `develop` / Connect dual webhook | staging | Webhook runtime gained isolated `POST /api/stripe/connect-webhook` (`STRIPE_CONNECT_WEBHOOK_SECRET`) beside platform `POST /api/stripe/webhook` (`STRIPE_WEBHOOK_SECRET`). Cross-secret HMAC isolation; both 404 when Stripe disabled. Private API still gets neither signing secret. | Focused webhook/HMAC/livemode/OIDC/secret-boundary tests; full backend suite; `node --check`; `git diff --check` | Repository source only until CI is green; then staging images rolled to existing services with webhook still `STRIPE_ENABLED=false` and private | Next: two empty staging webhook Secret Manager resources, then public webhook + two Stripe TEST destinations |
 | 2026-08-24 | `develop` / public-API hardening | none | Source-only: `super_admin` on admin refund/manual-release; `TASKIO_PUBLIC_SIGNUP_ENABLED` production fail-closed; `/health/metrics` admin-only; public-API preflight doc. Staging expert-release gate recorded PASS. No Cloud Run IAM, deploy, Firebase, Stripe, or production change. | Backend full suite; `node --check`; `git diff --check` | Pushed to `origin/develop` only after tests green. **Not deployed.** | Next: PUBLIC API / BROWSER CONNECTIVITY PRE-LAUNCH — separate approval |
+
+| 2026-08-30 | `develop` / local GREEN | G01–G05 | Owner MVP answers recorded. Invite-only private-launch UX (post-job OTP kept behind flag). Draft legal banners. Hide AI on Gemini `fallback`. Analytics taxonomy + PII-safe `trackEvent` (no GA account). Stale status/release/README/A49/IAM/browser-connectivity docs corrected without mutating production. | `npm --prefix frontend run verify`: maintainability pass; Jest 69 suites / 465 tests; stagingHosting 22/22. No e2e re-run in this batch. | None. No commit push, deploy, OTP, Auth user, Stripe, App Check, SMTP, or production change. | Present combined **B4A–C AMBER** package. Do not execute until Saeed approves. |
 
 ## Required final report template
 
