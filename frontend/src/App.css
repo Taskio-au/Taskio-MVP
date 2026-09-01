@@ -21,3 +21,12 @@
 .skip-link:focus {
   transform: translateY(0);
 }
+
+.app-route-fallback {
+  min-height: 40vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 15px;
+}
