@@ -26,6 +26,13 @@
   gap: 20px;
 }
 
+.public-page-header-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
 /* Right slot (nav on landing; intentionally empty on conversion flows) */
 .public-page-header-actions {
   min-width: 0;
