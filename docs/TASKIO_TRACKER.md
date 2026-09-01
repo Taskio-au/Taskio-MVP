@@ -18,6 +18,12 @@
 - Superseded local SHAs (backup only, not canonical): `4e4a068`, `1cb2f9a`, `119d923` on `backup/stage4-local-119d923`.
 - Owner decisions 2026-08-30 (private Melbourne MVP): invite-only enrollment; keep post-job OTP architecture for later public launch; founding experts invite-only; B4A–C **executed and PASS** on current serving API `00063-qak`; 10% + founding fee model unchanged; bank payout **pre-launch** (not B4A–C); variations not required for launch; minimal staging refund/admin drill **pre-launch**; cancellation rule unchanged; reviews unchanged; transactional email **pre-launch**; AI must not block launch; freeze 8 suburbs + Phase 1 catalog; legal review **pre-launch** (staging drafts OK); App Check **pre-launch**; privacy-conscious analytics **required** (no ad pixels); production remains frozen.
 - Local gcloud / `.firebaserc` default project remains **`taskio-v2`**. Staging commands must pass `--project=taskio-v2-staging` explicitly.
+
+**Landing redesign (2026-09-01) — pushed to origin/develop; staging NOT deployed:**
+- Tip `e8efcbe152e50953af6ffaecedf136d72c6083e0` (`feat(frontend): redesign Taskio invite-only landing page`). Also pushed: `d780398` route splitting, plus prior local docs `a74276e` / `ce5c703`.
+- CI [`33505435770`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33505435770) **success** (frontend, backend, functions, security-rules, api-image, webhook-image, browser-smoke).
+- Invite-only landing is on **origin/develop only**. Live staging Hosting still serves the previous copy (“Indoor help without the chase”). Hosting remains **`70429316be0dd106`**. API remains **100%** `taskio-api-staging-54aed8b`.
+- No Firebase Hosting/Functions/Cloud Run deploy. No Auth, Postmark, GA4, App Check, or Stripe mutation. Production untouched. Local review shots stay untracked in `frontend/landing-final-review/`.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission.
 
 ### Stage 4 (`taskio-v2-staging` only)
