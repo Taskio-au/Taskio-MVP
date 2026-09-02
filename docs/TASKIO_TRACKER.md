@@ -19,11 +19,11 @@
 - Owner decisions 2026-08-30 (private Melbourne MVP): invite-only enrollment; keep post-job OTP architecture for later public launch; founding experts invite-only; B4A–C **executed and PASS** on current serving API `00063-qak`; 10% + founding fee model unchanged; bank payout **pre-launch** (not B4A–C); variations not required for launch; minimal staging refund/admin drill **pre-launch**; cancellation rule unchanged; reviews unchanged; transactional email **pre-launch**; AI must not block launch; freeze 8 suburbs + Phase 1 catalog; legal review **pre-launch** (staging drafts OK); App Check **pre-launch**; privacy-conscious analytics **required** (no ad pixels); production remains frozen.
 - Local gcloud / `.firebaserc` default project remains **`taskio-v2`**. Staging commands must pass `--project=taskio-v2-staging` explicitly.
 
-**Landing redesign (2026-09-01) — pushed to origin/develop; staging NOT deployed:**
-- Tip `e8efcbe152e50953af6ffaecedf136d72c6083e0` (`feat(frontend): redesign Taskio invite-only landing page`). Also pushed: `d780398` route splitting, plus prior local docs `a74276e` / `ce5c703`.
-- CI [`33505435770`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33505435770) **success** (frontend, backend, functions, security-rules, api-image, webhook-image, browser-smoke).
-- Invite-only landing is on **origin/develop only**. Live staging Hosting still serves the previous copy (“Indoor help without the chase”). Hosting remains **`70429316be0dd106`**. API remains **100%** `taskio-api-staging-54aed8b`.
-- No Firebase Hosting/Functions/Cloud Run deploy. No Auth, Postmark, GA4, App Check, or Stripe mutation. Production untouched. Local review shots stay untracked in `frontend/landing-final-review/`.
+**Landing redesign (2026-09-02) — staging Hosting deployed; production untouched:**
+- Source `e8efcbe152e50953af6ffaecedf136d72c6083e0` (`feat(frontend): redesign Taskio invite-only landing page`). CI [`33505435770`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33505435770) **success**.
+- Staging Hosting-only deploy via wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json --execute`. New version **`548438126950e209`** (`2026-09-02T09:36:55.855Z`). Previous **`70429316be0dd106`** (rollback: `taskio-v2-staging@70429316be0dd106` → `taskio-v2-staging:live`). URL `https://taskio-v2-staging.web.app`.
+- Hosted acceptance **PASS** (desktop 1440; mobile 390×844, 320, 414): H1 “Small indoor jobs, sorted.”; invite-only CTAs; Log in to post; Post/Compare/Approve; no `/post-job` promotion; no localhost; no Unsplash; no gtag.js; no `pk_live_`/`pk_test_`; noindex/no-store. API remains **100%** `taskio-api-staging-54aed8b`. Signup **CLOSED**.
+- No Cloud Run/Functions/rules/Auth/Postmark/GA4/App Check/Stripe mutation. Production Hosting still **`cffca9d87ce03901`**. gcloud default still **`taskio-v2`**. Local review shots remain untracked in `frontend/landing-final-review/`.
 - Production project `taskio-v2`: pre-launch and contains no real users or real transactions; do not modify it without explicit permission.
 
 ### Stage 4 (`taskio-v2-staging` only)
@@ -32,7 +32,7 @@
 |---|---|---|
 | 1 | **DONE / pushed / CI green** | Hosting configs, fail-closed Firebase resolver, build/scan/deploy wrapper. Landed at `127f8c2`. CI run `33241796405`. Commits `f6b3b04`, `ad14d5e`, `681da2b`, `127f8c2`. |
 | 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
-| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Invite-only SPA with Checkout Session URL navigation is live (Hosting `70429316be0dd106`; previous `66888d3b5a527558`). |
+| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Live Hosting is now **`548438126950e209`** (landing redesign from `e8efcbe`; previous `70429316be0dd106`). |
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
 | 4 | **B4A–G + P02A PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. **Stopped before bank payout and admin/super_admin refund.** |
 
@@ -79,8 +79,9 @@
 
 - `https://taskio-v2-staging.web.app/`
 - `https://taskio-v2-staging.firebaseapp.com/`
-- Live SPA version: `70429316be0dd106` (CI-green `54aed8b` invite-only bundle `main.535a3e06.js`; no Stripe.js / no `pk_test_` / `checkoutUrl` navigation)
-- Immediate previous known-good SPA (rollback for this refresh): `66888d3b5a527558` → `taskio-v2-staging@66888d3b5a527558` to `taskio-v2-staging:live` if a later approved restore is required
+- Live SPA version: `548438126950e209` (accepted invite-only landing redesign from `e8efcbe`; bundle `main.f888dccd.js`)
+- Immediate previous known-good SPA (rollback for this landing deploy): `70429316be0dd106` → `taskio-v2-staging@70429316be0dd106` to `taskio-v2-staging:live` if a later approved restore is required
+- Previous invite-only SPA (B4F): `66888d3b5a527558`
 - Placeholder rollback version (still FINALIZED): `c6d84a0333abec1f` → `taskio-v2-staging@c6d84a0333abec1f` to `taskio-v2-staging:live` if a later approved restore is required
 - Headers: `X-Robots-Tag: noindex, nofollow, noarchive` and `Cache-Control: no-store, max-age=0, must-revalidate`
 - Deploy wrapper accepts only `--project taskio-v2-staging` and `firebase.staging.placeholder.json` / `firebase.staging.hosting.json` (never `firebase.json`)
