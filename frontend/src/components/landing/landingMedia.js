@@ -19,16 +19,16 @@ export const LANDING_HERO = {
   src: '/landing/hero-living.webp',
   width: 1400,
   height: 933,
-  alt: 'Living room in a Melbourne apartment with framed prints mounted above a sideboard',
+  alt: 'Bright apartment living room with newly installed timber floating shelves on the wall',
 };
 
 /** Illustrative Taskio product state shown over the hero photo. */
 export const LANDING_HERO_PREVIEW = {
   category: 'Mounting',
-  title: 'Mount 65" TV in living room',
+  title: 'Install floating shelves in living room',
   suburb: 'Richmond, VIC',
   quotes: '3 quotes',
-  range: '$185 – $260',
+  range: '$180 – $260',
   expertStatus: 'Verified Expert ready',
   paymentStatus: 'Payment released after you approve',
 };
