@@ -5,6 +5,8 @@
  * Safe default: EMAIL_ENABLED is unset/false — no network send.
  */
 
+const {currentSmtpSecretOverrides} = require("./smtpSecrets");
+
 /**
  * @param {string|undefined} raw
  * @return {boolean}
@@ -60,8 +62,13 @@ function getMailRuntime() {
 
   const host = String(process.env.SMTP_HOST || "").trim();
   const portRaw = String(process.env.SMTP_PORT || "").trim();
-  const user = String(process.env.SMTP_USER || "").trim();
-  const pass = String(process.env.SMTP_PASS || "").trim();
+  const secretOverrides = currentSmtpSecretOverrides();
+  const user = String(
+    secretOverrides ? secretOverrides.user : (process.env.SMTP_USER || ""),
+  ).trim();
+  const pass = String(
+    secretOverrides ? secretOverrides.pass : (process.env.SMTP_PASS || ""),
+  ).trim();
   const from = String(
     process.env.MAIL_FROM || process.env.CHAT_EMAIL_FROM || "",
   ).trim();

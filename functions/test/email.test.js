@@ -37,6 +37,7 @@ const {
   sendTransactionalEmail,
   setTransporterFactoryForTests,
 } = require("../email/send");
+const {runWithSmtpSecrets} = require("../email/smtpSecrets");
 
 const SECRET_PASS = "test-only-smtp-pass-not-real";
 const MAIL_ENV_KEYS = [
@@ -114,6 +115,45 @@ describe("mail config", () => {
     assert.equal(runtime.enabled, true);
     assert.equal(runtime.ready, false);
     assert.equal(runtime.skipReason, "not_configured");
+  });
+
+  test("secret overrides supply SMTP_USER and SMTP_PASS", () => {
+    setMailEnv({
+      EMAIL_ENABLED: "true",
+      SMTP_HOST: "smtp.test.local",
+      SMTP_PORT: "587",
+      SMTP_USER: "from-env-user",
+      SMTP_PASS: "from-env-pass",
+      MAIL_FROM: "Taskio <noreply@taskio.test>",
+      TASKIO_APP_URL: "https://taskio-v2-staging.web.app",
+    });
+    runWithSmtpSecrets({
+      user: "from-secret-user",
+      pass: SECRET_PASS,
+    }, () => {
+      const runtime = getMailRuntime();
+      assert.equal(runtime.ready, true);
+      assert.equal(runtime.smtp.auth.user, "from-secret-user");
+      assert.equal(runtime.smtp.auth.pass, SECRET_PASS);
+    });
+  });
+
+  test("empty bound secrets fail safely as not_configured", () => {
+    setMailEnv({
+      EMAIL_ENABLED: "true",
+      SMTP_HOST: "smtp.test.local",
+      SMTP_PORT: "587",
+      SMTP_USER: "from-env-user",
+      SMTP_PASS: SECRET_PASS,
+      MAIL_FROM: "Taskio <noreply@taskio.test>",
+      TASKIO_APP_URL: "https://taskio-v2-staging.web.app",
+    });
+    runWithSmtpSecrets({user: "", pass: ""}, () => {
+      const runtime = getMailRuntime();
+      assert.equal(runtime.enabled, true);
+      assert.equal(runtime.ready, false);
+      assert.equal(runtime.skipReason, "not_configured");
+    });
   });
 
   test("TASKIO_APP_URL must be a trusted https origin", () => {
@@ -323,6 +363,26 @@ describe("sendTransactionalEmail", () => {
     assert.equal(calls, 0);
   });
 
+  test("EMAIL_ENABLED false ignores bound SMTP secrets", async () => {
+    let calls = 0;
+    setTransporterFactoryForTests(() => {
+      calls += 1;
+      return {sendMail: async () => ({messageId: "should-not-send"})};
+    });
+    const result = await runWithSmtpSecrets({
+      user: "from-secret-user",
+      pass: SECRET_PASS,
+    }, () => sendTransactionalEmail({
+      event: "quote_received",
+      to: "homeowner@taskio.test",
+      subject: "New quote",
+      text: "A quote arrived.",
+    }));
+    assert.equal(result.sent, false);
+    assert.equal(result.reason, "disabled");
+    assert.equal(calls, 0);
+  });
+
   test("enabled but unconfigured does not open SMTP", async () => {
     let calls = 0;
     setMailEnv({EMAIL_ENABLED: "true"});
@@ -339,6 +399,34 @@ describe("sendTransactionalEmail", () => {
     assert.equal(result.sent, false);
     assert.equal(result.reason, "not_configured");
     assert.equal(calls, 0);
+  });
+
+  test("bound secrets send without env SMTP credentials", async () => {
+    setMailEnv({
+      EMAIL_ENABLED: "true",
+      SMTP_HOST: "smtp.test.local",
+      SMTP_PORT: "587",
+      MAIL_FROM: "Taskio <noreply@taskio.test>",
+      TASKIO_APP_URL: "https://taskio-v2-staging.web.app",
+    });
+    let capturedUser = null;
+    setTransporterFactoryForTests(() => ({
+      sendMail: async (mail) => {
+        capturedUser = mail.from;
+        return {messageId: "mid-secret"};
+      },
+    }));
+    const result = await runWithSmtpSecrets({
+      user: "from-secret-user",
+      pass: SECRET_PASS,
+    }, () => sendTransactionalEmail({
+      event: "quote_received",
+      to: "homeowner@taskio.test",
+      subject: "New quote",
+      text: "A quote arrived.",
+    }));
+    assert.equal(result.sent, true);
+    assert.equal(capturedUser, "Taskio <noreply@taskio.test>");
   });
 
   test("sender failure does not throw", async () => {

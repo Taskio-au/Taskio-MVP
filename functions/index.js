@@ -21,6 +21,11 @@ const {
   notifyPaymentReleased,
   notifyRefundCompleted,
 } = require("./email/dispatch");
+const {
+  smtpSecretParams,
+  readBoundSmtpSecrets,
+  runWithSmtpSecrets,
+} = require("./email/smtpSecrets");
 
 admin.initializeApp();
 
@@ -465,78 +470,81 @@ exports.flagRiskyJobMessages = onDocumentCreated(
  * The client can only read and mark read.
  */
 
+const E01_QUOTE_OPTS = {
+  region: "australia-southeast1",
+  document: "quotes/{quoteId}",
+  retry: true,
+  secrets: smtpSecretParams(),
+};
+
 exports.notifyHomeownerOnQuoteSubmitted = onDocumentCreated(
-  {
-    region: "australia-southeast1",
-    document: "quotes/{quoteId}",
-    retry: true,
-  },
+  E01_QUOTE_OPTS,
   async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const data = snap.data() || {};
-    if (data.status !== "submitted") return;
+    return runWithSmtpSecrets(readBoundSmtpSecrets(), async () => {
+      const snap = event.data;
+      if (!snap) return;
+      const data = snap.data() || {};
+      if (data.status !== "submitted") return;
 
-    const homeownerUid = data.homeownerUid;
-    const jobId = data.jobId;
-    const quoteId = event.params && event.params.quoteId;
-    if (!homeownerUid || !jobId || !quoteId) return;
+      const homeownerUid = data.homeownerUid;
+      const jobId = data.jobId;
+      const quoteId = event.params && event.params.quoteId;
+      if (!homeownerUid || !jobId || !quoteId) return;
 
-    try {
-      const jobDoc = await admin.firestore().collection("jobs").doc(jobId)
-        .get();
-      const job = jobDoc.exists ? (jobDoc.data() || {}) : {};
-      await notifyQuoteReceived({
-        quoteId,
-        jobId,
-        homeownerUid,
-        job,
-        quote: data,
-      });
-    } catch (error) {
-      logger.error("quote_submitted_notification_failed", {
-        quoteId,
-        error: error && error.message ? error.message : "unknown",
-      });
-    }
+      try {
+        const jobDoc = await admin.firestore().collection("jobs").doc(jobId)
+          .get();
+        const job = jobDoc.exists ? (jobDoc.data() || {}) : {};
+        await notifyQuoteReceived({
+          quoteId,
+          jobId,
+          homeownerUid,
+          job,
+          quote: data,
+        });
+      } catch (error) {
+        logger.error("quote_submitted_notification_failed", {
+          quoteId,
+          error: error && error.message ? error.message : "unknown",
+        });
+      }
+    });
   },
 );
 
 exports.notifyHomeownerOnQuoteSubmittedUpdate = onDocumentUpdated(
-  {
-    region: "australia-southeast1",
-    document: "quotes/{quoteId}",
-    retry: true,
-  },
+  E01_QUOTE_OPTS,
   async (event) => {
-    const beforeSnap = event.data && event.data.before;
-    const afterSnap = event.data && event.data.after;
-    const before = beforeSnap ? (beforeSnap.data() || {}) : {};
-    const after = afterSnap ? (afterSnap.data() || {}) : {};
-    if (!isQuoteSubmissionTransition(before, after)) return;
-    const homeownerUid = after.homeownerUid;
-    const jobId = after.jobId;
-    const quoteId = event.params && event.params.quoteId;
-    if (!homeownerUid || !jobId || !quoteId) return;
+    return runWithSmtpSecrets(readBoundSmtpSecrets(), async () => {
+      const beforeSnap = event.data && event.data.before;
+      const afterSnap = event.data && event.data.after;
+      const before = beforeSnap ? (beforeSnap.data() || {}) : {};
+      const after = afterSnap ? (afterSnap.data() || {}) : {};
+      if (!isQuoteSubmissionTransition(before, after)) return;
+      const homeownerUid = after.homeownerUid;
+      const jobId = after.jobId;
+      const quoteId = event.params && event.params.quoteId;
+      if (!homeownerUid || !jobId || !quoteId) return;
 
-    try {
-      const firestore = admin.firestore();
-      const jobDoc = await firestore.collection("jobs").doc(jobId).get();
-      const job = jobDoc.exists ? (jobDoc.data() || {}) : {};
-      await notifyQuoteReceived({
-        quoteId,
-        jobId,
-        homeownerUid,
-        job,
-        quote: after,
-      });
-    } catch (error) {
-      logger.error("quote_submitted_update_notification_failed", {
-        jobId,
-        quoteId,
-        error: error && error.message ? error.message : "unknown",
-      });
-    }
+      try {
+        const firestore = admin.firestore();
+        const jobDoc = await firestore.collection("jobs").doc(jobId).get();
+        const job = jobDoc.exists ? (jobDoc.data() || {}) : {};
+        await notifyQuoteReceived({
+          quoteId,
+          jobId,
+          homeownerUid,
+          job,
+          quote: after,
+        });
+      } catch (error) {
+        logger.error("quote_submitted_update_notification_failed", {
+          jobId,
+          quoteId,
+          error: error && error.message ? error.message : "unknown",
+        });
+      }
+    });
   },
 );
 

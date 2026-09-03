@@ -88,6 +88,35 @@ describe("notification transition helpers", () => {
   });
 });
 
+/**
+ * @param {Function} fn
+ * @return {string[]}
+ */
+function declaredSecretKeys(fn) {
+  const listed = (fn && fn.__endpoint &&
+    fn.__endpoint.secretEnvironmentVariables) || [];
+  return listed.map((item) => item.key).sort();
+}
+
+test("E01 quote functions declare SMTP_USER and SMTP_PASS secrets", () => {
+  assert.deepEqual(
+    declaredSecretKeys(functions.notifyHomeownerOnQuoteSubmitted),
+    ["SMTP_PASS", "SMTP_USER"],
+  );
+  assert.deepEqual(
+    declaredSecretKeys(functions.notifyHomeownerOnQuoteSubmittedUpdate),
+    ["SMTP_PASS", "SMTP_USER"],
+  );
+  assert.deepEqual(
+    declaredSecretKeys(functions.flagRiskyJobMessages),
+    [],
+  );
+  assert.deepEqual(
+    declaredSecretKeys(functions.notifyTradieOnEscrowFunded),
+    [],
+  );
+});
+
 test("chat email HTML escapes all untrusted values", () => {
   const html = buildChatEmailHtml({
     senderName: "<img src=x onerror=alert(1)>",
