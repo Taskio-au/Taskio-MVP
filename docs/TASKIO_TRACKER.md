@@ -6,7 +6,7 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-08-30 end-of-day checkpoint.** P02 normal pre-release refund **PROVEN / COMPLETE**. P03 email **CODE COMPLETE**; Postmark **manual review pending**; staging delivery **NOT VERIFIED**. P04 analytics **CODE COMPLETE** on origin `e7ffbf0` (CI [`33310943590`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33310943590) **success**); staging GA4 **NOT CONFIGURED**. P05 App Check **CODE COMPLETE** on origin `6b41bd3` (CI [`33308449769`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308449769) / evidence [`33308907690`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308907690) **success**); enforcement **OFF**. P01 bank payout **NOT YET PROVEN** (last known TEST available **AUD 0.00**, pending **AUD 126.00**; no payout created). P06 legal review **still required** before real-user production. Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`70429316be0dd106`**; signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged. **Do not start P03–P05 staging activation, P01, or P02B tonight.**
+> **2026-09-04 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. Authentic E01 delivered to owner-controlled `admin@taskio.com.au`. P02 normal pre-release refund **PROVEN / COMPLETE**. P04 analytics **CODE COMPLETE** on origin `e7ffbf0` (CI [`33310943590`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33310943590) **success**); staging GA4 **NOT CONFIGURED**. P05 App Check **CODE COMPLETE** on origin `6b41bd3`; enforcement **OFF**. P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`548438126950e209`**; signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
@@ -42,26 +42,24 @@
 |---|---|---|
 | P01 | Connected-account **bank payout** | **NOT PROVEN.** Connect transfer **PROVEN**. Last known TEST available **AUD 0.00**, pending **AUD 126.00**. No payout created. Pre-production launch blocker. |
 | P02 | Normal pre-release full refund | **PROVEN / COMPLETE** (exactly one TEST refund; no Connect transfer; Taskio retained **$0**; Expert retained **$0**). Privileged admin/super_admin exception path **OPTIONAL / NOT PROVEN**. |
-| P03 | Transactional email | **CODE COMPLETE.** Local/CI **PASS**. Postmark staging server + dedicated SMTP token exist (owner-stored; previously exposed credentials rotated); **account approval pending**. `EMAIL_ENABLED` still false. SMTP secrets not in Firebase. Functions not redeployed for activation. Staging delivery **NOT VERIFIED**. Production **NOT CONFIGURED**. `taskio.com.au` DKIM / Return-Path **NOT complete**. DNS is separate approval work. |
+| P03 | Transactional email | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`, Outlook Inbox/Focused). Local/CI **PASS**. Postmark **APPROVED**; sender **ACTIVATED**; DKIM **VERIFIED**; Return-Path **VERIFIED**. Staging SMTP `SMTP_USER`/`SMTP_PASS` **CONFIGURED** (Firebase `defineSecret`; version 2). E01 Functions **DEPLOYED** (`…-00007-kih` / `…-00007-xoc`). Duplicate suppression and failure isolation **PASS** from local/CI. Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | Privacy-safe analytics | **CODE COMPLETE** on origin `e7ffbf0`. Local/CI **PASS**. Staging GA4 property / measurement ID **NOT CONFIGURED**. Live staging does **not** load gtag.js. Event delivery **NOT VERIFIED**. Production analytics **NOT ENABLED**. Overall **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION**. |
 | P05 | App Check | **CODE COMPLETE** on origin `6b41bd3`. Local/CI **PASS**. Future coverage: Firestore + Storage. Functions and Cloud Run App Check **not required for MVP**. Provider: reCAPTCHA Enterprise if clean during AMBER, else existing v3. Staging provider **NOT CONFIGURED**; Firestore/Storage enforcement **OFF**; debug token **NOT DEPLOYED**. Production **NOT CONFIGURED / NOT ENFORCED**. Overall **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION**. |
-| P06 | Legal review | **STILL REQUIRED** before public production / real-user launch. |
+| P06 | Legal review | **STILL REQUIRED** before public production / real-user launch. Must cover Postmark as an overseas transactional-email provider (APP 8 / cross-border processing). Transactional emails remain data-minimised; detailed task information stays inside authenticated Taskio. Tracking is not intentionally enabled. |
 
-**Recommended next sequence (do not start tonight):**
+**Recommended next sequence:**
 
-1. Postmark approval check
-2. P03 staging transactional-email activation + controlled delivery proof
-3. P04 staging GA4 activation + synthetic event verification
-4. P05 staging App Check provider/token validation
-5. Enable Firestore enforcement first and retest
-6. Enable Storage enforcement only after Firestore validation
-7. Recheck P01 connected-account TEST available balance
-8. Bank payout proof when funds are available
-9. Legal/security final pre-launch closeout
-10. Production preflight
-11. Production remains RED until explicit owner approval
+1. P04 staging GA4 activation + synthetic event verification
+2. P05 staging App Check provider/token validation
+3. Enable Firestore enforcement first and retest
+4. Enable Storage enforcement only after Firestore validation
+5. Recheck P01 connected-account TEST available balance
+6. Bank payout proof when funds are available
+7. Legal/security final pre-launch closeout (P06 must include Postmark APP 8)
+8. Production preflight, including a separate RED production-email approval
+9. Production remains RED until explicit owner approval
 
-**Exact next pickup:** **Wait for Postmark approval.** Then P03 staging-only activation and one owner-controlled delivery test. Do **not** create a GA4 property, enable analytics on Hosting, start App Check staging enforcement, start P01, start P02B, or change DNS tonight. Production remains frozen.
+**Exact next pickup:** **P04 staging GA4** (not started). Do **not** enable analytics on Hosting, start App Check staging enforcement, start P01, start P02B, change DNS, or configure production email tonight. Production remains frozen.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -170,7 +168,28 @@
 - **P02 NORMAL PRE-RELEASE REFUND: PROVEN / COMPLETE.** Exactly **one** successful full Stripe TEST refund (`re_3UA2jUGdq6QKDpuT1wDiOLhj` AUD 90). **No Connect transfer** for the refunded job. Taskio retained **AUD 0.00**. Expert retained **AUD 0.00**. Privileged admin/super_admin exception path **OPTIONAL / NOT PROVEN**. P02B was **not** started.
 - P02B recommendation: `POST /api/admin/jobs/:jobId/refund` exists and requires **admin + super_admin**. Intended for exception/dispute refunds when homeowner cancel is unavailable (work started, completed, disputed) or webhook-miss fallback `mark-refunded`. P02A does **not** execute that path. A separate P02B is **advisable later** if ops-exception coverage is wanted before real users; it is **not** required to prove the MVP unreleased-cancel policy. Do not auto-start P02B.
 
-**P03 evidence (2026-08-30) — GREEN application logic; delivery NOT VERIFIED:**
+**P03 evidence (2026-09-04) — authentic staging E01 VERIFIED; production still off:**
+
+- **P03 APPLICATION LOGIC:** CODE COMPLETE
+- **P03 LOCAL / CI:** PASS (code bind `b3bff04e9e408e1cac8a1bb158841bcf6c622597`; CI [`33751332469`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33751332469) **success**)
+- **POSTMARK ACCOUNT:** APPROVED
+- **POSTMARK SENDER:** ACTIVATED (`admin@taskio.com.au`)
+- **DKIM:** VERIFIED
+- **RETURN-PATH:** VERIFIED
+- **POSTMARK PROVIDER DELIVERY:** VERIFIED
+- **P03 STAGING SMTP:** CONFIGURED (Firebase-native `SMTP_USER` / `SMTP_PASS` version 2; secret values not recorded)
+- **P03 E01 FUNCTIONS:** DEPLOYED (`notifyhomeowneronquotesubmitted-00007-kih`, `notifyhomeowneronquotesubmittedupdate-00007-xoc`)
+- **P03 AUTHENTIC TASKIO STAGING DELIVERY:** VERIFIED
+- **P03 DUPLICATE SUPPRESSION:** PASS — LOCAL / CI
+- **P03 FAILURE ISOLATION:** PASS — LOCAL / CI
+- **P03 PRODUCTION:** NOT CONFIGURED / NOT VERIFIED
+- **P03 OVERALL:** STAGING PASS / PRODUCTION PENDING
+- Quote `EJCy55qxqQaHpZQ7iMUD` on job `507iZTK6ZsEEqswzgoRN` triggered real E01. `emailSentAt` recorded. `transactional_email_sent` logged. Subject: `New quote for TSK-6572`.
+- Owner confirmed Outlook Inbox/Focused delivery; no Junk / Unverified warning; no duplicate email; staging URL only (`https://taskio-v2-staging.web.app`). Production `taskio-v2` untouched.
+- Postmark is an overseas transactional-email provider. P06 must cover APP 8 / cross-border processing. Transactional emails remain data-minimised; detailed task information belongs inside authenticated Taskio. Tracking is not intentionally enabled.
+- Earlier failed quote `rxnajk8qLRz2rp55N4rC` remains as audit evidence (`send_failed` under the previous token). Hosting **`548438126950e209`** and API **`taskio-api-staging-54aed8b`** unchanged. See `docs/TRANSACTIONAL_EMAIL.md`.
+
+**P03 evidence (2026-08-30) — GREEN application logic (historical; delivery later verified 2026-09-04):**
 
 - P02A evidence commit `78db4e615e77af7a88991fe42e55342cc2e079ff` (`docs: record P02A hosted cancellation and full TEST refund PASS`) **pushed** to `origin/develop` (no force). CI [`33302994264`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33302994264) **success**.
 - Architecture audit: email is owned by **Firebase Functions** (nodemailer SMTP), not Cloud Run. Previously only chat called `sendMail`, and only when SMTP env names were all set (absent secrets → no send). There was no `EMAIL_ENABLED` flag. Quote submitted and funding created **in-app** Firestore notifications only. No completion / release / refund email. Recipients already came from Auth/profile, not client `to`/`cc`/`bcc`. Chat HTML escape (A58) unchanged. Payment/job API never sent email, so email failure could not fail a charge/transfer/refund.
@@ -243,10 +262,10 @@
 |---|---|---|
 | P01 | Stripe TEST connected-account **bank payout** path | **NOT PROVEN.** Connect transfer **PROVEN**. Last known TEST available **AUD 0.00** / pending **AUD 126.00**. No payout created. Pre-production launch blocker. |
 | P02 | Normal pre-release refund / dispute readiness | P02A **PROVEN / COMPLETE** (one full TEST refund; no transfer; Taskio $0; Expert $0). P02B privileged **super_admin** exception **OPTIONAL / NOT PROVEN**. |
-| P03 | Essential transactional email (SMTP secrets) | **CODE COMPLETE.** Local/CI **PASS**. Postmark **approval pending**. Staging delivery **NOT VERIFIED**. DKIM / Return-Path **NOT complete**. Production **NOT CONFIGURED**. |
+| P03 | Essential transactional email (SMTP secrets) | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`). Postmark **APPROVED**; sender **ACTIVATED**; DKIM **VERIFIED**; Return-Path **VERIFIED**. Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | GA4/provider setup for analytics (no ad pixels) | GREEN **on origin** `e7ffbf0`; CI `33310943590` **success**. Staging GA4 **NOT CONFIGURED**. Overall **PARTIAL**. See `docs/ANALYTICS.md`. |
 | P05 | Staging App Check validation + production enforcement decision | GREEN **on origin** `6b41bd3`; CI `33308449769` / `33308907690` **success**. Provider/token/enforcement **NOT CONFIGURED / NOT ENABLED**. Overall **PARTIAL**. See `docs/APP_CHECK.md`. |
-| P06 | Final Terms/Privacy owner + preferably AU legal review | **STILL REQUIRED** before public production / real-user launch |
+| P06 | Final Terms/Privacy owner + preferably AU legal review | **STILL REQUIRED** before public production / real-user launch. Include Postmark APP 8 / overseas processing. Emails stay data-minimised; details live in authenticated Taskio. Tracking is not intentionally enabled. |
 
 **3. Nice-to-have / post-core**
 
@@ -256,7 +275,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **Wait for Postmark approval.** Then P03 staging-only activation and one owner-controlled delivery test. Do **not** create a GA4 property, enable analytics on Hosting, start App Check staging enforcement, start P01, start P02B, or change DNS tonight. Production remains frozen.
+**Exact next pickup:** **P04 staging GA4** (not started). Do **not** enable analytics on Hosting, start App Check staging enforcement, start P01, start P02B, change DNS, or configure production email tonight. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 

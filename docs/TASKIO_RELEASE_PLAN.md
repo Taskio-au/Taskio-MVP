@@ -49,7 +49,7 @@ Backend conditional integrations (not required to boot; not created yet):
 - `GEMINI_API_KEY` (AI description tidy / quote-message assist; routes fall back without it)
 - `ABN_LOOKUP_GUID` (official ABR ABN verify; `/api/me/abn/verify` returns 501 without it)
 
-Functions email integration, currently disabled (`EMAIL_ENABLED=false` by default). See `docs/TRANSACTIONAL_EMAIL.md`.
+Functions email integration: staging is **STAGING PASS / PRODUCTION PENDING**. Production remains disabled (`EMAIL_ENABLED=false` by default on `taskio-v2`). See `docs/TRANSACTIONAL_EMAIL.md`. Do not copy staging SMTP secrets into production.
 
 - `EMAIL_ENABLED` (safe default unset/false — no SMTP send)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `CHAT_EMAIL_FROM`, `MAIL_FROM`, `TASKIO_APP_URL`
@@ -171,7 +171,7 @@ Verify participant/non-participant chat writes, invitation attachments, claims-o
 
 ### 5. Deploy Functions
 
-SMTP remains disabled unless separately configured (`EMAIL_ENABLED` must be true and the SMTP names above must be present). Review the CLI deletion prompt for the removed `helloTaskio` export and stop unless deletion is explicitly authorised.
+Production SMTP remains disabled unless a separate RED approval sets `EMAIL_ENABLED=true` and production Secret Manager `SMTP_USER` / `SMTP_PASS`. Staging already uses Firebase-native `defineSecret` on E01 only. Review the CLI deletion prompt for the removed `helloTaskio` export and stop unless deletion is explicitly authorised.
 
 ```powershell
 firebase deploy --project taskio-v2 --only functions
