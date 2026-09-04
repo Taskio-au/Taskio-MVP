@@ -122,11 +122,16 @@ Proven 2026-09-04 on `taskio-v2-staging`:
 
 - Synthetic homeowner Auth/profile for `admin@taskio.com.au` (P03 test-only).
 - Job `507iZTK6ZsEEqswzgoRN`; authentic E01 quote `EJCy55qxqQaHpZQ7iMUD`.
-- Functions `notifyhomeowneronquotesubmitted-00007-kih` and `notifyhomeowneronquotesubmittedupdate-00007-xoc` (`SMTP_USER` / `SMTP_PASS` version **2**).
+- Functions `notifyhomeowneronquotesubmitted-00007-kih` and `notifyhomeowneronquotesubmittedupdate-00007-xoc` (`SMTP_USER` / `SMTP_PASS` version **2**; both Ready=True after cleanup verification; not redeployed).
 - Log `transactional_email_sent`; notification `emailSentAt` set; subject `New quote for TSK-6572`.
 - Owner confirmed Outlook Inbox/Focused delivery; no Junk / Unverified warning; staging URL only; no duplicate.
 - Earlier failed quote `rxnajk8qLRz2rp55N4rC` left in place as audit evidence (`send_failed` under the previous token).
-- Legacy Secret Manager names `taskio-staging-postmark-smtp-user` / `taskio-staging-postmark-smtp-pass` remain unused candidates; do not destroy them until a later cleanup.
+
+Credential cleanup (2026-09-04, metadata only; no `versions access`; no destroy; no email send):
+
+- `SMTP_USER` / `SMTP_PASS` version **2 ENABLED**; version **1 DISABLED**. These v2 versions are the only active Taskio staging SMTP secret versions.
+- Legacy `taskio-staging-postmark-smtp-user` versions 1–3 **DISABLED**. Legacy `taskio-staging-postmark-smtp-pass` versions 1–2 **DISABLED**. Secret resources were not destroyed.
+- Owner confirmation: obsolete 30 Aug SMTP token removed/revoked; current working SMTP token retained; Server API token not removed. No SMTP values recorded.
 
 E02–E05 were not hosted in this proof.
 

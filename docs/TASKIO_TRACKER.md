@@ -6,7 +6,7 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-09-04 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. Authentic E01 delivered to owner-controlled `admin@taskio.com.au`. P02 normal pre-release refund **PROVEN / COMPLETE**. P04 analytics **CODE COMPLETE** on origin `e7ffbf0` (CI [`33310943590`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33310943590) **success**); staging GA4 **NOT CONFIGURED**. P05 App Check **CODE COMPLETE** on origin `6b41bd3`; enforcement **OFF**. P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`548438126950e209`**; signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
+> **2026-09-04 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. Authentic E01 delivered. Staging SMTP credential cleanup **verified** (native `SMTP_USER`/`SMTP_PASS` v2 only enabled; v1 disabled; legacy `taskio-staging-postmark-*` versions disabled, not destroyed; obsolete Postmark SMTP token revoked). P02 normal pre-release refund **PROVEN / COMPLETE**. P04 analytics **CODE COMPLETE** on origin `e7ffbf0` (CI [`33310943590`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33310943590) **success**); staging GA4 **NOT CONFIGURED**. P05 App Check **CODE COMPLETE** on origin `6b41bd3`; enforcement **OFF**. P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`548438126950e209`**; signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
@@ -42,7 +42,7 @@
 |---|---|---|
 | P01 | Connected-account **bank payout** | **NOT PROVEN.** Connect transfer **PROVEN**. Last known TEST available **AUD 0.00**, pending **AUD 126.00**. No payout created. Pre-production launch blocker. |
 | P02 | Normal pre-release full refund | **PROVEN / COMPLETE** (exactly one TEST refund; no Connect transfer; Taskio retained **$0**; Expert retained **$0**). Privileged admin/super_admin exception path **OPTIONAL / NOT PROVEN**. |
-| P03 | Transactional email | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`, Outlook Inbox/Focused). Local/CI **PASS**. Postmark **APPROVED**; sender **ACTIVATED**; DKIM **VERIFIED**; Return-Path **VERIFIED**. Staging SMTP `SMTP_USER`/`SMTP_PASS` **CONFIGURED** (Firebase `defineSecret`; version 2). E01 Functions **DEPLOYED** (`…-00007-kih` / `…-00007-xoc`). Duplicate suppression and failure isolation **PASS** from local/CI. Production **NOT CONFIGURED / NOT VERIFIED**. |
+| P03 | Transactional email | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`, Outlook Inbox/Focused). Native `SMTP_USER`/`SMTP_PASS` **v2 ENABLED** (only active staging SMTP versions); **v1 DISABLED**. Legacy `taskio-staging-postmark-*` versions **DISABLED** (not destroyed). Obsolete Postmark SMTP token **revoked**; current working token **retained**; Server API token **not removed**. E01 Functions still bind v2 (`…-00007-kih` / `…-00007-xoc`, Ready=True). Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | Privacy-safe analytics | **CODE COMPLETE** on origin `e7ffbf0`. Local/CI **PASS**. Staging GA4 property / measurement ID **NOT CONFIGURED**. Live staging does **not** load gtag.js. Event delivery **NOT VERIFIED**. Production analytics **NOT ENABLED**. Overall **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION**. |
 | P05 | App Check | **CODE COMPLETE** on origin `6b41bd3`. Local/CI **PASS**. Future coverage: Firestore + Storage. Functions and Cloud Run App Check **not required for MVP**. Provider: reCAPTCHA Enterprise if clean during AMBER, else existing v3. Staging provider **NOT CONFIGURED**; Firestore/Storage enforcement **OFF**; debug token **NOT DEPLOYED**. Production **NOT CONFIGURED / NOT ENFORCED**. Overall **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION**. |
 | P06 | Legal review | **STILL REQUIRED** before public production / real-user launch. Must cover Postmark as an overseas transactional-email provider (APP 8 / cross-border processing). Transactional emails remain data-minimised; detailed task information stays inside authenticated Taskio. Tracking is not intentionally enabled. |
@@ -167,6 +167,19 @@
 - **TSK-5507** unchanged `PAID` / `released` / `transferId=tr_3UA1mLGdq6QKDpuT1g2pZQFm`, transfer not reversed, `refundId` absent.
 - **P02 NORMAL PRE-RELEASE REFUND: PROVEN / COMPLETE.** Exactly **one** successful full Stripe TEST refund (`re_3UA2jUGdq6QKDpuT1wDiOLhj` AUD 90). **No Connect transfer** for the refunded job. Taskio retained **AUD 0.00**. Expert retained **AUD 0.00**. Privileged admin/super_admin exception path **OPTIONAL / NOT PROVEN**. P02B was **not** started.
 - P02B recommendation: `POST /api/admin/jobs/:jobId/refund` exists and requires **admin + super_admin**. Intended for exception/dispute refunds when homeowner cancel is unavailable (work started, completed, disputed) or webhook-miss fallback `mark-refunded`. P02A does **not** execute that path. A separate P02B is **advisable later** if ops-exception coverage is wanted before real users; it is **not** required to prove the MVP unreleased-cancel policy. Do not auto-start P02B.
+
+**P03 credential cleanup (2026-09-04) — metadata verified; no payload access; no redeploy:**
+
+- **P03 OVERALL:** STAGING PASS / PRODUCTION PENDING
+- `taskio-v2-staging` Secret Manager (`versions list` only; no `versions access`; no destroy):
+  - `SMTP_USER`: version **2 ENABLED**; version **1 DISABLED**
+  - `SMTP_PASS`: version **2 ENABLED**; version **1 DISABLED**
+  - `taskio-staging-postmark-smtp-user`: versions **1–3 DISABLED**
+  - `taskio-staging-postmark-smtp-pass`: versions **1–2 DISABLED**
+- Firebase-native `SMTP_USER` / `SMTP_PASS` v2 are the only active Taskio staging SMTP secret versions.
+- E01 Functions unchanged: `notifyHomeownerOnQuoteSubmitted` revision `notifyhomeowneronquotesubmitted-00007-kih` and `notifyHomeownerOnQuoteSubmittedUpdate` revision `notifyhomeowneronquotesubmittedupdate-00007-xoc`. Both **Ready=True**. Both bind `SMTP_USER` version **2** and `SMTP_PASS` version **2**.
+- Owner confirmation: obsolete 30 Aug SMTP token removed/revoked; current working SMTP token retained; Server API token not removed. No SMTP values recorded.
+- No email sent. Production `taskio-v2` untouched.
 
 **P03 evidence (2026-09-04) — authentic staging E01 VERIFIED; production still off:**
 
