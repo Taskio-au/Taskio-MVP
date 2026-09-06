@@ -4,15 +4,15 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
-**2026-09-06 P05 GREEN safety follow-up (local, not pushed):** Hosted builds now reject debug configuration before compilation, including CRA-loaded environment files; staging deploy also rejects debug input. Debug requires explicit loopback development and an isolated developer Firebase project. Staging App Check defaults are pinned. Rollback order is enforcement OFF and verified FIRST, then Hosting/frontend rollback. Local verification: frontend 74 suites / 516 tests, build/deploy 26 tests, hosted guard 11 tests, final focused App Check 17 tests, E2E 4 tests, synthetic staging-mode build and 57-file bundle scan PASS. New commit CI remains pending push; baseline CI 34015484745 passed. Provider/enforcement/metrics live API reads returned 403, so NOT CONFIGURED / OFF remain recorded states requiring Console confirmation. Public bundle main.9647f8fc.js matches the checkpoint. Overall READY FOR CONTROLLED STAGING ACTIVATION subject to Console reconciliation. No cloud mutation or production access. Full preflight and next approval package: `docs/APP_CHECK.md`.
+**2026-09-06 P05 Storage enforcement (staging only):** Firestore and Storage `ENFORCED` / **PASS**. Auth `UNENFORCED`. Hosting unchanged **`211fb288dcaff973`**. Homeowner profile-photo upload **200** with App Check; missing/invalid App Check **401**. Metadata cleaned. Production Hosting still `cffca9d87ce03901`. Evidence commit local/unpushed. See `docs/APP_CHECK.md`.
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-09-06 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING** on Hosting **`c2b8f742e73fed84`** (`G-SZ7RZDKTJY`; owner-confirmed Realtime). Production analytics **OFF**. P05 App Check **CODE COMPLETE** on origin `6b41bd3`; enforcement **OFF**. P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`c2b8f742e73fed84`** (previous `548438126950e209`); signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
+> **2026-09-06 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime). Production analytics **OFF**. P05 App Check **STAGING PASS / PRODUCTION PENDING** on Hosting **`211fb288dcaff973`** (Firestore + Storage `ENFORCED`; Auth off). P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`211fb288dcaff973`** (previous `c2b8f742e73fed84`); signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- P04 analytics GREEN **pushed** through `9d1119be08f8fa3178a7d4bf9ddcf051c4841b87`; CI [`34013435627`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34013435627) **success**. Staging Hosting activation **done**; GA4 Realtime receipt **owner-confirmed**. P05 App Check GREEN **pushed** through `6b41bd3780bef5e6803bd1b4711665454ac9ec75` (evidence `695c2993638d77c0fb3e25926fa40ac833274eba`); CI [`33308449769`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308449769) and [`33308907690`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308907690) **success**. Staging App Check **not started**.
+- P04 analytics GREEN **pushed** through `9d1119be08f8fa3178a7d4bf9ddcf051c4841b87`; CI [`34013435627`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34013435627) **success**. Staging Hosting activation **done**; GA4 Realtime receipt **owner-confirmed**. P05 App Check GREEN **pushed** through `6945c0a6d99112982ab28bbde2828dfbf8f8bf72`; CI [`34020406444`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34020406444) **success**. Staging frontend App Check **PASS** on Hosting **`211fb288dcaff973`**; Firestore and Storage enforcement **PASS**; Auth **OFF**.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
@@ -34,11 +34,11 @@
 |---|---|---|
 | 1 | **DONE / pushed / CI green** | Hosting configs, fail-closed Firebase resolver, build/scan/deploy wrapper. Landed at `127f8c2`. CI run `33241796405`. Commits `f6b3b04`, `ad14d5e`, `681da2b`, `127f8c2`. |
 | 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
-| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Live Hosting is now **`c2b8f742e73fed84`** (P04 staging GA4 + shelves hero; previous `548438126950e209`). |
+| 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Live Hosting is now **`211fb288dcaff973`** (P05 App Check frontend; previous `c2b8f742e73fed84`). |
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
 | 4 | **B4A–G + P02A PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. **Stopped before bank payout and admin/super_admin refund.** |
 
-**Staging App Check rollback prerequisite:** In `taskio-v2-staging`, disable affected Firestore/Storage enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting or disable frontend App Check; verify normal Auth/Firestore/Storage browser flows afterwards. A frontend restore without App Check requires BOTH services verified OFF. Keep security rules unchanged and production untouched. See `docs/APP_CHECK.md`. All cloud steps remain AMBER.
+**Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Auth stays unenforced. Keep security rules unchanged and production untouched. See `docs/APP_CHECK.md`.
 
 **Current prelaunch gates**
 
@@ -48,21 +48,18 @@
 | P02 | Normal pre-release full refund | **PROVEN / COMPLETE** (exactly one TEST refund; no Connect transfer; Taskio retained **$0**; Expert retained **$0**). Privileged admin/super_admin exception path **OPTIONAL / NOT PROVEN**. |
 | P03 | Transactional email | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`, Outlook Inbox/Focused). Native `SMTP_USER`/`SMTP_PASS` **v2 ENABLED** (only active staging SMTP versions); **v1 DISABLED**. Legacy `taskio-staging-postmark-*` versions **DISABLED** (not destroyed). Obsolete Postmark SMTP token **revoked**; current working token **retained**; Server API token **not removed**. E01 Functions still bind v2 (`…-00007-kih` / `…-00007-xoc`, Ready=True). Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | Privacy-safe analytics | Application code **COMPLETE**. Local/CI **PASS** (`9d1119b`, CI [`34013435627`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34013435627)). URL privacy and origin isolation **COMPLETE**. Staging configuration **COMPLETE** (`G-SZ7RZDKTJY` on Hosting **`c2b8f742e73fed84`**). Hosted network delivery **PASS**. GA4 console receipt **PASS — OWNER CONFIRMED**. Production analytics **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. |
-| P05 | App Check | **CODE COMPLETE** on origin `6b41bd3`. Local/CI **PASS**. Future coverage: Firestore + Storage. Functions and Cloud Run App Check **not required for MVP**. Provider: reCAPTCHA Enterprise if clean during AMBER, else existing v3. Staging provider **NOT CONFIGURED**; Firestore/Storage enforcement **OFF**; debug token **NOT DEPLOYED**. Production **NOT CONFIGURED / NOT ENFORCED**. Overall **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION**. |
+| P05 | App Check | Application code **COMPLETE**. Local/CI **PASS** (`6945c0a`, CI [`34020406444`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34020406444)). Staging provider **PASS**. Frontend activation **PASS**. Firestore enforcement **PASS**. Storage enforcement **PASS**. Auth **OFF — OUT OF APPROVED MVP SCOPE**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. |
 | P06 | Legal review | **STILL REQUIRED** before public production / real-user launch. Must cover Postmark as an overseas transactional-email provider (APP 8 / cross-border processing). Transactional emails remain data-minimised; detailed task information stays inside authenticated Taskio. Tracking is not intentionally enabled. |
 
 **Recommended next sequence:**
 
-1. P05 staging App Check provider/token validation
-2. Enable Firestore enforcement first and retest
-3. Enable Storage enforcement only after Firestore validation
-4. Recheck P01 connected-account TEST available balance
-5. Bank payout proof when funds are available
-6. Legal/security final pre-launch closeout (P06 must include Postmark APP 8)
-7. Production preflight, including a separate RED production-email approval
-8. Production remains RED until explicit owner approval
+1. Recheck P01 connected-account TEST available balance
+2. Bank payout proof when funds are available
+3. Legal/security final pre-launch closeout (P06 must include Postmark APP 8)
+4. Production preflight, including separate RED production-email and production-App-Check approvals
+5. Production remains RED until explicit owner approval
 
-**Exact next pickup:** **P05 staging App Check** (not started). Do **not** start App Check staging enforcement, start P01, start P02B, change DNS, or configure production email tonight. Production remains frozen.
+**Exact next pickup:** **P01** connected-account bank payout when TEST funds are available. Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, change DNS, or configure production email/App Check tonight. Production remains frozen.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -80,8 +77,10 @@
 
 - `https://taskio-v2-staging.web.app/`
 - `https://taskio-v2-staging.firebaseapp.com/`
-- Live SPA version: `c2b8f742e73fed84` (P04 staging GA4 + floating-shelves hero; bundle `main.9647f8fc.js`; source `9d1119b`)
-- Immediate previous known-good SPA (rollback for this P04 deploy): `548438126950e209` → `taskio-v2-staging@548438126950e209` to `taskio-v2-staging:live` if a later approved restore is required
+- Live SPA version: `211fb288dcaff973` (P05 App Check + P04 GA4; bundle `main.70b28def.js`; source `6945c0a` plus build-time App Check env)
+- Immediate previous known-good SPA (rollback for this P05 frontend while enforcement is OFF): `c2b8f742e73fed84` → `taskio-v2-staging@c2b8f742e73fed84` to `taskio-v2-staging:live` if a later approved restore is required. Do not roll back to a non-App-Check frontend while Firestore or Storage enforcement is ON.
+- Earlier P04 SPA: `c2b8f742e73fed84` (bundle `main.9647f8fc.js`)
+- Earlier landing redesign SPA rollback: `548438126950e209` → `taskio-v2-staging@548438126950e209` to `taskio-v2-staging:live` if a later approved restore is required
 - Earlier landing redesign SPA: `70429316be0dd106`
 - Previous invite-only SPA (B4F): `66888d3b5a527558`
 - Placeholder rollback version (still FINALIZED): `c6d84a0333abec1f` → `taskio-v2-staging@c6d84a0333abec1f` to `taskio-v2-staging:live` if a later approved restore is required
@@ -235,7 +234,47 @@
 - Local tests (enforcement still off): `npm --prefix frontend run verify` pass (maintainability; Jest **74/74** suites **482/482**; stagingHosting **23/23**). `npm --prefix backend test` **72/72** suites **811/811**. `npm run test:functions` **26/26**. `npm --prefix frontend run e2e` **4/4**. No Functions/API App Check middleware to test.
 - Push/CI: `7c9831a` + `6b41bd3` **pushed**. Evidence `695c299` **pushed**; CI [`33308907690`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33308907690) **success**. No Hosting/Functions/Cloud Run/Auth/IAM/App Check Console change. Staging Hosting remains **`70429316be0dd106`**. API remains **100%** `taskio-api-staging-54aed8b`.
 - Staging: provider **NOT CONFIGURED**; Firestore enforcement **OFF**; Storage enforcement **OFF**; debug token **NOT DEPLOYED**; current Hosting unchanged (`70429316be0dd106`). Production App Check **NOT CONFIGURED / NOT ENFORCED**.
-- See `docs/APP_CHECK.md` for the future staging AMBER package. **Do not execute it without a new approval.**
+- See `docs/APP_CHECK.md`.
+
+**P05 staging frontend activation (2026-09-06) — AMBER Hosting only:**
+
+- Code origin `6945c0a6d99112982ab28bbde2828dfbf8f8bf72`. CI [`34020406444`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34020406444) **success**.
+- Owner Console: Taskio Staging Web, reCAPTCHA Enterprise **REGISTERED**. Firestore / Storage / Authentication **UNENFORCED**.
+- Public Enterprise site key injected at build time only (not committed). Bundle `main.70b28def.js`. Scan **PASS**. Hosting version **`211fb288dcaff973`**. Previous **`c2b8f742e73fed84`**.
+- **HOSTED TOKEN PROOF: PASS.** `exchangeRecaptchaEnterpriseToken` **200** for app `1:1077378545256:web:155ab7347adbf1dbec2ddd`. Enterprise JS **200**. No debug provider/token. No user-visible challenge.
+- Functional: landing PASS; synthetic homeowner/expert/admin login + Firestore/API reads PASS; Storage **pending**; Cloud Run ID-token `/api/me` **200**, missing token **401**.
+- Enforcement was OFF at Hosting activation. Firestore enforcement was enabled and proven later the same day (next section).
+- See `docs/APP_CHECK.md`.
+
+**P05 Firestore enforcement (2026-09-06) — AMBER staging only; no deploy:**
+
+- Owner enabled Cloud Firestore App Check enforcement after Console metrics **49 / 49 verified (100%)**, 0 outdated / unknown / invalid.
+- API: `firestore.googleapis.com` **`ENFORCED`** (`2026-09-06T08:54:10.998Z`). Storage and Authentication remain **`UNENFORCED`**. Hosting unchanged **`211fb288dcaff973`**.
+- Valid synthetic flows under enforcement **PASS**: homeowner/expert/admin login + Firestore reads + required API GETs. App Check exchange **200**. No debug provider/token. No user-visible challenge.
+- Invalid-client proof **PASS**: same homeowner `users/{uid}` REST read. Valid App Check → **200**. Missing App Check → **403**. Invalid App Check → **403**. Tokens not stored. Rules were not changed.
+- Post-test request-count charts were not independently retrieved. Production Hosting still `cffca9d87ce03901`. Production App Check remains `UNENFORCED`.
+- See `docs/APP_CHECK.md`.
+
+**P05 Storage pre-enforcement (2026-09-06) — AMBER staging only; no deploy; enforcement NOT enabled:**
+
+- Real UI: existing synthetic homeowner `/profile` **Upload photo**. Tiny 1×1 PNG. Path `profilePhotos/9HxC2jETKuha7Y3n5SQGNjrOQkr1/1788687541562.png`.
+- Storage POST upload **200** and GET `getDownloadURL` **200**. Both had `authorization` and `x-firebase-appcheck`. App Check exchange **200**. No debug token/provider.
+- No existing Storage object on that profile. Job/chat/support/variation flows were not used (side effects).
+- Client delete blocked by Storage write content-type rule. Exact object removed with `gcloud storage rm --project=taskio-v2-staging`; `ls` matched no object.
+- Firestore regression **PASS** (`/dashboard`, 12/12 ok). Storage remained `UNENFORCED` at that time. Firestore remained `ENFORCED`. Hosting unchanged **`211fb288dcaff973`**.
+- Owner later confirmed Storage pre-enforcement metrics **3 / 3 verified (100%)**. Stale profile photo metadata was cleared during the enforcement batch.
+- See `docs/APP_CHECK.md`.
+
+**P05 Storage enforcement (2026-09-06) — AMBER staging only; no deploy:**
+
+- Owner enabled Cloud Storage App Check after **3 / 3 verified** pre-enforcement metrics.
+- API: Storage **`ENFORCED`** (`2026-09-06T09:52:42.501Z`). Firestore still **`ENFORCED`**. Auth still **`UNENFORCED`**. Hosting unchanged **`211fb288dcaff973`**.
+- Stale `photoURL`/`profilePhotoPath` for `…/1788687541562.png` cleared via `PUT /api/me/profile` **200**.
+- Valid flow **PASS**: `/profile` Upload photo, `profilePhotos/9HxC2jETKuha7Y3n5SQGNjrOQkr1/1788689202588.png`. Storage POST+GET **200** with `x-firebase-appcheck`. Exchange **200**.
+- Invalid proof **PASS**: same object GET. Valid App Check **200**. Missing **401**. Invalid **401**.
+- Firestore regression **PASS**. New object deleted. New photo metadata cleared. Final `/api/me` photo fields empty.
+- Production Hosting still `cffca9d87ce03901`. Production App Check remains `UNENFORCED`.
+- See `docs/APP_CHECK.md`.
 
 **P04 evidence (2026-08-30) — GREEN privacy-safe analytics; staging NOT CONFIGURED:**
 
@@ -298,7 +337,7 @@
 | P02 | Normal pre-release refund / dispute readiness | P02A **PROVEN / COMPLETE** (one full TEST refund; no transfer; Taskio $0; Expert $0). P02B privileged **super_admin** exception **OPTIONAL / NOT PROVEN**. |
 | P03 | Essential transactional email (SMTP secrets) | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`). Postmark **APPROVED**; sender **ACTIVATED**; DKIM **VERIFIED**; Return-Path **VERIFIED**. Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | GA4/provider setup for analytics (no ad pixels) | Staging Hosting **`c2b8f742e73fed84`** loads `G-SZ7RZDKTJY`. Hosted network **PASS**. GA4 console receipt **PASS — OWNER CONFIRMED**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. See `docs/ANALYTICS.md`. |
-| P05 | Staging App Check validation + production enforcement decision | GREEN **on origin** `6b41bd3`; CI `33308449769` / `33308907690` **success**. Provider/token/enforcement **NOT CONFIGURED / NOT ENABLED**. Overall **PARTIAL**. See `docs/APP_CHECK.md`. |
+| P05 | Staging App Check validation + production enforcement decision | Frontend **PASS**. Firestore + Storage enforcement **PASS**. Auth **OFF**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. See `docs/APP_CHECK.md`. |
 | P06 | Final Terms/Privacy owner + preferably AU legal review | **STILL REQUIRED** before public production / real-user launch. Include Postmark APP 8 / overseas processing. Emails stay data-minimised; details live in authenticated Taskio. Tracking is not intentionally enabled. |
 
 **3. Nice-to-have / post-core**
@@ -309,7 +348,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **P05 staging App Check** (not started). Do **not** start App Check staging enforcement, start P01, start P02B, change DNS, or configure production email tonight. Production remains frozen.
+**Exact next pickup:** **P01** connected-account bank payout when TEST funds are available. Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, change DNS, or configure production email/App Check tonight. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 

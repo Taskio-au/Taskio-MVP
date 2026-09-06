@@ -1,5 +1,94 @@
-# Taskio P05 App Check preflight
-Checkpoint: 6 September 2026. GREEN work complete; no push, deployment or cloud mutation. Production remains frozen.
+# Taskio P05 App Check
+
+Staging frontend App Check is enabled with the registered reCAPTCHA Enterprise provider. **Firestore and Storage enforcement are ON and proven.** Authentication remains **OFF** (out of approved MVP scope). Production remains **OFF**.
+
+## Classification
+
+| Gate | State |
+|---|---|
+| P05 application code | **COMPLETE** |
+| P05 local / CI | **PASS** (`6945c0a`, CI [34020406444](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34020406444)) |
+| P05 debug build safety | **PASS** |
+| P05 rollback safety | **PASS** |
+| P05 staging provider | **PASS** — reCAPTCHA Enterprise |
+| P05 staging frontend activation | **PASS** |
+| P05 Firestore enforcement | **PASS** (`ENFORCED`) |
+| P05 Storage pre-enforcement traffic | **PASS** |
+| P05 Storage enforcement | **PASS** (`ENFORCED`) |
+| P05 Auth enforcement | **OFF — OUT OF APPROVED MVP SCOPE** |
+| P05 production | **OFF** |
+| P05 overall | **STAGING PASS / PRODUCTION PENDING** |
+
+## Staging frontend activation (2026-09-06)
+
+- Project `taskio-v2-staging`. App **Taskio Staging Web** (`1:1077378545256:web:155ab7347adbf1dbec2ddd`). Provider **reCAPTCHA Enterprise**, owner-confirmed **REGISTERED**.
+- Public Enterprise site key used at build time (not committed to source): `6LdDVqwtAAAAAAmUZHnS17MhiudyoyEMuaa_wjC7`.
+- Build env (existing names only): `REACT_APP_APPCHECK_ENABLED=true`, `REACT_APP_APPCHECK_PROVIDER=recaptcha-enterprise`, `REACT_APP_APPCHECK_SITE_KEY=<public Enterprise key>`, `REACT_APP_APPCHECK_DEBUG_TOKEN` / `FIREBASE_APPCHECK_DEBUG_TOKEN` absent (staging child env blanks them), `REACT_APP_FIREBASE_EXPECTED_PROJECT_ID=taskio-v2-staging`. P04 analytics preserved: `REACT_APP_ANALYTICS_ENABLED=true`, `REACT_APP_GA_MEASUREMENT_ID=G-SZ7RZDKTJY`.
+- Staging build **PASS**. Bundle `main.70b28def.js`. Scan `npm --prefix frontend run scan:staging` **PASS** (57 files). Hosted build guards **11/11**. Frontend verify **PASS** (maintainability; Jest **74/74** **516/516**; stagingHosting **26/26**).
+- Bundle contains `taskio-v2-staging`, `G-SZ7RZDKTJY`, the Enterprise site key, and App Check enabled / `recaptcha-enterprise`. Bundle does **not** contain a nonempty debug-token assignment, production Hosting origins, bare `taskio-v2`, production sender `848916998874`, localhost API, or `pk_live_`.
+- Hosting-only deploy via wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json --execute`. Live version **`211fb288dcaff973`** (`2026-09-06T08:41:15.796Z`). Previous **`c2b8f742e73fed84`** remains FINALIZED (rollback while enforcement is OFF). Headers: `X-Robots-Tag: noindex, nofollow, noarchive`; `Cache-Control: no-store`.
+- **HOSTED TOKEN / REQUEST PROOF: PASS.** `https://www.google.com/recaptcha/enterprise.js` **200**. Enterprise requests used the staging site key. Token exchange **200**: `content-firebaseappcheck.googleapis.com/v1/projects/taskio-v2-staging/apps/1:1077378545256:web:155ab7347adbf1dbec2ddd:exchangeRecaptchaEnterpriseToken`. No debug provider, no debug token, no App Check initialization error, no user-visible challenge. Token values were not stored.
+- Functional matrix (existing synthetic accounts only; no new users, jobs, quotes, Stripe objects, or email):
+  - A anonymous landing: invite-only page loads.
+  - B homeowner: `/dashboard`; Firestore traffic observed (10); `GET /api/me` **200**; `GET /api/homeowner/jobs` **200**.
+  - C expert: `/tradie/dashboard`; Firestore traffic observed (12); `GET /api/me` **200**; `GET /api/tradie/jobs` **200**.
+  - D admin: `/admin/dashboard`; Firestore traffic observed (15); admin GET reads **200**.
+  - E Storage: later proven separately (profile photo upload; see Storage pre-enforcement section).
+  - F Cloud Run: `/health/live` **200**; `/api/me` without ID token **401**; authenticated `/api/me` **200**. No App Check requirement on Cloud Run.
+- App Check Console metrics: **NOT INDEPENDENTLY RETRIEVED**. Owner confirmation steps: Firebase Console → `taskio-v2-staging` → App Check → APIs → expand Cloud Firestore and Cloud Storage → confirm Verified traffic after this Hosting release, and confirm enforcement remains Unenforced. Authentication should remain Unenforced.
+- Independent service read after deploy: `firestore.googleapis.com`, `firebasestorage.googleapis.com`, and `identitytoolkit.googleapis.com` are all `UNENFORCED`.
+- Production Hosting still **`cffca9d87ce03901`**. `taskio.com.au` still “Taskio is almost ready”; no gtag; no staging bundle. Production App Check remains OFF. gcloud default remains `taskio-v2`.
+
+Do **not** roll Hosting back while Firestore or Storage remains ENFORCED. Disable the affected enforcement first, verify OFF, then restore Hosting.
+
+## Firestore enforcement validation (2026-09-06)
+
+- Owner enabled Cloud Firestore App Check enforcement on `taskio-v2-staging` only. No Hosting deploy, Functions change, Storage/Auth enforcement, or production mutation in this batch.
+- Pre-enforcement owner metrics: **49 / 49 verified (100%)**; 0 outdated client; 0 unknown origin; 0 invalid.
+- API read after owner change: `firestore.googleapis.com` **`ENFORCED`** (`updateTime=2026-09-06T08:54:10.998Z`). Storage and Authentication remain **`UNENFORCED`**. Live Hosting still **`211fb288dcaff973`**.
+- Propagation: enforcement mode was already `ENFORCED` at validation start; valid hosted Firestore traffic succeeded, so propagation is treated as complete.
+- Valid hosted app (existing synthetic accounts only):
+  - Homeowner: `/dashboard`; App Check exchange **200**; Firestore **10/10** ok; `GET /api/me` **200**; `GET /api/homeowner/jobs` **200**.
+  - Expert: `/tradie/dashboard`; exchange **200**; Firestore **12/12** ok; `GET /api/me` **200**; `GET /api/tradie/jobs` **200**.
+  - Admin: `/admin/dashboard`; exchange **200**; Firestore **15/15** ok; admin GET reads **200**.
+  - No debug provider/token, no App Check errors, no user-visible challenge, no new users/jobs/Stripe/email.
+- Invalid-client proof **PASS** (same synthetic homeowner, same `users/{uid}` REST read; tokens not stored):
+  - Valid ID token + valid App Check token → **200** (document fields present).
+  - Same ID token, no App Check header → **403** `PERMISSION_DENIED`.
+  - Same ID token + invalid App Check header → **403** `PERMISSION_DENIED`.
+  - Firebase error text is generic (`PERMISSION_DENIED`); the controlled with/without comparison is the App Check proof, not a rules change.
+- Post-test Firestore request-count metrics were **not** independently retrieved (App Check service API returns enforcement mode only).
+
+## Storage pre-enforcement traffic (2026-09-06)
+
+- Storage remained **`UNENFORCED`**. No Hosting deploy. Firestore remained **`ENFORCED`**. Auth remained **`UNENFORCED`**. Production untouched.
+- Actual browser Storage usage: `uploadBytesResumable` + `getDownloadURL` only. No `deleteObject` in the frontend. Paths: `profilePhotos/{uid}/{timestamp}.{ext}` (homeowner/expert profile UI), `job-posting-attachments/{jobId}/…` (job create), `job-attachments/{jobId}/{messageId}/…` (chat), `job-attachments/{jobId}/variation-…` (variations), `support-tickets/{uid}/{ticketId}/…` (support ticket create). Legacy unused-by-current-UI rules also exist for `profile-photos/` and `profile-images/`.
+- Existing synthetic homeowner had **no** Firebase Storage profile object. Img-src download-token reads are not App Check proof.
+- Chosen product flow: existing synthetic homeowner, hosted `/profile` **Upload photo**, tiny 1×1 PNG, path `profilePhotos/{uid}/{timestamp}.png`. No job/Stripe/email.
+- Proof **PASS**: App Check exchange **200**; Storage POST upload **200** and GET download-URL **200**; both carried `authorization` and `x-firebase-appcheck`. No debug provider/token. No visible challenge. No App Check console error.
+- Rules obeyed: owner-only `profilePhotos/{uid}` JPEG/PNG/WebP ≤2MB. Auth was the signed-in homeowner. Browser SDK path, not Admin SDK.
+- Object `profilePhotos/9HxC2jETKuha7Y3n5SQGNjrOQkr1/1788687541562.png` on `taskio-v2-staging.firebasestorage.app`. Client REST delete is blocked by the write rule’s content-type check. Operator deleted **only** that object (`gcloud storage rm`); follow-up `ls` matched no object. Stale `photoURL` / `profilePhotoPath` were later cleared via `PUT /api/me/profile` during Storage enforcement validation.
+- Firestore regression **PASS**: after the upload, `/dashboard` loaded; Firestore 12/12 ok, 0 fail; App Check still exchanging.
+- Owner later confirmed Storage pre-enforcement metrics **3 / 3 verified (100%)**; 0 outdated / unknown / invalid.
+
+## Storage enforcement validation (2026-09-06)
+
+- Owner enabled Cloud Storage App Check enforcement on `taskio-v2-staging` only. No Hosting deploy. Firestore remained **`ENFORCED`**. Auth remained **`UNENFORCED`**. Production untouched. Live Hosting still **`211fb288dcaff973`**.
+- Pre-enforcement owner metrics: **3 / 3 verified (100%)**; 0 outdated client; 0 unknown origin; 0 invalid.
+- API read: `firebasestorage.googleapis.com` **`ENFORCED`** (`updateTime=2026-09-06T09:52:42.501Z`). Firestore still **`ENFORCED`**. Auth still **`UNENFORCED`**.
+- Stale metadata from the earlier deleted object was present (`profilePhotos/…/1788687541562.png`). Cleared with the supported `PUT /api/me/profile` `{ photoURL: '', profilePhotoPath: '' }` (**200**).
+- Valid product flow **PASS**: existing synthetic homeowner, `/profile` **Upload photo**, tiny 1×1 PNG. Path `profilePhotos/9HxC2jETKuha7Y3n5SQGNjrOQkr1/1788689202588.png`. App Check exchange **200**. Storage POST upload **200** and GET `getDownloadURL` **200**. Both had `authorization` and `x-firebase-appcheck`. No debug provider/token. No visible challenge. No App Check console error.
+- Invalid-client proof **PASS** (same object metadata GET; tokens not stored):
+  - Valid Auth + valid App Check → **200** (object present).
+  - Same Auth, missing App Check → **401** (App Check).
+  - Same Auth, invalid App Check → **401** (App Check).
+- Rules still applied: owner-only `profilePhotos/{uid}` JPEG/PNG/WebP ≤2MB. Browser SDK path. Rules not changed.
+- Firestore regression **PASS**: `/dashboard` loaded; Firestore 12/12 ok; App Check still exchanging.
+- Cleanup: exact new object deleted (`gcloud storage rm`; gone). New `photoURL` / `profilePhotoPath` cleared via `PUT /api/me/profile` (**200**). Final `GET /api/me` has empty photo fields.
+- Storage request-count metrics after enforcement were **not** independently retrieved. Owner: Firebase Console → `taskio-v2-staging` → App Check → APIs → Storage. Expect continued verified traffic plus rejected missing/invalid samples. Confirm Auth remains Unenforced.
+
+## Preflight record (GREEN, 6 September 2026)
+GREEN work complete before this Hosting activation. Production remains frozen.
 
 ## A. Repo and tracker reconciliation
 - Checkout: D:\Taskio\Cursor\251220\Taskio-MVP; branch develop.
@@ -26,14 +115,14 @@ Build and deployment safeguards:
 
 Order: initializeApp -> resolve App Check configuration -> initializeTaskioAppCheck -> getAuth -> getFirestore -> getStorage. Initialization is once-only and sets isTokenAutoRefreshEnabled=true. Disabled configuration creates no provider. Configuration errors throw; synchronous initialization failures are rethrown in production builds, while development catches them. Asynchronous token acquisition is handled by Firebase SDKs, not awaited by the initializer.
 
-## C. Exact future configuration
-These are build-time values; changing them requires rebuilding Hosting. No provider key has been created.
+## C. Exact configuration
+These are build-time values; changing them requires rebuilding Hosting. The staging Hosting activation used the registered public Enterprise site key via build-time injection (not committed to source).
 
-| Variable | Future staging value |
+| Variable | Staging Hosting activation value |
 |---|---|
 | REACT_APP_APPCHECK_ENABLED | true (exact string; otherwise disabled) |
 | REACT_APP_APPCHECK_PROVIDER | recaptcha-enterprise |
-| REACT_APP_APPCHECK_SITE_KEY | Actual public staging Web score-based key ID copied from the provider registration; not the full projects/... resource name |
+| REACT_APP_APPCHECK_SITE_KEY | Public staging Enterprise site key `6LdDVqwtAAAAAAmUZHnS17MhiudyoyEMuaa_wjC7`; not the full projects/... resource name |
 | REACT_APP_APPCHECK_DEBUG_TOKEN | Absent; staging child environment explicitly blanks it |
 | FIREBASE_APPCHECK_DEBUG_TOKEN | Absent; build/deploy guards reject nonempty configuration |
 | REACT_APP_FIREBASE_EXPECTED_PROJECT_ID | taskio-v2-staging |
@@ -125,23 +214,23 @@ The [official Enterprise instructions](https://firebase.google.com/docs/app-chec
 ## K. Current staging state
 | Item | Evidence |
 |---|---|
-| Existing Firebase Web app | Public app ID observed in hosted bundle; authenticated Console inventory unavailable |
-| App Check provider | Recorded NOT CONFIGURED; live state NOT VERIFIED |
-| Firestore enforcement | Recorded OFF; live state NOT VERIFIED |
-| Storage enforcement | Recorded OFF; live state NOT VERIFIED |
+| Existing Firebase Web app | Taskio Staging Web `1:1077378545256:web:155ab7347adbf1dbec2ddd` |
+| App Check provider | reCAPTCHA Enterprise REGISTERED (owner Console + hosted exchange) |
+| Firestore enforcement | **PASS** / `ENFORCED` (API read + valid/invalid proof) |
+| Storage pre-enforcement traffic | **PASS** (owner 3/3 verified) |
+| Storage enforcement | **PASS** / `ENFORCED` (API read + valid/invalid proof) |
+| Auth enforcement | OFF / `UNENFORCED` |
 | Functions enforcement | Not applicable to observed trigger-only architecture |
-| App Check metrics | Not retrieved |
-| Frontend activation | Recorded NOT DONE; current bundle remains main.9647f8fc.js |
-| Production | Recorded OFF/frozen; not accessed or changed |
-
-Read-only Firebase webApps, App Check services and Hosting release metadata requests returned HTTP 403 with the existing credential. No permission/IAM changes attempted. Public bundle SHA-256: 82723890382cb17ae2b4fa9e4fc6ab123b714f433d3c79c620f79bfbcf136f80. The Console checks above are required before mutation.
+| App Check metrics | Console charts not independently retrieved; owner steps above |
+| Frontend activation | **PASS** on Hosting **`211fb288dcaff973`**, bundle `main.70b28def.js` |
+| Production | OFF/frozen; Hosting still `cffca9d87ce03901`; analytics OFF |
 
 ## L. Safest rollout and failure modes
 1. Confirm live states and rollback anchor, then configure the staging provider under approval.
 2. Obtain approval to push the reviewed local commit; require green CI for the candidate.
 3. Build with actual staging public configuration and the real Enterprise key; preserve P04 analytics and invite-only settings. Scan that exact artifact; this task's synthetic build must not be deployed.
 4. Under separate Hosting approval, deploy only staging Hosting, with Firestore/Storage enforcement still OFF.
-5. On both staging domains confirm real token exchange, subsequent verified metrics, refresh behavior and the test matrix below. Initializer success alone is not token proof.
+5. Hosted token exchange and Firestore enforcement are proven. Storage enforcement remains a separate AMBER step.
 6. Refresh all synthetic operator tabs; retain one old client only for the controlled negative test.
 7. After separate approval, enable Firestore enforcement. Wait for propagation, prove valid reads/writes succeed and authorized requests without valid App Check fail.
 8. After that passes and separate approval, enable Storage enforcement. Repeat valid/invalid proof and browser checks.
@@ -161,7 +250,7 @@ Read-only Firebase webApps, App Check services and Hosting release metadata requ
 
 Enforcement can take up to 15 minutes to take effect; confirm observable state and behavior instead of relying on a fixed sleep. [Firebase enforcement](https://firebase.google.com/docs/app-check/enable-enforcement).
 
-## M. Minimal hosted test matrix — proposed, not executed
+## M. Minimal hosted test matrix — executed 2026-09-06 (enforcement OFF)
 Use existing synthetic homeowner/expert/admin accounts only. Approval must cover normal login/session effects and user-profile updatedAt writes, plus one small synthetic profile-image upload. No new users, jobs, quotes, payments, emails, Stripe objects or destructive cleanup are required.
 
 | Test | Evidence required |
@@ -200,7 +289,7 @@ Hosting metadata 403 prevents independently attesting the release-to-source mapp
 ## P. Rollback
 1. Disable the affected STAGING Firestore/Storage App Check enforcement FIRST.
 2. Verify Console shows OFF and a rules-authorized request without App Check works after propagation.
-3. Only then restore Hosting to the confirmed pre-P05 anchor (currently recorded c2b8f742e73fed84), or deploy an App Check-disabled frontend.
+3. Only then restore Hosting to the confirmed pre-activation anchor **`c2b8f742e73fed84`**, or deploy an App Check-disabled frontend. Live App Check frontend is **`211fb288dcaff973`**.
 4. Verify normal Auth, Firestore reads/writes, Storage access/upload and API behavior.
 5. Investigate provider/frontend configuration before reactivation.
 6. Keep production untouched and security rules unchanged.
@@ -220,25 +309,10 @@ When only one enforced service fails, disabling just that service may be suffici
 - P01 bank payout remains unproven; P06 legal review and historical production credential rotation/revocation remain pre-launch items. No production credential state was inferred.
 
 ## R. P05 classification
-| Gate | State |
-|---|---|
-| Application code | COMPLETE |
-| Local verification | PASS |
-| CI for new commit | PENDING PUSH; baseline CI PASS |
-| Debug build safety | PASS |
-| Rollback safety | PASS |
-| Staging provider | NOT CONFIGURED per recorded state; live check required |
-| Staging frontend activation | NOT DONE |
-| Firestore / Storage enforcement | OFF per recorded state; live check required |
-| Production | OFF/frozen per owner checkpoint; untouched |
-| Overall | READY FOR CONTROLLED STAGING ACTIVATION, subject to live Console reconciliation |
+See the table at the top of this document. Staging Firestore and Storage enforcement are **PASS**. Production remains **OFF**.
 
-This is readiness, not staging enforcement PASS.
-
-## S. Smallest next AMBER package
-Recommended immediate package: push ONLY the reviewed local P05 commit to origin/develop, after confirming origin has not moved. Wait for the resulting CI. No deployment or cloud configuration is included.
-
-First cloud package after that: owner verifies the read-only Console checklist, then approves one staging Enterprise Web score key and App Check registration for the existing Web app; enable the provider API only if required. Keep Firestore/Storage/Auth enforcement OFF, and perform no Hosting deployment, IAM change, secret change or production action. Any new permission/billing obstacle is a separate owner decision.
+## S. Remaining P05 / next gate
+P05 staging App Check is **PASS**. Auth enforcement stays off (out of approved MVP scope). Production App Check remains **OFF** and needs a separate RED decision. Do not roll Hosting back while Firestore or Storage is ENFORCED. Next tracker gate is not a P05 staging action.
 
 
 ## Local verification evidence
