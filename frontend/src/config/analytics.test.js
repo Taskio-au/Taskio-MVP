@@ -1,7 +1,9 @@
 import { ANALYTICS_EVENTS, ANALYTICS_MVP_METRICS, sanitizeAnalyticsParams, trackEvent, trackEventOnce, resetAnalyticsOnceForTests } from './analytics';
-import { amountBucketFromCents, coercePilotSuburb, resolveAnalyticsConfig } from './analyticsConfig';
+import { amountBucketFromCents, coercePilotSuburb, resolveAnalyticsConfig, resolveAnalyticsEnvironment } from './analyticsConfig';
 import { initializeTaskioAnalytics, resetAnalyticsInitForTests } from './analyticsInit';
-import { canonicalizeAnalyticsPathname, sanitizeAnalyticsPageContext } from './analyticsPageContext';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { canonicalizeAnalyticsPathname, canonicalAnalyticsOrigin, sanitizeAnalyticsPageContext } from './analyticsPageContext';
 import { jobLooksPaid } from './homeownerJobAnalytics';
 import { trackQuoteSubmitted } from './expertJobAnalytics';
 
@@ -32,6 +34,14 @@ describe('analytics config', () => {
       environment: 'staging',
       reason: 'enabled',
     });
+  });
+
+  it('resolves environment without embedding a production project fingerprint', () => {
+    expect(resolveAnalyticsEnvironment('taskio-v2-staging')).toBe('staging');
+    expect(resolveAnalyticsEnvironment('taskio-v2')).toBe('production');
+    expect(resolveAnalyticsEnvironment('')).toBe('local');
+    const source = readFileSync(join(__dirname, 'analyticsConfig.js'), 'utf8');
+    expect(source).not.toMatch(/(?:^|[^a-z0-9-])taskio-v2(?!-staging)(?:[^a-z0-9-]|$)/);
   });
 
   it('maps cents to coarse amount buckets and allows only launch suburbs', () => {
@@ -120,6 +130,15 @@ describe('analytics page context', () => {
     resetAnalyticsInitForTests();
   });
 
+  it('uses an environment-specific canonical origin', () => {
+    expect(canonicalAnalyticsOrigin('staging')).toBe('https://taskio-v2-staging.web.app');
+    expect(canonicalAnalyticsOrigin('production')).toBe('https://taskio.com.au');
+    expect(canonicalAnalyticsOrigin('local')).toBe('');
+    const source = readFileSync(join(__dirname, 'analyticsPageContext.js'), 'utf8');
+    expect(source).not.toContain('taskio-v2.web.app');
+    expect(source).not.toContain('taskio-v2.firebaseapp.com');
+  });
+
   it('keeps static public pathnames', () => {
     expect(canonicalizeAnalyticsPathname('/login')).toBe('/login');
     const page = sanitizeAnalyticsPageContext({
@@ -127,6 +146,14 @@ describe('analytics page context', () => {
       environment: 'staging',
     });
     expect(page.page_location).toBe('https://taskio-v2-staging.web.app/login');
+  });
+
+  it('resolves production page_location to the public canonical origin', () => {
+    const page = sanitizeAnalyticsPageContext({
+      href: 'https://taskio.com.au/login',
+      environment: 'production',
+    });
+    expect(page.page_location).toBe('https://taskio.com.au/login');
   });
 
   it('canonicalises dynamic job routes without the job ID', () => {
@@ -185,12 +212,19 @@ describe('analytics page context', () => {
   });
 
   it('does not send localhost origins into page_location', () => {
-    const page = sanitizeAnalyticsPageContext({
+    const staging = sanitizeAnalyticsPageContext({
       href: 'http://localhost:3000/job/507iZTK6ZsEEqswzgoRN',
       environment: 'staging',
     });
-    expect(page.page_location).toBe('https://taskio-v2-staging.web.app/job/:id');
-    expect(page.page_location).not.toMatch(/localhost|3000/);
+    expect(staging.page_location).toBe('https://taskio-v2-staging.web.app/job/:id');
+    expect(staging.page_location).not.toMatch(/localhost|3000/);
+
+    const local = sanitizeAnalyticsPageContext({
+      href: 'http://localhost:3000/login',
+      environment: 'local',
+    });
+    expect(local.page_location).toBe('/login');
+    expect(local.page_location).not.toMatch(/localhost|127\.0\.0\.1/);
   });
 
   it('rejects caller-supplied page_location and page_referrer', () => {

@@ -6,14 +6,12 @@ Privacy-conscious product analytics for the private Melbourne MVP. GREEN applica
 
 | Gate | State |
 |---|---|
-| P04 analytics architecture | DECIDED |
-| P04 application code | CODE COMPLETE |
-| P04 local / CI testing | **PASS** (`e7ffbf0`; CI `33310943590`) |
-| P04 staging GA4 property | **NOT CONFIGURED** |
-| P04 staging measurement ID | **NOT CONFIGURED** |
-| P04 staging event delivery | **NOT VERIFIED** |
-| P04 production analytics | **NOT ENABLED** |
-| P04 overall | **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION** |
+| P04 application code | **COMPLETE** |
+| P04 local / CI | **PASS** when verification passes |
+| P04 staging configuration | **NOT DONE** |
+| P04 hosted delivery | **NOT VERIFIED** |
+| P04 production | **OFF** |
+| P04 overall | **READY FOR CONTROLLED STAGING ACTIVATION** |
 
 Do not mark P04 fully PASS until staging receives real events.
 
@@ -37,7 +35,7 @@ Firebase Analytics SDK is **not** used: it would require a `measurementId` on th
 
 Advertising identifiers, Google Signals, and ad personalization are off when `gtag('config')` runs (`anonymize_ip`, `send_page_view=false`, Signals off, ad personalization off).
 
-GA4 `page_location` is set to a Taskio hosted origin plus a **canonical pathname**. Dynamic IDs become route shapes (`/job/:id`, `/payment/:id/:id`, `/admin/user/:id`). Query strings and hashes are removed. Loopback origins are never sent; local/dev URLs remap to the staging or production origin from the expected Firebase project, or to a path-only value.
+GA4 `page_location` is the **current build environment’s** canonical origin plus a canonical pathname. Staging uses `https://taskio-v2-staging.web.app` only. Production would use `https://taskio.com.au` only. The staging bundle must not contain production Hosting origin fingerprints. Dynamic IDs become route shapes (`/job/:id`, `/payment/:id/:id`, `/admin/user/:id`). Query strings and hashes are removed. Loopback origins are never sent; local/dev URLs remap to the environment origin, or to a path-only value.
 
 GA4 `page_referrer` is privacy-sanitised: same-origin Taskio referrers use the same canonical path; external referrers keep **origin only** (no path or query). Callers cannot supply `page_location` / `page_referrer` through `trackEvent`.
 

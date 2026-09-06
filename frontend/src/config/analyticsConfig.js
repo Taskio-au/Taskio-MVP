@@ -13,8 +13,11 @@ const PILOT_SUBURBS = new Set([
 
 export function resolveAnalyticsEnvironment(projectId) {
   const project = String(projectId || '').trim();
+  if (!project) return 'local';
   if (project === 'taskio-v2-staging') return 'staging';
-  if (project === 'taskio-v2') return 'production';
+  // Do not embed the production project ID. Staging bundles must not carry
+  // that fingerprint; production still resolves from the expected project id.
+  if (project.startsWith('taskio-') && !project.includes('staging')) return 'production';
   return 'local';
 }
 

@@ -1,12 +1,3 @@
-const HOSTED_ORIGINS = new Set([
-  'https://taskio-v2-staging.web.app',
-  'https://taskio-v2-staging.firebaseapp.com',
-  'https://taskio.com.au',
-  'https://www.taskio.com.au',
-  'https://taskio-v2.web.app',
-  'https://taskio-v2.firebaseapp.com',
-]);
-
 const STATIC_PATHS = new Set([
   '/',
   '/login',
@@ -57,10 +48,6 @@ const FIRESTORE_ID_RE = /^[A-Za-z0-9]{18,28}$/;
 const STRIPE_ID_RE = /^(cs|pi|ch|pm|re|tr|acct|evt|in|seti|price|prod)_/i;
 const SAFE_SEGMENT_RE = /^[a-z0-9-]{1,32}$/i;
 
-function trimOrigin(value) {
-  return String(value || '').trim().replace(/\/+$/, '');
-}
-
 function isLoopbackHost(hostname) {
   return /^(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)$/i.test(String(hostname || ''));
 }
@@ -73,20 +60,10 @@ function parseUrl(value) {
   }
 }
 
-function hostedOriginForEnvironment(environment) {
+export function canonicalAnalyticsOrigin(environment) {
   if (environment === 'production') return 'https://taskio.com.au';
   if (environment === 'staging') return 'https://taskio-v2-staging.web.app';
   return '';
-}
-
-function resolvePageOrigin(hrefOrigin, environment) {
-  const origin = trimOrigin(hrefOrigin);
-  if (HOSTED_ORIGINS.has(origin)) return origin;
-  const parsed = parseUrl(origin.includes('://') ? origin : `https://${origin}`);
-  if (parsed && isLoopbackHost(parsed.hostname)) {
-    return hostedOriginForEnvironment(environment);
-  }
-  return hostedOriginForEnvironment(environment);
 }
 
 function normalizePathname(pathname) {
@@ -139,7 +116,7 @@ export function sanitizeAnalyticsPageContext({
   const rawHref = hrefFromParts(href, pathname);
   const locationUrl = parseUrl(rawHref);
   const safePath = canonicalizeAnalyticsPathname(locationUrl?.pathname || pathname || '/');
-  const origin = resolvePageOrigin(locationUrl?.origin, environment);
+  const origin = canonicalAnalyticsOrigin(environment);
   const pageLocation = origin ? `${origin}${safePath}` : safePath;
 
   let pageReferrer = '';
