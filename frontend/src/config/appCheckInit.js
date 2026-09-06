@@ -22,6 +22,14 @@ export function initializeTaskioAppCheck({
     throw new Error('App Check initialization is missing a Firebase app.');
   }
 
+  if (windowRef?.FIREBASE_APPCHECK_DEBUG_TOKEN && !config.debugToken) {
+    throw new Error('App Check debug global requires explicit loopback developer configuration.');
+  }
+  if (windowRef && (config.debugToken || windowRef.FIREBASE_APPCHECK_DEBUG_TOKEN)
+    && (process.env.NODE_ENV !== 'development'
+      || !['localhost', '127.0.0.1', '[::1]', '::1'].includes(windowRef.location?.hostname))) {
+    throw new Error('App Check debug provider requires local development on loopback.');
+  }
   if (config.debugToken && windowRef) {
     windowRef.FIREBASE_APPCHECK_DEBUG_TOKEN =
       config.debugToken === 'true' ? true : config.debugToken;

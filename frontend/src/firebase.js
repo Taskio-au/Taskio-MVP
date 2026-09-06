@@ -34,7 +34,10 @@ const app = initializeApp(firebaseConfig);
 // - REACT_APP_APPCHECK_PROVIDER=recaptcha-v3 (default) or recaptcha-enterprise
 // Local/dev only (forbidden in production and staging Hosting builds):
 // - REACT_APP_APPCHECK_DEBUG_TOKEN=true (or a specific debug token string)
-const appCheckConfig = resolveAppCheckConfig(appCheckEnvFromProcess());
+const appCheckConfig = resolveAppCheckConfig(
+  appCheckEnvFromProcess(),
+  typeof window !== 'undefined' ? window.location.hostname : '',
+);
 try {
   initializeTaskioAppCheck({
     app,

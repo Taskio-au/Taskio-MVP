@@ -132,6 +132,8 @@ Unknown keys, nested objects, and arrays are dropped. Development may warn with 
 - **GA4 CONSOLE RECEIPT: PASS — OWNER CONFIRMED.** Taskio Staging Realtime showed 1 active user, `landing_viewed` = 1, `login_cta_clicked` = 1, and no automatic `page_view`. Normal GA4 automatic `first_visit` and `session_start` were present; they are not Taskio catalogue events and are not a failure.
 - Production analytics **OFF**. Production Hosting still maintenance (`taskio.com.au` title “Taskio is almost ready”; no gtag). No Cloud Run, Functions, Auth, App Check, Stripe, or secret mutation.
 
+**Staging App Check rollback prerequisite:** In `taskio-v2-staging`, disable affected Firestore/Storage enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting or disable frontend App Check; verify normal Auth/Firestore/Storage browser flows afterwards. A frontend restore without App Check requires BOTH services verified OFF. Keep security rules unchanged and production untouched. See `docs/APP_CHECK.md`. All cloud steps remain AMBER.
+
 ## Rollback
 
 To undo the Hosting activation after a fresh approval, clone the previous version: `taskio-v2-staging@548438126950e209` → `taskio-v2-staging:live`. Or rebuild with `REACT_APP_ANALYTICS_ENABLED` unset and redeploy Hosting. Production is unchanged.

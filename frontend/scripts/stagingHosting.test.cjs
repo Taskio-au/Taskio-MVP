@@ -551,3 +551,26 @@ test('staging Hosting configs pin no-store on /, rewritten SPA routes and static
     assert.equal(headers['X-Robots-Tag'], ROBOTS_HEADER, requestPath);
   }
 });
+
+test('staging App Check defaults cannot inherit activation or provider from dotenv', () => {
+  const child = stagingBuildChildEnv(validEnv);
+  assert.equal(child.REACT_APP_APPCHECK_ENABLED, 'false');
+  assert.equal(child.REACT_APP_APPCHECK_SITE_KEY, '');
+  assert.equal(child.REACT_APP_APPCHECK_PROVIDER, 'recaptcha-v3');
+  assert.equal(child.REACT_APP_APPCHECK_DEBUG_TOKEN, '');
+});
+test('staging deploy rejects debug before resolving CLI or spawning', () => {
+  const key = 'REACT_APP_APPCHECK_DEBUG_TOKEN';
+  const previous = process.env[key];
+  let called = false;
+  try {
+    process.env[key] = 'P05_SYNTHETIC_MARKER_NOT_A_CREDENTIAL';
+    assert.throws(() => executeHostingDeployPlan({}, {
+      spawnSync: () => { called = true; },
+    }), /forbidden in staging Hosting deploys/);
+    assert.equal(called, false);
+  } finally {
+    if (previous === undefined) delete process.env[key];
+    else process.env[key] = previous;
+  }
+});

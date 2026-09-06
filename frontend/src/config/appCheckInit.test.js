@@ -1,7 +1,9 @@
 import { initializeTaskioAppCheck, resetAppCheckInitForTests } from './appCheckInit';
 
 describe('initializeTaskioAppCheck', () => {
+  const originalNodeEnv = process.env.NODE_ENV;
   afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
     resetAppCheckInitForTests();
   });
 
@@ -77,11 +79,13 @@ describe('initializeTaskioAppCheck', () => {
   });
 
   it('sets a debug token on window only and never passes it to initializeAppCheck', () => {
+    const previousEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
     const initializeAppCheckFn = jest.fn();
     function RecaptchaV3Provider(siteKey) {
       this.siteKey = siteKey;
     }
-    const windowRef = {};
+    const windowRef = { location: { hostname: 'localhost' } };
     initializeTaskioAppCheck({
       app: { name: 'taskio' },
       config: {
@@ -94,6 +98,7 @@ describe('initializeTaskioAppCheck', () => {
       initializeAppCheckFn,
       recaptchaV3Provider: RecaptchaV3Provider,
     });
+    process.env.NODE_ENV = previousEnv;
     expect(windowRef.FIREBASE_APPCHECK_DEBUG_TOKEN).toBe('local-debug-token');
     expect(JSON.stringify(initializeAppCheckFn.mock.calls)).not.toMatch(/local-debug-token/);
     expect(initializeAppCheckFn.mock.calls[0][1].isTokenAutoRefreshEnabled).toBe(true);
@@ -111,4 +116,15 @@ describe('initializeTaskioAppCheck', () => {
       initializeAppCheckFn: jest.fn(),
     })).toThrow('provider constructor is missing');
   });
+});
+
+test('rejects pre-existing SDK debug global on hosted origins', () => {
+  resetAppCheckInitForTests();
+  const initializeAppCheckFn = jest.fn();
+  expect(() => initializeTaskioAppCheck({ app: {},
+    config: { enabled: true, siteKey: 'synthetic-key' },
+    windowRef: { location: { hostname: 'taskio-v2-staging.web.app' }, FIREBASE_APPCHECK_DEBUG_TOKEN: true },
+    initializeAppCheckFn,
+  })).toThrow('loopback');
+  expect(initializeAppCheckFn).not.toHaveBeenCalled();
 });

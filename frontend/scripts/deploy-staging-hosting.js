@@ -1,6 +1,7 @@
 'use strict';
 
 const { spawnSync } = require('child_process');
+const { assertNoHostedAppCheckDebug } = require('./hostedBuildGuard.cjs');
 const {
   parseStagingDeployArgv,
   buildHostingDeployPlan,
@@ -14,10 +15,12 @@ function printPlan(plan) {
 }
 
 function executeHostingDeployPlan(plan, options = {}) {
+  assertNoHostedAppCheckDebug(process.env, 'staging Hosting deploys');
   const spawn = options.spawnSync || spawnSync;
   const spec = buildFirebaseSpawnSpec(plan, options);
   const result = spawn(spec.command, spec.args, {
     cwd: plan.cwd,
+    env: { ...process.env, REACT_APP_APPCHECK_DEBUG_TOKEN: '', FIREBASE_APPCHECK_DEBUG_TOKEN: '' },
     stdio: options.stdio || 'inherit',
     shell: spec.shell,
   });

@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { assertNoHostedAppCheckDebug } = require('./hostedBuildGuard.cjs');
 
 const STAGING_PROJECT_ID = 'taskio-v2-staging';
 const PRODUCTION_PROJECT_ID = 'taskio-v2';
@@ -248,9 +249,7 @@ function assertStagingBuildEnv(env) {
   if (String(env.REACT_APP_E2E_AUTH_BYPASS || '').toLowerCase() === 'true') {
     throw new Error('REACT_APP_E2E_AUTH_BYPASS must not be true for a staging production build.');
   }
-  if (String(env.REACT_APP_APPCHECK_DEBUG_TOKEN || '').trim()) {
-    throw new Error('REACT_APP_APPCHECK_DEBUG_TOKEN is forbidden in staging production builds.');
-  }
+  assertNoHostedAppCheckDebug(env, 'staging production builds');
   if (String(env.REACT_APP_APPCHECK_ENABLED || '').trim() === 'true'
     && !String(env.REACT_APP_APPCHECK_SITE_KEY || '').trim()) {
     throw new Error('REACT_APP_APPCHECK_ENABLED=true requires REACT_APP_APPCHECK_SITE_KEY.');
@@ -289,6 +288,9 @@ function stagingBuildChildEnv(env, frontendRoot = path.resolve(__dirname, '..'))
     child.REACT_APP_STRIPE_PUBLISHABLE_KEY = stripeKey;
   }
 
+  child.REACT_APP_APPCHECK_ENABLED = 'false';
+  child.REACT_APP_APPCHECK_SITE_KEY = '';
+  child.REACT_APP_APPCHECK_PROVIDER = 'recaptcha-v3';
   if (String(env.REACT_APP_APPCHECK_ENABLED || '').trim() === 'true') {
     child.REACT_APP_APPCHECK_ENABLED = 'true';
     child.REACT_APP_APPCHECK_SITE_KEY = String(env.REACT_APP_APPCHECK_SITE_KEY || '').trim();

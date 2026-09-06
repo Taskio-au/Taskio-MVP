@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-06 P05 GREEN safety follow-up (local, not pushed):** Hosted builds now reject debug configuration before compilation, including CRA-loaded environment files; staging deploy also rejects debug input. Debug requires explicit loopback development and an isolated developer Firebase project. Staging App Check defaults are pinned. Rollback order is enforcement OFF and verified FIRST, then Hosting/frontend rollback. Local verification: frontend 74 suites / 516 tests, build/deploy 26 tests, hosted guard 11 tests, final focused App Check 17 tests, E2E 4 tests, synthetic staging-mode build and 57-file bundle scan PASS. New commit CI remains pending push; baseline CI 34015484745 passed. Provider/enforcement/metrics live API reads returned 403, so NOT CONFIGURED / OFF remain recorded states requiring Console confirmation. Public bundle main.9647f8fc.js matches the checkpoint. Overall READY FOR CONTROLLED STAGING ACTIVATION subject to Console reconciliation. No cloud mutation or production access. Full preflight and next approval package: `docs/APP_CHECK.md`.
+
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
 > **2026-09-06 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING** on Hosting **`c2b8f742e73fed84`** (`G-SZ7RZDKTJY`; owner-confirmed Realtime). Production analytics **OFF**. P05 App Check **CODE COMPLETE** on origin `6b41bd3`; enforcement **OFF**. P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`c2b8f742e73fed84`** (previous `548438126950e209`); signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
@@ -35,6 +37,8 @@
 | 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Live Hosting is now **`c2b8f742e73fed84`** (P04 staging GA4 + shelves hero; previous `548438126950e209`). |
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
 | 4 | **B4A–G + P02A PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. **Stopped before bank payout and admin/super_admin refund.** |
+
+**Staging App Check rollback prerequisite:** In `taskio-v2-staging`, disable affected Firestore/Storage enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting or disable frontend App Check; verify normal Auth/Firestore/Storage browser flows afterwards. A frontend restore without App Check requires BOTH services verified OFF. Keep security rules unchanged and production untouched. See `docs/APP_CHECK.md`. All cloud steps remain AMBER.
 
 **Current prelaunch gates**
 

@@ -26,6 +26,7 @@ export function apiEnvFromProcess() {
 
 export function appCheckEnvFromProcess() {
   return {
+    REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: process.env.REACT_APP_FIREBASE_EXPECTED_PROJECT_ID,
     NODE_ENV: process.env.NODE_ENV,
     REACT_APP_APPCHECK_ENABLED: process.env.REACT_APP_APPCHECK_ENABLED,
     REACT_APP_APPCHECK_SITE_KEY: process.env.REACT_APP_APPCHECK_SITE_KEY,

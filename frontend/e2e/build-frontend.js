@@ -25,7 +25,7 @@ const safeEnv = {
   REACT_APP_USE_STORAGE_EMULATOR: 'false',
 };
 
-for (const script of ['scripts/syncShared.js', 'node_modules/react-scripts/scripts/build.js']) {
+for (const script of ['scripts/syncShared.js', 'scripts/build-hosted.cjs']) {
   const result = spawnSync(process.execPath, [path.join(projectRoot, script)], {
     cwd: projectRoot,
     env: safeEnv,

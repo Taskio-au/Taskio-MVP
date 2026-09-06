@@ -12,17 +12,19 @@ test('requires a site key when App Check is enabled', () => {
   })).toThrow('SITE_KEY is missing');
 });
 
-test('allows a debug token only outside production', () => {
+test('allows debug only in explicit loopback development', () => {
   expect(resolveAppCheckConfig({
     NODE_ENV: 'development',
+    REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: 'demo-taskio-appcheck',
     REACT_APP_APPCHECK_ENABLED: 'true',
     REACT_APP_APPCHECK_SITE_KEY: 'safe-public-site-key',
     REACT_APP_APPCHECK_DEBUG_TOKEN: 'true',
-  }).debugToken).toBe('true');
+  }, 'localhost').debugToken).toBe('true');
   expect(resolveAppCheckConfig({
     NODE_ENV: 'development',
+    REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: 'demo-taskio-appcheck',
     REACT_APP_APPCHECK_DEBUG_TOKEN: 'true',
-  })).toEqual({
+  }, 'localhost')).toEqual({
     enabled: false, siteKey: '', debugToken: '', provider: 'recaptcha-v3',
   });
   expect(() => resolveAppCheckConfig({
@@ -45,3 +47,18 @@ test('defaults to reCAPTCHA v3 and accepts Enterprise by name only', () => {
     REACT_APP_APPCHECK_PROVIDER: 'unknown',
   })).toThrow('Unknown App Check provider');
 });
+
+test.each(['taskio-v2-staging.web.app', 'taskio.com.au', '', 'localhost.example.com'])(
+  'rejects development debug on non-loopback host %s', hostname => {
+    expect(() => resolveAppCheckConfig({ NODE_ENV: 'development',
+      REACT_APP_APPCHECK_ENABLED: 'true', REACT_APP_APPCHECK_SITE_KEY: 'synthetic-key',
+      REACT_APP_APPCHECK_DEBUG_TOKEN: 'true' }, hostname)).toThrow('loopback');
+  });
+
+test.each(['taskio-v2', 'taskio-v2-staging', undefined])(
+  'rejects debug against hosted or implicit Firebase project %s', project => {
+    expect(() => resolveAppCheckConfig({ NODE_ENV: 'development',
+      REACT_APP_FIREBASE_EXPECTED_PROJECT_ID: project,
+      REACT_APP_APPCHECK_ENABLED: 'true', REACT_APP_APPCHECK_SITE_KEY: 'synthetic-key',
+      REACT_APP_APPCHECK_DEBUG_TOKEN: 'true' }, 'localhost')).toThrow('developer Firebase project');
+  });

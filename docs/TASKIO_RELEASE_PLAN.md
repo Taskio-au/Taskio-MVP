@@ -194,6 +194,8 @@ Verify `https://taskio.com.au`, `https://taskio-v2.web.app`, canonical metadata,
 
 Stripe, App Check enforcement, SMTP, DNS/domain changes, and any live Gemini smoke test are excluded from the repository release. Each needs its own credentials, monitoring, rollback, and owner approval.
 
+**Staging App Check rollback prerequisite:** In `taskio-v2-staging`, disable affected Firestore/Storage enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting or disable frontend App Check; verify normal Auth/Firestore/Storage browser flows afterwards. A frontend restore without App Check requires BOTH services verified OFF. Keep security rules unchanged and production untouched. See `docs/APP_CHECK.md`. All cloud steps remain AMBER.
+
 ## Rollback — NOT EXECUTED
 
 - Cloud Run: if a prior healthy revision exists, send 100% traffic to that recorded revision. If the first preflight revision never received production traffic, delete or leave it untagged rather than “rolling back” onto it:
