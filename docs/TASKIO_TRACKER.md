@@ -4,15 +4,17 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
-**2026-09-06 P05 Storage enforcement (staging only):** Firestore and Storage `ENFORCED` / **PASS**. Auth `UNENFORCED`. Hosting unchanged **`211fb288dcaff973`**. Homeowner profile-photo upload **200** with App Check; missing/invalid App Check **401**. Metadata cleaned. Production Hosting still `cffca9d87ce03901`. Evidence commit local/unpushed. See `docs/APP_CHECK.md`.
+**2026-09-06 Controlled launch-readiness overlay (GREEN docs only):** Tracker completion now means Taskio is ready for a **controlled real-world production launch with real users and real money**. P01–P06 statuses and evidence are unchanged. Added P07–P11. Canonical definitions: `docs/LAUNCH_READINESS.md`. Production untouched. P11 remains **BLOCKED** until **TASKIO FULL LAUNCH READY**.
+
+**2026-09-06 P05 Storage enforcement (staging only):** Firestore and Storage `ENFORCED` / **PASS**. Auth `UNENFORCED`. Hosting unchanged **`211fb288dcaff973`**. Homeowner profile-photo upload **200** with App Check; missing/invalid App Check **401**. Metadata cleaned. Production Hosting still `cffca9d87ce03901`. Evidence commit `ba349d5` **pushed**; CI [`34026868256`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34026868256) **success**. See `docs/APP_CHECK.md`.
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-09-06 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime). Production analytics **OFF**. P05 App Check **STAGING PASS / PRODUCTION PENDING** on Hosting **`211fb288dcaff973`** (Firestore + Storage `ENFORCED`; Auth off). P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`211fb288dcaff973`** (previous `c2b8f742e73fed84`); signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
+> **2026-09-06 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime). Production analytics **OFF**. P05 App Check **STAGING PASS / PRODUCTION PENDING** on Hosting **`211fb288dcaff973`** (Firestore + Storage `ENFORCED`; Auth off). P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). P07–P10 **NOT STARTED**. P11 **BLOCKED** until FULL LAUNCH READY. Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`211fb288dcaff973`** (previous `c2b8f742e73fed84`); signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
-- P04 analytics GREEN **pushed** through `9d1119be08f8fa3178a7d4bf9ddcf051c4841b87`; CI [`34013435627`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34013435627) **success**. Staging Hosting activation **done**; GA4 Realtime receipt **owner-confirmed**. P05 App Check GREEN **pushed** through `6945c0a6d99112982ab28bbde2828dfbf8f8bf72`; CI [`34020406444`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34020406444) **success**. Staging frontend App Check **PASS** on Hosting **`211fb288dcaff973`**; Firestore and Storage enforcement **PASS**; Auth **OFF**.
+- P04 analytics GREEN **pushed** through `9d1119be08f8fa3178a7d4bf9ddcf051c4841b87`; CI [`34013435627`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34013435627) **success**. Staging Hosting activation **done**; GA4 Realtime receipt **owner-confirmed**. P05 App Check GREEN **pushed** through `6945c0a6d99112982ab28bbde2828dfbf8f8bf72`; CI [`34020406444`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34020406444) **success**. Staging frontend App Check **PASS** on Hosting **`211fb288dcaff973`**; Firestore and Storage enforcement **PASS**; Auth **OFF**. P05 evidence `ba349d5` **pushed**; CI [`34026868256`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34026868256) **success**.
 - Canonical Hosting-wrapper history after Boundary 1 (`127f8c2`):
   - `f56bc3e` `fix(staging): fail closed on Windows Firebase CLI resolution`
   - `58ed427` `fix(staging): resolve Firebase CLI from repo on all platforms`
@@ -50,16 +52,29 @@
 | P04 | Privacy-safe analytics | Application code **COMPLETE**. Local/CI **PASS** (`9d1119b`, CI [`34013435627`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34013435627)). URL privacy and origin isolation **COMPLETE**. Staging configuration **COMPLETE** (`G-SZ7RZDKTJY` on Hosting **`c2b8f742e73fed84`**). Hosted network delivery **PASS**. GA4 console receipt **PASS — OWNER CONFIRMED**. Production analytics **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. |
 | P05 | App Check | Application code **COMPLETE**. Local/CI **PASS** (`6945c0a`, CI [`34020406444`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34020406444)). Staging provider **PASS**. Frontend activation **PASS**. Firestore enforcement **PASS**. Storage enforcement **PASS**. Auth **OFF — OUT OF APPROVED MVP SCOPE**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. |
 | P06 | Legal review | **STILL REQUIRED** before public production / real-user launch. Must cover Postmark as an overseas transactional-email provider (APP 8 / cross-border processing). Transactional emails remain data-minimised; detailed task information stays inside authenticated Taskio. Tracking is not intentionally enabled. |
+| P07 | Production security and configuration | **NOT STARTED.** Secrets, historical credential remediation, IAM, production App Check/analytics/email, Firebase/Hosting/API audit, security scans. Execution is RED. See `docs/LAUNCH_READINESS.md`. |
+| P08 | Production operations | **NOT STARTED.** Monitoring, alerting, incident/rollback runbooks, backup/recovery, support ops, launch-control tooling, daily/weekly checklist. See `docs/LAUNCH_READINESS.md`. |
+| P09 | Legal and trust implementation | **NOT STARTED.** Blocked on **P06 PASS**. Implements approved policies in production-facing UI/operations. Does **not** replace P06. See `docs/LAUNCH_READINESS.md`. |
+| P10 | Production acceptance | **NOT STARTED.** End-to-end production money loop, refund, failure paths, integrations, device/browser, accessibility, performance, smoke checklist. RED. Do not run while only editing the tracker. See `docs/LAUNCH_READINESS.md`. |
+| P11 | Controlled launch | **BLOCKED** until **TASKIO FULL LAUNCH READY**. Inner Melbourne first cohort (~5–10 Experts, ~10–20 invited homeowners). See `docs/LAUNCH_READINESS.md`. |
+
+**TASKIO FULL LAUNCH READY** = P01 PASS + P02 PASS + P03 production PASS + P04 production PASS + P05 production PASS + P06 PASS + P07 PASS + P08 PASS + P09 PASS + P10 PASS. **P11** is then the controlled-launch execution gate. It cannot start before that definition is true.
+
+**Mandatory before controlled launch:** P01, P02 (already complete on staging TEST; production refund re-proof is inside P10), P03–P05 **production** PASS, P06, P07, P08, P09, P10.
+
+**Explicitly post-launch / not launch-critical** unless the owner later requires them: native mobile apps, public Expert signup, advanced matching AI, advanced analytics dashboards, subscriptions, dynamic pricing, multi-city expansion, sophisticated automated disputes, major variation workflow expansion. Existing **N01–N03** stay optional.
 
 **Recommended next sequence:**
 
 1. Recheck P01 connected-account TEST available balance
 2. Bank payout proof when funds are available
-3. Legal/security final pre-launch closeout (P06 must include Postmark APP 8)
-4. Production preflight, including separate RED production-email and production-App-Check approvals
-5. Production remains RED until explicit owner approval
+3. Legal/security final pre-launch closeout (P06 must include Postmark APP 8; P09 implements P06)
+4. Production preflight (P03/P04/P05 production PASS plus P07/P08), including separate RED production-email, production-analytics, and production-App-Check approvals
+5. P10 production acceptance only after the other FULL LAUNCH READY inputs pass
+6. P11 controlled launch only after **TASKIO FULL LAUNCH READY**
+7. Production remains RED until explicit owner approval
 
-**Exact next pickup:** **P01** connected-account bank payout when TEST funds are available. Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, change DNS, or configure production email/App Check tonight. Production remains frozen.
+**Exact next pickup:** **P01** connected-account bank payout when TEST funds are available. Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check tonight. Production remains frozen.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -276,6 +291,14 @@
 - Production Hosting still `cffca9d87ce03901`. Production App Check remains `UNENFORCED`.
 - See `docs/APP_CHECK.md`.
 
+**P07–P11 tracker overlay (2026-09-06) — GREEN docs only; no production/staging mutation:**
+
+- Added `docs/LAUNCH_READINESS.md` as the canonical P07–P11 gate definitions.
+- P01–P06 evidence above is unchanged. P01 remains **NOT PROVEN**. P06 remains the legal/privacy **review** gate. P09 implements P06 and cannot PASS before P06.
+- P07–P10 are **NOT STARTED**. P11 is **BLOCKED** until **TASKIO FULL LAUNCH READY**.
+- Approval model unchanged: GREEN repo/docs/code/tests/local commits; AMBER push/staging/TEST Stripe; RED production deploy, production App Check, live Stripe, real charges/payouts, production IAM/secrets, DNS/public launch.
+- This overlay does **not** authorise production Hosting restore, live Stripe, production email, production analytics, or production App Check.
+
 **P04 evidence (2026-08-30) — GREEN privacy-safe analytics; staging NOT CONFIGURED:**
 
 - **P04 ANALYTICS ARCHITECTURE: DECIDED.** **P04 APPLICATION CODE: CODE COMPLETE.** **P04 LOCAL / CI TESTING: PASS.** **P04 OVERALL: PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION.**
@@ -339,6 +362,11 @@
 | P04 | GA4/provider setup for analytics (no ad pixels) | Staging Hosting **`c2b8f742e73fed84`** loads `G-SZ7RZDKTJY`. Hosted network **PASS**. GA4 console receipt **PASS — OWNER CONFIRMED**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. See `docs/ANALYTICS.md`. |
 | P05 | Staging App Check validation + production enforcement decision | Frontend **PASS**. Firestore + Storage enforcement **PASS**. Auth **OFF**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. See `docs/APP_CHECK.md`. |
 | P06 | Final Terms/Privacy owner + preferably AU legal review | **STILL REQUIRED** before public production / real-user launch. Include Postmark APP 8 / overseas processing. Emails stay data-minimised; details live in authenticated Taskio. Tracking is not intentionally enabled. |
+| P07 | Production security and configuration | **NOT STARTED.** RED to execute. See `docs/LAUNCH_READINESS.md`. |
+| P08 | Production operations | **NOT STARTED.** See `docs/LAUNCH_READINESS.md`. |
+| P09 | Implement approved P06 legal/trust outcomes | **NOT STARTED.** Depends on P06. Does not replace P06. See `docs/LAUNCH_READINESS.md`. |
+| P10 | Production acceptance of money loop and critical failures | **NOT STARTED.** RED. See `docs/LAUNCH_READINESS.md`. |
+| P11 | Controlled Inner Melbourne launch | **BLOCKED** until FULL LAUNCH READY. See `docs/LAUNCH_READINESS.md`. |
 
 **3. Nice-to-have / post-core**
 
@@ -348,7 +376,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **P01** connected-account bank payout when TEST funds are available. Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, change DNS, or configure production email/App Check tonight. Production remains frozen.
+**Exact next pickup:** **P01** connected-account bank payout when TEST funds are available. Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check tonight. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 

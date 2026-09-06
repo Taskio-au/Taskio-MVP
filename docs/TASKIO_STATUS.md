@@ -9,9 +9,21 @@
 - Production Firebase project: `taskio-v2` — **PRE-LAUNCH FREEZE**.
 - Staging Firebase project: `taskio-v2-staging` is a **temporary validation bench** (not a duplicate product). Stage 4 Boundaries 1–3 are complete. Boundary 4 hosted journeys **B4A–G PASS**. P02A refund **PASS**.
 
+## Launch-readiness meaning
+
+Completion of the tracker now means:
+
+**Taskio is ready for a controlled real-world production launch with real users and real money.**
+
+**TASKIO FULL LAUNCH READY** = P01 PASS + P02 PASS + P03 production PASS + P04 production PASS + P05 production PASS + P06 PASS + P07 PASS + P08 PASS + P09 PASS + P10 PASS.
+
+**P11** is the controlled Inner Melbourne launch execution gate. It cannot start before that definition is true.
+
+Canonical gate definitions: `docs/LAUNCH_READINESS.md`. Execution evidence: `docs/TASKIO_TRACKER.md`. Production commands remain **NOT EXECUTED**: `docs/TASKIO_RELEASE_PLAN.md`.
+
 ## Repository state
 
-**2026-09-06 P05 Storage enforcement (staging only, unpushed evidence):** Firestore and Storage are `ENFORCED` / **PASS**. Auth remains `UNENFORCED`. Hosting unchanged **`211fb288dcaff973`**. Homeowner profile-photo upload **200** with App Check; missing/invalid App Check **401**. Stale and new photo metadata cleared. Production Hosting still `cffca9d87ce03901`. See `docs/APP_CHECK.md`.
+**2026-09-06 P05 Storage enforcement (staging only):** Firestore and Storage are `ENFORCED` / **PASS**. Auth remains `UNENFORCED`. Hosting unchanged **`211fb288dcaff973`**. Homeowner profile-photo upload **200** with App Check; missing/invalid App Check **401**. Stale and new photo metadata cleared. Production Hosting still `cffca9d87ce03901`. Evidence commit `ba349d5` **pushed**; CI [`34026868256`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34026868256) **success**. See `docs/APP_CHECK.md`.
 
 - Security rules are covered by Firestore/Storage emulator tests using demo project IDs only.
 - Cloud Functions have emulator-backed retry/idempotency tests.
@@ -19,14 +31,36 @@
 - Staging Cloud Run `taskio-api-staging` (closed signup, CORS for staging Hosting + localhost) and staging Hosting SPA are live. Serving API **`taskio-api-staging-54aed8b` 100%**. Hosting **`211fb288dcaff973`** (P05 App Check frontend; previous `c2b8f742e73fed84`). B4A–G and P02A hosted journeys **PASS**. P03 authentic staging E01 **VERIFIED** (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`). Staging SMTP cleanup **verified**: native `SMTP_USER`/`SMTP_PASS` v2 only enabled. P04 **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime receipt). P05 **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth off). Production SPA is not restored. Production SMTP remains off.
 - Production deployment artifacts and rollback steps are in `docs/TASKIO_RELEASE_PLAN.md`. Commands there remain **NOT EXECUTED** unless Saeed names an exact `taskio-v2` batch.
 
+## Current launch-readiness summary
+
+Technical staging readiness is advanced. Full production launch is **not** ready.
+
+| Gate | Current state | Blocks P11? |
+|---|---|---|
+| P01 | **NOT PROVEN** | **Yes — current technical pickup** |
+| P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
+| P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
+| P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
+| P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
+| P06 | **OPEN / REQUIRED** | **Yes** |
+| P07 | **NOT STARTED** | **Yes** |
+| P08 | **NOT STARTED** | **Yes** |
+| P09 | **NOT STARTED** (blocked on P06) | **Yes** |
+| P10 | **NOT STARTED** | **Yes** |
+| P11 | **BLOCKED** | — |
+
+Mandatory before controlled launch: P01, P06, P07, P08, P09, P10, plus P03/P04/P05 **production** PASS.
+
+Explicitly post-launch unless later required: native apps, public Expert signup, advanced matching AI, advanced analytics dashboards, subscriptions, dynamic pricing, multi-city expansion, sophisticated automated disputes, major variation expansion.
+
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- Remaining prelaunch gates: **P01** bank payout **NOT PROVEN**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** legal review **still required** before real-user production, including Postmark APP 8 / overseas processing.
-- Legal Terms/Privacy remain drafts until owner (and preferably Australian legal) review before first real users.
+- Remaining prelaunch gates: **P01** bank payout **NOT PROVEN**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** legal review **still required** before real-user production, including Postmark APP 8 / overseas processing; **P07–P10** **NOT STARTED**; **P11** **BLOCKED**.
+- Legal Terms/Privacy remain drafts until owner (and preferably Australian legal) review before first real users. P06 is that review. P09 implements the approved outcome and does not replace P06.
 
 **Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Keep Auth unenforced, security rules unchanged, and production untouched. See `docs/APP_CHECK.md`.
 
 ## Next release decision
 
-P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. Do not infer production launch, production analytics, production App Check, or production email. Production SMTP remains **NOT CONFIGURED**. Production analytics remain **OFF**.
+P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07–P11 are additional production-readiness gates and are not started. Do not infer production launch, production analytics, production App Check, or production email. Do not start P11. Production SMTP remains **NOT CONFIGURED**. Production analytics remain **OFF**. Next technical pickup remains **P01** connected-account bank payout when TEST funds are available.

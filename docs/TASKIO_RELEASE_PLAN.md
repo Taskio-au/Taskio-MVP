@@ -5,6 +5,8 @@
 > Historical wording that treated `taskio-v2-staging` as frozen/excluded is **superseded**. Staging is a temporary validation bench: Stage 4 Boundaries 1–3 are complete; Boundary 4 hosted journeys **B4A–G PASS**. **Do not** use the production commands below against staging. Staging Hosting/Cloud Run use the staging wrappers and `--project=taskio-v2-staging` only.
 >
 > Production Hosting currently serves the maintenance page (`firebase.maintenance.json`). Restoring the SPA is a separate RED approval.
+>
+> Full launch-readiness gates P07–P11 are defined in `docs/LAUNCH_READINESS.md`. This plan remains **NOT EXECUTED**. Adding those gates does not authorise any command below. **TASKIO FULL LAUNCH READY** still requires P01 PASS, P02 PASS, P03–P05 production PASS, P06 PASS, and P07–P10 PASS before P11 can start.
 
 ## Prepared repository artifacts
 
@@ -205,7 +207,7 @@ Stripe, App Check enforcement, SMTP, DNS/domain changes, and any live Gemini smo
   ```
 
 - Functions/rules/indexes: check out the recorded release commit in a separate clean worktree and redeploy only the affected resource. Firestore indexes may continue building after a rollback; inspect them before any deletion.
-- Hosting: use Firebase Console → Hosting → Release history → the recorded previous release → **Roll back**. Firebase documents this as creating a new release that points to the previous version.
+- Hosting: use Firebase Console → Hosting → Release history → the recorded previous release → **Roll back**. Firebase documents this as creating a new release that points to the previous version. If production App Check Firestore or Storage enforcement is ON, disable the affected enforcement first, verify OFF, then roll Hosting. See `docs/APP_CHECK.md` and `docs/LAUNCH_READINESS.md` P08.
 - Application code: revert through a new commit; never force-push or rewrite release history.
 
 ## Maintenance-only Hosting artifact — NOT DEPLOYED
