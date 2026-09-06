@@ -1,19 +1,20 @@
 # Taskio product analytics (P04)
 
-Privacy-conscious product analytics for the private Melbourne MVP. GREEN application code only. Staging GA4 delivery and production analytics are later approvals.
+Privacy-conscious product analytics for the private Melbourne MVP. Staging Hosting now loads the staging-only GA4 stream and the owner has confirmed Realtime receipt. Production analytics remain off.
 
 ## Classification
 
 | Gate | State |
 |---|---|
 | P04 application code | **COMPLETE** |
-| P04 local / CI | **PASS** when verification passes |
-| P04 staging configuration | **NOT DONE** |
-| P04 hosted delivery | **NOT VERIFIED** |
+| P04 local / CI | **PASS** |
+| P04 URL privacy hardening | **COMPLETE** |
+| P04 environment origin isolation | **COMPLETE** |
+| P04 staging configuration | **COMPLETE** |
+| P04 hosted network delivery | **PASS** |
+| P04 GA4 console receipt | **PASS — OWNER CONFIRMED** |
 | P04 production | **OFF** |
-| P04 overall | **READY FOR CONTROLLED STAGING ACTIVATION** |
-
-Do not mark P04 fully PASS until staging receives real events.
+| P04 overall | **STAGING PASS / PRODUCTION PENDING** |
 
 ## Purpose
 
@@ -39,7 +40,7 @@ GA4 `page_location` is the **current build environment’s** canonical origin pl
 
 GA4 `page_referrer` is privacy-sanitised: same-origin Taskio referrers use the same canonical path; external referrers keep **origin only** (no path or query). Callers cannot supply `page_location` / `page_referrer` through `trackEvent`.
 
-Automatic GA4 Enhanced Measurement remains intended **OFF** in the staging property (Admin setting; not enabled by this code). Do not treat this GREEN change as hosted proof.
+Automatic GA4 Enhanced Measurement remains **OFF** in the staging property (owner Admin setting). Hosted network proof and owner-confirmed Realtime receipt are below.
 
 ## Disabled by default
 
@@ -115,27 +116,22 @@ Unknown keys, nested objects, and arrays are dropped. Development may warn with 
 | Platform fee revenue | **Not from these events** — needs backend/Stripe | `taskio_fee_revenue` remains a documented metric, not a client event |
 | Repeat homeowner / Expert utilisation | **Needs backend aggregation** (no persistent user id in analytics) | |
 
-## Staging AMBER package (do not execute)
+## Staging Hosting activation (2026-09-06)
 
-1. Create/select a **staging-only** GA4 property / Firebase Analytics web stream.
-2. Set staging Hosting env `REACT_APP_ANALYTICS_ENABLED=true` and `REACT_APP_GA_MEASUREMENT_ID=G-…` (staging ID only).
-3. Hosting-only staging deploy. No Cloud Run, Functions, Auth, App Check, production.
-4. Scanner: no production measurement ID, no ad pixels.
-5. Synthetic invite-only clicks: landing, login, one job/quote if appropriate.
-6. Confirm events in the staging GA4 debug/realtime view.
-7. Confirm payloads have no PII.
-8. Rollback: `REACT_APP_ANALYTICS_ENABLED=false` and rebuild Hosting.
-9. Production untouched.
-
-## Local testing (2026-08-30)
-
-- `npm --prefix frontend run verify` **PASS** (maintainability; Jest **74/74** suites **492/492**; stagingHosting **24/24**).
-- `npm --prefix frontend run e2e` **4/4**.
-- `git diff --check` **PASS**.
-- Backend / Functions tests not re-run (those trees were not changed).
-
-Analytics remain disabled in e2e (`REACT_APP_ANALYTICS_ENABLED=false`). Staging GA4 was not configured. Production was not touched.
+- Property: **Taskio Staging**. Web stream: **Taskio staging web**. Measurement ID: `G-SZ7RZDKTJY` (public).
+- Owner privacy settings already applied: Enhanced Measurement OFF; Signals OFF; user-provided data OFF; granular location/device OFF; ads personalization disabled in all 307 regions; event/user retention 2 months; reset on new activity OFF; Google products/services, modeling, technical-support, and recommendations sharing OFF.
+- Build: `npm --prefix frontend run build:staging` with `REACT_APP_ANALYTICS_ENABLED=true` and `REACT_APP_GA_MEASUREMENT_ID=G-SZ7RZDKTJY` plus the existing approved staging Firebase/API env. Measurement ID is **not** in source.
+- Scan: `npm --prefix frontend run scan:staging` **PASS**. Bundle `main.9647f8fc.js` contains `taskio-v2-staging` and `G-SZ7RZDKTJY` only. No `taskio-v2.web.app`, `taskio-v2.firebaseapp.com`, bare production project ID, production sender ID, localhost API, or `pk_live_`.
+- Hosting-only deploy to `taskio-v2-staging` via wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json --execute`. Version **`c2b8f742e73fed84`** (`2026-09-06T05:28:59.900Z`). Previous **`548438126950e209`** remains FINALIZED.
+- Ride-along: floating-shelves hero from `38c89d6`, URL privacy from `3f7456f`, origin isolation from `9d1119b`.
+- Hosted acceptance **PASS**: invite-only homepage, no broken images, no console errors, no localhost, shelves hero live.
+- **HOSTED NETWORK PROOF: PASS.** `gtag.js` loaded only as `https://www.googletagmanager.com/gtag/js?id=G-SZ7RZDKTJY`. Config: `send_page_view=false`, `allow_google_signals=false`, `allow_ad_personalization_signals=false`, `anonymize_ip=true`. No second Measurement ID, no `AW-`, no unexpected vendor.
+- Events observed on the wire: exactly one `landing_viewed` (`surface=landing`) then one `login_cta_clicked` (`surface=hero`). Same-tab homepage reload did **not** emit a second `landing_viewed`.
+- Privacy: payloads limited to `surface`, `environment`, `page_location`, `page_referrer`. No email, phone, name, address, Firebase UID, job/quote/Stripe IDs, description, chat, DOB, ABN, or exact amounts.
+- `page_location` = `https://taskio-v2-staging.web.app/`. Same-origin job referrer canonicalised to `/job/:id`. External Outlook referrer origin-only (`https://outlook.live.com`).
+- **GA4 CONSOLE RECEIPT: PASS — OWNER CONFIRMED.** Taskio Staging Realtime showed 1 active user, `landing_viewed` = 1, `login_cta_clicked` = 1, and no automatic `page_view`. Normal GA4 automatic `first_visit` and `session_start` were present; they are not Taskio catalogue events and are not a failure.
+- Production analytics **OFF**. Production Hosting still maintenance (`taskio.com.au` title “Taskio is almost ready”; no gtag). No Cloud Run, Functions, Auth, App Check, Stripe, or secret mutation.
 
 ## Rollback
 
-Disable the flag and rebuild. No provider remains in the bundle as an active config when the flag is false (gtag.js is not injected).
+To undo the Hosting activation after a fresh approval, clone the previous version: `taskio-v2-staging@548438126950e209` → `taskio-v2-staging:live`. Or rebuild with `REACT_APP_ANALYTICS_ENABLED` unset and redeploy Hosting. Production is unchanged.
