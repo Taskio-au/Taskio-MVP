@@ -35,7 +35,13 @@ This is **product** analytics only. No ad pixels, no session replay, no marketin
 
 Firebase Analytics SDK is **not** used: it would require a `measurementId` on the Firebase web config and would be easier to enable accidentally. The existing G05 `trackEvent` → `gtag` path is reused.
 
-Advertising identifiers, Google Signals, and ad personalization are off when `gtag('config')` runs.
+Advertising identifiers, Google Signals, and ad personalization are off when `gtag('config')` runs (`anonymize_ip`, `send_page_view=false`, Signals off, ad personalization off).
+
+GA4 `page_location` is set to a Taskio hosted origin plus a **canonical pathname**. Dynamic IDs become route shapes (`/job/:id`, `/payment/:id/:id`, `/admin/user/:id`). Query strings and hashes are removed. Loopback origins are never sent; local/dev URLs remap to the staging or production origin from the expected Firebase project, or to a path-only value.
+
+GA4 `page_referrer` is privacy-sanitised: same-origin Taskio referrers use the same canonical path; external referrers keep **origin only** (no path or query). Callers cannot supply `page_location` / `page_referrer` through `trackEvent`.
+
+Automatic GA4 Enhanced Measurement remains intended **OFF** in the staging property (Admin setting; not enabled by this code). Do not treat this GREEN change as hosted proof.
 
 ## Disabled by default
 
@@ -86,7 +92,7 @@ Existing G05 names are kept. Recommended names map onto them:
 
 ## Prohibited
 
-Never send: email, name, phone, street/task address, job description, chat, filenames, Stripe IDs, Firebase UID, tokens, payment method, DOB, ABN, free-text payloads, job IDs (IDs may be used only as **local** once-keys in `sessionStorage`, never in the event payload).
+Never send: email, name, phone, street/task address, job description, chat, filenames, Stripe IDs, Firebase UID, tokens, payment method, DOB, ABN, free-text payloads, job IDs (IDs may be used only as **local** once-keys in `sessionStorage`, never in the event payload). Do not send raw `page_location` / `page_referrer` with IDs, query strings, or hashes.
 
 Unknown keys, nested objects, and arrays are dropped. Development may warn with the **key name only**.
 

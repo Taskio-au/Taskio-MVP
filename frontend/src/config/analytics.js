@@ -1,5 +1,6 @@
 /** Product analytics for later GA4. Do not send PII. Reuses the G05 taxonomy. */
 import { getActiveAnalyticsConfig } from './analyticsInit';
+import { pageContextFromWindow } from './analyticsPageContext';
 
 const ANALYTICS_EVENTS = Object.freeze({
   LANDING_VIEWED: 'landing_viewed',
@@ -42,7 +43,7 @@ const ALLOWED_PARAM_KEYS = new Set([
   'environment',
 ]);
 
-const FORBIDDEN_PARAM_PATTERN = /phone|email|otp|token|password|description|message|address|name|uid|user_id|job_id|stripe|card|payment_method|dob|abn|filename|chat/i;
+const FORBIDDEN_PARAM_PATTERN = /phone|email|otp|token|password|description|message|address|name|uid|user_id|job_id|stripe|card|payment_method|dob|abn|filename|chat|page_location|page_referrer/i;
 const ONCE_PREFIX = 'taskio_analytics_once:';
 
 function warnDroppedProperty(key) {
@@ -94,11 +95,23 @@ function withEnvironment(payload) {
   return payload;
 }
 
+function withInternalPageContext(payload) {
+  const config = getActiveAnalyticsConfig();
+  if (!config?.enabled) return payload;
+  const windowRef = typeof window !== 'undefined' ? window : undefined;
+  const page = pageContextFromWindow(windowRef, windowRef && windowRef.document, config.environment);
+  return {
+    ...payload,
+    page_location: page.page_location,
+    page_referrer: page.page_referrer,
+  };
+}
+
 export function trackEvent(name, params, gtagImpl) {
   try {
     const eventName = String(name || '').trim();
     if (!eventName) return;
-    const payload = withEnvironment(sanitizeAnalyticsParams(params));
+    const payload = withInternalPageContext(withEnvironment(sanitizeAnalyticsParams(params)));
     if (typeof gtagImpl === 'function') {
       gtagImpl('event', eventName, payload);
       return;

@@ -1,3 +1,5 @@
+import { pageContextFromWindow } from './analyticsPageContext';
+
 let initialized = false;
 let activeConfig = { enabled: false, measurementId: '', environment: 'local' };
 
@@ -42,12 +44,19 @@ export function initializeTaskioAnalytics({
   }
 
   const gtag = ensureGtag(windowRef);
+  const page = pageContextFromWindow(windowRef, documentRef, activeConfig.environment);
   gtag('js', new Date());
   gtag('config', activeConfig.measurementId, {
     anonymize_ip: true,
     send_page_view: false,
     allow_google_signals: false,
     allow_ad_personalization_signals: false,
+    page_location: page.page_location,
+    page_referrer: page.page_referrer,
+  });
+  gtag('set', {
+    page_location: page.page_location,
+    page_referrer: page.page_referrer,
   });
 
   const src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(activeConfig.measurementId)}`;

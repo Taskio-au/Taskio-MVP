@@ -1,6 +1,7 @@
 import { ANALYTICS_EVENTS, ANALYTICS_MVP_METRICS, sanitizeAnalyticsParams, trackEvent, trackEventOnce, resetAnalyticsOnceForTests } from './analytics';
 import { amountBucketFromCents, coercePilotSuburb, resolveAnalyticsConfig } from './analyticsConfig';
 import { initializeTaskioAnalytics, resetAnalyticsInitForTests } from './analyticsInit';
+import { canonicalizeAnalyticsPathname, sanitizeAnalyticsPageContext } from './analyticsPageContext';
 import { jobLooksPaid } from './homeownerJobAnalytics';
 import { trackQuoteSubmitted } from './expertJobAnalytics';
 
@@ -103,6 +104,133 @@ describe('analytics init', () => {
       allow_google_signals: false,
       allow_ad_personalization_signals: false,
     });
+    expect(configArgs[2].page_location).toBeTruthy();
+    expect(String(configArgs[2].page_location)).not.toMatch(/localhost|127\.0\.0\.1/);
+    const setArgs = [...windowRef.dataLayer].find((entry) => entry && entry[0] === 'set');
+    expect(setArgs[1]).toMatchObject({
+      page_location: configArgs[2].page_location,
+      page_referrer: configArgs[2].page_referrer,
+    });
+  });
+});
+
+describe('analytics page context', () => {
+  afterEach(() => {
+    resetAnalyticsOnceForTests();
+    resetAnalyticsInitForTests();
+  });
+
+  it('keeps static public pathnames', () => {
+    expect(canonicalizeAnalyticsPathname('/login')).toBe('/login');
+    const page = sanitizeAnalyticsPageContext({
+      href: 'https://taskio-v2-staging.web.app/login',
+      environment: 'staging',
+    });
+    expect(page.page_location).toBe('https://taskio-v2-staging.web.app/login');
+  });
+
+  it('canonicalises dynamic job routes without the job ID', () => {
+    const page = sanitizeAnalyticsPageContext({
+      href: 'https://taskio-v2-staging.web.app/job/507iZTK6ZsEEqswzgoRN',
+      environment: 'staging',
+    });
+    expect(page.page_location).toBe('https://taskio-v2-staging.web.app/job/:id');
+    expect(page.page_location).not.toContain('507iZTK6ZsEEqswzgoRN');
+  });
+
+  it('strips query strings including emails and tokens', () => {
+    const emailPage = sanitizeAnalyticsPageContext({
+      href: 'https://taskio-v2-staging.web.app/login?email=someone@example.com',
+      environment: 'staging',
+    });
+    expect(emailPage.page_location).toBe('https://taskio-v2-staging.web.app/login');
+    expect(JSON.stringify(emailPage)).not.toMatch(/someone@example\.com/);
+
+    const tokenPage = sanitizeAnalyticsPageContext({
+      href: 'https://taskio-v2-staging.web.app/auth/action?token=secret',
+      environment: 'staging',
+    });
+    expect(tokenPage.page_location).toBe('https://taskio-v2-staging.web.app/auth/action');
+    expect(JSON.stringify(tokenPage)).not.toMatch(/secret/);
+  });
+
+  it('strips hashes from dynamic routes', () => {
+    const page = sanitizeAnalyticsPageContext({
+      href: 'https://taskio-v2-staging.web.app/job/abc#details',
+      environment: 'staging',
+    });
+    expect(page.page_location).toBe('https://taskio-v2-staging.web.app/job/:id');
+    expect(page.page_location).not.toMatch(/abc|#details/);
+  });
+
+  it('canonicalises same-origin referrers that contain job IDs', () => {
+    const page = sanitizeAnalyticsPageContext({
+      href: 'https://taskio-v2-staging.web.app/dashboard',
+      referrer: 'https://taskio-v2-staging.web.app/job/507iZTK6ZsEEqswzgoRN?tab=chat',
+      environment: 'staging',
+    });
+    expect(page.page_referrer).toBe('https://taskio-v2-staging.web.app/job/:id');
+    expect(page.page_referrer).not.toContain('507iZTK6ZsEEqswzgoRN');
+    expect(page.page_referrer).not.toContain('tab=');
+  });
+
+  it('keeps only the origin of external referrers', () => {
+    const page = sanitizeAnalyticsPageContext({
+      href: 'https://taskio-v2-staging.web.app/login',
+      referrer: 'https://outlook.live.com/mail/inbox?id=secret-token',
+      environment: 'staging',
+    });
+    expect(page.page_referrer).toBe('https://outlook.live.com');
+    expect(page.page_referrer).not.toMatch(/inbox|secret-token|\?/);
+  });
+
+  it('does not send localhost origins into page_location', () => {
+    const page = sanitizeAnalyticsPageContext({
+      href: 'http://localhost:3000/job/507iZTK6ZsEEqswzgoRN',
+      environment: 'staging',
+    });
+    expect(page.page_location).toBe('https://taskio-v2-staging.web.app/job/:id');
+    expect(page.page_location).not.toMatch(/localhost|3000/);
+  });
+
+  it('rejects caller-supplied page_location and page_referrer', () => {
+    expect(sanitizeAnalyticsParams({
+      surface: 'landing',
+      page_location: 'https://evil.example/job/507iZTK6ZsEEqswzgoRN?token=secret',
+      page_referrer: 'https://evil.example/?email=a@b.c',
+    })).toEqual({ surface: 'landing' });
+  });
+
+  it('replaces caller page context with internally generated values when enabled', () => {
+    initializeTaskioAnalytics({
+      config: { enabled: true, measurementId: 'G-TESTONLY123', environment: 'staging' },
+      windowRef: {
+        location: { href: 'https://taskio-v2-staging.web.app/job/507iZTK6ZsEEqswzgoRN' },
+        document: { referrer: 'https://taskio-v2-staging.web.app/job/abc123' },
+      },
+      appendScript: () => {},
+    });
+    const previousHref = window.location.href;
+    window.history.pushState({}, '', '/job/507iZTK6ZsEEqswzgoRN');
+    Object.defineProperty(document, 'referrer', {
+      configurable: true,
+      value: 'https://taskio-v2-staging.web.app/job/abc123',
+    });
+    const gtag = jest.fn();
+    trackEvent(ANALYTICS_EVENTS.LANDING_VIEWED, {
+      surface: 'landing',
+      page_location: 'https://evil.example/job/507iZTK6ZsEEqswzgoRN?token=secret',
+      page_referrer: 'https://evil.example/?email=a@b.c',
+    }, gtag);
+    expect(gtag).toHaveBeenCalledWith('event', 'landing_viewed', expect.objectContaining({
+      surface: 'landing',
+      environment: 'staging',
+      page_location: 'https://taskio-v2-staging.web.app/job/:id',
+    }));
+    const payload = gtag.mock.calls[0][2];
+    expect(payload.page_location).not.toContain('507iZTK6ZsEEqswzgoRN');
+    expect(JSON.stringify(payload)).not.toMatch(/evil\.example|token=secret|a@b\.c/);
+    window.history.pushState({}, '', previousHref.replace(window.location.origin, '') || '/');
   });
 });
 

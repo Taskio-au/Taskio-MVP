@@ -43,7 +43,7 @@
 | P01 | Connected-account **bank payout** | **NOT PROVEN.** Connect transfer **PROVEN**. Last known TEST available **AUD 0.00**, pending **AUD 126.00**. No payout created. Pre-production launch blocker. |
 | P02 | Normal pre-release full refund | **PROVEN / COMPLETE** (exactly one TEST refund; no Connect transfer; Taskio retained **$0**; Expert retained **$0**). Privileged admin/super_admin exception path **OPTIONAL / NOT PROVEN**. |
 | P03 | Transactional email | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`, Outlook Inbox/Focused). Native `SMTP_USER`/`SMTP_PASS` **v2 ENABLED** (only active staging SMTP versions); **v1 DISABLED**. Legacy `taskio-staging-postmark-*` versions **DISABLED** (not destroyed). Obsolete Postmark SMTP token **revoked**; current working token **retained**; Server API token **not removed**. E01 Functions still bind v2 (`…-00007-kih` / `…-00007-xoc`, Ready=True). Production **NOT CONFIGURED / NOT VERIFIED**. |
-| P04 | Privacy-safe analytics | **CODE COMPLETE** on origin `e7ffbf0`. Local/CI **PASS**. Staging GA4 property / measurement ID **NOT CONFIGURED**. Live staging does **not** load gtag.js. Event delivery **NOT VERIFIED**. Production analytics **NOT ENABLED**. Overall **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION**. |
+| P04 | Privacy-safe analytics | **CODE COMPLETE** (URL page-context sanitiser added 2026-09-06; not yet hosted). Local/CI **PASS** at last GREEN. Staging GA4 property / measurement ID **NOT CONFIGURED**. Live staging does **not** load gtag.js. Event delivery **NOT VERIFIED**. Production analytics **NOT ENABLED**. Overall **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION**. |
 | P05 | App Check | **CODE COMPLETE** on origin `6b41bd3`. Local/CI **PASS**. Future coverage: Firestore + Storage. Functions and Cloud Run App Check **not required for MVP**. Provider: reCAPTCHA Enterprise if clean during AMBER, else existing v3. Staging provider **NOT CONFIGURED**; Firestore/Storage enforcement **OFF**; debug token **NOT DEPLOYED**. Production **NOT CONFIGURED / NOT ENFORCED**. Overall **PARTIAL / READY FOR CONTROLLED STAGING ACTIVATION**. |
 | P06 | Legal review | **STILL REQUIRED** before public production / real-user launch. Must cover Postmark as an overseas transactional-email provider (APP 8 / cross-border processing). Transactional emails remain data-minimised; detailed task information stays inside authenticated Taskio. Tracking is not intentionally enabled. |
 
@@ -243,6 +243,12 @@
 - Push/CI: `0a3b83a` + `e7ffbf0` **pushed**; CI [`33310943590`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/33310943590) **success** (frontend, backend, functions, security-rules, api-image, webhook-image, browser-smoke). No Hosting/Functions/Cloud Run/GA4 Console change.
 - Live staging (`https://taskio-v2-staging.web.app/`, Hosting **`70429316be0dd106`**, bundle `main.535a3e06.js`): HTML has no gtag/GTM script; JS has no `googletagmanager.com`; no `fbq` / `ttq` / Hotjar / FullStory / `AW-` tag. Pre-P04 bundle may call `window.gtag` **if already present** (G05 no-op); gtag.js is **not loaded**.
 - See `docs/ANALYTICS.md`. **Do not create a GA4 property or deploy Hosting analytics without a new approval.**
+
+**P04 URL privacy hardening (2026-09-06) — GREEN only; not hosted:**
+
+- GA4 `page_location` is canonicalised (origin + route shape). Dynamic IDs, query strings, and hashes are not sent. Loopback URLs are remapped and never emitted.
+- `page_referrer`: same-origin Taskio paths are canonicalised; external referrers keep origin only.
+- Caller-supplied `page_location` / `page_referrer` are ignored. Enhanced Measurement remains intended **OFF**. Staging delivery still **NOT VERIFIED**.
 
 **Production PRE-LAUNCH FREEZE remains fully in force** on `taskio-v2`:
 
