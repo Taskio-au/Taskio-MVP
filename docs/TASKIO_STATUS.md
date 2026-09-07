@@ -46,7 +46,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P06 | **OPEN / REQUIRED** | **Yes — current pickup** |
+| P06 | **OPEN** — inventory **COMPLETE**; owner decision pack **PREPARED**; owner facts **PENDING**; AU solicitor review **PENDING**; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
 | P07 | **NOT STARTED** | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
@@ -60,11 +60,11 @@ Explicitly post-launch unless later required: native apps, public Expert signup,
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** legal review **still required** before real-user production, including Postmark APP 8 / overseas processing; **P07–P10** **NOT STARTED**; **P11** **BLOCKED**.
-- Legal Terms/Privacy remain drafts until owner (and preferably Australian legal) review before first real users. P06 is that review. P09 implements the approved outcome and does not replace P06.
+- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** **OPEN** (inventory complete; owner/solicitor pack prepared; facts and AU solicitor review pending; not PASS); **P07–P10** **NOT STARTED**; **P11** **BLOCKED**.
+- Legal Terms/Privacy remain drafts until owner (and preferably Australian legal) review before first real users. P06 owner pack: `docs/P06_OWNER_DECISIONS.md`. Solicitor brief: `docs/P06_SOLICITOR_BRIEF.md`. P09 implements the approved outcome and does not replace P06. Do not start P09 UI/copy until P06 PASS.
 
 **Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Keep Auth unenforced, security rules unchanged, and production untouched. See `docs/APP_CHECK.md`.
 
 ## Next release decision
 
-P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07–P10 are additional production-readiness gates and are not started. Do not infer production launch, production analytics, production App Check, or production email. Do not start P11. Production SMTP remains **NOT CONFIGURED**. Production analytics remain **OFF**. Next pickup is **P06** legal/privacy review.
+P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07–P10 are additional production-readiness gates and are not started. Do not infer production launch, production analytics, production App Check, or production email. Do not start P11. Production SMTP remains **NOT CONFIGURED**. Production analytics remain **OFF**. Next pickup is **P06** owner facts + AU solicitor review (pack prepared; not PASS).

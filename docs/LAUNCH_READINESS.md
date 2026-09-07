@@ -11,6 +11,8 @@ Companion records:
 - Current statuses: `docs/TASKIO_STATUS.md`
 - Execution evidence: `docs/TASKIO_TRACKER.md`
 - Production command plan (NOT EXECUTED): `docs/TASKIO_RELEASE_PLAN.md`
+- P06 owner pack (not PASS): `docs/P06_OWNER_DECISIONS.md`
+- P06 solicitor brief (not PASS): `docs/P06_SOLICITOR_BRIEF.md`
 
 ## Approval model (unchanged)
 
@@ -100,7 +102,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P06 | **OPEN / REQUIRED** | **Yes — current pickup** |
+| P06 | **OPEN** — inventory **COMPLETE**; owner decision pack **PREPARED**; owner facts **PENDING**; AU solicitor review **PENDING**; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
 | P07 | **NOT STARTED** | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
