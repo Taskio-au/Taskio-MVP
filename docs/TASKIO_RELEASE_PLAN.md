@@ -6,7 +6,7 @@
 >
 > Production Hosting currently serves the maintenance page (`firebase.maintenance.json`). Restoring the SPA is a separate RED approval.
 >
-> Full launch-readiness gates P07–P11 are defined in `docs/LAUNCH_READINESS.md`. This plan remains **NOT EXECUTED**. Adding those gates does not authorise any command below. **TASKIO FULL LAUNCH READY** still requires P01 PASS, P02 PASS, P03–P05 production PASS, P06 PASS, and P07–P10 PASS before P11 can start.
+> Full launch-readiness gates P07–P11 are defined in `docs/LAUNCH_READINESS.md`. This plan remains **NOT EXECUTED**. **P01** Stripe TEST bank payout is **PASS**; that does not authorise production Stripe. **TASKIO FULL LAUNCH READY** still requires P01 PASS, P02 PASS, P03–P05 production PASS, P06 PASS, and P07–P10 PASS before P11 can start.
 
 ## Prepared repository artifacts
 

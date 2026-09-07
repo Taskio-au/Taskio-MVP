@@ -45,7 +45,7 @@ P07–P11 inherit this model. Defining a gate is GREEN. Executing its production
 
 ```
 P02 PASS (already)
-P01 PASS ──────────────────────────────┐
+P01 PASS (already) ────────────────────┐
 P03 staging PASS → P03 production PASS ┤
 P04 staging PASS → P04 production PASS ┤
 P05 staging PASS → P05 production PASS ┤
@@ -54,7 +54,7 @@ P06 PASS → P09 PASS ───────────────────�
 P07 also consumes P03/P04/P05 production proof
 ```
 
-- P01 remains a **current technical launch blocker**.
+- P01 TEST bank payout is **PASS / COMPLETE** and is no longer a current launch blocker. Production live money-loop re-proof remains inside P10.
 - P06 is the **review/approval** gate. P09 **implements** P06 decisions. P09 must not invent legal conclusions.
 - P03/P04/P05 staging PASS does **not** satisfy production PASS.
 - P10 is the last technical/operational acceptance gate and requires live production proof.
@@ -64,7 +64,7 @@ P07 also consumes P03/P04/P05 production proof
 
 **Mandatory before P11**
 
-- P01 bank payout proof
+- P01 bank payout proof (COMPLETE on Stripe TEST; production re-proof inside P10)
 - P02 refund path (already complete on staging TEST; production refund proof lives in P10)
 - P03 production email
 - P04 production analytics
@@ -89,25 +89,25 @@ P07 also consumes P03/P04/P05 production proof
 
 Existing nice-to-have IDs **N01–N03** stay post-launch / optional.
 
-## Current launch-readiness summary (6 September 2026)
+## Current launch-readiness summary (7 September 2026)
 
 Technical staging readiness is advanced. Full production launch is **not** ready.
 
 | Gate | Current state | Blocks P11? |
 |---|---|---|
-| P01 | **NOT PROVEN** | **Yes — current technical pickup** |
+| P01 | **PASS / COMPLETE** (TEST bank payout) | No |
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
 | P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P06 | **OPEN / REQUIRED** | **Yes** |
+| P06 | **OPEN / REQUIRED** | **Yes — current pickup** |
 | P07 | **NOT STARTED** | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
 | P11 | **BLOCKED** | — |
 
-Do not start P11. Do not infer a launch percentage.
+Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LAUNCH READY**.
 
 ---
 
@@ -431,5 +431,5 @@ Only after a stable initial cohort: more homeowner invitations, more Experts, po
 
 - It does not mark P07–P11 complete.
 - It does not authorise production Hosting restore, live Stripe, production email, production analytics, or production App Check.
-- It does not change P01–P06 evidence.
+- P01 TEST bank payout evidence is recorded in `docs/TASKIO_TRACKER.md` (2026-09-07). Staging TEST P01 PASS does not authorise production Stripe.
 - It does not start P11.

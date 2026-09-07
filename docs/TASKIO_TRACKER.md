@@ -4,13 +4,15 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-07 P01 connected-account bank payout (Stripe TEST):** **PASS / COMPLETE.** Automatic standard bank payout `po_1UCgvyKCF5W6OUwDqm8eHeOh` AUD **108.00** `status=paid` `livemode=false` for B4G TSK-5507. P01 is no longer a launch blocker. Production untouched. See P01 evidence below.
+
 **2026-09-06 Controlled launch-readiness overlay (GREEN docs only):** Tracker completion now means Taskio is ready for a **controlled real-world production launch with real users and real money**. P01–P06 statuses and evidence are unchanged. Added P07–P11. Canonical definitions: `docs/LAUNCH_READINESS.md`. Production untouched. P11 remains **BLOCKED** until **TASKIO FULL LAUNCH READY**.
 
 **2026-09-06 P05 Storage enforcement (staging only):** Firestore and Storage `ENFORCED` / **PASS**. Auth `UNENFORCED`. Hosting unchanged **`211fb288dcaff973`**. Homeowner profile-photo upload **200** with App Check; missing/invalid App Check **401**. Metadata cleaned. Production Hosting still `cffca9d87ce03901`. Evidence commit `ba349d5` **pushed**; CI [`34026868256`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34026868256) **success**. See `docs/APP_CHECK.md`.
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-09-06 checkpoint.** P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime). Production analytics **OFF**. P05 App Check **STAGING PASS / PRODUCTION PENDING** on Hosting **`211fb288dcaff973`** (Firestore + Storage `ENFORCED`; Auth off). P01 bank payout **NOT YET PROVEN**. P06 legal review **still required** (include Postmark APP 8 / overseas processing). P07–P10 **NOT STARTED**. P11 **BLOCKED** until FULL LAUNCH READY. Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`211fb288dcaff973`** (previous `c2b8f742e73fed84`); signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
+> **2026-09-07 checkpoint.** P01 connected-account bank payout **PASS / COMPLETE** (TSK-5507 TEST payout `po_1UCgvyKCF5W6OUwDqm8eHeOh` AUD 108 `paid`). P02 **COMPLETE**. P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime). Production analytics **OFF**. P05 App Check **STAGING PASS / PRODUCTION PENDING** on Hosting **`211fb288dcaff973`** (Firestore + Storage `ENFORCED`; Auth off). P06 legal review **still required** (include Postmark APP 8 / overseas processing). P07–P10 **NOT STARTED**. P11 **BLOCKED** until FULL LAUNCH READY. Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`211fb288dcaff973`** (previous `c2b8f742e73fed84`); signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
@@ -38,7 +40,7 @@
 | 2 | **DONE / accepted** | Cloud Run `taskio-api-staging` closed-signup CORS revision. Do not roll this back without a new approval. |
 | 3 | **DONE / accepted** | Noindex placeholder, then scanned SPA on Hosting site `taskio-v2-staging`. Live Hosting is now **`211fb288dcaff973`** (P05 App Check frontend; previous `c2b8f742e73fed84`). |
 | 3 follow-up | **DONE / pushed / CI green** | `f56bc3e` + `58ed427` + tracker `56cc028`. All-platform repo `firebase-tools` + `process.execPath`, `realpath` containment, no PATH/`firebase.cmd`/`shell: true`. CI `33286833098`. |
-| 4 | **B4A–G + P02A PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. **Stopped before bank payout and admin/super_admin refund.** |
+| 4 | **B4A–G + P02A PASS; P01 later PASS** | B4A–G hosted journey **PASS**. P02A hosted pre-release **Cancel task** + full TEST refund **PASS** (TSK-3881 `REFUNDED`). TSK-5507 remains `PAID` / `released`. Bank payout later **PASS** 2026-09-07. Admin/super_admin refund still **not** proven. |
 
 **Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Auth stays unenforced. Keep security rules unchanged and production untouched. See `docs/APP_CHECK.md`.
 
@@ -46,7 +48,7 @@
 
 | ID | Gate | State |
 |---|---|---|
-| P01 | Connected-account **bank payout** | **NOT PROVEN.** Connect transfer **PROVEN**. Last known TEST available **AUD 0.00**, pending **AUD 126.00**. No payout created. Pre-production launch blocker. |
+| P01 | Connected-account **bank payout** | **PASS / COMPLETE.** Platform payment **PASS**. Connect transfer **PASS** (`tr_3UA1mLGdq6QKDpuT1g2pZQFm` AUD 108, not reversed). Connected balance **PASS**. Bank payout **PASS** (`po_1UCgvyKCF5W6OUwDqm8eHeOh` AUD 108, automatic, `status=paid`, `livemode=false`). No longer a launch blocker. |
 | P02 | Normal pre-release full refund | **PROVEN / COMPLETE** (exactly one TEST refund; no Connect transfer; Taskio retained **$0**; Expert retained **$0**). Privileged admin/super_admin exception path **OPTIONAL / NOT PROVEN**. |
 | P03 | Transactional email | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`, Outlook Inbox/Focused). Native `SMTP_USER`/`SMTP_PASS` **v2 ENABLED** (only active staging SMTP versions); **v1 DISABLED**. Legacy `taskio-staging-postmark-*` versions **DISABLED** (not destroyed). Obsolete Postmark SMTP token **revoked**; current working token **retained**; Server API token **not removed**. E01 Functions still bind v2 (`…-00007-kih` / `…-00007-xoc`, Ready=True). Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | Privacy-safe analytics | Application code **COMPLETE**. Local/CI **PASS** (`9d1119b`, CI [`34013435627`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34013435627)). URL privacy and origin isolation **COMPLETE**. Staging configuration **COMPLETE** (`G-SZ7RZDKTJY` on Hosting **`c2b8f742e73fed84`**). Hosted network delivery **PASS**. GA4 console receipt **PASS — OWNER CONFIRMED**. Production analytics **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. |
@@ -60,21 +62,20 @@
 
 **TASKIO FULL LAUNCH READY** = P01 PASS + P02 PASS + P03 production PASS + P04 production PASS + P05 production PASS + P06 PASS + P07 PASS + P08 PASS + P09 PASS + P10 PASS. **P11** is then the controlled-launch execution gate. It cannot start before that definition is true.
 
-**Mandatory before controlled launch:** P01, P02 (already complete on staging TEST; production refund re-proof is inside P10), P03–P05 **production** PASS, P06, P07, P08, P09, P10.
+**Mandatory before controlled launch:** P01 (COMPLETE on staging TEST), P02 (already complete on staging TEST; production refund re-proof is inside P10), P03–P05 **production** PASS, P06, P07, P08, P09, P10.
 
 **Explicitly post-launch / not launch-critical** unless the owner later requires them: native mobile apps, public Expert signup, advanced matching AI, advanced analytics dashboards, subscriptions, dynamic pricing, multi-city expansion, sophisticated automated disputes, major variation workflow expansion. Existing **N01–N03** stay optional.
 
 **Recommended next sequence:**
 
-1. Recheck P01 connected-account TEST available balance
-2. Bank payout proof when funds are available
-3. Legal/security final pre-launch closeout (P06 must include Postmark APP 8; P09 implements P06)
-4. Production preflight (P03/P04/P05 production PASS plus P07/P08), including separate RED production-email, production-analytics, and production-App-Check approvals
-5. P10 production acceptance only after the other FULL LAUNCH READY inputs pass
-6. P11 controlled launch only after **TASKIO FULL LAUNCH READY**
-7. Production remains RED until explicit owner approval
+1. P01 bank payout proof — **COMPLETE**
+2. Legal/security final pre-launch closeout (P06 must include Postmark APP 8; P09 implements P06)
+3. Production preflight (P03/P04/P05 production PASS plus P07/P08), including separate RED production-email, production-analytics, and production-App-Check approvals
+4. P10 production acceptance only after the other FULL LAUNCH READY inputs pass
+5. P11 controlled launch only after **TASKIO FULL LAUNCH READY**
+6. Production remains RED until explicit owner approval
 
-**Exact next pickup:** **P01** connected-account bank payout when TEST funds are available. Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check tonight. Production remains frozen.
+**Exact next pickup:** **P06** legal/privacy review (owner + preferably AU legal; include Postmark APP 8). Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check/analytics tonight. Production remains frozen.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -157,9 +158,9 @@
 - Homeowner UI: **Payment released**; no further release CTA; no bank-payout claim on the job page.
 - Expert UI: job chip **Released to your Stripe account**; chat “Payment released. This task is closed.”; no Mark complete; **does not claim a bank payout**. `/payments`: TSK-5507 **$120.00 / $12.00 / $108.00** **Released to Stripe**. Available now **$0.00**; pending in Stripe includes this release. Copy “Bank payout timing is managed by Stripe” is a timing disclaimer, not proof of a bank payout.
 - Admin UI: **Released to Stripe**; Client paid **$120.00**; Taskio fee **$12.00**; Expert released **$108.00**; Base transfer ID `tr_3UA1mLGdq6QKDpuT1g2pZQFm` visible. No repair required.
-- **NO** bank payout object (platform or connected). **NO** refund. **NO** dispute. **NO** new Checkout Session / PaymentIntent / Charge (still the original TSK-5507 funding objects). **NO** OTP / new Auth user.
+- **NO** bank payout object (platform or connected) **at B4G close**. **NO** refund. **NO** dispute. **NO** new Checkout Session / PaymentIntent / Charge (still the original TSK-5507 funding objects). **NO** OTP / new Auth user.
 - **TSK-3881** `fu8pWO3D4BY4DCo1s36u` was reserved funded/unreleased at B4G close; **fully refunded in P02A** (see P02A evidence below).
-- **CONNECT TRANSFER: PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN.**
+- **CONNECT TRANSFER: PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT:** not proven at B4G close; later **PASS** on 2026-09-07 (see P01 evidence).
 
 **P02A evidence (2026-08-30) — PASS:**
 
@@ -231,7 +232,7 @@
 - Postmark (owner-gated, not Console-mutated here): **Taskio Staging** server created; dedicated SMTP token created and **stored by owner**; previously exposed credentials **rotated**; account approval **requested**; Postmark **manual review currently pending**. Do **not** treat domain authentication as complete. Current `taskio.com.au` DKIM / Return-Path verification is **NOT complete**. DNS changes remain separate approval work.
 - Staging activation remains off: `EMAIL_ENABLED` false/unconfigured; SMTP secrets **not** configured in Firebase; Functions **not** redeployed for P03 activation; no real email send.
 - SMTP/provider **not configured in Firebase**. Application logic is **on origin** through `59615ac` (`EMAIL_ENABLED=false`).
-- Read-only Stripe TEST Connect check (no payout created; **do not recheck tonight**): Expert `acct_1U7VjdKCF5W6OUwD` `livemode=false`; last known **available AUD 0.00**; last known **pending AUD 126.00**; payout objects **0**. **P01 CONNECTED BANK PAYOUT: NOT YET PROVEN.** Connect transfer remains **PROVEN** (B4G). **P01 remains a pre-production launch blocker.**
+- Read-only Stripe TEST Connect check (historical 2026-08-30; superseded by 2026-09-07 P01 PASS; **do not recheck tonight**): Expert `acct_1U7VjdKCF5W6OUwD` `livemode=false`; last known **available AUD 0.00**; last known **pending AUD 126.00**; payout objects **0**. At that time **P01 CONNECTED BANK PAYOUT: NOT YET PROVEN.** Connect transfer remained **PROVEN** (B4G).
 - **P02B was not started.**
 - See `docs/TRANSACTIONAL_EMAIL.md`.
 
@@ -294,10 +295,28 @@
 **P07–P11 tracker overlay (2026-09-06) — GREEN docs only; no production/staging mutation:**
 
 - Added `docs/LAUNCH_READINESS.md` as the canonical P07–P11 gate definitions.
-- P01–P06 evidence above is unchanged. P01 remains **NOT PROVEN**. P06 remains the legal/privacy **review** gate. P09 implements P06 and cannot PASS before P06.
+- P01–P06 evidence above is unchanged **as of this overlay**. P01 was **NOT PROVEN** here and later **PASS** on 2026-09-07. P06 remains the legal/privacy **review** gate. P09 implements P06 and cannot PASS before P06.
 - P07–P10 are **NOT STARTED**. P11 is **BLOCKED** until **TASKIO FULL LAUNCH READY**.
 - Approval model unchanged: GREEN repo/docs/code/tests/local commits; AMBER push/staging/TEST Stripe; RED production deploy, production App Check, live Stripe, real charges/payouts, production IAM/secrets, DNS/public launch.
 - This overlay does **not** authorise production Hosting restore, live Stripe, production email, production analytics, or production App Check.
+
+**P01 evidence (2026-09-07) — PASS / COMPLETE; Stripe TEST only; no mutation in this closeout:**
+
+Platform payment ≠ Connect transfer ≠ connected balance ≠ bank payout. P01 closed only when the connected-account payout reached `status=paid` with `arrival_date` present.
+
+- Job **TSK-5507** / `HntNSWerak2NJreuvFlX`. Stripe **TEST** `livemode=false`. Platform `acct_1Rrhf7Gdq6QKDpuT`. Connected Expert Express `acct_1U7VjdKCF5W6OUwD`.
+- **P01 PLATFORM PAYMENT: PASS** (B4F/B4G captured charge `ch_3UA1mLGdq6QKDpuT1GYoEl3y`).
+- **P01 CONNECT TRANSFER: PASS.** `tr_3UA1mLGdq6QKDpuT1g2pZQFm` AUD **108.00** (`10800` cents) to `acct_1U7VjdKCF5W6OUwD`; destination correct; **not reversed**. Destination payment `py_1UA4F1KCF5W6OUwDIRXgg4LY` succeeded/`paid`. Destination balance transaction `txn_1UA4F1KCF5W6OUwD3eOQne5O` **available** from **2026-09-06T00:00:00Z**.
+- **P01 CONNECTED BALANCE: PASS.** Immediately before the B4G payout: available **AUD 108.00**, pending **AUD 0.00**. After payout: available **AUD 0.00**, pending **AUD 0.00**.
+- **P01 BANK PAYOUT: PASS.** Automatic Stripe TEST payout (Taskio did not create it in the closeout check):
+  - ID: `po_1UCgvyKCF5W6OUwDqm8eHeOh`
+  - amount AUD **108.00**; `automatic=true`; `type=bank_account`; `method=standard`; `status=paid`; `livemode=false`; no failure
+  - created **2026-09-06T14:20:38Z**; arrival **2026-09-07T00:00:00Z**
+  - payout balance transaction `txn_1UCgvzKCF5W6OUwDWsvRu9Gx` net **-10800** AUD cents
+  - External destination: **STRIPE TEST BANK** only. No real bank account.
+- **Linkage:** Stripe does **not** expose a direct one-to-one association between `txn_1UA4F1KCF5W6OUwD3eOQne5O` and `po_1UCgvyKCF5W6OUwDqm8eHeOh`. The payout linkage is supported by balance reconciliation: the B4G AUD 108 was the only available connected-account balance, the subsequent automatic standard payout was exactly AUD 108, and the connected available balance then reduced to AUD 0. This is sufficient TEST evidence for P01.
+- Earlier automatic TEST payout `po_1UAW4cKCF5W6OUwDfBV6QHQJ` AUD **18.00** `status=paid` (arrival 2026-09-01) is supporting proof that the synthetic TEST bank path functioned. It is **not** the primary P01 closeout evidence.
+- **P01 OVERALL: PASS / COMPLETE.** No longer a launch blocker. No new job, Checkout, PaymentIntent, charge, transfer, refund, or connected account was created for this closeout. Production live Stripe untouched.
 
 **P04 evidence (2026-08-30) — GREEN privacy-safe analytics; staging NOT CONFIGURED:**
 
@@ -333,7 +352,7 @@
 - Production signup stays disabled. Production `STRIPE_ENABLED=false`. No live Stripe. No production webhook service yet. No production-data mutation. Legal awaiting review. Launch not approved.
 - **Documentation note (do not mutate production to “fix” this):** ledger item **A03** records that public Cloud Run invocation was enabled on `taskio-api` (`invoker-iam-disabled`) with unauthenticated `/health/live` 200. The freeze policy above still forbids further production API/IAM/Hosting/Stripe changes. Treat A03 as historical evidence; reconciling live invoker policy is a separate RED decision.
 
-**Earlier staging Stripe TEST gates remain COMPLETE** (do not re-run without a new decision): expert phone-claim consistency, Auth runtime IAM custom role, synthetic homeowner/expert/admin identities, TEST Express onboarding, webhook HMAC → OIDC, duplicate/idempotency, Connected Accounts webhook, genuine Checkout, funded homeowner full refund (2026-08-24 API path; **2026-08-30 P02A hosted path on TSK-3881**), expert release / Connect transfer (2026-08-24 API path; **2026-08-30 B4G hosted path on TSK-5507**). **PRE-RELEASE FULL REFUND: PROVEN.** **ADMIN PRIVILEGED EXCEPTION REFUND: NOT PROVEN.** **CONNECT TRANSFER: PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: NOT YET PROVEN** (pre-launch AMBER gate P01).
+**Earlier staging Stripe TEST gates remain COMPLETE** (do not re-run without a new decision): expert phone-claim consistency, Auth runtime IAM custom role, synthetic homeowner/expert/admin identities, TEST Express onboarding, webhook HMAC → OIDC, duplicate/idempotency, Connected Accounts webhook, genuine Checkout, funded homeowner full refund (2026-08-24 API path; **2026-08-30 P02A hosted path on TSK-3881**), expert release / Connect transfer (2026-08-24 API path; **2026-08-30 B4G hosted path on TSK-5507**), connected-account bank payout (2026-09-07 automatic TEST payout of B4G AUD 108). **PRE-RELEASE FULL REFUND: PROVEN.** **ADMIN PRIVILEGED EXCEPTION REFUND: NOT PROVEN.** **CONNECT TRANSFER: PROVEN.** **CONNECTED-ACCOUNT BANK PAYOUT: PROVEN / P01 PASS.**
 
 ### Owner MVP backlog (2026-08-30)
 
@@ -356,7 +375,7 @@
 
 | ID | Objective | Approval |
 |---|---|---|
-| P01 | Stripe TEST connected-account **bank payout** path | **NOT PROVEN.** Connect transfer **PROVEN**. Last known TEST available **AUD 0.00** / pending **AUD 126.00**. No payout created. Pre-production launch blocker. |
+| P01 | Stripe TEST connected-account **bank payout** path | **PASS / COMPLETE.** `po_1UCgvyKCF5W6OUwDqm8eHeOh` AUD 108 automatic `paid` `livemode=false`. Transfer `tr_3UA1mLGdq6QKDpuT1g2pZQFm` unreversed. No longer a launch blocker. |
 | P02 | Normal pre-release refund / dispute readiness | P02A **PROVEN / COMPLETE** (one full TEST refund; no transfer; Taskio $0; Expert $0). P02B privileged **super_admin** exception **OPTIONAL / NOT PROVEN**. |
 | P03 | Essential transactional email (SMTP secrets) | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`). Postmark **APPROVED**; sender **ACTIVATED**; DKIM **VERIFIED**; Return-Path **VERIFIED**. Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | GA4/provider setup for analytics (no ad pixels) | Staging Hosting **`c2b8f742e73fed84`** loads `G-SZ7RZDKTJY`. Hosted network **PASS**. GA4 console receipt **PASS — OWNER CONFIRMED**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. See `docs/ANALYTICS.md`. |
@@ -376,7 +395,7 @@
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **P01** connected-account bank payout when TEST funds are available. Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check tonight. Production remains frozen.
+**Exact next pickup:** **P06** legal/privacy review (include Postmark APP 8). Do **not** enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check/analytics tonight. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 
@@ -469,7 +488,7 @@ An empty-body POST through the Google frontend returned HTTP 411 before Cloud Ru
 
 These paths were **not** tested and are **not** approved by the payment PASS notes:
 
-- connected-account **bank payout** (transfer-to-Express-balance is proven; payout-to-bank is not)
+- connected-account **bank payout** (at this 2026-08-23 snapshot: transfer-to-Express-balance proven; payout-to-bank not; later **P01 PASS** 2026-09-07)
 - paid variation lifecycle
 - dispute workflow
 - admin manual / `super_admin` refund workflow
