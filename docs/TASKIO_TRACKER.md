@@ -4,7 +4,9 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
-**2026-09-07 P06 owner/solicitor pack (GREEN docs only):** Inventory **COMPLETE**. Owner decision pack **PREPARED** (`docs/P06_OWNER_DECISIONS.md`). Solicitor brief **PREPARED** (`docs/P06_SOLICITOR_BRIEF.md`). Owner facts **PENDING**. AU solicitor review **PENDING**. Remediation **NOT STARTED**. P06 **OVERALL OPEN** — **not PASS**. No Terms/Privacy rewrite. No UI/copy/retention/analytics/email/App Check changes. P09 remains blocked. Production untouched.
+**2026-09-09 P06 owner facts + sole-trader pilot (GREEN docs only):** Owner facts **COMPLETE**. Structure decision: **controlled sole-trader pilot approved as owner working position** (not indefinite; not a company). AU solicitor review **PENDING**. Insurance broker review **PENDING**. Accounting marketplace/GST confirmation **PENDING**. Remediation **NOT STARTED**. P06 **OVERALL OPEN** — **not PASS**. Identity recorded in `docs/P06_OWNER_DECISIONS.md` / `docs/P06_SOLICITOR_BRIEF.md`. No Terms/Privacy rewrite. No P09. Residential street address **not** published. Production untouched.
+
+**2026-09-07 P06 owner/solicitor pack (GREEN docs only):** Inventory **COMPLETE**. Owner decision pack **PREPARED** (`docs/P06_OWNER_DECISIONS.md`). Solicitor brief **PREPARED** (`docs/P06_SOLICITOR_BRIEF.md`). Owner facts were then **PENDING** (now superseded 2026-09-09). AU solicitor review **PENDING**. Remediation **NOT STARTED**. P06 **OVERALL OPEN** — **not PASS**. No Terms/Privacy rewrite. P09 remains blocked. Production untouched.
 
 **2026-09-07 P01 connected-account bank payout (Stripe TEST):** **PASS / COMPLETE.** Automatic standard bank payout `po_1UCgvyKCF5W6OUwDqm8eHeOh` AUD **108.00** `status=paid` `livemode=false` for B4G TSK-5507. P01 is no longer a launch blocker. Production untouched. See P01 evidence below.
 
@@ -14,7 +16,7 @@
 
 > Owner authorization revised 2026-08-23: Taskio will **not** maintain a full duplicate staging environment. Staging is a temporary, minimal infrastructure and Stripe TEST-mode validation bench only. Production deployment, public launch, live Stripe, destructive operations, and production-data changes remain separate approval boundaries.
 
-> **2026-09-07 checkpoint.** P01 connected-account bank payout **PASS / COMPLETE** (TSK-5507 TEST payout `po_1UCgvyKCF5W6OUwDqm8eHeOh` AUD 108 `paid`). P02 **COMPLETE**. P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime). Production analytics **OFF**. P05 App Check **STAGING PASS / PRODUCTION PENDING** on Hosting **`211fb288dcaff973`** (Firestore + Storage `ENFORCED`; Auth off). P06 **OPEN** (inventory **COMPLETE**; owner decision pack **PREPARED**; owner facts **PENDING**; AU solicitor review **PENDING**; remediation **NOT STARTED**; not PASS). P07–P10 **NOT STARTED**. P11 **BLOCKED** until FULL LAUNCH READY. Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`211fb288dcaff973`** (previous `c2b8f742e73fed84`); signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
+> **2026-09-09 checkpoint.** P01 connected-account bank payout **PASS / COMPLETE**. P02 **COMPLETE**. P03 transactional email **STAGING PASS / PRODUCTION PENDING**. P04 analytics **STAGING PASS / PRODUCTION PENDING**. Production analytics **OFF**. P05 App Check **STAGING PASS / PRODUCTION PENDING**. P06 **OPEN** (inventory **COMPLETE**; owner decision pack **PREPARED**; owner facts **COMPLETE**; structure **controlled sole-trader pilot** as owner working position; AU solicitor **PENDING**; insurance review **PENDING**; accounting marketplace/GST **PENDING**; remediation **NOT STARTED**; not PASS). P07–P10 **NOT STARTED**. P11 **BLOCKED** until FULL LAUNCH READY. Staging: API **100%** `taskio-api-staging-54aed8b`; Hosting **`211fb288dcaff973`**; signup **CLOSED**. gcloud default **`taskio-v2`**. Production PRE-LAUNCH FREEZE unchanged.
 
 - Repository: `Taskio-MVP`
 - Working branch: `develop`
@@ -55,7 +57,7 @@
 | P03 | Transactional email | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`, Outlook Inbox/Focused). Native `SMTP_USER`/`SMTP_PASS` **v2 ENABLED** (only active staging SMTP versions); **v1 DISABLED**. Legacy `taskio-staging-postmark-*` versions **DISABLED** (not destroyed). Obsolete Postmark SMTP token **revoked**; current working token **retained**; Server API token **not removed**. E01 Functions still bind v2 (`…-00007-kih` / `…-00007-xoc`, Ready=True). Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | Privacy-safe analytics | Application code **COMPLETE**. Local/CI **PASS** (`9d1119b`, CI [`34013435627`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34013435627)). URL privacy and origin isolation **COMPLETE**. Staging configuration **COMPLETE** (`G-SZ7RZDKTJY` on Hosting **`c2b8f742e73fed84`**). Hosted network delivery **PASS**. GA4 console receipt **PASS — OWNER CONFIRMED**. Production analytics **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. |
 | P05 | App Check | Application code **COMPLETE**. Local/CI **PASS** (`6945c0a`, CI [`34020406444`](https://github.com/Taskio-au/Taskio-MVP/actions/runs/34020406444)). Staging provider **PASS**. Frontend activation **PASS**. Firestore enforcement **PASS**. Storage enforcement **PASS**. Auth **OFF — OUT OF APPROVED MVP SCOPE**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. |
-| P06 | Legal review | **OPEN.** Inventory **COMPLETE**. Owner decision pack **PREPARED** (`docs/P06_OWNER_DECISIONS.md`). Solicitor brief **PREPARED** (`docs/P06_SOLICITOR_BRIEF.md`). Owner facts **PENDING**. AU solicitor review **PENDING** (include Postmark APP 8 / overseas processing). Remediation **NOT STARTED**. **Not PASS.** Transactional emails remain data-minimised; detailed task information stays inside authenticated Taskio. Do not start P09 UI until P06 PASS. |
+| P06 | Legal review | **OPEN.** Inventory **COMPLETE**. Owner decision pack **PREPARED**. Owner facts **COMPLETE**. Structure: **controlled sole-trader pilot** (owner working position; not a company; not indefinite). AU solicitor review **PENDING**. Insurance review **PENDING**. Accounting marketplace/GST confirmation **PENDING**. Remediation **NOT STARTED**. **Not PASS.** See `docs/P06_OWNER_DECISIONS.md` and `docs/P06_SOLICITOR_BRIEF.md`. Do not start P09 UI until P06 PASS. |
 | P07 | Production security and configuration | **NOT STARTED.** Secrets, historical credential remediation, IAM, production App Check/analytics/email, Firebase/Hosting/API audit, security scans. Execution is RED. See `docs/LAUNCH_READINESS.md`. |
 | P08 | Production operations | **NOT STARTED.** Monitoring, alerting, incident/rollback runbooks, backup/recovery, support ops, launch-control tooling, daily/weekly checklist. See `docs/LAUNCH_READINESS.md`. |
 | P09 | Legal and trust implementation | **NOT STARTED.** Blocked on **P06 PASS**. Implements approved policies in production-facing UI/operations. Does **not** replace P06. See `docs/LAUNCH_READINESS.md`. |
@@ -71,13 +73,13 @@
 **Recommended next sequence:**
 
 1. P01 bank payout proof — **COMPLETE**
-2. Legal/security final pre-launch closeout (P06 owner facts + AU solicitor review; include Postmark APP 8; P09 implements only after P06 PASS)
+2. Legal/privacy closeout: AU solicitor + insurance broker + accountant marketplace/GST; then P06 APPROVED; P09 implements only after P06 PASS (include Postmark APP 8)
 3. Production preflight (P03/P04/P05 production PASS plus P07/P08), including separate RED production-email, production-analytics, and production-App-Check approvals
 4. P10 production acceptance only after the other FULL LAUNCH READY inputs pass
 5. P11 controlled launch only after **TASKIO FULL LAUNCH READY**
 6. Production remains RED until explicit owner approval
 
-**Exact next pickup:** **P06** owner facts + AU solicitor review of `docs/P06_OWNER_DECISIONS.md` and `docs/P06_SOLICITOR_BRIEF.md` (include Postmark APP 8). Do **not** mark P06 PASS, start P09 UI/copy, enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check/analytics tonight. Production remains frozen.
+**Exact next pickup:** **P06** AU commercial/privacy solicitor review of `docs/P06_OWNER_DECISIONS.md` and `docs/P06_SOLICITOR_BRIEF.md` (include Postmark APP 8), plus insurance broker review and accountant marketplace/GST confirmation. Owner facts are **COMPLETE**. Do **not** mark P06 PASS, start P09 UI/copy, enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check/analytics tonight. Production remains frozen.
 
 **Staging Cloud Run (authoritative B4 / current serving):**
 
@@ -297,7 +299,7 @@
 **P07–P11 tracker overlay (2026-09-06) — GREEN docs only; no production/staging mutation:**
 
 - Added `docs/LAUNCH_READINESS.md` as the canonical P07–P11 gate definitions.
-- P01–P06 evidence above is unchanged **as of this overlay**. P01 was **NOT PROVEN** here and later **PASS** on 2026-09-07. P06 remains the legal/privacy **review** gate (inventory complete; owner/solicitor pack prepared 2026-09-07; not PASS). P09 implements P06 and cannot PASS before P06.
+- P01–P06 evidence above is unchanged **as of this overlay**. P01 was **NOT PROVEN** here and later **PASS** on 2026-09-07. P06 remains the legal/privacy **review** gate (inventory complete; owner facts complete 2026-09-09; sole-trader pilot as owner working position; solicitor/insurance/accounting pending; not PASS). P09 implements P06 and cannot PASS before P06.
 - P07–P10 are **NOT STARTED**. P11 is **BLOCKED** until **TASKIO FULL LAUNCH READY**.
 - Approval model unchanged: GREEN repo/docs/code/tests/local commits; AMBER push/staging/TEST Stripe; RED production deploy, production App Check, live Stripe, real charges/payouts, production IAM/secrets, DNS/public launch.
 - This overlay does **not** authorise production Hosting restore, live Stripe, production email, production analytics, or production App Check.
@@ -382,7 +384,7 @@ Platform payment ≠ Connect transfer ≠ connected balance ≠ bank payout. P01
 | P03 | Essential transactional email (SMTP secrets) | **STAGING PASS / PRODUCTION PENDING.** Authentic E01 **VERIFIED** 2026-09-04 (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`). Postmark **APPROVED**; sender **ACTIVATED**; DKIM **VERIFIED**; Return-Path **VERIFIED**. Production **NOT CONFIGURED / NOT VERIFIED**. |
 | P04 | GA4/provider setup for analytics (no ad pixels) | Staging Hosting **`c2b8f742e73fed84`** loads `G-SZ7RZDKTJY`. Hosted network **PASS**. GA4 console receipt **PASS — OWNER CONFIRMED**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. See `docs/ANALYTICS.md`. |
 | P05 | Staging App Check validation + production enforcement decision | Frontend **PASS**. Firestore + Storage enforcement **PASS**. Auth **OFF**. Production **OFF**. Overall **STAGING PASS / PRODUCTION PENDING**. See `docs/APP_CHECK.md`. |
-| P06 | Final Terms/Privacy owner + preferably AU legal review | **OPEN.** Inventory **COMPLETE**. Owner pack + solicitor brief **PREPARED**. Owner facts **PENDING**. AU solicitor review **PENDING** (include Postmark APP 8). Remediation **NOT STARTED**. **Not PASS.** Emails stay data-minimised; details live in authenticated Taskio. |
+| P06 | Final Terms/Privacy owner + preferably AU legal review | **OPEN.** Inventory **COMPLETE**. Owner pack + solicitor brief **PREPARED**. Owner facts **COMPLETE**. Structure: controlled sole-trader pilot (owner working position). AU solicitor **PENDING**. Insurance **PENDING**. Accounting marketplace/GST **PENDING**. Remediation **NOT STARTED**. **Not PASS.** |
 | P07 | Production security and configuration | **NOT STARTED.** RED to execute. See `docs/LAUNCH_READINESS.md`. |
 | P08 | Production operations | **NOT STARTED.** See `docs/LAUNCH_READINESS.md`. |
 | P09 | Implement approved P06 legal/trust outcomes | **NOT STARTED.** Depends on P06. Does not replace P06. See `docs/LAUNCH_READINESS.md`. |
@@ -397,7 +399,7 @@ Platform payment ≠ Connect transfer ≠ connected balance ≠ bank payout. P01
 | N02 | Public waitlist (only if useful after GREEN) |
 | N03 | Full automated dispute system |
 
-**Exact next pickup:** **P06** owner facts + AU solicitor review (`docs/P06_OWNER_DECISIONS.md`, `docs/P06_SOLICITOR_BRIEF.md`; include Postmark APP 8). Do **not** mark P06 PASS, start P09 UI/copy, enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check/analytics tonight. Production remains frozen.
+**Exact next pickup:** **P06** AU solicitor + insurance broker + accountant marketplace/GST review (`docs/P06_OWNER_DECISIONS.md`, `docs/P06_SOLICITOR_BRIEF.md`; include Postmark APP 8). Owner facts **COMPLETE**. Do **not** mark P06 PASS, start P09 UI/copy, enable Auth App Check, roll back Hosting while Firestore or Storage is ENFORCED, start P02B, start P11, change DNS, or configure production email/App Check/analytics tonight. Production remains frozen.
 
 ## 2026-08-23 expert phone-verification consistency
 

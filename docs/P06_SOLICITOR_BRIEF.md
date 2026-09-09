@@ -6,7 +6,7 @@
 
 **Companion:** `docs/P06_OWNER_DECISIONS.md` (owner facts, working positions, solicitor question register).
 
-**Repo state when this brief was prepared:** `develop` at `325217ecd23b958df65e8622afe03bcbf60f59dc`. Production Firebase `taskio-v2` is frozen. Do not treat staging proofs as live-user operation.
+**Last documentation update:** 9 September 2026. Companion pack: `docs/P06_OWNER_DECISIONS.md`. Production Firebase `taskio-v2` is frozen. Do not treat staging proofs as live-user operation.
 
 Do not include secrets or real user personal information in advice back to engineering. Staging journey IDs in the tracker are synthetic test artefacts.
 
@@ -15,6 +15,16 @@ Do not include secrets or real user personal information in advice back to engin
 ## A. What Taskio is
 
 Taskio is a web marketplace for **small indoor home jobs** in Inner Melbourne. The product connects **Homeowners** (Clients) with **independent Experts** (tradies).
+
+**Owner-confirmed working identity (not yet on legal pages; not a company):**
+
+- **Saeed Zafari trading as Taskio**
+- Entity type: **individual / sole trader**
+- ABN: **15 729 254 373**
+- ACN: **not applicable** while a sole trader
+- Do **not** describe Taskio as **Taskio Pty Ltd** or as **a company**
+
+**Owner structure decision:** remain a sole trader for the initial **controlled validation pilot**. This is a validation-stage decision and **does not** mean Taskio intends to remain a sole trader indefinitely. Conversion triggers are business reviews in `docs/P06_OWNER_DECISIONS.md` §6 (not statutory thresholds).
 
 **Working owner position (not legal advice):** Taskio intends to be a marketplace/intermediary, not the contracting tradesperson, not an employer, and not a bank/trustee/custodian/regulated escrow provider.
 
@@ -31,6 +41,9 @@ Live draft pages (staging; production Hosting is maintenance-only):
 ## B. Melbourne launch scope
 
 - Intended first cohort: Inner Melbourne, frozen **8 suburbs**, Phase 1 catalog only.
+- Owner-confirmed pilot constraints: invite-only, manually supervised, no broad public signup, no licensed/high-regulatory work, low/modest job values, small founding Expert cohort, small invited Homeowner cohort.
+- Home-based business. **Exact public-facing / service-of-documents address is not in this repo** (residential street address withheld pending owner/solicitor confirmation).
+- Contacts: privacy **admin@taskio.com.au** (formal privacy contact: **yes**); support **support@taskio.com.au**.
 - Controlled launch (tracker P11) is **blocked** until legal/privacy review (P06) and other launch gates pass.
 - Geography in copy is a **service area**, not a governing-law clause. **Governing law is missing.**
 
@@ -103,12 +116,16 @@ What the product actually does:
 - ABN stored; ABR lookup if configured (optional; can 501 without GUID).
 - Admin trust-bucket / risk-scoring **assists admins**. Code comments: automation **does not auto-verify**.
 
-What the product does **not** do:
+What the product does **not** currently do in code:
 
 - Government licence check
-- Insurance verification
+- Insurance verification (no certificate workflow in product yet)
 - Criminal history check
 - Quality guarantee
+
+**Owner insurance working position:** Taskio platform/operator insurance is **not yet arranged**; broker review is required before the first real paid job. For the founding controlled pilot, Taskio **intends** to require Experts to provide appropriate public-liability insurance evidence and to verify certificate and expiry **before** any user-facing claim that an Expert's insurance has been verified.
+
+Do **not** claim: all Experts are insured; Taskio provides insurance; insurance guarantees workmanship; any minimum coverage amount — until broker/legal advice confirms.
 
 Landing nevertheless uses **“verified Experts”** / “invited and verified by Taskio.” Catalog copy includes “Mount a TV **safely**.” Please advise what is supportable.
 
@@ -136,9 +153,11 @@ Collected or derived in product (not an exhaustive legal characterisation):
 
 **Technical:** App Check / reCAPTCHA tokens (staging), GA4 coarse events (staging; denylist of PII/raw IDs/exact amounts), logs with claimed PII redaction, optional Gemini prompt text if AI is enabled.
 
-**Not found in product:** TFNs, health-service records, credit-reporting data. Owner must confirm no off-repo handling (`docs/P06_OWNER_DECISIONS.md` F12–F13).
+**Owner-confirmed (not a Privacy Act conclusion):** Taskio does **not intentionally collect** TFNs, health information, or consumer credit-reporting information. ABNs are not TFNs. Stripe processing does not mean Taskio intentionally collects consumer credit-reporting information. Users may incidentally submit sensitive information in free text/support; Taskio does not request it.
 
-Draft Privacy Policy describes this only generically (“account details, task and quote content, payment-related metadata…”) and names **Stripe** for cards. It does **not** list DOB, ABN, photos, chat, GA4, Postmark, App Check, Firebase/Google, or Gemini.
+**Off-platform PI:** Limited handling is expected through Microsoft 365 / email, support communications, and manual operator workflows (possible artefacts: Expert verification records, insurance certificates, support attachments, dispute notes). Do **not** state that all personal information exists only in Firebase. Minimise local copies and set retention before launch.
+
+Draft Privacy Policy describes this only generically (“account details, task and quote content, payment-related metadata…”) and names **Stripe** for cards. It does **not** list DOB, ABN, photos, chat, GA4, Postmark, App Check, Firebase/Google, Gemini, Microsoft 365, or off-platform artefacts.
 
 ---
 
@@ -152,8 +171,8 @@ Draft Privacy Policy describes this only generically (“account details, task a
 | Google Analytics 4 | Product funnel (staging `G-SZ7RZDKTJY`; production **OFF**) | Generic “coarse events”; **GA4 not named** |
 | reCAPTCHA Enterprise / App Check | Bot/abuse (staging Firestore + Storage enforced; Auth off) | **No** |
 | ABR ABN lookup | Optional Expert ABN check | **No** |
-| Gemini (Google) | Optional draft assist; hidden on `fallback` | **No** |
-| Microsoft 365 / Outlook | Operator mailbox used to **receive** staging proof email — not an in-app processor | n/a |
+| Gemini (Google) | Optional draft assist in code; owner position **OFF at controlled launch** unless disclosure/config/legal review complete | **No** |
+| Microsoft 365 / email | Operator mailbox / support / manual workflows — **expected off-platform PI handling**, not only staging proof receipt | **No** |
 
 **Do not infer destination countries from brand names.** Location verification is a separate legal/ops task.
 
@@ -177,7 +196,7 @@ Engineering has already flagged **Postmark / APP 8** as a P06 item. Please advis
 
 **Email (E01–E05):** sparse transactional templates in `functions/email/templates.js`. Footer: “This is a transactional message from Taskio.” No unsubscribe, no promo/upsell found. Only E01 hosted-proven. E02 says “Funds are held until you approve.” **Spam Act confirmation requested** — engineering should **not** auto-add unsubscribe to factual transactional mail unless you advise it.
 
-**AI:** drafting assistants only (job description, quote). Matching and verification remain human. Admin risk scores may influence review routing; they do not auto-verify. Flag possible **automated-decision transparency** rules from **10 December 2026** if scoring materially affects user interests.
+**AI:** drafting assistants exist in code (job description, quote) but owner position is **OFF at controlled launch** unless approved privacy disclosure, provider configuration, and legal/privacy review are complete. AI remains non-essential. Matching and verification remain human. Admin risk scores may influence review routing; they do not auto-verify. Flag possible **automated-decision transparency** rules from **10 December 2026** if scoring materially affects user interests.
 
 ---
 
@@ -200,7 +219,7 @@ Draft Privacy: deletion “review through support.” Expert UI has a danger zon
 - Effective date **April 2026**; no version IDs.
 - Login and invited-account activation **lack** Privacy/Terms links.
 - Payments and Support pages link **Terms** only, not Privacy.
-- Legal identity (entity, ABN, ACN, address, public privacy email, governing law) = **MISSING** in legal pages. Operational sender `admin@taskio.com.au` exists for email; it is **not** published as privacy contact on the Privacy page. Owner must say whether it should be (F06–F08).
+- Legal identity is **recorded in the owner pack** (sole trader; ABN; contacts) but **not yet published** on `/terms` or `/privacy`. Public street address remains **withheld**. Governing law is missing.
 
 ---
 
@@ -215,17 +234,17 @@ Draft Privacy: deletion “review through support.” Expert UI has a danger zon
 7. Privacy “deletion via support” vs Expert self-serve request + anonymise-only execute.
 8. Privacy generic data list vs DOB/ABN/photos/chat/GA4/Postmark/App Check/AI.
 9. ACL mentioned in draft Terms while banner says ACL wording unresolved.
-10. Continued-use acceptance of updated Terms; broad suspend and payment-intervention rights.
+11. Identity recorded in owner pack vs still absent from draft `/terms` and `/privacy`.
 
 ---
 
 ## Q. Exact legal questions requiring advice
 
-Please advise on each (owner facts F01–F15 will be supplied separately):
+Please advise on each (owner facts F01–F15 are now recorded in `docs/P06_OWNER_DECISIONS.md`):
 
-1. Is Taskio an APP entity? If possibly exempt, how to word **voluntary** APP-style compliance?
+1. Is Taskio an APP entity given sole-trader identity, turnover category **AUD 3 million or less**, pre-launch/controlled-pilot stage, and off-platform Microsoft 365 / support handling? If possibly exempt, how to word **voluntary** APP-style compliance?
 2. APP 8 / overseas disclosure — which processors must be named, and how, without guessing countries?
-3. Entity/ABN/address/contact disclosure requirements for Terms and Privacy.
+3. Entity/ABN/contact disclosure for a **sole trader** (“Saeed Zafari trading as Taskio”); how to handle **home-based** operation without publishing a residential street address until approved.
 4. Marketplace contract structure and the Homeowner–Expert job contract.
 5. Payment-law characterisation; permitted wording for fund / hold / release / payout.
 6. ACL consumer guarantees; unfair contract terms in the draft (unilateral variation, termination/suspension, payment intervention, after-release refunds).
@@ -235,15 +254,18 @@ Please advise on each (owner facts F01–F15 will be supplied separately):
 10. Expert independent-contractor vs employment risk.
 11. Supportable “verified Expert” / trust / safety claims.
 12. Licensing responsibility and Phase 1 catalog edges.
-13. Insurance wording if Taskio does not verify Expert insurance.
-14. Age eligibility (Experts 18+ in code; Homeowners undecided; working recommendation 18+).
+13. Insurance wording: platform **uninsured** until broker arranges cover; Expert public-liability **certificate intent** vs claims that Experts are insured.
+14. Age eligibility — owner working position Expert **18+** and Homeowner **18+**; please confirm Terms wording.
 15. Spam Act treatment of E01–E05.
-16. Deletion/retention: what the Privacy Policy may claim vs current anonymise-only execute.
-17. Privacy complaints contact and process.
+16. Deletion/retention: what the Privacy Policy may claim vs current anonymise-only execute; off-platform artefact retention.
+17. Privacy complaints contact (`admin@taskio.com.au`) and process; support mailbox `support@taskio.com.au`.
 18. NDB / incident notification posture (do not assume NDB duty until applicability is confirmed).
 19. Automated decision-making transparency (from 10 December 2026) vs admin risk scoring.
-20. AI/Gemini (and reCAPTCHA, GA4, Firebase) disclosure if those features are on at launch.
+20. AI/Gemini disclosure if assistants stay **off** at launch vs if later enabled; also reCAPTCHA, GA4, Firebase, Microsoft 365.
+21. Sole-trader marketplace disclosure vs later Pty Ltd conversion (business triggers only; not a legal threshold).
 
-**Requested output from counsel:** marked-up or replacement Terms and Privacy (when owner identity facts are available), a short “do/don’t say” list for landing/payments/email, and a list of product changes that are legally required vs optional.
+**Also required (accountant, not solicitor unless you advise otherwise) before real trading:** Stripe Connect marketplace accounting; whether Taskio recognises only platform commission as revenue; treatment of funds passing through Stripe; GST registration/turnover treatment; invoicing/tax invoice responsibilities. Do not determine these in the repo.
 
-Engineering will **not** implement copy or retention changes until owner + solicitor approval is recorded. That implementation is tracker **P09**, which cannot PASS before **P06**.
+**Requested output from counsel:** marked-up or replacement Terms and Privacy (identity facts now available except public street address), a short “do/don’t say” list for landing/payments/email, and a list of product changes that are legally required vs optional.
+
+Engineering will **not** implement copy or retention changes until owner + solicitor approval is recorded. That implementation is tracker **P09**, which cannot PASS before **P06**. P06 also still requires insurance broker review and accountant marketplace/GST confirmation before an overall PASS.

@@ -102,7 +102,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P06 | **OPEN** — inventory **COMPLETE**; owner decision pack **PREPARED**; owner facts **PENDING**; AU solicitor review **PENDING**; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
+| P06 | **OPEN** — inventory **COMPLETE**; owner decision pack **PREPARED**; owner facts **COMPLETE**; structure **controlled sole-trader pilot** (owner working position); AU solicitor **PENDING**; insurance review **PENDING**; accounting marketplace/GST **PENDING**; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
 | P07 | **NOT STARTED** | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
