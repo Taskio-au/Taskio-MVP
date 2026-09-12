@@ -91,7 +91,7 @@ P07 also consumes P03/P04/P05 production proof
 
 Existing nice-to-have IDs **N01–N03** stay post-launch / optional.
 
-## Current launch-readiness summary (7 September 2026)
+## Current launch-readiness summary (12 September 2026)
 
 Technical staging readiness is advanced. Full production launch is **not** ready.
 
@@ -102,7 +102,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P06 | **OPEN** — inventory **COMPLETE**; owner decision pack **PREPARED**; owner facts **COMPLETE**; structure **controlled sole-trader pilot** (owner working position); AU solicitor **PENDING**; insurance review **PENDING**; accounting marketplace/GST **PENDING**; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
+| P06 | **OPEN** — owner facts **COMPLETE**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
 | P07 | **NOT STARTED** | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |

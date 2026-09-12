@@ -1,39 +1,44 @@
 # P06 owner decision pack
 
-**Status (this document):** PREPARED — owner facts recorded 9 September 2026. Not solicitor-approved, not legal advice, not P06 PASS.
+**Status (this document):** PREPARED — owner facts recorded 9 September 2026; **lean controlled-pilot alignment 12 September 2026**. Not solicitor-approved, not legal advice, not P06 PASS.
 
 | Classification | State |
 |---|---|
 | P06 INVENTORY | **COMPLETE** (read-only preflight; no Terms/Privacy rewrite) |
 | P06 OWNER DECISION PACK | **PREPARED** (this file + `docs/P06_SOLICITOR_BRIEF.md`) |
 | P06 OWNER FACTS | **COMPLETE** (working facts below; public street address still withheld) |
-| P06 STRUCTURE DECISION | **CONTROLLED SOLE-TRADER PILOT APPROVED AS OWNER WORKING POSITION** |
-| P06 AU SOLICITOR REVIEW | **PENDING** |
-| P06 INSURANCE REVIEW | **PENDING** (broker review required before first real paid job) |
+| P06 STRUCTURE DECISION | **LEAN CONTROLLED SOLE-TRADER PILOT — OWNER WORKING POSITION** (not an automatic Pty Ltd launch blocker) |
+| P06 LEGAL STRUCTURE REVIEW | **REQUIRED before controlled real-user pilot** — current sole-trader plan permitted by owner, **subject to AU solicitor confirmation** |
+| P06 COMPANY CONVERSION | **DEFERRED** unless solicitor advises it is required/materially preferable before pilot; **must be reconsidered before broader scaling** |
+| P06 AU SOLICITOR REVIEW | **PENDING** (Stage 1 controlled pilot + Stage 2 broader scale — see solicitor brief) |
+| P06 INSURANCE REVIEW | **PENDING** — minimum sensible **pilot** cover to be reviewed with broker/solicitor before real users. Broad/expensive cover is **not** an automatic launch blocker |
 | P06 ACCOUNTING MARKETPLACE/GST CONFIRMATION | **PENDING** |
 | P06 REMEDIATION | **NOT STARTED** |
 | P06 OVERALL | **OPEN** |
 
 P09 remains **blocked** until P06 PASS. Do not implement UI/copy/retention/analytics/email/App Check changes from this pack.
 
-This pack records **owner-confirmed working facts**, **working business positions**, and **open professional questions**. It does **not** make Privacy Act conclusions, rewrite Terms or Privacy Policy, or describe Taskio as a company or Pty Ltd.
+This pack records **owner-confirmed working facts**, **lean validation working positions**, and **open professional questions**. It does **not** make Privacy Act conclusions, rewrite Terms or Privacy Policy, invent a company, or treat Pty Ltd incorporation or broad insurance spend as automatic launch blockers.
 
-Do **not** describe Taskio as **Taskio Pty Ltd** or as **a company** while this sole-trader pilot position stands.
+Do **not** describe Taskio as **Taskio Pty Ltd** or as **a company** while the sole-trader pilot position stands.
+
+**Lean validation (owner intent):** reach a **controlled real-user pilot** without unnecessary pre-revenue corporate/insurance spend, while still obtaining **focused** legal and insurance advice before real users. This does **not** mean ignoring liability, privacy, ACL, insurance, or safety. A sole-trader structure does **not** create limited liability. Incorporating later does **not** eliminate personal or director liability.
 
 ---
 
 ## How to use / professional review sequence
 
-1. Owner facts — **COMPLETE** (this update).
-2. AU commercial/privacy solicitor review of this pack + `docs/P06_SOLICITOR_BRIEF.md` + draft `/terms` and `/privacy`.
-3. Business insurance broker review (platform/operator cover; Expert certificate process).
+1. Owner facts — **COMPLETE**.
+2. **Focused** AU commercial/privacy solicitor review for **Stage 1 (controlled pilot)** and **Stage 2 (broader scale)** — this pack + `docs/P06_SOLICITOR_BRIEF.md` + draft `/terms` and `/privacy`.
+3. **Focused** Australian business-insurance broker discussion/quote: what **minimum sensible pilot** cover is appropriate (not “buy every policy before PMF”).
 4. Accountant confirmation of Stripe Connect marketplace / GST / invoicing treatment.
-5. Owner accepts or finalises professional recommendations.
-6. P06 legal/privacy decisions become **APPROVED** (only then is P06 eligible to PASS).
-7. P09 implements approved Terms/Privacy/trust/product changes.
-8. P07 / P08 / P10 follow the launch-readiness dependency plan.
+5. If the solicitor advises incorporation is **required or materially preferable before the pilot**, address it **before P10/P11**.
+6. Owner accepts or finalises professional recommendations.
+7. P06 legal/privacy decisions become **APPROVED** (only then is P06 eligible to PASS).
+8. P09 implements approved Terms/Privacy/trust/product changes.
+9. P07 / P08 / P10 follow the launch-readiness dependency plan.
 
-Do **not** start P09 yet.
+Do **not** start P09 yet. Do **not** add insurance badges or publish legal claims from this pack.
 
 Statuses used below:
 
@@ -71,8 +76,9 @@ Recorded for owner alignment and solicitor review. These are **intended operatin
 | Licensed / high-regulatory work | Remain **outside Phase 1** unless Taskio creates an approved verification and compliance process. |
 | Expert minimum age | **18+** (already gated in product for Experts). Final Terms wording for solicitor confirmation. |
 | Homeowner / account-holder age | **18+** (owner-confirmed working position). Final Terms wording for solicitor confirmation. Product Homeowner age gate is **not** yet implemented. |
-| Structure | Remain a **sole trader** for the initial **controlled validation pilot**. This is a deliberate validation-stage decision, **not** an indefinite structure commitment. Do not describe Taskio as a company or Pty Ltd. |
-| Insurance | Platform/operator insurance **not yet arranged**. For the founding controlled pilot, Taskio **intends** to require Experts to provide appropriate public-liability insurance evidence and to verify certificate + expiry **before** any user-facing “insurance verified” claim. Do **not** claim all Experts are insured, that Taskio provides insurance, that insurance guarantees workmanship, or any minimum coverage amount until broker/legal advice confirms. |
+| Structure | **Lean controlled sole-trader pilot.** Pty Ltd is **not** automatically required by the tracker before the controlled pilot. Owner will obtain focused AU legal advice on whether the limited pilot may proceed as a sole trader. If counsel says incorporate first, do so before P10/P11. Revisit company conversion **before broader scaling**. Do not describe Taskio as a company or Pty Ltd. Do not claim sole-trader limited liability or that a Pty Ltd eliminates personal/director liability. |
+| Taskio insurance | **NOT YET CONFIRMED / BROKER REVIEW REQUIRED.** Do not state Taskio is insured, that Taskio needs no insurance, or that any named policy is legally mandatory. Before real users: focused broker discussion on **minimum sensible pilot** cover (questions may include public liability, cyber, professional/management/platform-related cover). Broad/expensive cover is **not** an automatic launch blocker. |
+| Expert insurance | Collect insurance **status**. Ask whether the Expert holds current public-liability insurance. If they say they are insured, Taskio **may** request a certificate of currency. Call an Expert “insurance verified” **only** if Taskio actually checks current evidence. Do **not** imply Taskio provides platform-wide insurance, that every Expert is insured, or that a policy covers a specific Taskio job. Whether insurance is **mandatory for all founding Experts** is an **owner + solicitor + broker** decision — **not** an automatic tracker requirement. Higher-risk categories may later require verified insurance. |
 | Refunds | **Before release:** eligible funded / unreleased amounts can be refunded. **After release:** no automatic refund; manual support / dispute process. Subject to ACL / legal review. |
 | AI | Gemini / AI assistants **OFF** at controlled launch unless approved privacy disclosure, provider configuration, and legal/privacy review are complete. AI remains **non-essential**. |
 | Analytics | **Production** analytics may only be enabled after privacy wording and configuration are approved. Staging GA4 must not be treated as production disclosure. |
@@ -82,22 +88,22 @@ Recorded for owner alignment and solicitor review. These are **intended operatin
 
 ## 3. Owner-confirmed working facts
 
-Recorded **9 September 2026** from owner confirmation. These are **working facts for professional review**, not solicitor-approved public legal-page text. Do not copy them into Terms/Privacy until P09 after P06 PASS.
+Recorded **9 September 2026** from owner confirmation; lean-pilot insurance/structure alignment **12 September 2026**. These are **working facts for professional review**, not solicitor-approved public legal-page text. Do not copy them into Terms/Privacy until P09 after P06 PASS.
 
 | ID | Fact | Owner-confirmed working fact |
 |---|---|---|
 | F01 | Exact legal entity / trading identity | **Saeed Zafari trading as Taskio**. Do **not** describe as Taskio Pty Ltd or as a company. |
 | F02 | Entity type | **Individual / Sole Trader** |
 | F03 | ABN | **15 729 254 373** |
-| F04 | ACN | **Not applicable** while operating as a sole trader |
-| F05 | Public-facing / service-of-documents address | Taskio is currently a **home-based business**. Exact public-facing / service-of-documents address remains subject to **owner/solicitor confirmation**. The owner's **residential street address is not recorded** in this repository. |
+| F04 | ACN | **Not applicable** under the current sole-trader structure. Taskio does **not** currently have an ACN. |
+| F05 | Public-facing / service-of-documents address | Principal/business location is **home-based in Victoria**. Public street address should **not** be unnecessarily published. Exact public/service-of-documents address requirements remain subject to **solicitor advice**. Do **not** place the owner's home street address into public-facing legal text without an explicit legal requirement **and** owner approval. The residential street address is **not recorded** in this repository. |
 | F06 | Public privacy / contact email | **admin@taskio.com.au** |
 | F07 | Support email | **support@taskio.com.au** |
 | F08 | Formal privacy contact | **YES** — **admin@taskio.com.au** |
-| F09 | Annual turnover category (Privacy Act **input** only; not a legal conclusion) | **AUD 3 million or less**. Current stage: **pre-launch / controlled-pilot preparation**. No exact revenue figure is recorded. Privacy Act / APP applicability remains for solicitor confirmation. |
-| F10 | Taskio platform/operator insurance | **NOT YET ARRANGED / BROKER REVIEW REQUIRED BEFORE FIRST REAL PAID JOB** |
-| F11 | Expert insurance checking planned? | For the founding controlled pilot, Taskio **intends** to require Experts to provide appropriate **public-liability insurance evidence**. Taskio should verify **certificate and expiry** before any user-facing claim that an Expert's insurance has been verified. See §2 insurance row for prohibited claims. |
-| F12 | Off-repo personal-information handling | **Limited off-platform handling is expected** through Microsoft 365 / email, support communications, and manual operator workflows. Potential future/manual artefacts may include Expert verification records, insurance certificates, support attachments, and dispute notes. Minimise local/manual copies and establish retention rules before launch. Do **not** state that all personal information exists only in Firebase. |
+| F09 | Annual turnover | Taskio is currently in **pre-launch / validation stage**. Previously recorded working category: **AUD 3 million or less** (no exact revenue figure). This is a **fact input only**. Do **not** treat the small-business turnover threshold as a Privacy Act exemption conclusion. Applicability remains a **solicitor question**. |
+| F10 | Taskio platform/operator insurance | **NOT YET CONFIRMED / BROKER REVIEW REQUIRED.** Do not state Taskio is insured, that Taskio does not need insurance, or that any particular policy is legally mandatory. See §2 and D08. |
+| F11 | Expert insurance working approach | **Collect status.** Ask whether the Expert holds current public-liability insurance. If they say they are insured, Taskio may request evidence (e.g. certificate of currency). “Insurance verified” **only** if Taskio actually checks current evidence. Mandatory-for-all-founding-Experts is **owner + solicitor + broker** — not an automatic tracker requirement. |
+| F12 | Off-repo personal-information handling | Limited off-platform handling is **expected**, including potentially `admin@taskio.com.au`, `support@taskio.com.au`, Microsoft 365 / Outlook, manual Expert verification correspondence, support/dispute evidence, insurance certificates if collected, and temporary operator files used for legitimate support/verification. **Minimise** copies; avoid uncontrolled local spreadsheets/downloads. Exact off-repo storage, access, and retention must be documented before controlled launch under **P08/P09**. Do **not** claim that no off-platform processing exists, or that all PI exists only in Firebase. |
 | F13 | TFN / health / credit-reporting information | Taskio does **not intentionally collect** Tax File Numbers, health information, or consumer credit-reporting information. **ABNs are not TFNs.** Stripe payment processing does **not** mean Taskio intentionally collects consumer credit-reporting information. Users may incidentally submit sensitive information in free text/support; Taskio does **not** request it. |
 | F14 | Homeowner / account-holder minimum age | **18+** (owner-confirmed). Final Terms wording for solicitor confirmation. |
 | F15 | Gemini / AI launch state | **OFF** at controlled launch unless approved privacy disclosure exists, provider configuration is approved, and legal/privacy review is complete. AI remains non-essential. |
@@ -114,7 +120,7 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 |---|---|
 | Status | **OWNER CAN DECIDE** + **AU SOLICITOR DECISION / CONFIRMATION REQUIRED** |
 | Question | Should Taskio follow APP-style privacy practice for launch even if a small-business exemption might apply? |
-| Current repo/product position | Product collects personal information. Privacy Policy is a **draft**. Privacy Act applicability is **not** determined in-repo. Annual turnover category is **AUD 3 million or less** (F09; pre-launch / controlled-pilot preparation). |
+| Current repo/product position | Product collects personal information. Privacy Policy is a **draft**. Privacy Act applicability is **not** determined in-repo. Stage is **pre-launch / validation**. F09 is a fact **input** only — not an exemption conclusion. |
 | Recommended working business position | Yes — APP-style standards regardless of possible exemption. |
 | Owner must supply/choose | Working position already recorded: APP-style standards regardless of possible exemption. F09 supplied as a fact **input**. |
 | Solicitor must confirm | Whether Taskio is an APP entity; how to word voluntary APP compliance if exempt. |
@@ -162,7 +168,7 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 |---|---|
 | Status | **OWNER CAN DECIDE** + **AU SOLICITOR DECISION / CONFIRMATION REQUIRED** |
 | Question | What may “verified Expert” mean in public copy? |
-| Current repo/product position | Landing repeats “verified Experts” / “invited and verified by Taskio.” Actual process: invite-only, admin `verified=true`, profile complete, Stripe onboarding, ABN lookup if configured. **No** licence, insurance, or criminal-history check **in code**. Founding-pilot **intent** is to collect Expert public-liability certificates (F11) before any insurance-verified claim. |
+| Current repo/product position | Landing repeats “verified Experts” / “invited and verified by Taskio.” Actual process: invite-only, admin `verified=true`, profile complete, Stripe onboarding, ABN lookup if configured. **No** licence, insurance, or criminal-history check **in code**. “Verified Expert” must **not** automatically imply insurance verified, trade licence verified, police/background check, government certification, or workmanship guarantee. |
 | Recommended working business position | Verified = only those checks. Do not imply licensed / insured / background-checked / quality-guaranteed. |
 | Owner must supply/choose | Definition confirmed as working position. F11 recorded. Do not imply licensed / insured / background-checked / quality-guaranteed. |
 | Solicitor must confirm | Whether current landing claims are supportable; required qualifications/disclaimers. |
@@ -196,13 +202,13 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 
 | Field | Content |
 |---|---|
-| Status | **OWNER CONFIRMED WORKING POSITION** + **P06 INSURANCE REVIEW PENDING** + **AU SOLICITOR DECISION / CONFIRMATION REQUIRED** |
-| Question | May Taskio say Experts are insured, or that Taskio is insured? |
-| Current repo/product position | No insurance verification in product. Draft banner lists insurance as unresolved. Platform/operator insurance **not yet arranged**. |
-| Recommended working business position | No platform-insured claim until cover exists. For the founding pilot, require Expert public-liability evidence and verify certificate + expiry **before** any user-facing insurance-verified claim. Do not claim all Experts are insured, that Taskio provides insurance, that insurance guarantees workmanship, or any minimum coverage amount until broker/legal advice confirms. |
-| Owner must supply/choose | **Recorded:** F10, F11. Broker review still required before first real paid job. |
-| Solicitor must confirm | Wording for unverified vs certificate-checked insurance; residual risk if Taskio itself is uninsured at pilot start. |
-| Downstream | Landing, Terms, Expert onboarding (P09). **Do not add insurance claims in UI now.** |
+| Status | **OWNER CONFIRMED LEAN WORKING POSITION** + **P06 INSURANCE REVIEW PENDING** + **AU SOLICITOR / BROKER CONFIRMATION REQUIRED** |
+| Question | What insurance must exist before the controlled pilot, and what may Taskio say? |
+| Current repo/product position | No insurance verification in product. Draft banner lists insurance as unresolved. Platform/operator insurance **not yet confirmed**. |
+| Recommended working business position | **Taskio:** obtain a focused AU broker discussion/quote on **minimum sensible pilot** cover (questions may include public liability, cyber, professional/management/platform-related cover). Do not predetermine mandatory policies. Do not state Taskio is insured or needs no insurance. Broad/expensive cover is not an automatic launch blocker. **Experts:** collect status; request evidence if they say they are insured; “insurance verified” only after Taskio checks current evidence. Do not imply platform-wide insurance, that every Expert is insured, or that a policy covers a specific job. Mandatory-for-all-founding-Experts = owner + solicitor + broker. |
+| Owner must supply/choose | **Recorded:** F10, F11 (lean approach). |
+| Solicitor / broker must confirm | Minimum sensible pilot cover; whether Expert insurance must be mandatory for all founding Experts; residual wording if some Experts are uninsured or Taskio cover is not yet bound. |
+| Downstream | Landing, Terms, Expert onboarding (P09). **Do not add insurance badges or claims in UI now.** |
 
 ### D09 — Refund / cancellation model
 
@@ -264,66 +270,90 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 | Solicitor must confirm | Retention obligations; what “delete account” must mean. |
 | Downstream | Privacy Policy, deletion jobs, P08 operations (P09). **Do not rewrite retention code in this pack.** |
 
-### D14 — Controlled sole-trader validation pilot
+### D14 — Lean controlled sole-trader pilot
 
 | Field | Content |
 |---|---|
-| Status | **OWNER CONFIRMED WORKING POSITION** + **AU SOLICITOR / ACCOUNTANT CONFIRMATION REQUIRED** (disclosure and tax treatment) |
-| Question | Operate the first real-money cohort as a sole trader? |
+| Status | **OWNER CONFIRMED WORKING POSITION** + **AU SOLICITOR CONFIRMATION REQUIRED** before real users |
+| Question | May the tightly controlled invite-only pilot proceed under the current sole-trader structure? |
 | Current repo/product position | Draft legal pages do not name an entity. Product is invite-only Inner Melbourne Phase 1. |
-| Recommended working business position | Remain a **sole trader** for the initial **controlled validation pilot**. Deliberate validation-stage decision. **Does not** mean Taskio intends to remain a sole trader indefinitely. Pilot must stay invite-only, manually supervised, Inner Melbourne, narrow Phase 1 categories, no broad public signup, no licensed/high-regulatory work, low/modest job values, small founding Expert cohort, small invited Homeowner cohort. |
+| Recommended working business position | Owner prefers to **validate first** as **Saeed Zafari trading as Taskio** (individual / sole trader; ABN 15 729 254 373; no ACN) to avoid unnecessary pre-revenue company/accounting/compliance cost. **Pty Ltd is not automatically required by this tracker before the controlled pilot.** If the solicitor advises incorporation is required or materially preferable before pilot launch, address it **before P10/P11**. A sole trader does **not** have limited liability. |
 | Owner must supply/choose | **Recorded.** See §5–§6. |
-| Solicitor must confirm | How to disclose “Saeed Zafari trading as Taskio” / ABN on legal pages; sole-trader marketplace implications; public address wording without publishing a residential street address until approved. |
+| Solicitor must confirm | Whether the limited pilot may reasonably proceed as a sole trader given marketplace activity, physical household work, Stripe Connect, refund/dispute exposure, ACL, and property-damage / personal-injury risk; how to disclose identity/ABN; public address without publishing a home street address. |
 | Accountant must confirm | Stripe Connect / commission-as-revenue / GST / invoicing (see §7). |
 | Downstream | Terms/Privacy identity block (P09); do **not** implement until P06 PASS. |
 
 ---
 
-## 5. Controlled sole-trader pilot (owner structure decision)
+## 5. Controlled pilot definition and legal-structure working position
 
-**Owner working position (9 September 2026):** Taskio will remain a **sole trader** for the initial **CONTROLLED VALIDATION PILOT**.
+**WORKING OWNER POSITION — LEGAL STRUCTURE (12 September 2026, lean alignment)**
 
-This is a deliberate **validation-stage business decision**. It does **not** mean Taskio intends to remain a sole trader indefinitely.
+Taskio currently operates as:
 
-The pilot must remain:
+- **Saeed Zafari trading as Taskio**
+- **Individual / Sole Trader**
+- **ABN 15 729 254 373**
+- **No ACN**
+
+The owner prefers to validate the business with a small, controlled, invite-only pilot before incurring unnecessary company/accounting/compliance costs.
+
+A Pty Ltd company is therefore **not automatically required by the Taskio tracker before the controlled pilot**.
+
+Before admitting real pilot users, the owner will obtain **focused Australian commercial/legal advice** confirming whether operating the limited pilot as a sole trader is acceptable given:
+
+- marketplace activity
+- physical household work
+- payments through Stripe Connect
+- refund / dispute exposure
+- consumer law
+- potential property damage / personal injury risk
+
+If the solicitor advises incorporation is **required or materially preferable** before pilot launch, address it **before P10/P11**.
+
+This limited operating model is part of Taskio's **risk-control strategy** while testing product/market fit. It does **not** replace legal obligations or insurance advice. It does **not** give the operator limited liability.
+
+### CONTROLLED PILOT means
 
 - invite-only
-- manually supervised
 - Inner Melbourne
 - narrow Phase 1 categories
-- no broad public signup
-- no licensed / high-regulatory work
-- low / modest job values
-- small founding Expert cohort
-- small invited Homeowner cohort
+- no public Expert signup
+- approximately **5–10** manually selected/verified founding Experts
+- approximately **10–20** invited homeowners
+- manual operator oversight
+- every initial job monitored
+- modest-value household jobs
+- no licensed electrical / plumbing work
+- no categories Taskio is not prepared to verify/manage
+- signup/onboarding can be paused immediately
+- high-touch support
 
 Do **not** describe Taskio as **Taskio Pty Ltd** or as **a company** while this position stands.
 
 ---
 
-## 6. Pty Ltd conversion — business review triggers
+## 6. Company-conversion triggers (before broader scaling)
 
-These are **owner business review triggers**, **not** statutory thresholds and **not** legal advice.
+These are **owner business review triggers**, **not** statutory thresholds, **not** legal advice, and **not** arbitrary revenue gates.
 
-Review incorporation into a Pty Ltd if **any** of the following occurs:
+**COMPANY CONVERSION:** deferred unless required/advised before the pilot; **must be reconsidered before broader scaling**.
 
-1. approximately 30–50 genuine paid jobs completed
-2. controlled pilot demonstrates repeat demand / meaningful traction
-3. public signup is opened
-4. significant paid marketing begins
-5. external investment is sought
-6. a co-founder / shareholder is introduced
-7. employees are hired
-8. meaningful retained profits / cash accumulate
-9. higher-risk or materially higher-value job categories are introduced
-10. geographic expansion beyond the controlled initial Melbourne pilot
-11. a grant / investor / partner requires incorporation
+Revisit conversion to a proprietary limited company if **any** of the following occurs, or if a professional so recommends:
 
-**Hard review:** approximately **8–12 weeks** after commencement of the real-money controlled pilot. At that review decide:
+- public / open signup
+- material increase in transaction volume
+- higher-value jobs
+- expansion into higher-risk categories
+- taking on employees / contractors **in the Taskio business**
+- outside investment / fundraising
+- material recurring revenue
+- solicitor / accountant / insurer recommendation
+- risk profile no longer suitable for a sole-trader pilot
 
-- stop
-- continue limited validation
-- incorporate and scale
+Do **not** define arbitrary job-count or revenue thresholds unless professionally advised.
+
+Do **not** claim a Pty Ltd eliminates personal or director liability.
 
 ---
 
@@ -365,7 +395,7 @@ Matters that require **Australian solicitor confirmation**. Do not treat owner w
 | S16 | Expert contractor vs employment position |
 | S17 | Verification claims (“verified Expert”) |
 | S18 | Licensing responsibility (platform vs Expert vs Homeowner) and Phase 1 catalog edges |
-| S19 | Insurance wording (platform uninsured until broker arranges cover; Expert PL-certificate intent vs user-facing claims) |
+| S19 | Insurance: minimum sensible **pilot** cover (not a predetermined policy list); Expert “insurance verified” wording; whether founding-Expert insurance must be mandatory; residual risk if cover is not yet bound |
 | S20 | Age eligibility (owner: Expert 18+ and Homeowner 18+; Terms wording) |
 | S21 | Spam Act treatment of E01–E05 (currently sparse/factual; no unsubscribe; no promo found) |
 | S22 | Deletion / retention obligations vs current anonymise-only implementation |
@@ -373,7 +403,7 @@ Matters that require **Australian solicitor confirmation**. Do not treat owner w
 | S24 | NDB / data-breach posture (do not assert NDB duty until applicability is confirmed) |
 | S25 | Automated decision-making transparency (from 10 December 2026) vs admin risk scoring |
 | S26 | AI / provider disclosures (Gemini **OFF** at controlled launch unless later approved) |
-| S27 | Sole-trader disclosure (“Saeed Zafari trading as Taskio”) vs later Pty Ltd conversion; public address without residential publication until approved |
+| S27 | **Stage 1:** can the tightly controlled invite-only pilot reasonably proceed as a sole trader, and what minimum legal/insurance controls should be in place? **Stage 2:** when should Taskio transition to a Pty Ltd, and what legal/insurance changes should accompany broader public operation? Public address without publishing a home street address. Do not treat Pty Ltd as automatically required now. |
 
 ---
 
@@ -390,7 +420,7 @@ Do **not** start these until P06 PASS (approved text / decisions). P09 implement
 | Payment role wording (D04, S07) | Terms; payment screens; E02/E04 templates; avoid transfer/payout conflation |
 | Verified Expert definition (D05, S17) | Landing copy; onboarding; badge/help text; remove unsupported “licensed/insured/safe” implications |
 | Licensed-work boundary (D06, S18) | Catalog warnings; support refusal playbook; job-post copy |
-| Insurance (D08, S19) | Remove or add only broker/solicitor-approved claims; Expert certificate check process if approved |
+| Insurance (D08, S19) | No badges until approved. “Insurance verified” only if evidence actually checked. Do not imply all Experts or Taskio are insured |
 | Age rules (D07, S20) | Terms; Homeowner 18+ gate if required |
 | AI / ADM (D10, S25–S26) | Keep assistants **off** at launch unless later approved; admin risk-scoring transparency if required |
 | Refund / dispute model (D09, S08–S10, S14) | Terms; job cancellation UI; support runbook; E05 alignment |
@@ -418,5 +448,8 @@ This documentation batch must **not**:
 - mark P06 PASS
 - publish a residential street address
 - describe Taskio as Taskio Pty Ltd or as a company
+- treat Pty Ltd incorporation as an automatic launch blocker
+- treat broad/expensive insurance as an automatic launch blocker
+- claim Taskio is insured, Experts are insured, a sole trader has limited liability, or that a company eliminates personal/director liability
 
 Those belong after approved P06 decisions, generally under **P09** (and separate RED production enablement for email/analytics/App Check).

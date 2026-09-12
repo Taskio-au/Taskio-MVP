@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 9 September 2026
+**Last updated:** 12 September 2026
 
 ## Active scope
 
@@ -46,7 +46,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P06 | **OPEN** — inventory **COMPLETE**; owner decision pack **PREPARED**; owner facts **COMPLETE**; structure **controlled sole-trader pilot** (owner working position); AU solicitor **PENDING**; insurance review **PENDING**; accounting marketplace/GST **PENDING**; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
+| P06 | **OPEN** — owner facts **COMPLETE**; lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
 | P07 | **NOT STARTED** | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
@@ -60,11 +60,11 @@ Explicitly post-launch unless later required: native apps, public Expert signup,
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** **OPEN** (inventory complete; owner facts complete; sole-trader pilot as owner working position; solicitor/insurance/accounting pending; not PASS); **P07–P10** **NOT STARTED**; **P11** **BLOCKED**.
-- Legal Terms/Privacy remain drafts until professional review before first real users. P06 owner pack: `docs/P06_OWNER_DECISIONS.md`. Solicitor brief: `docs/P06_SOLICITOR_BRIEF.md`. Do not describe Taskio as a company or Pty Ltd during the sole-trader pilot. P09 implements the approved outcome and does not replace P06. Do not start P09 UI/copy until P06 PASS.
+- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** **OPEN** (owner facts complete; lean sole-trader pilot subject to solicitor confirmation; Pty Ltd not an automatic blocker; focused insurance review pending; not PASS); **P07–P10** **NOT STARTED**; **P11** **BLOCKED**.
+- Legal Terms/Privacy remain drafts. P06 pack: `docs/P06_OWNER_DECISIONS.md`. Solicitor brief: `docs/P06_SOLICITOR_BRIEF.md`. Do not describe Taskio as a company or Pty Ltd during the sole-trader pilot. Do not treat Pty Ltd or broad insurance as automatic launch blockers. P09 stays blocked until P06 PASS.
 
 **Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Keep Auth unenforced, security rules unchanged, and production untouched. See `docs/APP_CHECK.md`.
 
 ## Next release decision
 
-P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07–P10 are additional production-readiness gates and are not started. Do not infer production launch, production analytics, production App Check, or production email. Do not start P11. Production SMTP remains **NOT CONFIGURED**. Production analytics remain **OFF**. Next pickup is **P06** AU solicitor + insurance broker + accountant marketplace/GST review (owner facts complete; not PASS).
+P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07–P10 are additional production-readiness gates and are not started. Do not infer production launch, production analytics, production App Check, or production email. Do not start P11. Production SMTP remains **NOT CONFIGURED**. Production analytics remain **OFF**. Next pickup is **P06** focused AU solicitor (Stage 1 + Stage 2) + focused insurance broker + accountant review (owner facts complete; not PASS). Pty Ltd / broad insurance are not automatic blockers unless professionally advised.
