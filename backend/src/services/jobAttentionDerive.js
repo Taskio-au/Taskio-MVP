@@ -5,7 +5,7 @@ const { JOB_STATUSES, resolveJobStatus } = require('../../../shared/jobStatusesC
 const DESIRED_INVITE_COUNT = 5;
 const ZERO_QUOTES_MS = 60 * 60 * 1000;
 const ONE_QUOTE_MS = 3 * 60 * 60 * 1000;
-const FUNDED_STALL_MS = 48 * 60 * 60 * 1000;
+const LOW_INVITE_GRACE_MS = ZERO_QUOTES_MS;
 const COMPLETION_STALL_MS = 48 * 60 * 60 * 1000;
 
 const REASONS = Object.freeze({
@@ -15,7 +15,6 @@ const REASONS = Object.freeze({
   NO_EXPERTS_INVITED: 'NO_EXPERTS_INVITED',
   ONLY_ONE_QUOTE_3H: 'ONLY_ONE_QUOTE_3H',
   LOW_INVITE_COVERAGE: 'LOW_INVITE_COVERAGE',
-  FUNDED_JOB_STALLED: 'FUNDED_JOB_STALLED',
   COMPLETION_STALLED: 'COMPLETION_STALLED',
 });
 
@@ -70,12 +69,6 @@ const REASON_META = Object.freeze({
     action: 'invite_experts',
     actionLabel: 'Invite Experts',
   },
-  [REASONS.FUNDED_JOB_STALLED]: {
-    label: 'Funded job not progressing',
-    priority: PRIORITY.MEDIUM,
-    action: 'view_job',
-    actionLabel: 'View job',
-  },
   [REASONS.COMPLETION_STALLED]: {
     label: 'Completion / release waiting',
     priority: PRIORITY.MEDIUM,
@@ -105,8 +98,14 @@ function hasPaymentIssue(status, paymentState) {
   return status === JOB_STATUSES.DISPUTED || status === JOB_STATUSES.REFUND_PENDING;
 }
 
-function isExcludedTerminal(status, paymentIssue) {
+function isSettledPayment(paymentState) {
+  const ps = String(paymentState || '').toLowerCase();
+  return ps === 'released' || ps === 'refunded';
+}
+
+function isExcludedTerminal(status, paymentIssue, paymentState) {
   if (status === JOB_STATUSES.PAID || status === JOB_STATUSES.REFUNDED) return true;
+  if (isSettledPayment(paymentState)) return true;
   if (status === JOB_STATUSES.CANCELLED && !paymentIssue) return true;
   return false;
 }
@@ -159,7 +158,6 @@ function pickPrimary(candidates) {
       REASONS.NO_EXPERTS_INVITED,
       REASONS.ONLY_ONE_QUOTE_3H,
       REASONS.LOW_INVITE_COVERAGE,
-      REASONS.FUNDED_JOB_STALLED,
       REASONS.COMPLETION_STALLED,
     ];
     return order.indexOf(a.key) - order.indexOf(b.key);
@@ -170,7 +168,7 @@ function deriveJobAttention(input, nowMs = Date.now()) {
   const status = normalizeStatus(input?.status);
   const paymentState = input?.paymentState;
   const paymentIssue = hasPaymentIssue(status, paymentState);
-  if (isExcludedTerminal(status, paymentIssue)) {
+  if (isExcludedTerminal(status, paymentIssue, paymentState)) {
     return null;
   }
 
@@ -178,7 +176,7 @@ function deriveJobAttention(input, nowMs = Date.now()) {
   const ageMs = createdAtMs ? Math.max(0, nowMs - createdAtMs) : 0;
   const inviteCount = Number(input?.inviteCount) || 0;
   const quoteCount = Number(input?.quoteCount) || 0;
-  const quoting = isQuotingStatus(status);
+  const quoting = isQuotingStatus(status) && input?.postingReady !== false;
   const candidates = [];
 
   if (paymentIssue) {
@@ -201,13 +199,15 @@ function deriveJobAttention(input, nowMs = Date.now()) {
     candidates.push({ key: REASONS.ONLY_ONE_QUOTE_3H, ...REASON_META[REASONS.ONLY_ONE_QUOTE_3H] });
   }
 
-  if (quoting && inviteCount > 0 && inviteCount < DESIRED_INVITE_COUNT && quoteCount < 2) {
+  if (
+    quoting
+    && inviteCount > 0
+    && inviteCount < DESIRED_INVITE_COUNT
+    && quoteCount < 2
+    && createdAtMs
+    && ageMs > LOW_INVITE_GRACE_MS
+  ) {
     candidates.push({ key: REASONS.LOW_INVITE_COVERAGE, ...REASON_META[REASONS.LOW_INVITE_COVERAGE] });
-  }
-
-  const fundedAtMs = Number(input?.fundedAtMs) || 0;
-  if (status === JOB_STATUSES.FUNDED && fundedAtMs && (nowMs - fundedAtMs) > FUNDED_STALL_MS) {
-    candidates.push({ key: REASONS.FUNDED_JOB_STALLED, ...REASON_META[REASONS.FUNDED_JOB_STALLED] });
   }
 
   const completedAtMs = Number(input?.completedAtMs) || 0;
@@ -236,7 +236,7 @@ module.exports = {
   DESIRED_INVITE_COUNT,
   ZERO_QUOTES_MS,
   ONE_QUOTE_MS,
-  FUNDED_STALL_MS,
+  LOW_INVITE_GRACE_MS,
   COMPLETION_STALL_MS,
   REASONS,
   PRIORITY,

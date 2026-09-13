@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 13 September 2026 (Admin Slice 3 Job Attention Queue)
+**Last updated:** 13 September 2026 (Admin Slice 3 stall-semantics check)
 
 ## Active scope
 

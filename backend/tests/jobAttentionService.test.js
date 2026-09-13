@@ -7,7 +7,7 @@ const {
   countSuitableLaunchReady,
   ZERO_QUOTES_MS,
   ONE_QUOTE_MS,
-  FUNDED_STALL_MS,
+  LOW_INVITE_GRACE_MS,
   COMPLETION_STALL_MS,
 } = require('../src/services/jobAttentionDerive');
 
@@ -18,6 +18,7 @@ function quotingInput(overrides = {}) {
     status: 'OPEN',
     paymentState: null,
     createdAtMs: nowMs - (30 * 60 * 1000),
+    postingReady: true,
     inviteCount: 3,
     quoteCount: 0,
     suitableLaunchReadyCount: 4,
@@ -128,26 +129,78 @@ describe('deriveJobAttention', () => {
     expect(gap).toBeNull();
   });
 
-  it('flags funded and completion stalls only from explicit lifecycle timestamps', () => {
+  it('does not flag funded jobs from fundedAt alone, including future-scheduled work', () => {
     expect(deriveJobAttention({
       status: 'FUNDED',
-      fundedAtMs: 0,
-      createdAtMs: nowMs - FUNDED_STALL_MS - 1000,
+      paymentState: 'in_escrow',
+      fundedAtMs: nowMs - (72 * 60 * 60 * 1000),
+      createdAtMs: nowMs - (72 * 60 * 60 * 1000),
+      timeline: '2026-09-20',
     }, nowMs)).toBeNull();
+    expect(REASONS.FUNDED_JOB_STALLED).toBeUndefined();
+  });
 
-    const funded = deriveJobAttention({
-      status: 'FUNDED',
-      fundedAtMs: nowMs - FUNDED_STALL_MS - 1000,
-      createdAtMs: nowMs - FUNDED_STALL_MS - 1000,
-    }, nowMs);
-    expect(funded.reasonKey).toBe(REASONS.FUNDED_JOB_STALLED);
+  it('uses createdAt as the quote-liquidity clock and ignores jobs not yet quote-ready', () => {
+    expect(deriveJobAttention(quotingInput({
+      inviteCount: 5,
+      quoteCount: 0,
+      createdAtMs: nowMs - ZERO_QUOTES_MS - 1000,
+      postingReady: false,
+    }), nowMs)).toBeNull();
 
+    const ready = deriveJobAttention(quotingInput({
+      inviteCount: 5,
+      quoteCount: 0,
+      createdAtMs: nowMs - ZERO_QUOTES_MS - 1000,
+      postingReady: true,
+    }), nowMs);
+    expect(ready.reasonKey).toBe(REASONS.ZERO_QUOTES_60M);
+  });
+
+  it('does not emit LOW_INVITE_COVERAGE immediately after a job opens', () => {
+    expect(deriveJobAttention(quotingInput({
+      inviteCount: 2,
+      quoteCount: 0,
+      createdAtMs: nowMs - (10 * 60 * 1000),
+    }), nowMs)).toBeNull();
+    expect(deriveJobAttention(quotingInput({
+      inviteCount: 2,
+      quoteCount: 1,
+      createdAtMs: nowMs - (LOW_INVITE_GRACE_MS - 1000),
+    }), nowMs)).toBeNull();
+
+    const afterGrace = deriveJobAttention(quotingInput({
+      inviteCount: 2,
+      quoteCount: 1,
+      createdAtMs: nowMs - LOW_INVITE_GRACE_MS - 1000,
+    }), nowMs);
+    expect(afterGrace.reasonKey).toBe(REASONS.LOW_INVITE_COVERAGE);
+    expect(afterGrace.priority).toBe(PRIORITY.MEDIUM);
+  });
+
+  it('flags completion stalls after 48h unless payment is already released or refunded', () => {
     const completion = deriveJobAttention({
       status: 'COMPLETED',
       completedAtMs: nowMs - COMPLETION_STALL_MS - 1000,
       createdAtMs: nowMs - COMPLETION_STALL_MS - 1000,
     }, nowMs);
     expect(completion.reasonKey).toBe(REASONS.COMPLETION_STALLED);
+
+    expect(deriveJobAttention({
+      status: 'PAID',
+      paymentState: 'released',
+      completedAtMs: nowMs - COMPLETION_STALL_MS - 1000,
+    }, nowMs)).toBeNull();
+    expect(deriveJobAttention({
+      status: 'COMPLETED',
+      paymentState: 'released',
+      completedAtMs: nowMs - COMPLETION_STALL_MS - 1000,
+    }, nowMs)).toBeNull();
+    expect(deriveJobAttention({
+      status: 'REFUNDED',
+      paymentState: 'refunded',
+      completedAtMs: nowMs - COMPLETION_STALL_MS - 1000,
+    }, nowMs)).toBeNull();
   });
 });
 

@@ -97,7 +97,8 @@ export default function JobAttentionQueue({ loadState = 'loading', snapshot = nu
       <h2 id="ad-job-attention-heading" className="ad-job-attention__eyebrow">Job attention queue</h2>
       <p className="ad-job-attention__helper">
         Internal pilot triggers: 0 quotes after 60 minutes, or exactly 1 quote after 3 hours.
-        These are not customer SLAs. Completed and released jobs are excluded.
+        These are not customer SLAs. Funded jobs are not flagged from funding age alone.
+        Completed and released jobs are excluded.
       </p>
 
       {incomplete ? (
