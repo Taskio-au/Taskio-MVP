@@ -16,6 +16,7 @@ import useAdminDashboardDerivedData from './features/admin/dashboard/useAdminDas
 import useAdminDashboardMetrics from './features/admin/dashboard/useAdminDashboardMetrics';
 import useAdminDashboardQueryState from './features/admin/dashboard/useAdminDashboardQueryState';
 import usePilotSupply from './features/admin/dashboard/usePilotSupply';
+import useJobAttention from './features/admin/dashboard/useJobAttention';
 import { jobIdsMatchingWorkflowFilters } from './features/admin/utils/workflowQueueFilters';
 import { buildDashboardTabUrl } from './features/admin/utils/adminDashboardTabUrl';
 import { phase1ExpertiseCatalog } from './shared/expertiseCatalog';
@@ -64,6 +65,11 @@ function Dashboard({ variant = 'default' }) {
     data: pilotSupply,
     refresh: refreshPilotSupply,
   } = usePilotSupply(api);
+  const {
+    loadState: jobAttentionLoadState,
+    data: jobAttention,
+    refresh: refreshJobAttention,
+  } = useJobAttention(api);
 
   const [sortOrder, setSortOrder] = useState('newest');
   const [expertiseFilter, setExpertiseFilter] = useState('all');
@@ -74,7 +80,7 @@ function Dashboard({ variant = 'default' }) {
   // Search filters
   const [jobSearchTerm, setJobSearchTerm] = useState('');
   const [jobStatusFilter, setJobStatusFilter] = useState('all');
-  const [jobQuickFilter, setJobQuickFilter] = useState(''); // no_offer_6h|stale_open_24h|disputes_unreviewed|''
+  const [jobQuickFilter, setJobQuickFilter] = useState(''); // no_quotes_60m|one_quote_3h|disputes_unreviewed|''
   const [jobClientUidFilter, setJobClientUidFilter] = useState('');
   const [jobWfOwner, setJobWfOwner] = useState('');
   const [jobWfSla, setJobWfSla] = useState('');
@@ -170,10 +176,11 @@ function Dashboard({ variant = 'default' }) {
 
   const fetchQuoteMetaForJobIds = useCallback(async (jobIds) => {
     const ids = Array.isArray(jobIds) ? jobIds.map((x) => String(x || '')).filter(Boolean) : [];
-    if (ids.length === 0) return { knownJobIds: [], hasAnyByJobId: {}, firstAtMsByJobId: {} };
+    if (ids.length === 0) return { knownJobIds: [], hasAnyByJobId: {}, firstAtMsByJobId: {}, countByJobId: {} };
 
     const hasAnyByJobId = {};
     const firstAtMsByJobId = {};
+    const countByJobId = {};
 
     // Firestore "in" supports up to 10 values.
     const queries = [];
@@ -188,9 +195,12 @@ function Dashboard({ variant = 'default' }) {
       if (s.status !== 'fulfilled') continue;
       s.value.forEach((d) => {
         const data = d.data() || {};
+        const status = String(data.status || '').trim().toLowerCase();
+        if (status && status !== 'submitted' && status !== 'accepted') return;
         const jid = String(data.jobId || '');
         if (!jid) return;
         hasAnyByJobId[jid] = true;
+        countByJobId[jid] = (countByJobId[jid] || 0) + 1;
         const at = toMillis(data.createdAt);
         if (at && (!firstAtMsByJobId[jid] || at < firstAtMsByJobId[jid])) {
           firstAtMsByJobId[jid] = at;
@@ -198,7 +208,7 @@ function Dashboard({ variant = 'default' }) {
       });
     }
 
-    return { knownJobIds: ids, hasAnyByJobId, firstAtMsByJobId };
+    return { knownJobIds: ids, hasAnyByJobId, firstAtMsByJobId, countByJobId };
   }, []);
 
   const { quoteMeta, attention, opsKpis } = useAdminDashboardMetrics(jobs, fetchQuoteMetaForJobIds);
@@ -239,6 +249,10 @@ function Dashboard({ variant = 'default' }) {
     if (authReady) refreshPilotSupply();
   }, [authReady, refreshPilotSupply]);
 
+  useEffect(() => {
+    if (authReady) refreshJobAttention();
+  }, [authReady, refreshJobAttention]);
+
   const isSuperAdmin = adminAccess?.isSuperAdmin === true;
 
   const [jobWorkItemsTick, setJobWorkItemsTick] = useState(0);
@@ -248,8 +262,9 @@ function Dashboard({ variant = 'default' }) {
     await refreshOpsSummary();
     await refreshWorkflowSummary();
     await refreshPilotSupply();
+    await refreshJobAttention();
     setJobWorkItemsTick((t) => t + 1);
-  }, [fetchData, refreshOpsSummary, refreshWorkflowSummary, refreshPilotSupply]);
+  }, [fetchData, refreshOpsSummary, refreshWorkflowSummary, refreshPilotSupply, refreshJobAttention]);
 
   // Show auth/debug panel only when explicitly enabled (avoid leaking claims in normal UI)
   const showDebugPanel = process.env.REACT_APP_SHOW_ADMIN_DEBUG === 'true';
@@ -970,6 +985,8 @@ function Dashboard({ variant = 'default' }) {
           }}
           pilotSupplyLoadState={pilotSupplyLoadState}
           pilotSupply={pilotSupply}
+          jobAttentionLoadState={jobAttentionLoadState}
+          jobAttention={jobAttention}
         />
       ) : (
         <div style={{ marginBottom: 20 }}>
@@ -997,8 +1014,8 @@ function Dashboard({ variant = 'default' }) {
         onToggleSortOrder={onToggleSortOrder}
         jobStatusFilter={jobStatusFilter}
         onJobStatusFilterChange={setJobStatusFilter}
-        onApplyQuickNeedsAttention={() => { setJobStatusFilter('OPEN'); setJobQuickFilter('no_offer_6h'); }}
-        onApplyQuickWaitingTooLong={() => { setJobStatusFilter('OPEN'); setJobQuickFilter('stale_open_24h'); }}
+        onApplyQuickNeedsAttention={() => { setJobStatusFilter('OPEN'); setJobQuickFilter('no_quotes_60m'); }}
+        onApplyQuickWaitingTooLong={() => { setJobStatusFilter('OPEN'); setJobQuickFilter('one_quote_3h'); }}
         onApplyQuickFlagged={() => { setJobStatusFilter('all'); setJobQuickFilter('flagged'); }}
         onApplyQuickPaymentIssues={() => { setJobStatusFilter('all'); setJobQuickFilter('payment_issues'); }}
         onApplyQuickDisputesStale={() => { setJobStatusFilter(JOB_STATUSES.DISPUTED); setJobQuickFilter('disputes_stale_24h'); }}

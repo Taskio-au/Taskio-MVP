@@ -1,5 +1,6 @@
 import React from 'react';
 import AttentionStrip from './AttentionStrip';
+import JobAttentionQueue from './JobAttentionQueue';
 import PilotReadinessSection from './PilotReadinessSection';
 import { derivePilotReadiness, PILOT_STATUS } from './pilotReadinessDisplay';
 import Banner from '../../../design/components/Banner';
@@ -47,6 +48,8 @@ export default function DashboardOverview({
   counts,
   pilotSupplyLoadState = 'loading',
   pilotSupply = null,
+  jobAttentionLoadState = 'loading',
+  jobAttention = null,
 }) {
   const expertSupply = derivePilotReadiness(pilotSupply, pilotSupplyLoadState);
   const launchReadyCardValue = (
@@ -110,6 +113,8 @@ export default function DashboardOverview({
         <AttentionStrip
           attention={attention}
           opsSummary={opsSummary}
+          jobAttention={jobAttention}
+          jobAttentionLoadState={jobAttentionLoadState}
           onGoAttention={onGoAttention}
           onGoStaleProfileRequests={onGoStaleProfileRequests}
           styles={styles}
@@ -146,6 +151,8 @@ export default function DashboardOverview({
           </button>
         </div>
       </div>
+
+      <JobAttentionQueue loadState={jobAttentionLoadState} snapshot={jobAttention} />
 
       <div style={{ marginBottom: spacing.xl }}>
         <div style={{ marginBottom: 12, fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.textSubtle }}>

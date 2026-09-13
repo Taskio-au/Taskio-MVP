@@ -1,0 +1,133 @@
+.ad-job-attention {
+  margin: 0 0 32px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ad-job-attention__eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0ea5a5;
+}
+
+.ad-job-attention__helper,
+.ad-job-attention__empty,
+.ad-job-attention__meta,
+.ad-job-attention__secondary {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #4b5563;
+}
+
+.ad-job-attention__empty {
+  padding: 16px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+}
+
+.ad-job-attention__table {
+  display: grid;
+  gap: 8px;
+}
+
+.ad-job-attention__head,
+.ad-job-attention__row {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(8rem, 1.2fr) 5.5rem minmax(10rem, 1.1fr) minmax(8rem, 1fr) minmax(10rem, 1.3fr) minmax(7rem, 0.9fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.ad-job-attention__head {
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.ad-job-attention__row {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.ad-job-attention__priority,
+.ad-job-attention__ref,
+.ad-job-attention__age,
+.ad-job-attention__counts,
+.ad-job-attention__status,
+.ad-job-attention__reason {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #111827;
+}
+
+.ad-job-attention__ref,
+.ad-job-attention__priority {
+  font-weight: 800;
+}
+
+.ad-job-attention__priority--critical { color: #b91c1c; }
+.ad-job-attention__priority--high { color: #c2410c; }
+.ad-job-attention__priority--medium { color: #b45309; }
+.ad-job-attention__priority--low { color: #4b5563; }
+
+.ad-job-attention__secondary,
+.ad-job-attention__meta {
+  margin: 4px 0 0;
+  font-weight: 500;
+}
+
+.ad-job-attention__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ad-job-attention__action {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  text-decoration: underline;
+}
+
+.ad-job-attention__action:focus-visible {
+  outline: 2px solid #14c5c5;
+  outline-offset: 3px;
+}
+
+.ad-job-attention__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.ad-job-attention__skeleton {
+  min-height: 88px;
+  border-radius: 12px;
+  background: #f3f4f6;
+}
+
+@media (max-width: 960px) {
+  .ad-job-attention__head {
+    display: none;
+  }
+
+  .ad-job-attention__row {
+    grid-template-columns: 1fr;
+  }
+}

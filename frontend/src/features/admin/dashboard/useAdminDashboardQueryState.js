@@ -20,7 +20,9 @@ const validStatuses = new Set([
 const validQuick = new Set([
   '',
   'no_offer_6h',
+  'no_quotes_60m',
   'stale_open_24h',
+  'one_quote_3h',
   'disputes_unreviewed',
   'flagged',
   'payment_issues',
@@ -129,16 +131,16 @@ export default function useAdminDashboardQueryState({
     params.set('tab', 'jobs');
     params.delete('q');
     setJobSearchTerm('');
-    if (key === 'no_offer_6h') {
+    if (key === 'no_offer_6h' || key === 'no_quotes_60m') {
       params.set('status', JOB_STATUSES.OPEN);
-      params.set('quick', 'no_offer_6h');
+      params.set('quick', 'no_quotes_60m');
       setJobStatusFilter(JOB_STATUSES.OPEN);
-      setJobQuickFilter('no_offer_6h');
-    } else if (key === 'stale_open_24h') {
+      setJobQuickFilter('no_quotes_60m');
+    } else if (key === 'stale_open_24h' || key === 'one_quote_3h') {
       params.set('status', JOB_STATUSES.OPEN);
-      params.set('quick', 'stale_open_24h');
+      params.set('quick', 'one_quote_3h');
       setJobStatusFilter(JOB_STATUSES.OPEN);
-      setJobQuickFilter('stale_open_24h');
+      setJobQuickFilter('one_quote_3h');
     } else if (key === 'disputes_unreviewed') {
       params.set('status', JOB_STATUSES.DISPUTED);
       params.set('quick', 'disputes_unreviewed');

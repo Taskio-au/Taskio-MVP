@@ -5,17 +5,16 @@ import { auth, db } from '../firebase';
 import AppHeader from './AppHeader';
 import adminApi from '../api/adminApi';
 import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
-import { toMillis } from '../utils/adminOps';
 import { PageLoadingShell } from './ui/AsyncPageStates';
 import {
   PROFILE_REQUEST_STALE_HOURS,
-  STALE_OPEN_HOURS,
   ageHoursFrom,
   getTaskCreatedAtMs,
   isDisputeUnreviewed,
   isOpenTask,
-  isStaleOpen,
   needsAttentionNoOffer,
+  needsAttentionOneQuote,
+  toMillis,
 } from '../utils/adminOps';
 
 function todayKey() {
@@ -101,9 +100,7 @@ export default function AdminDailyChecklist() {
         const reqRes = await adminApi.get('/api/admin/profile-change-requests?status=pending&limit=200');
         setPendingProfileReqs(Array.isArray(reqRes?.data?.items) ? reqRes.data.items : []);
 
-        // Support tickets (Firestore)
-        // Support tickets (Firestore)
-        // Avoid composite index requirements by NOT ordering server-side.
+        // Support tickets (Firestore). Avoid composite indexes by sorting in memory.
         // We'll sort in-memory using updatedAt (best-effort).
         const qTickets = query(
           collection(db, 'supportTickets'),
@@ -135,21 +132,14 @@ export default function AdminDailyChecklist() {
   const derived = useMemo(() => {
     const nowMs = Date.now();
 
-    // Offers: best-effort. If we don't have an explicit count, treat as unknown and skip from MUST ACT NOW.
-    const hasOfferByJobId = {};
+    const quoteCountByJobId = {};
     for (const j of jobs) {
       const count = (typeof j.offersCount === 'number') ? j.offersCount : (typeof j.quoteCount === 'number' ? j.quoteCount : null);
-      if (count === null) continue;
-      hasOfferByJobId[String(j.id || '')] = count > 0;
+      if (count !== null) quoteCountByJobId[String(j.id || '')] = count;
     }
-
-    const noOffer6h = jobs.filter((j) => {
-      const id = String(j.id || '');
-      if (!(id in hasOfferByJobId)) return false; // unknown -> beta; don't count
-      return needsAttentionNoOffer(j, { hasOffer: !!hasOfferByJobId[id], nowMs });
-    });
-
-    const staleOpen24h = jobs.filter((j) => isStaleOpen(j, { nowMs }));
+    const knownQuotes = (job) => quoteCountByJobId[String(job.id || '')];
+    const noOffer6h = jobs.filter((j) => knownQuotes(j) != null && needsAttentionNoOffer(j, knownQuotes(j) > 0, nowMs));
+    const staleOpen24h = jobs.filter((j) => knownQuotes(j) != null && needsAttentionOneQuote(j, knownQuotes(j), nowMs));
 
     const disputesUnreviewed = jobs.filter((j) => isDisputeUnreviewed(j));
 
@@ -260,9 +250,9 @@ export default function AdminDailyChecklist() {
       key: 'no_offer_6h',
       section: 'must',
       tone: derived.noOffer6h.length > 0 ? 'danger' : 'ok',
-      title: 'Tasks with 0 offers (after 6h)',
+      title: 'Tasks with 0 quotes (after 60m)',
       meta: `${fmtCount(derived.noOffer6h.length)} tasks`,
-      to: '/admin/dashboard?tab=jobs&status=open&quick=no_offer_6h',
+      to: '/admin/dashboard?tab=jobs&status=open&quick=no_quotes_60m',
       cta: 'Review tasks',
     }));
 
@@ -270,9 +260,9 @@ export default function AdminDailyChecklist() {
       key: 'stale_open_24h',
       section: 'must',
       tone: derived.staleOpen24h.length > 0 ? 'warn' : 'ok',
-      title: `Tasks open > ${STALE_OPEN_HOURS}h`,
+      title: 'Tasks with 1 quote (after 3h)',
       meta: `${fmtCount(derived.staleOpen24h.length)} tasks`,
-      to: '/admin/dashboard?tab=jobs&status=open&quick=stale_open_24h',
+      to: '/admin/dashboard?tab=jobs&status=open&quick=one_quote_3h',
       cta: 'Review tasks',
     }));
 

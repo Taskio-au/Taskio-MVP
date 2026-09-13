@@ -1,5 +1,5 @@
 import React from 'react';
-import { ATTENTION_NO_OFFER_HOURS, PROFILE_REQUEST_STALE_HOURS, STALE_OPEN_HOURS } from '../../../utils/adminOps';
+import { ATTENTION_ONE_QUOTE_HOURS, ATTENTION_ZERO_QUOTES_MINUTES, PROFILE_REQUEST_STALE_HOURS } from '../../../utils/adminOps';
 
 /**
  * Today's Attention strip - clickable cards for operational triage.
@@ -8,19 +8,28 @@ import { ATTENTION_NO_OFFER_HOURS, PROFILE_REQUEST_STALE_HOURS, STALE_OPEN_HOURS
 export default function AttentionStrip({
   attention,
   opsSummary,
+  jobAttention,
+  jobAttentionLoadState,
   onGoAttention,
   onGoStaleProfileRequests,
   styles,
 }) {
+  const quoteCountsLoading = jobAttentionLoadState === 'loading' || attention.loading;
+  const zeroQuotes = jobAttentionLoadState === 'error' || !jobAttention
+    ? '—'
+    : (jobAttention.summary?.zeroQuotes60m ?? 0);
+  const oneQuote = jobAttentionLoadState === 'error' || !jobAttention
+    ? '—'
+    : (jobAttention.summary?.oneQuote3h ?? 0);
   return (
     <div style={styles.attentionStrip}>
-      <button type="button" onClick={() => onGoAttention('no_offer_6h')} style={styles.attentionCard}>
-        <div style={styles.attentionValue}>{attention.loading ? '—' : attention.noOffer6h}</div>
-        <div style={styles.attentionLabel}>Tasks with 0 offers (after {ATTENTION_NO_OFFER_HOURS}h)</div>
+      <button type="button" onClick={() => onGoAttention('no_quotes_60m')} style={styles.attentionCard}>
+        <div style={styles.attentionValue}>{quoteCountsLoading ? '—' : zeroQuotes}</div>
+        <div style={styles.attentionLabel}>0 quotes after {ATTENTION_ZERO_QUOTES_MINUTES}m</div>
       </button>
-      <button type="button" onClick={() => onGoAttention('stale_open_24h')} style={styles.attentionCard}>
-        <div style={styles.attentionValue}>{attention.loading ? '—' : attention.staleOpen24h}</div>
-        <div style={styles.attentionLabel}>Tasks open &gt; {STALE_OPEN_HOURS}h</div>
+      <button type="button" onClick={() => onGoAttention('one_quote_3h')} style={styles.attentionCard}>
+        <div style={styles.attentionValue}>{quoteCountsLoading ? '—' : oneQuote}</div>
+        <div style={styles.attentionLabel}>1 quote after {ATTENTION_ONE_QUOTE_HOURS}h</div>
       </button>
       <button type="button" onClick={() => onGoAttention('disputes_unreviewed')} style={styles.attentionCard}>
         <div style={styles.attentionValue}>{attention.loading ? '—' : attention.disputesUnreviewed}</div>

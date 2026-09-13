@@ -2,8 +2,8 @@ import {
   getTaskCreatedAtMs,
   isDisputeUnreviewed,
   isOpenTask,
-  isStaleOpen,
   needsAttentionNoOffer,
+  needsAttentionOneQuote,
 } from '../../../utils/adminOps';
 
 /**
@@ -14,9 +14,10 @@ export function jobAttentionScore(job, quoteMeta, nowMs = Date.now()) {
   const known = new Set(Array.isArray(quoteMeta?.knownJobIds) ? quoteMeta.knownJobIds : []);
   const id = String(job?.id || '');
   const hasOffer = known.has(id) ? (hasAny[id] === true) : true;
+  const quoteCount = quoteMeta?.countByJobId?.[id];
   if (isDisputeUnreviewed(job)) return 4000;
   if (needsAttentionNoOffer(job, hasOffer, nowMs)) return 3000;
-  if (isStaleOpen(job, nowMs)) return 2000;
+  if (needsAttentionOneQuote(job, quoteCount, nowMs)) return 2000;
   if (job?.requiresAdminAttention === true) return 1500;
   return 0;
 }

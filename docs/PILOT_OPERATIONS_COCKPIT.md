@@ -1,6 +1,6 @@
 # Pilot Operations Cockpit — audit and design
 
-**Status:** DESIGN plus **Admin Slice 1 data foundation** and **Admin Slice 2 visual cockpit** (13 September 2026, local). Persisted Pilot Settings / posting activation are **not** implemented.
+**Status:** DESIGN plus **Admin Slices 1–3** (data foundation, visual cockpit, Job Attention Queue; 13 September 2026, local). Persisted Pilot Settings / posting activation are **not** implemented.
 
 **Date:** 13 September 2026  
 **Companion operating rules:** `docs/P06_OWNER_DECISIONS.md` §5–§5B  
@@ -28,12 +28,19 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 - Truncation / scan-incomplete fail-safe (`DATA INCOMPLETE`); API error (`DATA UNAVAILABLE`)
 - Homeowner posting shown **CLOSED** with no activation control
 
+**IMPLEMENTED (Slice 3 — Job Attention Queue, local)**
+
+- `GET /api/admin/job-attention` (admin-only, bounded job scan, batched quote counts, one Expert supply load)
+- Display queue under Immediate Attention with priority, reason, age, coverage, and safe job-detail actions
+- Pilot quote-liquidity triggers: **0 quotes >60m (HIGH)** and **exactly 1 quote >3h (MEDIUM)** — internal ops, not customer SLAs
+- 6h / 24h quote-liquidity rules superseded (legacy query keys still alias the new filters)
+- Job-specific `suitableLaunchReadyCount` when `primaryCategory` + `locationSuburb` are canonical; otherwise shown as unavailable (no false “no supply” alert)
+
 **NOT YET IMPLEMENTED**
 
 - Persisted Pilot Status / Pilot OPEN/CLOSED/PAUSED control
 - Waitlist
 - Homeowner open posting
-- Job attention queue upgrade (60m / 3h)
 - Liquidity / marketplace funnel
 - Responsiveness analytics
 
@@ -171,7 +178,7 @@ Inspected routes in `frontend/src/App.js` and `frontend/src/features/admin/**`.
 - Job queue with status filters, workflow owner/SLA, bulk unassign
 - Invite Experts + nudge + remove; expertise filter
 - Verify / enable-disable / user ops modals; countdown confirms on refund/release (`AdminActionsSection`)
-- Attention strip: 0 offers after **6h**, open >**24h**, disputes, failed payments, stale profile requests
+- Attention strip: 0 quotes after **60m**, exactly 1 quote after **3h**, disputes, failed payments, stale profile requests. Legacy `no_offer_6h` / `stale_open_24h` query keys alias the new filters. 24h remains a **dispute** stale card only, not a quote-liquidity trigger.
 - Expert “Ready now” filter and readiness chips
 - Support tickets + profile-change queue
 - Loading/error on dashboard fetch
@@ -179,7 +186,7 @@ Inspected routes in `frontend/src/App.js` and `frontend/src/features/admin/**`.
 **Currently usable but weak**
 
 - Overview is generic marketplace counts, not **can we open posting?**
-- Attention windows (**6h / 24h**) are slower than pilot liquidity targets (**60 min / 3 h**)
+- Quote-liquidity attention now uses the pilot **60m / 3h** triggers; do not reintroduce a 6h / 24h quoting card
 - Users loaded with `limit=50` + cursor — **launch-ready 13/15 can be wrong** if not all Experts are fetched
 - `getReadiness` treats **undefined** phone/profile/location as OK (lenient). Server eligibility is stricter
 - No category-coverage matrix; expertise filter is per-key not per operating category
@@ -335,7 +342,7 @@ One-zone activation: enough launch-ready Experts have **at least one** enabled a
 
 Highest-priority operational list. Do **not** auto-resolve.
 
-**Flags (proposed)**
+**Flags (Slice 3 — implemented locally)**
 
 | Reason | Data | Feasibility |
 |---|---|---|
@@ -494,14 +501,16 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Done in Slice 2 (local):** visual supply-readiness cockpit on the Admin dashboard. Display-only **supply** status (`SUPPLY NOT READY` / `SUPPLY READY` / `DATA INCOMPLETE` / `DATA UNAVAILABLE`). This is **not** the future Pilot Status engine (`NOT READY` / `READY TO OPEN` / `OPEN` / `WATCH` / `PAUSED`), which must consider the full activation gate. No persisted posting control. Geography display heuristic: an area is COVERED when ≥1 launch-ready Expert lists it — not 4–5 per suburb, and not a category × area proof.
 
-**Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY from that incomplete Expert set.
+**Done in Slice 3 (local):** Job Attention Queue. Bounded `GET /api/admin/job-attention`. Quote-liquidity triggers **0 quotes >60m** and **1 quote >3h** replace the old 6h / 24h quoting cards. Incomplete scans must not show “all clear”. Funding-stalled is **not** alerted unless an explicit `fundedAt` / `completedAt` timestamp exists.
+
+**Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). The attention endpoint pages jobs (page size 100, cap 250) and reuses one Expert supply load. `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY, and the attention queue must **not** imply it is exhaustive.
 
 **Job-specific supply:** category and geography totals are indicators only. They do not prove every category × service-area combination is covered. Later matching / attention should count launch-ready Experts for the job’s actual category + service area. No category-by-suburb matrix and no GIS in this slice.
 
-**Still later (not Slice 2):**
+**Still later (not Slice 3):**
 
 1. Future **Pilot Status engine** (`NOT READY` / `READY TO OPEN` / `OPEN` / `WATCH` / `PAUSED`) plus persisted homeowner posting OPEN/CLOSED/PAUSED control + confirmation + audit. That engine must include supply **and** legal/privacy, production/security/operations, production acceptance, and explicit owner activation — not Expert supply alone.
-2. Job Attention Queue with 60m / 3h / invite flags.
+2. Marketplace funnel / liquidity % and Expert response analytics.
 3. Liquidity + funnel on bounded data.
 4. Waitlist product UX after P06/P09 allow public copy.
 5. Expert response analytics.

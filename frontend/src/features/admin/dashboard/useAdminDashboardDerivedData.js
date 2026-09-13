@@ -7,8 +7,8 @@ import {
   hasAdminPaymentIssue,
   isDisputeStale24h,
   isDisputeUnreviewed,
-  isStaleOpen,
   needsAttentionNoOffer,
+  needsAttentionOneQuote,
 } from '../../../utils/adminOps';
 import { compareJobsForQueueSort } from '../utils/adminJobQueueSort';
 import { fullTaskDisplayTitle } from '../../../utils/jobDisplayFromJob';
@@ -47,14 +47,18 @@ export default function useAdminDashboardDerivedData({
       const nowMs = Date.now();
       const hasAny = quoteMeta?.hasAnyByJobId || {};
       const known = new Set(Array.isArray(quoteMeta?.knownJobIds) ? quoteMeta.knownJobIds : []);
-      if (jobQuickFilter === 'no_offer_6h') {
+      if (jobQuickFilter === 'no_offer_6h' || jobQuickFilter === 'no_quotes_60m') {
         result = result.filter((job) => {
           const id = String(job?.id || '');
           const hasOffer = known.has(id) ? (hasAny[id] === true) : true;
           return needsAttentionNoOffer(job, hasOffer, nowMs);
         });
-      } else if (jobQuickFilter === 'stale_open_24h') {
-        result = result.filter((job) => isStaleOpen(job, nowMs));
+      } else if (jobQuickFilter === 'stale_open_24h' || jobQuickFilter === 'one_quote_3h') {
+        result = result.filter((job) => {
+          const id = String(job?.id || '');
+          const quoteCount = quoteMeta?.countByJobId?.[id];
+          return needsAttentionOneQuote(job, quoteCount, nowMs);
+        });
       } else if (jobQuickFilter === 'disputes_unreviewed') {
         result = result.filter((job) => isDisputeUnreviewed(job));
       } else if (jobQuickFilter === 'flagged') {

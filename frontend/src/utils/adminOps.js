@@ -3,7 +3,11 @@
 
 import { JOB_STATUSES, normalizeStatus } from '../constants/jobStatuses';
 
-export const ATTENTION_NO_OFFER_HOURS = 6;
+/** Superseded 6h quote-liquidity rule. Pilot trigger is 60 minutes. */
+export const ATTENTION_ZERO_QUOTES_MINUTES = 60;
+export const ATTENTION_NO_OFFER_HOURS = 1;
+/** Superseded 24h “open too long” quote-liquidity rule. Pilot trigger is 1 quote after 3h. */
+export const ATTENTION_ONE_QUOTE_HOURS = 3;
 export const STALE_OPEN_HOURS = 24;
 export const PROFILE_REQUEST_STALE_HOURS = 48;
 export const NUDGE_COOLDOWN_HOURS = 4;
@@ -70,24 +74,44 @@ export function getTaskCompletedAtMs(job) {
   );
 }
 
+export function isQuotingTask(job) {
+  const status = normalizeStatus(job?.status);
+  return status === JOB_STATUSES.OPEN || status === JOB_STATUSES.QUOTED;
+}
+
 export function needsAttentionNoOffer(job, hasAnyOffer, nowMs = Date.now()) {
-  if (!isOpenTask(job)) return false;
+  if (!isQuotingTask(job)) return false;
   if (hasAnyOffer === true) return false;
   return isOlderThanHours(job?.createdAt, ATTENTION_NO_OFFER_HOURS, nowMs);
 }
 
-export function isStaleOpen(job, nowMs = Date.now()) {
-  if (!isOpenTask(job)) return false;
-  return isOlderThanHours(job?.createdAt, STALE_OPEN_HOURS, nowMs);
+export function needsAttentionOneQuote(job, quoteCount, nowMs = Date.now()) {
+  if (!isQuotingTask(job)) return false;
+  if (Number(quoteCount) !== 1) return false;
+  return isOlderThanHours(job?.createdAt, ATTENTION_ONE_QUOTE_HOURS, nowMs);
 }
 
-export function healthLabelForTask({ job, hasOffer, nowMs = Date.now() }) {
+/** @deprecated 24h open-age is no longer a quote-liquidity trigger. Prefer needsAttentionOneQuote. */
+export function isStaleOpen(job, nowMs = Date.now()) {
+  if (!isQuotingTask(job)) return false;
+  return isOlderThanHours(job?.createdAt, ATTENTION_ONE_QUOTE_HOURS, nowMs);
+}
+
+export function healthLabelForTask({ job, hasOffer, quoteCount, nowMs = Date.now() }) {
   const ageH = ageHoursFrom(job?.createdAt, nowMs);
   const status = normalizeStatus(job?.status);
   if (isDisputeUnreviewed(job)) return { key: 'dispute', label: 'Flagged', tone: 'danger' };
   if ((job?.flaggedChatCount || 0) > 0 || job?.disputeFlag === true) return { key: 'flagged', label: 'Flagged', tone: 'danger' };
-  if (hasOffer === false && ageH >= ATTENTION_NO_OFFER_HOURS) return { key: 'needs_attention', label: 'Needs attention', tone: 'warning' };
-  if (status === JOB_STATUSES.OPEN && ageH >= STALE_OPEN_HOURS) return { key: 'waiting_too_long', label: 'Waiting too long', tone: 'info' };
+  const quotes = Number.isFinite(Number(quoteCount)) ? Number(quoteCount) : (hasOffer === true ? null : 0);
+  if ((quotes === 0 || (quotes == null && hasOffer === false)) && ageH >= ATTENTION_NO_OFFER_HOURS) {
+    return { key: 'needs_attention', label: 'Needs attention', tone: 'warning' };
+  }
+  if (quotes === 1 && ageH >= ATTENTION_ONE_QUOTE_HOURS) {
+    return { key: 'waiting_too_long', label: 'Waiting too long', tone: 'info' };
+  }
+  if (quotes == null && hasOffer === true && status === JOB_STATUSES.OPEN && ageH >= ATTENTION_ONE_QUOTE_HOURS) {
+    return { key: 'healthy', label: 'Healthy', tone: 'success' };
+  }
   return { key: 'healthy', label: 'Healthy', tone: 'success' };
 }
 
@@ -99,6 +123,21 @@ export function formatAgeShort(msOrTs, nowMs = Date.now()) {
   if (h < 24) return `${h}h`;
   const d = Math.floor(h / 24);
   return `${d}d`;
+}
+
+/** Pilot queue age: 42m, 1h 18m, 4h, 2d. */
+export function formatAgePrecise(msOrTs, nowMs = Date.now()) {
+  const ms = typeof msOrTs === 'number' ? msOrTs : toMillis(msOrTs);
+  if (!ms) return '—';
+  const diff = Math.max(0, nowMs - ms);
+  const totalMin = Math.floor(diff / (1000 * 60));
+  if (totalMin < 60) return `${totalMin}m`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h < 24) return m ? `${h}h ${m}m` : `${h}h`;
+  const d = Math.floor(h / 24);
+  const rh = h % 24;
+  return rh ? `${d}d ${rh}h` : `${d}d`;
 }
 
 /** Payment UX badge for admin task lists (financial source: job.paymentState + status). */

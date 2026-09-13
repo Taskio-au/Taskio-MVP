@@ -1,6 +1,7 @@
 import {
   ATTENTION_NO_OFFER_HOURS,
-  STALE_OPEN_HOURS,
+  ATTENTION_ONE_QUOTE_HOURS,
+  formatAgePrecise,
   formatAgeShort,
   getTaskCompletedAtMs,
   healthLabelForTask,
@@ -8,6 +9,7 @@ import {
   isDisputedTask,
   isStaleOpen,
   needsAttentionNoOffer,
+  needsAttentionOneQuote,
   toMillis,
 } from './adminOps';
 
@@ -53,8 +55,16 @@ describe('adminOps: age thresholds for attention', () => {
     expect(needsAttentionNoOffer({ status: 'open', createdAt }, true, nowMs)).toBe(false);
   });
 
-  it('flags stale open tasks after stale threshold', () => {
-    const createdAt = nowMs - (STALE_OPEN_HOURS + 2) * 60 * 60 * 1000;
+  it('flags exactly one quote after 3 hours and not before', () => {
+    const early = nowMs - (2 * 60 * 60 * 1000);
+    const late = nowMs - (ATTENTION_ONE_QUOTE_HOURS + 1) * 60 * 60 * 1000;
+    expect(needsAttentionOneQuote({ status: 'open', createdAt: early }, 1, nowMs)).toBe(false);
+    expect(needsAttentionOneQuote({ status: 'open', createdAt: late }, 1, nowMs)).toBe(true);
+    expect(needsAttentionOneQuote({ status: 'open', createdAt: late }, 2, nowMs)).toBe(false);
+  });
+
+  it('keeps isStaleOpen as the 3h quoting-age helper, not a 24h liquidity rule', () => {
+    const createdAt = nowMs - (ATTENTION_ONE_QUOTE_HOURS + 1) * 60 * 60 * 1000;
     expect(isStaleOpen({ status: 'open', createdAt }, nowMs)).toBe(true);
     expect(isStaleOpen({ status: 'assigned', createdAt }, nowMs)).toBe(false);
   });
@@ -82,7 +92,7 @@ describe('adminOps: completion timestamp fallback order', () => {
 
 describe('adminOps: health label priority', () => {
   const nowMs = Date.UTC(2026, 0, 10, 12, 0, 0);
-  const oldOpenCreatedAt = nowMs - (STALE_OPEN_HOURS + 2) * 60 * 60 * 1000;
+  const oldOpenCreatedAt = nowMs - (ATTENTION_ONE_QUOTE_HOURS + 2) * 60 * 60 * 1000;
 
   it('prioritizes dispute/unreviewed over all other states', () => {
     const label = healthLabelForTask({
@@ -103,13 +113,20 @@ describe('adminOps: health label priority', () => {
     expect(label).toEqual({ key: 'needs_attention', label: 'Needs attention', tone: 'warning' });
   });
 
-  it('returns waiting_too_long for stale open tasks with offers', () => {
+  it('returns waiting_too_long only for a single quote after 3 hours', () => {
     const label = healthLabelForTask({
       job: { status: 'open', createdAt: oldOpenCreatedAt },
       hasOffer: true,
+      quoteCount: 1,
       nowMs,
     });
     expect(label).toEqual({ key: 'waiting_too_long', label: 'Waiting too long', tone: 'info' });
+    expect(healthLabelForTask({
+      job: { status: 'open', createdAt: oldOpenCreatedAt },
+      hasOffer: true,
+      quoteCount: 2,
+      nowMs,
+    })).toEqual({ key: 'healthy', label: 'Healthy', tone: 'success' });
   });
 
   it('returns healthy for non-problematic tasks', () => {
@@ -138,5 +155,12 @@ describe('adminOps: age formatting', () => {
   it('formats days for values at least 24h old', () => {
     const threeDaysAgo = nowMs - (72 * 60 * 60 * 1000);
     expect(formatAgeShort(threeDaysAgo, nowMs)).toBe('3d');
+  });
+
+  it('formats precise pilot ages with minutes', () => {
+    expect(formatAgePrecise(nowMs - (42 * 60 * 1000), nowMs)).toBe('42m');
+    expect(formatAgePrecise(nowMs - (78 * 60 * 1000), nowMs)).toBe('1h 18m');
+    expect(formatAgePrecise(nowMs - (4 * 60 * 60 * 1000), nowMs)).toBe('4h');
+    expect(formatAgePrecise(nowMs - (48 * 60 * 60 * 1000), nowMs)).toBe('2d');
   });
 });

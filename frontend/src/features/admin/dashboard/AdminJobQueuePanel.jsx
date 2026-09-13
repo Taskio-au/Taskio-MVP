@@ -207,17 +207,17 @@ function AdminJobQueuePanel({
         <button
           type="button"
           onClick={onApplyQuickNeedsAttention}
-          style={jobQuickFilter === 'no_offer_6h' ? styles.quickFilterActive : styles.quickFilter}
+          style={(jobQuickFilter === 'no_quotes_60m' || jobQuickFilter === 'no_offer_6h') ? styles.quickFilterActive : styles.quickFilter}
         >
-          Needs attention
+          0 quotes &gt;60m
         </button>
         {isFull ? (
           <button
             type="button"
             onClick={onApplyQuickWaitingTooLong}
-            style={jobQuickFilter === 'stale_open_24h' ? styles.quickFilterActive : styles.quickFilter}
+            style={(jobQuickFilter === 'one_quote_3h' || jobQuickFilter === 'stale_open_24h') ? styles.quickFilterActive : styles.quickFilter}
           >
-            Waiting too long
+            1 quote &gt;3h
           </button>
         ) : null}
         <button
@@ -343,7 +343,8 @@ function AdminJobQueuePanel({
                   const createdMs = getTaskCreatedAtMs(job);
                   const ageH = createdMs ? (nowMs - createdMs) / (1000 * 60 * 60) : 0;
                   const hasOffer = known.has(String(job.id)) ? (hasAny[String(job.id)] === true) : true;
-                  const health = healthLabelForTask({ job, hasOffer, nowMs });
+                  const quoteCount = quoteMeta?.countByJobId?.[String(job.id)];
+                  const health = healthLabelForTask({ job, hasOffer, quoteCount, nowMs });
                   const invites = Array.isArray(job.invitedTradieUids) ? job.invitedTradieUids.length : 0;
                   const offers = typeof job.offersCount === 'number'
                     ? job.offersCount
