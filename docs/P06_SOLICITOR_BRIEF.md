@@ -6,11 +6,11 @@
 
 **Companion:** `docs/P06_OWNER_DECISIONS.md` (owner facts, working positions, solicitor question register).
 
-**Last documentation update:** 12 September 2026 (lean controlled-pilot alignment). Companion pack: `docs/P06_OWNER_DECISIONS.md`. Production Firebase `taskio-v2` is frozen. Do not treat staging proofs as live-user operation.
+**Last documentation update:** 13 September 2026 (Controlled Open-Demand Pilot + posting activation gate). Companion pack: `docs/P06_OWNER_DECISIONS.md`. Admin design (not implemented): `docs/PILOT_OPERATIONS_COCKPIT.md`. Production Firebase `taskio-v2` is frozen. Do not treat staging proofs as live-user operation.
 
 The owner wants **focused advice for two stages**, deliberately avoiding unnecessary pre-revenue corporate/insurance cost while still managing real legal/risk exposure. This is **not** a request to ignore liability, privacy, ACL, insurance, or safety.
 
-**STAGE 1 — CONTROLLED PILOT:** Can Taskio reasonably conduct the tightly controlled invite-only pilot under the current sole-trader structure, and what **minimum** legal/insurance controls should be in place?
+**STAGE 1 — CONTROLLED PILOT:** Can Taskio reasonably conduct the **Controlled Open-Demand Pilot** (homeowner posting **CLOSED** until a supply gate and explicit owner activation; Experts recruited/manually selected; no open Expert signup) under the current sole-trader structure, and what **minimum** legal/insurance controls should be in place?
 
 **STAGE 2 — BROADER SCALE:** At what point should Taskio transition to a Pty Ltd / company structure, and what legal/insurance changes should accompany broader public operation?
 
@@ -49,7 +49,10 @@ Live draft pages (staging; production Hosting is maintenance-only):
 ## B. Melbourne launch scope
 
 - Intended first cohort: Inner Melbourne, frozen **8 suburbs**, Phase 1 catalog only.
-- **CONTROLLED PILOT** (owner definition): invite-only; no public Expert signup; ~**5–10** manually selected/verified founding Experts; ~**10–20** invited homeowners; every initial job monitored; high-touch support; signup/onboarding can be paused immediately; modest-value household jobs; no licensed electrical/plumbing; no categories Taskio is not prepared to verify/manage.
+- **CONTROLLED PILOT** (owner definition): Inner Melbourne; Phase 1 only; Experts recruited/applied and manually selected (no open Expert signup); every initial job monitored; high-touch support; modest-value household jobs; no licensed electrical/plumbing.
+- **CONTROLLED OPEN-DEMAND does not open posting immediately.** Before the supply gate: landing **may** be public; Expert recruitment **may** run; homeowners **may** waitlist / register interest; **real homeowner task posting stays CLOSED or capacity-gated**. Do not buy homeowner traffic into an under-supplied marketplace.
+- **Posting activation gate (all required):** ~**15 active launch-ready Experts**; ideally **4–5 launch-ready Experts per enabled Phase 1 category**; adequate approved-geography coverage; other real-user launch gates satisfied; **owner/admin explicitly activates** posting. The number 15 alone is not enough if coverage is weak.
+- **After activation:** homeowners may use the public supported posting flow without a manual invitation, still limited by geography, categories, capacity, auth, and approved legal terms. **After-activation floor:** ~**12** launch-ready Experts — if supply or category coverage falls below target, admin flags **WATCH / PAUSE** (pause acquisition, waitlist, narrow categories/geography, recruit).
 - Home-based in **Victoria**. Public street address should not be unnecessarily published. **Exact public/service address requirements are for your advice.** Residential street address is **not** in this repo and must not go into public legal text without an explicit legal requirement and owner approval.
 - Contacts: privacy **admin@taskio.com.au** (formal privacy contact: **yes**); support **support@taskio.com.au**.
 - Controlled launch (tracker P11) is **blocked** until legal/privacy review (P06) and other launch gates pass.
@@ -62,7 +65,7 @@ Live draft pages (staging; production Hosting is maintenance-only):
 - Public signup is **closed** (`TASKIO_PUBLIC_SIGNUP_ENABLED=false`; Auth signup disabled on staging).
 - Founding Experts are **invited**.
 - Guest post-job OTP architecture exists behind a flag and is **not** the current public path.
-- Landing promotes invite-only / log in to post.
+- Current staging landing still promotes invite-only / log in to post. Intended model is **Controlled Open-Demand** (posting closed until gate + explicit activation) — not implemented in product yet.
 
 ---
 

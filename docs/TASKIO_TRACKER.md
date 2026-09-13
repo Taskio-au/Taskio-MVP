@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-13 Controlled Open-Demand Pilot + Admin cockpit design (GREEN docs only):** Internal model **Controlled Open-Demand Pilot**. Posting **CLOSED** until ~15 launch-ready + category/geo coverage + other real-user gates + **explicit** owner activation (15 does **not** auto-open). Targets: recruit 18–20; launch-ready ~15; floor ~12; 4–5 per enabled category; up to ~5 invites / 2–3 quotes; liquidity monitors (not SLAs). Admin = Pilot Operations Cockpit — audit/design in `docs/PILOT_OPERATIONS_COCKPIT.md` (**not implemented**). Pilot states NOT READY / READY TO OPEN / OPEN / WATCH / PAUSED. P06 **OPEN**. P09 blocked. No Admin/backend/schema/posting code. Production untouched.
+
 **2026-09-12 P06 lean controlled-pilot alignment (GREEN docs only):** Owner facts remain **COMPLETE**. Structure: **lean sole-trader controlled pilot** is the owner working plan — **not** an automatic Pty Ltd launch blocker; **LEGAL STRUCTURE REVIEW** still required before real users (AU solicitor confirmation). **COMPANY CONVERSION** deferred unless advised before pilot; must be reconsidered before broader scaling. **INSURANCE:** minimum sensible **pilot** cover to be reviewed with broker/solicitor before real users; broad/expensive cover is not an automatic blocker. Expert insurance = collect status / evidence if claimed; mandatory-for-all is owner+solicitor+broker. P06 **OVERALL OPEN** — **not PASS**. No Terms/Privacy rewrite. No P09. Production untouched.
 
 **2026-09-09 P06 owner facts + sole-trader pilot (GREEN docs only):** Owner facts **COMPLETE**. Structure decision then recorded as controlled sole-trader pilot (not a company). AU solicitor / insurance / accounting **PENDING**. P06 **OPEN**. Identity in `docs/P06_OWNER_DECISIONS.md` / `docs/P06_SOLICITOR_BRIEF.md`. Lean alignment 2026-09-12 supersedes “require Expert PL evidence for all” and arbitrary 30–50-job / 8–12-week conversion gates.
@@ -64,7 +66,7 @@
 | P08 | Production operations | **NOT STARTED.** Monitoring, alerting, incident/rollback runbooks, backup/recovery, support ops, launch-control tooling, daily/weekly checklist. See `docs/LAUNCH_READINESS.md`. |
 | P09 | Legal and trust implementation | **NOT STARTED.** Blocked on **P06 PASS**. Implements approved policies in production-facing UI/operations. Does **not** replace P06. See `docs/LAUNCH_READINESS.md`. |
 | P10 | Production acceptance | **NOT STARTED.** End-to-end production money loop, refund, failure paths, integrations, device/browser, accessibility, performance, smoke checklist. RED. Do not run while only editing the tracker. See `docs/LAUNCH_READINESS.md`. |
-| P11 | Controlled launch | **BLOCKED** until **TASKIO FULL LAUNCH READY**. Inner Melbourne first cohort (~5–10 Experts, ~10–20 invited homeowners). See `docs/LAUNCH_READINESS.md`. |
+| P11 | Controlled launch | **BLOCKED** until **TASKIO FULL LAUNCH READY**. Inner Melbourne. Homeowner **posting stays closed** until the supply gate (~15 launch-ready Experts + category/geo coverage + other real-user gates + explicit owner activation). After-activation floor ~12 → WATCH/PAUSE. See `docs/LAUNCH_READINESS.md` and `docs/P06_OWNER_DECISIONS.md` §5A–§5B. |
 
 **TASKIO FULL LAUNCH READY** = P01 PASS + P02 PASS + P03 production PASS + P04 production PASS + P05 production PASS + P06 PASS + P07 PASS + P08 PASS + P09 PASS + P10 PASS. **P11** is then the controlled-launch execution gate. It cannot start before that definition is true.
 
@@ -391,7 +393,7 @@ Platform payment ≠ Connect transfer ≠ connected balance ≠ bank payout. P01
 | P08 | Production operations | **NOT STARTED.** See `docs/LAUNCH_READINESS.md`. |
 | P09 | Implement approved P06 legal/trust outcomes | **NOT STARTED.** Depends on P06. Does not replace P06. See `docs/LAUNCH_READINESS.md`. |
 | P10 | Production acceptance of money loop and critical failures | **NOT STARTED.** RED. See `docs/LAUNCH_READINESS.md`. |
-| P11 | Controlled Inner Melbourne launch | **BLOCKED** until FULL LAUNCH READY. See `docs/LAUNCH_READINESS.md`. |
+| P11 | Controlled Inner Melbourne launch | **BLOCKED** until FULL LAUNCH READY. Posting stays closed until the §5A supply gate; after-activation floor ~12 → WATCH/PAUSE. See `docs/LAUNCH_READINESS.md`. |
 
 **3. Nice-to-have / post-core**
 

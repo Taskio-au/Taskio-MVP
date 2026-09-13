@@ -1,6 +1,8 @@
 # P06 owner decision pack
 
-**Status (this document):** PREPARED — owner facts recorded 9 September 2026; **lean controlled-pilot alignment 12 September 2026**. Not solicitor-approved, not legal advice, not P06 PASS.
+**Status (this document):** PREPARED — owner facts recorded 9 September 2026; lean alignment 12 September 2026; **Controlled Open-Demand Pilot + posting gate 13 September 2026**. Not solicitor-approved, not legal advice, not P06 PASS.
+
+**INTERNAL MODEL NAME:** Controlled Open-Demand Pilot. Admin design: `docs/PILOT_OPERATIONS_COCKPIT.md` (audit/design only; not implemented).
 
 | Classification | State |
 |---|---|
@@ -13,6 +15,7 @@
 | P06 AU SOLICITOR REVIEW | **PENDING** (Stage 1 controlled pilot + Stage 2 broader scale — see solicitor brief) |
 | P06 INSURANCE REVIEW | **PENDING** — minimum sensible **pilot** cover to be reviewed with broker/solicitor before real users. Broad/expensive cover is **not** an automatic launch blocker |
 | P06 ACCOUNTING MARKETPLACE/GST CONFIRMATION | **PENDING** |
+| P06 PILOT MODEL | **CONTROLLED OPEN-DEMAND PILOT** — posting **CLOSED** until activation gate + explicit owner/admin switch. 15 Experts does **not** auto-open posting |
 | P06 REMEDIATION | **NOT STARTED** |
 | P06 OVERALL | **OPEN** |
 
@@ -275,8 +278,8 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 | Field | Content |
 |---|---|
 | Status | **OWNER CONFIRMED WORKING POSITION** + **AU SOLICITOR CONFIRMATION REQUIRED** before real users |
-| Question | May the tightly controlled invite-only pilot proceed under the current sole-trader structure? |
-| Current repo/product position | Draft legal pages do not name an entity. Product is invite-only Inner Melbourne Phase 1. |
+| Question | May the Controlled Open-Demand Pilot (posting closed until supply gate + explicit activation) proceed under the current sole-trader structure? |
+| Current repo/product position | Draft legal pages do not name an entity. **Current product** is still invite-only Inner Melbourne Phase 1. Intended model is Controlled Open-Demand (not implemented). |
 | Recommended working business position | Owner prefers to **validate first** as **Saeed Zafari trading as Taskio** (individual / sole trader; ABN 15 729 254 373; no ACN) to avoid unnecessary pre-revenue company/accounting/compliance cost. **Pty Ltd is not automatically required by this tracker before the controlled pilot.** If the solicitor advises incorporation is required or materially preferable before pilot launch, address it **before P10/P11**. A sole trader does **not** have limited liability. |
 | Owner must supply/choose | **Recorded.** See §5–§6. |
 | Solicitor must confirm | Whether the limited pilot may reasonably proceed as a sole trader given marketplace activity, physical household work, Stripe Connect, refund/dispute exposure, ACL, and property-damage / personal-injury risk; how to disclose identity/ABN; public address without publishing a home street address. |
@@ -296,7 +299,7 @@ Taskio currently operates as:
 - **ABN 15 729 254 373**
 - **No ACN**
 
-The owner prefers to validate the business with a small, controlled, invite-only pilot before incurring unnecessary company/accounting/compliance costs.
+The owner prefers to validate the business with a small **Controlled Open-Demand Pilot** (posting closed until the supply gate) before incurring unnecessary company/accounting/compliance costs.
 
 A Pty Ltd company is therefore **not automatically required by the Taskio tracker before the controlled pilot**.
 
@@ -315,21 +318,106 @@ This limited operating model is part of Taskio's **risk-control strategy** while
 
 ### CONTROLLED PILOT means
 
-- invite-only
 - Inner Melbourne
 - narrow Phase 1 categories
-- no public Expert signup
-- approximately **5–10** manually selected/verified founding Experts
-- approximately **10–20** invited homeowners
+- no public Expert **open** signup (Experts are recruited / applied and manually selected)
 - manual operator oversight
 - every initial job monitored
 - modest-value household jobs
 - no licensed electrical / plumbing work
 - no categories Taskio is not prepared to verify/manage
-- signup/onboarding can be paused immediately
+- signup/onboarding and homeowner **posting** can be paused immediately
 - high-touch support
 
+**CONTROLLED OPEN-DEMAND** (if later used as the demand model) does **not** mean homeowner task posting is open immediately. See §5A–§5B.
+
 Do **not** describe Taskio as **Taskio Pty Ltd** or as **a company** while this position stands.
+
+---
+
+## 5A. Homeowner posting activation gate
+
+**Owner working position (13 September 2026).**
+
+Before the **pilot supply/readiness gate** is satisfied:
+
+- the public Taskio landing site **may** be visible
+- Expert recruitment / application **may** operate
+- homeowners **may** be allowed to join a waitlist / register interest
+- **real homeowner task posting must remain CLOSED or capacity-gated**
+- do **not** send paid homeowner acquisition into an active marketplace that does not yet have adequate Expert supply
+
+### Initial supply gate (all must be true)
+
+Real homeowner task posting may be enabled only when **all** of the following are true:
+
+1. approximately **15 ACTIVE LAUNCH-READY EXPERTS**
+2. **adequate coverage across every Phase 1 category** Taskio intends to enable — ideally at least **4–5 launch-ready Experts** capable of servicing **each enabled category**
+3. **adequate coverage of the approved launch geography**
+4. **all other required Taskio launch-readiness gates** for real users are satisfied
+5. **owner/admin explicitly activates** homeowner acquisition / posting
+
+The raw number **15 is not sufficient by itself** if category or geographic coverage is weak.
+
+“Launch-ready Expert” here means an Expert Taskio is actually prepared to invite to real jobs (manual selection/verification and other eligibility Taskio actually performs — not a claim of licence, insurance, or quality guarantee unless those checks exist).
+
+### Pre-gate user experience
+
+Homeowners should see an appropriate **early-access / waitlist** state rather than being allowed to submit a real task into an under-supplied marketplace.
+
+Experts may continue to be recruited and onboarded.
+
+### Post-gate user experience
+
+Once the gate is satisfied **and** the owner explicitly activates the pilot:
+
+- Homeowners may enter the **public supported** Taskio posting flow **without needing a manual invitation**.
+- They remain subject to supported geography, supported categories, capacity controls, account/auth requirements, and approved legal requirements.
+
+This post-gate posting path is still the **controlled pilot**. It is **not** unrestricted public scale and is **not** by itself a company-conversion trigger.
+
+**Do not implement** waitlist UI, posting unlock, or landing-copy changes in this documentation update. Those belong after approved P06 outcomes, generally under P09 / P11, and only when the owner activates the gate.
+
+---
+
+## 5B. After-activation supply floor
+
+The **12 launch-ready Expert** figure is an **AFTER-ACTIVATION operating floor**, not the activation gate.
+
+If active supply falls below approximately **12**, or category coverage **materially falls below target**:
+
+Admin should flag **WATCH / PAUSE**.
+
+The operator should consider:
+
+- pausing homeowner acquisition
+- activating waitlist mode
+- narrowing categories
+- narrowing geography
+- recruiting replacement Experts
+
+Do **not** allow the marketplace to continue accepting demand blindly when supply is insufficient.
+
+### Operating targets (not SLAs, not public guarantees)
+
+| Item | Working target |
+|---|---|
+| Expert recruitment | **18–20** candidates |
+| Launch-ready (activation) | **~15** |
+| After-activation floor | **~12** |
+| Category coverage | ideally **4–5** launch-ready Experts per **enabled** Phase 1 category |
+| Initial invitations per job | up to **~5** suitable Experts |
+| Desired quotes | **2–3** qualified |
+| First qualified response | ideally **≤ 60 minutes** (normal hours) |
+| Two qualified quotes | ideally **≤ 3 hours** |
+| Jobs with ≥1 quote | target **≥ 90%** |
+| Zero-quote jobs | target **< 10%** |
+
+### Pilot status (operator; never auto-open)
+
+**NOT READY** → **READY TO OPEN** → **OPEN** / **WATCH** / **PAUSED**
+
+The system must **not** autonomously open posting. Criteria and Admin cockpit design: `docs/PILOT_OPERATIONS_COCKPIT.md`.
 
 ---
 
@@ -341,7 +429,7 @@ These are **owner business review triggers**, **not** statutory thresholds, **no
 
 Revisit conversion to a proprietary limited company if **any** of the following occurs, or if a professional so recommends:
 
-- public / open signup
+- unrestricted public / open signup (post-activation **capacity-gated** homeowner posting is still the controlled pilot, not this trigger)
 - material increase in transaction volume
 - higher-value jobs
 - expansion into higher-risk categories
@@ -403,7 +491,7 @@ Matters that require **Australian solicitor confirmation**. Do not treat owner w
 | S24 | NDB / data-breach posture (do not assert NDB duty until applicability is confirmed) |
 | S25 | Automated decision-making transparency (from 10 December 2026) vs admin risk scoring |
 | S26 | AI / provider disclosures (Gemini **OFF** at controlled launch unless later approved) |
-| S27 | **Stage 1:** can the tightly controlled invite-only pilot reasonably proceed as a sole trader, and what minimum legal/insurance controls should be in place? **Stage 2:** when should Taskio transition to a Pty Ltd, and what legal/insurance changes should accompany broader public operation? Public address without publishing a home street address. Do not treat Pty Ltd as automatically required now. |
+| S27 | **Stage 1:** can the Controlled Open-Demand Pilot (posting closed until gate + explicit activation) reasonably proceed as a sole trader, and what minimum legal/insurance controls should be in place? **Stage 2:** when should Taskio transition to a Pty Ltd, and what legal/insurance changes should accompany broader public operation? Public address without publishing a home street address. Do not treat Pty Ltd as automatically required now. |
 
 ---
 

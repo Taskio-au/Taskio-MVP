@@ -13,6 +13,7 @@ Companion records:
 - Production command plan (NOT EXECUTED): `docs/TASKIO_RELEASE_PLAN.md`
 - P06 owner pack (not PASS): `docs/P06_OWNER_DECISIONS.md`
 - P06 solicitor brief (not PASS): `docs/P06_SOLICITOR_BRIEF.md`
+- Controlled Open-Demand Pilot + Admin cockpit design (not implemented): `docs/PILOT_OPERATIONS_COCKPIT.md`
 
 ## Approval model (unchanged)
 
@@ -107,7 +108,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
-| P11 | **BLOCKED** | — |
+| P11 | **BLOCKED** — Controlled Open-Demand Pilot. Posting **CLOSED** until ~15 launch-ready Experts + category/geo coverage + other real-user gates + **explicit** owner activation. Floor ~12 → WATCH/PAUSE. 15 does **not** auto-open. | — |
 
 Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LAUNCH READY**.
 
@@ -240,7 +241,7 @@ Also cover Hosting, API, Functions, and config rollback. See `docs/TASKIO_RELEAS
 **G. Capacity / launch-control tooling**
 
 - Signup/waitlist control, pause onboarding, restrict new work, admin visibility into active jobs/payments.
-- Invite-only remains the default until a separate owner decision.
+- **Controlled Open-Demand Pilot:** homeowner posting stays **CLOSED** until the supply gate and **explicit** owner/admin activation. After activation, posting is public-supported but capacity-gated — not unrestricted public signup. Expert open-signup remains off. See `docs/PILOT_OPERATIONS_COCKPIT.md`.
 
 **H. Daily/weekly operating checklist**
 
@@ -379,17 +380,43 @@ A repeatable checklist for every future release.
 
 ### Scope and tasks
 
-**A. Founding Expert onboarding**
+**A. Founding Expert onboarding / supply build**
 
-About **5–10** suitable verified Experts: manual verification, approved categories, Stripe onboarding, bank payout capability, profile readiness, human welcome.
+Recruit and manually select launch-ready Experts (verification Taskio actually performs, approved categories, Stripe onboarding, bank payout capability, profile readiness, human welcome). Public Expert open-signup remains **off**.
 
-**B. Initial homeowner cohort**
+**B. Homeowner posting activation gate**
 
-About **10–20** controlled/invited homeowners. No open public signup unless separately approved.
+**CONTROLLED OPEN-DEMAND does not mean posting is open immediately.**
 
-**C. Launch controls**
+Before the supply/readiness gate:
 
-Invite-only remains default. Ability to pause signups, waitlist fallback, manual admin control, daily monitoring.
+- landing **may** be visible
+- Expert recruitment **may** operate
+- homeowners **may** waitlist / register interest
+- **real homeowner task posting stays CLOSED or capacity-gated**
+- do **not** send paid homeowner acquisition into an under-supplied marketplace
+
+Enable real homeowner posting only when **all** are true:
+
+1. approximately **15 ACTIVE LAUNCH-READY EXPERTS**
+2. adequate coverage of every Phase 1 category intended to be enabled (ideally **4–5 launch-ready Experts per enabled category**)
+3. adequate coverage of the approved launch geography
+4. all other required real-user launch-readiness gates are satisfied
+5. **owner/admin explicitly activates** homeowner acquisition / posting
+
+The raw number 15 is **not** sufficient if category or geographic coverage is weak. **15 does not auto-open posting.**
+
+Operating targets (not customer SLAs): recruit **18–20** candidates; launch-ready **~15**; after-activation floor **~12**; ideally **4–5** launch-ready Experts per enabled Phase 1 category; invite up to **~5** suitable Experts per job aiming for **2–3** qualified quotes; first qualified response ideally **≤ 60 minutes**; two quotes ideally **≤ 3 hours**; ≥1 quote on **≥ 90%** of supported jobs; zero-quote **< 10%**.
+
+After explicit activation, homeowners may use the public supported posting flow **without a manual invitation**, still subject to geography, categories, capacity, auth, and approved legal requirements.
+
+Admin becomes the **Pilot Operations Cockpit** (`docs/PILOT_OPERATIONS_COCKPIT.md`): NOT READY / READY TO OPEN / OPEN / WATCH / PAUSED. Design only until a later implementation task.
+
+**C. Launch controls and after-activation supply floor**
+
+Ability to pause acquisition, activate waitlist mode, restrict new work, narrow categories/geography, and recruit replacement Experts. Manual admin control and daily monitoring.
+
+**After-activation operating floor:** approximately **12** launch-ready Experts. If active supply falls below ~12, or category coverage materially falls below target, admin flags **WATCH / PAUSE**. Do not keep accepting demand blindly when supply is insufficient.
 
 **D. First-job supervision**
 
@@ -397,7 +424,7 @@ Review every early job: quote flow, payment, completion, payout, support/dispute
 
 **E. Launch metrics (no PII)**
 
-Invited/activated homeowners; invited/verified Experts; jobs posted; jobs with quotes; quote acceptance; funded/completed jobs; payment release rate; payout success; refunds/cancellations; disputes; email failures; time to first quote; repeat usage; support volume.
+Launch-ready Expert count; Experts per enabled category; waitlist vs posting-enabled state; WATCH/PAUSE flags; homeowners who posted (after activation); jobs posted; jobs with quotes; quote acceptance; funded/completed jobs; payment release rate; payout success; refunds/cancellations; disputes; email failures; time to first quote; repeat usage; support volume.
 
 Use existing privacy-safe analytics plus operator counts. Do not add PII to analytics.
 
@@ -415,7 +442,7 @@ Suggested first-cohort safety bars (owner may tighten, not loosen, without a new
 
 **G. Controlled expansion**
 
-Only after a stable initial cohort: more homeowner invitations, more Experts, possibly more suburbs/categories. Expansion requires an owner decision.
+Only after a stable activated cohort and supply above the operating floor: more Experts, possibly more suburbs/categories, or higher acquisition. Expansion requires an owner decision. Do not reopen or scale demand if supply is below the ~12 floor or category coverage is weak.
 
 ### Evidence required
 
