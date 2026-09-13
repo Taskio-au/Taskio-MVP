@@ -14,11 +14,16 @@ const {
 const nowMs = Date.UTC(2026, 8, 13, 12, 0, 0);
 
 function quotingInput(overrides = {}) {
+  const createdAtMs = Object.prototype.hasOwnProperty.call(overrides, 'createdAtMs')
+    ? overrides.createdAtMs
+    : nowMs - (30 * 60 * 1000);
   return {
     status: 'OPEN',
     paymentState: null,
-    createdAtMs: nowMs - (30 * 60 * 1000),
+    createdAtMs,
+    quoteReadyAtMs: createdAtMs,
     postingReady: true,
+    postingPhotoRequired: false,
     inviteCount: 3,
     quoteCount: 0,
     suitableLaunchReadyCount: 4,
@@ -140,42 +145,100 @@ describe('deriveJobAttention', () => {
     expect(REASONS.FUNDED_JOB_STALLED).toBeUndefined();
   });
 
-  it('uses createdAt as the quote-liquidity clock and ignores jobs not yet quote-ready', () => {
+  it('uses quoteReadyAt as the quote-liquidity clock and ignores jobs not yet quote-ready', () => {
     expect(deriveJobAttention(quotingInput({
       inviteCount: 5,
       quoteCount: 0,
-      createdAtMs: nowMs - ZERO_QUOTES_MS - 1000,
+      createdAtMs: nowMs - (3 * 60 * 60 * 1000),
+      quoteReadyAtMs: nowMs - ZERO_QUOTES_MS - 1000,
       postingReady: false,
+      postingPhotoRequired: true,
     }), nowMs)).toBeNull();
 
-    const ready = deriveJobAttention(quotingInput({
+    const readyFromCreation = deriveJobAttention(quotingInput({
       inviteCount: 5,
       quoteCount: 0,
       createdAtMs: nowMs - ZERO_QUOTES_MS - 1000,
+      quoteReadyAtMs: nowMs - ZERO_QUOTES_MS - 1000,
       postingReady: true,
     }), nowMs);
-    expect(ready.reasonKey).toBe(REASONS.ZERO_QUOTES_60M);
+    expect(readyFromCreation.reasonKey).toBe(REASONS.ZERO_QUOTES_60M);
+
+    const photoGatedJustReady = deriveJobAttention(quotingInput({
+      inviteCount: 5,
+      quoteCount: 0,
+      createdAtMs: nowMs - (3 * 60 * 60 * 1000),
+      quoteReadyAtMs: nowMs - (10 * 60 * 1000),
+      postingReady: true,
+      postingPhotoRequired: true,
+    }), nowMs);
+    expect(photoGatedJustReady).toBeNull();
+
+    const oneQuoteUsesQuoteReadyAt = deriveJobAttention(quotingInput({
+      inviteCount: 5,
+      quoteCount: 1,
+      createdAtMs: nowMs - (5 * 60 * 60 * 1000),
+      quoteReadyAtMs: nowMs - ONE_QUOTE_MS - 1000,
+      postingReady: true,
+      postingPhotoRequired: true,
+    }), nowMs);
+    expect(oneQuoteUsesQuoteReadyAt.reasonKey).toBe(REASONS.ONLY_ONE_QUOTE_3H);
   });
 
-  it('does not emit LOW_INVITE_COVERAGE immediately after a job opens', () => {
+  it('does not emit LOW_INVITE_COVERAGE until 60 minutes after quoteReadyAt', () => {
     expect(deriveJobAttention(quotingInput({
       inviteCount: 2,
       quoteCount: 0,
-      createdAtMs: nowMs - (10 * 60 * 1000),
+      createdAtMs: nowMs - (3 * 60 * 60 * 1000),
+      quoteReadyAtMs: nowMs - (10 * 60 * 1000),
     }), nowMs)).toBeNull();
     expect(deriveJobAttention(quotingInput({
       inviteCount: 2,
       quoteCount: 1,
-      createdAtMs: nowMs - (LOW_INVITE_GRACE_MS - 1000),
+      createdAtMs: nowMs - (3 * 60 * 60 * 1000),
+      quoteReadyAtMs: nowMs - (LOW_INVITE_GRACE_MS - 1000),
     }), nowMs)).toBeNull();
 
     const afterGrace = deriveJobAttention(quotingInput({
       inviteCount: 2,
       quoteCount: 1,
-      createdAtMs: nowMs - LOW_INVITE_GRACE_MS - 1000,
+      createdAtMs: nowMs - (3 * 60 * 60 * 1000),
+      quoteReadyAtMs: nowMs - LOW_INVITE_GRACE_MS - 1000,
     }), nowMs);
     expect(afterGrace.reasonKey).toBe(REASONS.LOW_INVITE_COVERAGE);
     expect(afterGrace.priority).toBe(PRIORITY.MEDIUM);
+  });
+
+  it('uses createdAt only as a legacy fallback when quoteReadyAt is missing and the job was never photo-gated', () => {
+    const legacy = deriveJobAttention(quotingInput({
+      inviteCount: 5,
+      quoteCount: 0,
+      createdAtMs: nowMs - ZERO_QUOTES_MS - 1000,
+      quoteReadyAtMs: 0,
+      postingReady: true,
+      postingPhotoRequired: false,
+    }), nowMs);
+    expect(legacy.reasonKey).toBe(REASONS.ZERO_QUOTES_60M);
+
+    expect(deriveJobAttention(quotingInput({
+      inviteCount: 5,
+      quoteCount: 0,
+      createdAtMs: nowMs - ZERO_QUOTES_MS - 1000,
+      quoteReadyAtMs: 0,
+      postingReady: true,
+      postingPhotoRequired: true,
+    }), nowMs)).toBeNull();
+  });
+
+  it('still flags no Experts invited immediately even when quoteReadyAt is recent', () => {
+    const result = deriveJobAttention(quotingInput({
+      inviteCount: 0,
+      quoteCount: 0,
+      createdAtMs: nowMs - (3 * 60 * 60 * 1000),
+      quoteReadyAtMs: nowMs - (5 * 60 * 1000),
+      postingReady: true,
+    }), nowMs);
+    expect(result.reasonKey).toBe(REASONS.NO_EXPERTS_INVITED);
   });
 
   it('flags completion stalls after 48h unless payment is already released or refunded', () => {

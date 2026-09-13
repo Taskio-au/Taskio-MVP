@@ -165,6 +165,32 @@ describe('job creation Phase 1 contract', () => {
     expect(jobs[0].details).toEqual({ mirrorSize: '' });
     expect(jobs[0].postingPhotos).toEqual([]);
     expect(jobs[0].items).toEqual([{ type: 'mounting_shelves', quantity: 1, customDescription: '' }]);
+    expect(jobs[0].postingReady).toBe(true);
+    expect(jobs[0].quoteReadyAt).toBe('__server_ts__');
+    expect(jobs[0].quoteReadyAt).toBe(jobs[0].createdAt);
+  });
+
+  it('ignores a client-supplied quoteReadyAt on create', async () => {
+    const res = await request(app)
+      .post('/api/jobs')
+      .send({
+        jobType: 'mounting_shelves',
+        description: 'I need two small floating shelves installed in the living room wall.',
+        location: { suburb: 'Richmond', state: 'VIC', postcode: '3121' },
+        estimatedDuration: 'under_1_hour',
+        timeline: 'Flexible',
+        budget: 'under_150',
+        siteAccess: {
+          propertyType: 'house_townhouse', liftAvailable: 'no', stairs: 'none', parking: 'easy',
+        },
+        details: { mirrorSize: '' },
+        quoteReadyAt: 1,
+        postingReady: true,
+      });
+
+    expect(res.status).toBe(201);
+    expect(readDocs('jobs')[0].quoteReadyAt).toBe('__server_ts__');
+    expect(readDocs('jobs')[0].quoteReadyAt).not.toBe(1);
   });
 
   it('stores a multi-item whole-job brief while retaining primary legacy fields', async () => {
@@ -224,6 +250,7 @@ describe('job creation Phase 1 contract', () => {
       postingPhotoRequired: true,
       postingReady: false,
     });
+    expect(readDocs('jobs')[0].quoteReadyAt).toBeUndefined();
   });
 
   it('keeps a custom-only Apartment Make-Good brief unready until a photo is saved', async () => {
@@ -250,6 +277,7 @@ describe('job creation Phase 1 contract', () => {
       postingPhotoRequired: true,
       postingReady: false,
     });
+    expect(readDocs('jobs')[0].quoteReadyAt).toBeUndefined();
 
     const emptyPhotoRes = await request(app)
       .post(`/api/jobs/${jobId}/photos`)
@@ -374,6 +402,24 @@ describe('job creation Phase 1 contract', () => {
       },
     ]);
     expect(jobs[0].postingReady).toBe(true);
+    expect(jobs[0].quoteReadyAt).toBe('__server_ts__');
+
+    mockGetCollectionStore('jobs').get(jobId).quoteReadyAt = 'FIRST_READY';
+    const secondPhotoRes = await request(app)
+      .post(`/api/jobs/${jobId}/photos`)
+      .send({
+        photos: [
+          {
+            fileName: 'wall-damage-2.jpg',
+            fileSize: 88000,
+            mimeType: 'image/jpeg',
+            storagePath: `job-posting-attachments/${jobId}/wall-damage-2.jpg`,
+            downloadUrl: 'https://example.com/wall-damage-2.jpg',
+          },
+        ],
+      });
+    expect(secondPhotoRes.status).toBe(200);
+    expect(readDocs('jobs')[0].quoteReadyAt).toBe('FIRST_READY');
   });
 
   it('rejects invalid property types in site access', async () => {

@@ -74,6 +74,11 @@ function postingRequiresPhoto(primaryCategory, includesMirror, details) {
     || (includesMirror && details?.mirrorSize === 'large_heavy');
 }
 
+function firstQuoteReadyAt(existingQuoteReadyAt) {
+  if (existingQuoteReadyAt) return null;
+  return admin.firestore.FieldValue.serverTimestamp();
+}
+
 function toLocationLabel(location) {
   return `${location.suburb}, ${location.state} ${location.postcode}`;
 }
@@ -448,6 +453,8 @@ router.post('/api/jobs', requireAuth, requireEnrolledProfile({
       includesMirror,
       normalizedDetails
     );
+    const postingReady = !postingPhotoRequired;
+    const createdAt = admin.firestore.FieldValue.serverTimestamp();
     const jobData = {
       homeownerUid,
       jobType: normalizedItems.primaryJobType,
@@ -467,7 +474,7 @@ router.post('/api/jobs', requireAuth, requireEnrolledProfile({
       details: normalizedDetails,
       postingPhotos: [],
       postingPhotoRequired,
-      postingReady: !postingPhotoRequired,
+      postingReady,
       estimatedDuration: String(estimatedDuration).trim(),
       estimatedDurationLabel: selectedDuration.label,
       phase1ScopeVersion: 'melbourne_v1',
@@ -476,9 +483,12 @@ router.post('/api/jobs', requireAuth, requireEnrolledProfile({
       budgetAmountCents,
       status: JOB_STATUSES.OPEN,
       paymentState: null, // No payment state initially
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt,
       invitedTradieUids: [],
     };
+    if (postingReady) {
+      jobData.quoteReadyAt = createdAt;
+    }
 
     const jobRef = await db.collection('jobs').add(jobData);
     return res.status(201).send({ message: 'Task created successfully', jobId: jobRef.id });
@@ -515,10 +525,17 @@ router.post('/api/jobs/:id/photos', requireAuth, requireEnrolledProfile({
       return res.status(400).send({ message: 'At least one valid job photo is required.' });
     }
 
-    await jobRef.update({
+    const postingReady = jobData.postingPhotoRequired === true ? photos.length > 0 : true;
+    const update = {
       postingPhotos: photos,
-      postingReady: jobData.postingPhotoRequired === true ? photos.length > 0 : true,
-    });
+      postingReady,
+    };
+    if (postingReady === true) {
+      const stamp = firstQuoteReadyAt(jobData.quoteReadyAt);
+      if (stamp) update.quoteReadyAt = stamp;
+    }
+
+    await jobRef.update(update);
     return res.status(200).send({ message: 'Job photos saved successfully.' });
   } catch (error) {
     // eslint-disable-next-line no-console

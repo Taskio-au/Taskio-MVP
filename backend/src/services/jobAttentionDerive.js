@@ -164,6 +164,15 @@ function pickPrimary(candidates) {
   })[0];
 }
 
+function resolveQuoteClockMs(input) {
+  if (input?.postingReady === false) return 0;
+  const quoteReadyAtMs = Number(input?.quoteReadyAtMs) || 0;
+  if (quoteReadyAtMs) return quoteReadyAtMs;
+  // Legacy only: never backdate a photo-gated job that became ready later.
+  if (input?.postingPhotoRequired === true) return 0;
+  return Number(input?.createdAtMs) || 0;
+}
+
 function deriveJobAttention(input, nowMs = Date.now()) {
   const status = normalizeStatus(input?.status);
   const paymentState = input?.paymentState;
@@ -172,8 +181,8 @@ function deriveJobAttention(input, nowMs = Date.now()) {
     return null;
   }
 
-  const createdAtMs = Number(input?.createdAtMs) || 0;
-  const ageMs = createdAtMs ? Math.max(0, nowMs - createdAtMs) : 0;
+  const quoteClockMs = resolveQuoteClockMs(input);
+  const ageMs = quoteClockMs ? Math.max(0, nowMs - quoteClockMs) : 0;
   const inviteCount = Number(input?.inviteCount) || 0;
   const quoteCount = Number(input?.quoteCount) || 0;
   const quoting = isQuotingStatus(status) && input?.postingReady !== false;
@@ -187,7 +196,7 @@ function deriveJobAttention(input, nowMs = Date.now()) {
     candidates.push({ key: REASONS.NO_SUITABLE_SUPPLY, ...REASON_META[REASONS.NO_SUITABLE_SUPPLY] });
   }
 
-  if (quoting && quoteCount === 0 && createdAtMs && ageMs > ZERO_QUOTES_MS) {
+  if (quoting && quoteCount === 0 && quoteClockMs && ageMs > ZERO_QUOTES_MS) {
     candidates.push({ key: REASONS.ZERO_QUOTES_60M, ...REASON_META[REASONS.ZERO_QUOTES_60M] });
   }
 
@@ -195,7 +204,7 @@ function deriveJobAttention(input, nowMs = Date.now()) {
     candidates.push({ key: REASONS.NO_EXPERTS_INVITED, ...REASON_META[REASONS.NO_EXPERTS_INVITED] });
   }
 
-  if (quoting && quoteCount === 1 && createdAtMs && ageMs > ONE_QUOTE_MS) {
+  if (quoting && quoteCount === 1 && quoteClockMs && ageMs > ONE_QUOTE_MS) {
     candidates.push({ key: REASONS.ONLY_ONE_QUOTE_3H, ...REASON_META[REASONS.ONLY_ONE_QUOTE_3H] });
   }
 
@@ -204,7 +213,7 @@ function deriveJobAttention(input, nowMs = Date.now()) {
     && inviteCount > 0
     && inviteCount < DESIRED_INVITE_COUNT
     && quoteCount < 2
-    && createdAtMs
+    && quoteClockMs
     && ageMs > LOW_INVITE_GRACE_MS
   ) {
     candidates.push({ key: REASONS.LOW_INVITE_COVERAGE, ...REASON_META[REASONS.LOW_INVITE_COVERAGE] });
@@ -248,5 +257,6 @@ module.exports = {
   jobCategory,
   jobArea,
   countSuitableLaunchReady,
+  resolveQuoteClockMs,
   deriveJobAttention,
 };

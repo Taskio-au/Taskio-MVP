@@ -35,7 +35,7 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 - Pilot quote-liquidity triggers: **0 quotes >60m (HIGH)** and **exactly 1 quote >3h (MEDIUM)** — internal ops, not customer SLAs
 - 6h / 24h quote-liquidity rules superseded (legacy query keys still alias the new filters)
 - Job-specific `suitableLaunchReadyCount` when `primaryCategory` + `locationSuburb` are canonical; otherwise shown as unavailable (no false “no supply” alert)
-- Quote-liquidity clock is job `createdAt` (jobs are created `OPEN`). `postingReady===false` jobs are excluded from quoting alerts. There is no separate quote-open timestamp
+- Quote-liquidity clock is `quoteReadyAt` — the server time the job first became available for Expert quoting. This is **not** a work appointment. Jobs ready at creation get `quoteReadyAt = createdAt` (same server timestamp). Photo-gated jobs get it on the first `postingReady=false → true` transition. `postingReady===false` jobs are excluded from quoting alerts
 - `LOW_INVITE_COVERAGE` waits **60 minutes** so a just-opened job with 1–4 invites is not immediately MEDIUM. `NO_EXPERTS_INVITED` may still alert immediately
 - **`FUNDED_JOB_STALLED` is not implemented.** `job.timeline` is a posting preference string (`Today` / `Tomorrow` / `Within 2 days` / `Flexible` / or a YYYY-MM-DD request). There is no agreed/scheduled work timestamp. `fundedAt` alone is not stall evidence
 - `COMPLETION_STALLED` remains: `COMPLETED` + explicit `completedAt` older than 48h, and payment is not already released/refunded/paid
@@ -351,9 +351,9 @@ Highest-priority operational list. Do **not** auto-resolve.
 | Reason | Data | Feasibility |
 |---|---|---|
 | No Experts invited | invite map empty | **B** |
-| Fewer than ~5 invited and <2 quotes, after 60m | invite + quote counts + `createdAt` | **B** |
-| 0 quotes after 60 min | quotes + `createdAt` | **B** |
-| Only 1 quote after 3 h | quote count + `createdAt` | **B** |
+| Fewer than ~5 invited and <2 quotes, after 60m | invite + quote counts + `quoteReadyAt` | **B** |
+| 0 quotes after 60 min | quotes + `quoteReadyAt` | **B** |
+| Only 1 quote after 3 h | quote count + `quoteReadyAt` | **B** |
 | No suitable Expert supply | job category vs launch-ready with that expertise | **B** |
 | Accepted, funding incomplete/stale | status / paymentState | **deferred** — no reliable awaiting-funding timestamp |
 | Funded job stalled | agreed schedule | **deferred** — no reliable scheduled/agreed work timestamp; do not use `fundedAt` alone |
@@ -505,7 +505,7 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Done in Slice 2 (local):** visual supply-readiness cockpit on the Admin dashboard. Display-only **supply** status (`SUPPLY NOT READY` / `SUPPLY READY` / `DATA INCOMPLETE` / `DATA UNAVAILABLE`). This is **not** the future Pilot Status engine (`NOT READY` / `READY TO OPEN` / `OPEN` / `WATCH` / `PAUSED`), which must consider the full activation gate. No persisted posting control. Geography display heuristic: an area is COVERED when ≥1 launch-ready Expert lists it — not 4–5 per suburb, and not a category × area proof.
 
-**Done in Slice 3 (local):** Job Attention Queue. Bounded `GET /api/admin/job-attention`. Quote-liquidity triggers **0 quotes >60m** and **1 quote >3h** replace the old 6h / 24h quoting cards. Incomplete scans must not show “all clear”. **Funded-job stall is deferred** — Taskio has no reliable agreed/scheduled work timestamp (`timeline` is a preference string only). Completion/release waiting uses `COMPLETED` + `completedAt` >48h and excludes settled payments.
+**Done in Slice 3 (local):** Job Attention Queue. Bounded `GET /api/admin/job-attention`. Quote-liquidity triggers **0 quotes >60m** and **1 quote >3h** replace the old 6h / 24h quoting cards. The clock starts when the job becomes available for quoting (`quoteReadyAt`), not when the job record was created. Incomplete scans must not show “all clear”. **Funded-job stall is deferred** — Taskio has no reliable agreed/scheduled work timestamp (`timeline` is a preference string only). Completion/release waiting uses `COMPLETED` + `completedAt` >48h and excludes settled payments.
 
 **Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). The attention endpoint pages jobs (page size 100, cap 250) and reuses one Expert supply load. `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY, and the attention queue must **not** imply it is exhaustive.
 
