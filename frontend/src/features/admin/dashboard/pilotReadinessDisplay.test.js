@@ -57,41 +57,42 @@ describe('pilotReadinessDisplay', () => {
     expect(geographyRowStatus(0)).toBe('UNCOVERED');
   });
 
-  it('is READY TO OPEN only when launch target, category minimum, and geography coverage are met', () => {
+  it('is SUPPLY READY only when launch target, category minimum, and geography coverage are met', () => {
     const result = derivePilotReadiness(supplySnapshot());
-    expect(result.status).toBe(PILOT_STATUS.READY_TO_OPEN);
-    expect(statusLabel(result.status)).toBe('READY TO OPEN');
+    expect(result.status).toBe(PILOT_STATUS.SUPPLY_READY);
+    expect(statusLabel(result.status)).toBe('SUPPLY READY');
+    expect(statusLabel(result.status)).not.toBe('READY TO OPEN');
     expect(result.totals.launchReady).toBe(15);
     expect(result.targets.launchReady).toBe(DEFAULT_TARGETS.launchReady);
   });
 
-  it('is NOT READY when launch-ready count is below target', () => {
+  it('is SUPPLY NOT READY when launch-ready count is below target', () => {
     const result = derivePilotReadiness(supplySnapshot({
       totals: { launchReady: 7, experts: 10, technicallyEligible: 8, truncated: false, scanComplete: true },
     }));
-    expect(result.status).toBe(PILOT_STATUS.NOT_READY);
+    expect(result.status).toBe(PILOT_STATUS.SUPPLY_NOT_READY);
     expect(result.launchReadyBand).toBe('BELOW OPERATING FLOOR');
   });
 
-  it('is NOT READY when a category is under the minimum', () => {
+  it('is SUPPLY NOT READY when a category is under the minimum', () => {
     const result = derivePilotReadiness(supplySnapshot({
       categoryCoverage: [
         { category: 'Mounting', launchReadyCount: 5, minimum: 4, target: 5 },
         { category: 'Minor Repairs', launchReadyCount: 3, minimum: 4, target: 5 },
       ],
     }));
-    expect(result.status).toBe(PILOT_STATUS.NOT_READY);
+    expect(result.status).toBe(PILOT_STATUS.SUPPLY_NOT_READY);
     expect(result.categoryRows.find((row) => row.category === 'Minor Repairs').status).toBe('UNDER-COVERED');
   });
 
-  it('is NOT READY when a pilot area is uncovered', () => {
+  it('is SUPPLY NOT READY when a pilot area is uncovered', () => {
     const result = derivePilotReadiness(supplySnapshot({
       geographyCoverage: [
         { area: 'Richmond', launchReadyCount: 2 },
         { area: 'Carlton', launchReadyCount: 0 },
       ],
     }));
-    expect(result.status).toBe(PILOT_STATUS.NOT_READY);
+    expect(result.status).toBe(PILOT_STATUS.SUPPLY_NOT_READY);
     expect(result.geographyRows.find((row) => row.area === 'Carlton').status).toBe('UNCOVERED');
   });
 
@@ -103,14 +104,14 @@ describe('pilotReadinessDisplay', () => {
     expect(statusLabel(result.status)).toBe('DATA INCOMPLETE');
   });
 
-  it('is DATA UNAVAILABLE on API error and does not invent zero-based NOT READY', () => {
+  it('is DATA UNAVAILABLE on API error and does not invent zero-based SUPPLY NOT READY', () => {
     const result = derivePilotReadiness(null, 'error');
     expect(result.status).toBe(PILOT_STATUS.UNAVAILABLE);
     expect(result.snapshot).toBeNull();
     expect(statusLabel(result.status)).toBe('DATA UNAVAILABLE');
   });
 
-  it('keeps a loading state without treating missing data as NOT READY', () => {
+  it('keeps a loading state without treating missing data as SUPPLY NOT READY', () => {
     const result = derivePilotReadiness(null, 'loading');
     expect(result.status).toBe(PILOT_STATUS.LOADING);
   });

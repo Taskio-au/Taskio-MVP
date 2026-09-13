@@ -6,7 +6,7 @@ import {
   INCOMPLETE_COPY,
   PILOT_STATUS,
   POSTING_CLOSED_COPY,
-  READY_TO_OPEN_COPY,
+  SUPPLY_READY_COPY,
   UNAVAILABLE_COPY,
   ZERO_EXPERTS_COPY,
   derivePilotReadiness,
@@ -15,11 +15,11 @@ import {
 import './PilotReadinessSection.css';
 
 function statusTone(status) {
-  if (status === 'HEALTHY' || status === 'TARGET MET' || status === 'AT OR ABOVE FLOOR' || status === 'COVERED' || status === 'READY TO OPEN') {
+  if (status === 'HEALTHY' || status === 'TARGET MET' || status === 'AT OR ABOVE FLOOR' || status === 'COVERED' || status === 'SUPPLY READY') {
     return 'ok';
   }
   if (status === 'ADEQUATE' || status === 'BELOW LAUNCH TARGET') return 'watch';
-  if (status === 'UNDER-COVERED' || status === 'UNCOVERED' || status === 'BELOW OPERATING FLOOR' || status === 'NOT READY' || status === 'DATA INCOMPLETE') {
+  if (status === 'UNDER-COVERED' || status === 'UNCOVERED' || status === 'BELOW OPERATING FLOOR' || status === 'SUPPLY NOT READY' || status === 'DATA INCOMPLETE') {
     return 'alert';
   }
   if (status === 'DATA UNAVAILABLE') return 'info';
@@ -47,7 +47,7 @@ export default function PilotReadinessSection({ loadState = 'loading', snapshot 
   if (view.status === PILOT_STATUS.LOADING) {
     return (
       <section className="ad-pilot-readiness" aria-labelledby="ad-pilot-readiness-heading" aria-busy="true">
-        <h2 id="ad-pilot-readiness-heading" className="ad-pilot-readiness__eyebrow">Pilot readiness</h2>
+        <h2 id="ad-pilot-readiness-heading" className="ad-pilot-readiness__eyebrow">Supply readiness</h2>
         <div className="ad-pilot-readiness__grid" aria-hidden="true">
           {[0, 1, 2, 3].map((key) => (
             <div key={key} className="ad-pilot-readiness__skeleton" />
@@ -61,7 +61,7 @@ export default function PilotReadinessSection({ loadState = 'loading', snapshot 
   if (view.status === PILOT_STATUS.UNAVAILABLE) {
     return (
       <section className="ad-pilot-readiness" aria-labelledby="ad-pilot-readiness-heading">
-        <h2 id="ad-pilot-readiness-heading" className="ad-pilot-readiness__eyebrow">Pilot readiness</h2>
+        <h2 id="ad-pilot-readiness-heading" className="ad-pilot-readiness__eyebrow">Supply readiness</h2>
         <Banner
           tone="danger"
           title={statusLabel(PILOT_STATUS.UNAVAILABLE)}
@@ -75,14 +75,14 @@ export default function PilotReadinessSection({ loadState = 'loading', snapshot 
 
   return (
     <section className="ad-pilot-readiness" aria-labelledby="ad-pilot-readiness-heading">
-      <h2 id="ad-pilot-readiness-heading" className="ad-pilot-readiness__eyebrow">Pilot readiness</h2>
+      <h2 id="ad-pilot-readiness-heading" className="ad-pilot-readiness__eyebrow">Supply readiness</h2>
 
       <div className="ad-pilot-readiness__grid">
         <ReadinessCard
-          label="Pilot status"
+          label="Pilot supply status"
           value={statusLabel(view.status)}
           status={statusLabel(view.status)}
-          note={view.status === PILOT_STATUS.READY_TO_OPEN ? READY_TO_OPEN_COPY : null}
+          note={view.status === PILOT_STATUS.SUPPLY_READY ? SUPPLY_READY_COPY : null}
         />
         <ReadinessCard
           label="Launch-ready experts"
@@ -192,8 +192,8 @@ export default function PilotReadinessSection({ loadState = 'loading', snapshot 
           <p>An Expert counts toward supply only when they are technically eligible, accepting Taskio jobs, and serving at least one approved pilot area.</p>
           <ul>
             <li>15 Experts alone does not open Taskio.</li>
-            <li>Homeowner posting stays closed until remaining launch gates and explicit owner activation.</li>
-            <li>This display is not a persisted OPEN or PAUSED control.</li>
+            <li>SUPPLY READY is supply only. Other launch gates and explicit owner activation are still required.</li>
+            <li>This display is not a persisted posting or pause control.</li>
           </ul>
         </div>
       </details>

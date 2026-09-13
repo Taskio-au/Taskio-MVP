@@ -64,7 +64,7 @@ export default function DashboardOverview({
       <PageHeader
         eyebrow="Operations"
         title="Admin dashboard"
-        description="See whether supply is ready to open, then triage attention, marketplace health, and account queues."
+        description="See whether Expert supply is ready, then triage attention, marketplace health, and account queues."
         actions={<Button variant="secondary" onClick={onRefresh}>Refresh data</Button>}
         style={{ marginBottom: spacing.xl }}
       />

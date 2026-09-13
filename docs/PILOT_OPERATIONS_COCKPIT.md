@@ -21,7 +21,9 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 
 **IMPLEMENTED (Slice 2 — visual cockpit, local)**
 
-- Admin dashboard Pilot Readiness section (display-only status, launch-ready / floor / category / geography cards)
+- Admin dashboard **Supply readiness** section (display-only **supply** status, launch-ready / floor / category / geography cards)
+- Slice 2 states only: `LOADING` / `DATA UNAVAILABLE` / `DATA INCOMPLETE` / `SUPPLY NOT READY` / `SUPPLY READY`
+- Slice 2 must **not** show `READY TO OPEN`. That belongs to the future Pilot Status engine, which must evaluate the **full** activation gate, not Expert supply alone
 - Category HEALTHY / ADEQUATE / UNDER-COVERED and geography COVERED / UNCOVERED from `GET /api/admin/pilot-supply`
 - Truncation / scan-incomplete fail-safe (`DATA INCOMPLETE`); API error (`DATA UNAVAILABLE`)
 - Homeowner posting shown **CLOSED** with no activation control
@@ -490,7 +492,7 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Done in Slice 1:** persist `acceptingJobs` + `serviceAreas[]`; derived launch-ready; `GET /api/admin/pilot-supply` (category coverage from launch-ready only; geography from `serviceAreas[]`; category **minimum 4 / target 5**).
 
-**Done in Slice 2 (local):** visual Pilot Operations Cockpit on the Admin dashboard. Display-only Pilot Status (`NOT READY` / `READY TO OPEN` / `DATA INCOMPLETE` / `DATA UNAVAILABLE`). No persisted posting control. Geography display heuristic: an area is COVERED when ≥1 launch-ready Expert lists it — not 4–5 per suburb, and not a category × area proof. WATCH/OPEN/PAUSED persisted states are not shown.
+**Done in Slice 2 (local):** visual supply-readiness cockpit on the Admin dashboard. Display-only **supply** status (`SUPPLY NOT READY` / `SUPPLY READY` / `DATA INCOMPLETE` / `DATA UNAVAILABLE`). This is **not** the future Pilot Status engine (`NOT READY` / `READY TO OPEN` / `OPEN` / `WATCH` / `PAUSED`), which must consider the full activation gate. No persisted posting control. Geography display heuristic: an area is COVERED when ≥1 launch-ready Expert lists it — not 4–5 per suburb, and not a category × area proof.
 
 **Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY from that incomplete Expert set.
 
@@ -498,7 +500,7 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Still later (not Slice 2):**
 
-1. Persisted Pilot Status / homeowner posting OPEN/CLOSED/PAUSED control + confirmation + audit.
+1. Future **Pilot Status engine** (`NOT READY` / `READY TO OPEN` / `OPEN` / `WATCH` / `PAUSED`) plus persisted homeowner posting OPEN/CLOSED/PAUSED control + confirmation + audit. That engine must include supply **and** legal/privacy, production/security/operations, production acceptance, and explicit owner activation — not Expert supply alone.
 2. Job Attention Queue with 60m / 3h / invite flags.
 3. Liquidity + funnel on bounded data.
 4. Waitlist product UX after P06/P09 allow public copy.

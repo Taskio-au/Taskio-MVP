@@ -1,14 +1,15 @@
 /**
- * Display-only Pilot Status derived from GET /api/admin/pilot-supply.
- * Not a persisted posting control. Do not infer OPEN/PAUSED.
+ * Display-only SUPPLY readiness from GET /api/admin/pilot-supply.
+ * Not the future Pilot Status engine and not a posting control.
+ * Do not infer READY TO OPEN / OPEN / WATCH / PAUSED from supply alone.
  */
 
 export const PILOT_STATUS = Object.freeze({
   LOADING: 'LOADING',
   UNAVAILABLE: 'UNAVAILABLE',
   INCOMPLETE: 'INCOMPLETE',
-  NOT_READY: 'NOT_READY',
-  READY_TO_OPEN: 'READY_TO_OPEN',
+  SUPPLY_NOT_READY: 'SUPPLY_NOT_READY',
+  SUPPLY_READY: 'SUPPLY_READY',
 });
 
 export const DEFAULT_TARGETS = Object.freeze({
@@ -21,8 +22,8 @@ export const DEFAULT_TARGETS = Object.freeze({
 export const POSTING_CLOSED_COPY =
   'Posting remains closed until all launch-readiness gates are complete and explicitly activated.';
 
-export const READY_TO_OPEN_COPY =
-  'Supply readiness met. Homeowner posting remains closed until all launch gates and owner activation are complete.';
+export const SUPPLY_READY_COPY =
+  'Expert supply targets are met. This does not open homeowner posting. Other launch gates and explicit owner activation are still required.';
 
 export const INCOMPLETE_COPY =
   'The Expert supply scan hit its current cap, so readiness cannot be proven from this data.';
@@ -130,11 +131,11 @@ export function derivePilotReadiness(snapshot, loadState = 'ok') {
   const launchTargetMet = launchReady >= targets.launchReady;
   const supplyReady = launchTargetMet && categoriesAdequate && geographyCovered;
 
-  let status = PILOT_STATUS.NOT_READY;
+  let status = PILOT_STATUS.SUPPLY_NOT_READY;
   if (isScanIncomplete(snapshot)) {
     status = PILOT_STATUS.INCOMPLETE;
   } else if (supplyReady) {
-    status = PILOT_STATUS.READY_TO_OPEN;
+    status = PILOT_STATUS.SUPPLY_READY;
   }
 
   return {
@@ -168,10 +169,10 @@ export function statusLabel(status) {
       return 'DATA UNAVAILABLE';
     case PILOT_STATUS.INCOMPLETE:
       return 'DATA INCOMPLETE';
-    case PILOT_STATUS.READY_TO_OPEN:
-      return 'READY TO OPEN';
-    case PILOT_STATUS.NOT_READY:
+    case PILOT_STATUS.SUPPLY_READY:
+      return 'SUPPLY READY';
+    case PILOT_STATUS.SUPPLY_NOT_READY:
     default:
-      return 'NOT READY';
+      return 'SUPPLY NOT READY';
   }
 }

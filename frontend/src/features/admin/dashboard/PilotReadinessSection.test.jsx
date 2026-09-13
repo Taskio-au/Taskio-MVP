@@ -75,16 +75,19 @@ describe('PilotReadinessSection', () => {
     expect(screen.getByText('Carlton').closest('.ad-pilot-readiness__row')).toHaveTextContent('UNCOVERED');
   });
 
-  it('shows READY TO OPEN only when supply criteria are met and posting stays CLOSED', () => {
+  it('shows SUPPLY READY when supply criteria are met and never READY TO OPEN', () => {
     const { container } = render(<PilotReadinessSection loadState="ok" snapshot={readySnapshot()} />);
-    expect(screen.getAllByText('READY TO OPEN').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Homeowner posting remains closed/i)).toBeInTheDocument();
+    expect(screen.getByText('Pilot supply status')).toBeInTheDocument();
+    expect(screen.getAllByText('SUPPLY READY').length).toBeGreaterThan(0);
+    expect(screen.getByText(/does not open homeowner posting/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Other launch gates and explicit owner activation/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText('READY TO OPEN')).not.toBeInTheDocument();
     expect(screen.getAllByText('CLOSED').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /open posting|activate/i })).toBeNull();
     expect(container.querySelector('[data-open-posting]')).toBeNull();
   });
 
-  it('shows NOT READY when target, category, or geography fail', () => {
+  it('shows SUPPLY NOT READY when target, category, or geography fail', () => {
     render(
       <PilotReadinessSection
         loadState="ok"
@@ -93,8 +96,9 @@ describe('PilotReadinessSection', () => {
         })}
       />
     );
-    expect(screen.getAllByText('NOT READY').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('SUPPLY NOT READY').length).toBeGreaterThan(0);
     expect(screen.queryByText('READY TO OPEN')).not.toBeInTheDocument();
+    expect(screen.queryByText('SUPPLY READY')).not.toBeInTheDocument();
     expect(screen.getByText('7 / 15')).toBeInTheDocument();
   });
 
@@ -109,14 +113,16 @@ describe('PilotReadinessSection', () => {
     );
     expect(screen.getAllByText('DATA INCOMPLETE').length).toBeGreaterThan(0);
     expect(screen.queryByText('READY TO OPEN')).not.toBeInTheDocument();
+    expect(screen.queryByText('SUPPLY READY')).not.toBeInTheDocument();
     expect(screen.getByText(/readiness cannot be proven/i)).toBeInTheDocument();
   });
 
-  it('shows DATA UNAVAILABLE on API error without fake zero NOT READY', () => {
+  it('shows DATA UNAVAILABLE on API error without fake zero SUPPLY NOT READY', () => {
     render(<PilotReadinessSection loadState="error" snapshot={null} />);
     expect(screen.getByText('DATA UNAVAILABLE')).toBeInTheDocument();
     expect(screen.getByText('Pilot readiness data unavailable')).toBeInTheDocument();
-    expect(screen.queryByText('NOT READY')).not.toBeInTheDocument();
+    expect(screen.queryByText('SUPPLY NOT READY')).not.toBeInTheDocument();
+    expect(screen.queryByText('READY TO OPEN')).not.toBeInTheDocument();
     expect(screen.queryByText('0 / 15')).not.toBeInTheDocument();
   });
 
@@ -132,7 +138,8 @@ describe('PilotReadinessSection', () => {
       />
     );
     expect(screen.getByText('0 / 15')).toBeInTheDocument();
-    expect(screen.getAllByText('NOT READY').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('SUPPLY NOT READY').length).toBeGreaterThan(0);
+    expect(screen.queryByText('READY TO OPEN')).not.toBeInTheDocument();
     expect(screen.getByText(/Recruit and onboard launch-ready Experts/i)).toBeInTheDocument();
   });
 
