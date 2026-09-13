@@ -351,15 +351,32 @@ Before the **pilot supply/readiness gate** is satisfied:
 
 Real homeowner task posting may be enabled only when **all** of the following are true:
 
-1. approximately **15 ACTIVE LAUNCH-READY EXPERTS**
-2. **adequate coverage across every Phase 1 category** Taskio intends to enable — ideally at least **4–5 launch-ready Experts** capable of servicing **each enabled category**
-3. **adequate coverage of the approved launch geography**
+1. approximately **15 ACTIVE LAUNCH-READY EXPERTS** (definition below)
+2. **adequate coverage across every Phase 1 category** Taskio intends to enable — ideally at least **4–5 launch-ready Experts** capable of servicing **each enabled category**. The hard **4–5** target applies to **enabled categories**, not to every suburb
+3. **adequate coverage of the approved launch geography** as **one Inner Melbourne zone** (not 4–5 Experts independently in every suburb; every **enabled** location must still have credible **service** coverage)
 4. **all other required Taskio launch-readiness gates** for real users are satisfied
 5. **owner/admin explicitly activates** homeowner acquisition / posting
 
 The raw number **15 is not sufficient by itself** if category or geographic coverage is weak.
 
-“Launch-ready Expert” here means an Expert Taskio is actually prepared to invite to real jobs (manual selection/verification and other eligibility Taskio actually performs — not a claim of licence, insurance, or quality guarantee unless those checks exist).
+### Launch-ready Expert (derived; no stored flag)
+
+An Expert counts toward the ~15 / ~12 supply metrics only when **technical eligibility AND both operational supply conditions** are known:
+
+**Technical eligibility** (existing rules; still required): Expert/tradie role; active account; manually verified; phone/profile complete; approved expertise; Stripe onboarding complete as required; ABN if required; age/business requirements. These checks are what Taskio actually performs — not a claim of licence, insurance, or quality guarantee unless those checks exist.
+
+**Operational supply (LAUNCH-CRITICAL — small profile/data changes required before real homeowner posting opens; not implemented in this documentation update):**
+
+| Field | MVP | Not required |
+|---|---|---|
+| `acceptingJobs` | boolean `true` / `false` — currently willing/available to receive Taskio pilot opportunities | weekly calendars, booking calendars, predictive availability |
+| `serviceAreas[]` | explicit multi-select of **canonical** approved pilot areas | GIS, maps, radius matching, travel-time, route optimisation |
+
+**Launch-ready =** technical eligibility **AND** `acceptingJobs === true` **AND** `serviceAreas[]` contains at least one **enabled** pilot area.
+
+Do **not** invent a stored `launchReady` boolean. Do **not** treat `serviceLocation` (home-base) as the suburbs the Expert will service. Do **not** count technically eligible but unavailable or area-unspecified Experts toward the ~15.
+
+These two fields **supplement** eligibility; they do **not** replace it. They are **not** optional/post-pilot enhancements. Without them the ~15 count and geography coverage could be misleading.
 
 ### Pre-gate user experience
 
@@ -406,6 +423,7 @@ Do **not** allow the marketplace to continue accepting demand blindly when suppl
 | Launch-ready (activation) | **~15** |
 | After-activation floor | **~12** |
 | Category coverage | ideally **4–5** launch-ready Experts per **enabled** Phase 1 category |
+| Geography | **one** Inner Melbourne zone; every **enabled** location needs credible `serviceAreas[]` coverage; not 4–5 Experts per suburb |
 | Initial invitations per job | up to **~5** suitable Experts |
 | Desired quotes | **2–3** qualified |
 | First qualified response | ideally **≤ 60 minutes** (normal hours) |

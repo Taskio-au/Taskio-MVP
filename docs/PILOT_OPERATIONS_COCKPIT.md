@@ -24,13 +24,13 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin d
 
 **ACTIVATION GATE — all required:**
 
-A. approximately **15 ACTIVE LAUNCH-READY EXPERTS**  
-B. every **enabled** Phase 1 category has adequate launch-ready coverage (ideally **4–5** Experts capable of servicing it)  
-C. approved launch geography has adequate coverage  
-D. all other real-user launch-readiness gates are satisfied  
+A. approximately **15 ACTIVE LAUNCH-READY EXPERTS** (definition in §2 — technical eligibility **plus** `acceptingJobs=true` **plus** at least one enabled `serviceAreas[]` value)
+B. every **enabled** Phase 1 category has adequate launch-ready coverage (ideally **4–5** launch-ready Experts capable of servicing it). The hard 4–5 target applies to **categories**, not to every suburb
+C. approved launch geography has **credible service coverage** as **one Inner Melbourne zone** (see §8). Not 4–5 Experts independently in every suburb
+D. all other real-user launch-readiness gates are satisfied
 E. owner/admin **explicitly activates** homeowner posting/acquisition  
 
-**15 Experts alone is not sufficient.**
+**15 Experts alone is not sufficient.** Do not count technically eligible but unavailable / area-unspecified Experts toward A.
 
 **AFTER-ACTIVATION FLOOR:** ~**12** active launch-ready Experts. Below floor or material coverage drop → **WATCH / PAUSE**.
 
@@ -53,57 +53,71 @@ Do **not** expose these as guaranteed customer SLAs.
 
 ---
 
-## 2. Launch-ready Expert — use existing repo data
+## 2. Launch-ready Expert — derived, not a stored flag
 
-Do **not** invent a parallel “launchReady” flag if existing eligibility already covers it. Align with `backend/src/utils/v11TradieEligibility.js` and `frontend/src/utils/adminDashboardUtils.js` `getReadiness()`.
+Do **not** invent a stored `launchReady` boolean. Derive from authoritative fields.
 
-### A. Fields available now
+**For the real Controlled Open-Demand Pilot, an Expert counts toward the ~15 / ~12 supply metrics only when technical eligibility AND both operational supply conditions are known.**
 
-| Need | Existing field / source |
-|---|---|
-| Role | `users.role === 'tradie'` |
-| Account active | `users.status` (`active` / `disabled` / `pending_deletion` / `deleted`) |
-| Manually verified | `users.verified === true` (admin) |
-| Phone | `users.phoneVerified` or Auth `phone_number` |
-| Profile complete | stored `profileCompleted` **or** derived: display name, bio ≥20, photo URL, `expertiseApproved[]` |
-| Categories | `users.expertiseApproved[]` — Phase 1 keys from `shared/expertiseCatalog.js` |
-| Stripe | `stripe.onboardingComplete` **or** `stripeOnboardingStatus === 'completed'` **or** charges+payouts enabled |
-| ABN | `abn` / `abnVerified` when required by business type / business name |
-| Business type | `businessType` |
-| Age 18+ | `dob` {day, month, year} |
-| Single service location | `serviceLocation` {suburb, state, postcode} |
-| Last activity (weak) | `updatedAt` / `updatedAtMs` |
-| Boost (not launch-ready) | `boost.isBoosted` / `boostedVisibility` |
+### Technical eligibility (already in repo)
 
-Admin UI already labels a close subset **“Ready to quote” / “Ready now (eligible to quote)”**.
+Align with `backend/src/utils/v11TradieEligibility.js` and tighten admin `getReadiness()` so undefined is **not** treated as OK:
 
-### B. Fields derivable now
+- `role === 'tradie'`
+- `status === 'active'`
+- `verified === true` (manual admin)
+- phone verified
+- profile complete (identity, bio, photo, `expertiseApproved[]`)
+- ≥1 approved Phase 1 expertise
+- Stripe onboarding complete when Stripe is enabled
+- ABN verified if required
+- business type set
+- 18+ (`dob`)
 
-- **Launch-ready (MVP):** `role=tradie` AND `status=active` AND `verified` AND phone OK AND profile complete AND ≥1 Phase 1 `expertiseApproved` AND Stripe complete (when Stripe enabled) AND ABN OK if required AND valid `serviceLocation` AND 18+ AND business type set.
-- **Category coverage:** count launch-ready Experts whose `expertiseApproved` includes any key in that catalog `category` (or a declared operating group).
-- **Home-base geography:** count launch-ready Experts whose `serviceLocation.suburb` is in `melbournePilotSuburbs`.
-- **Invite / quote liquidity (jobs):** invited Expert count from job invite maps; quote counts/timestamps from existing quote fetches used by `useAdminDashboardMetrics`.
-- **Funnel:** job `status` / `paymentState` already on admin job list.
+`serviceLocation` (home-base suburb/postcode/state) remains part of profile completeness. It is **not** a substitute for `serviceAreas[]`.
 
-### C. Missing data genuinely needed (smallest)
+### Operational supply conditions — LAUNCH-CRITICAL (not implemented in this task)
+
+These **supplement** technical eligibility. They are **small data/profile changes required before real homeowner posting opens**. Without them the ~15 count and geography coverage would be misleading.
+
+| Field | MVP | Why required |
+|---|---|---|
+| `acceptingJobs` | boolean `true` / `false` | Expert is currently willing/available to receive Taskio pilot opportunities. No calendar or scheduling system. |
+| `serviceAreas[]` | multi-select of **canonical** `melbournePilotLocations` / `melbournePilotSuburbs` values | Explicit areas the Expert will service. No GIS, radius, maps, or travel-time. |
+
+**Launch-ready (derived) =** technical eligibility **AND** `acceptingJobs === true` **AND** `serviceAreas[]` contains **at least one enabled** pilot area.
+
+Do **not** infer accepting-jobs from `verified`. Do **not** infer service areas from `serviceLocation`.
+
+**Not in MVP:** weekly availability calendars, booking calendars, route optimisation, travel-time, radius matching, GIS, maps, predictive availability.
+
+### A. Fields available now (technical only)
+
+Admin “Ready to quote” today is **technical eligibility only**. Do **not** label it launch-ready until `acceptingJobs` and `serviceAreas[]` exist.
+
+### B. Derivable after the two profile fields exist
+
+- **Launch-ready count:** technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]` value.
+- **Category coverage:** count **only launch-ready** Experts whose `expertiseApproved` intersects that enabled Phase 1 category.
+- **Geography coverage:** count **only launch-ready** Experts whose `serviceAreas[]` includes an enabled pilot area. **Never** present `serviceLocation` as service-area coverage.
+- Invite / quote / funnel: existing job and quote data.
+
+### C. Missing — required before posting opens (do not implement in this docs task)
 
 | Gap | Why | Smallest later change | Launch-critical? |
 |---|---|---|---|
-| **Service areas (plural)** | `serviceLocation` is **one** home-base suburb, not “suburbs I will travel to”. Cannot honestly answer “how many launch-ready Experts **service Richmond**”. | Optional `serviceAreas[]` of allowlisted suburbs, defaulting to `[serviceLocation]` until collected. | **Useful, not a blocker** if we label current metric **home-base coverage** and require at least one launch-ready Expert home-based in the 8-suburb allowlist overall. Per-suburb “serves this area” is **C** if the operator must decide suburb-level coverage. |
-| **Accepting jobs / pause** | No `acceptingJobs` / availability flag. A verified Expert may be on holiday. | Optional boolean `acceptingJobs` (default true). | **Launch-critical for WATCH/PAUSE honesty** once posting is OPEN; can start as a manual admin note. |
-| **Waitlist / posting switch** | No persisted `homeownerPostingState` (`closed` / `open` / `paused`) or waitlist collection. | Single admin-controlled config doc + confirmation + audit. | **Launch-critical** before OPEN. Design only in this task. |
-| **Invitation-to-quote rate / median response** | Quotes and invites exist, but no first-class Expert-level aggregates API. | Derive from invites + quotes in a **bounded** admin endpoint (pilot-sized). | Launch-critical for responsiveness; **B/C** not a new event platform. |
+| `serviceAreas[]` | Home-base ≠ willing-to-service | Allowlisted multi-select. Do **not** silently default-copy `serviceLocation` as if the Expert chose every area | **YES — required before real homeowner posting opens** |
+| `acceptingJobs` | Verified Expert may be unavailable | Boolean. No calendar | **YES — required before real homeowner posting opens** |
+| Waitlist / posting switch | No persisted CLOSED/OPEN/PAUSED | Audited config + confirm | **YES** before OPEN |
+| Invitation-to-quote aggregates | No Expert-level API | Bounded admin join | Useful; not a substitute for the two fields |
 
-### D. Do not add yet
+### D. Do not add (gold-plating)
 
-- GIS / maps / travel-time
-- Automatic punitive ranking or suspension scores as user-facing trust
-- Duplicate `launchReady` boolean that drifts from eligibility
-- Predictive matching / AI recommendations
-- Full analytics warehouse
-- Per-hour availability calendars
-
-**Willingness to receive jobs:** **not** a reliable field today. Treat as missing; do not infer from `verified`.
+- GIS / maps / radius / travel-time / route optimisation
+- Weekly or booking calendars; predictive availability
+- Automatic punitive ranking
+- Duplicate stored `launchReady` boolean
+- Analytics warehouse
 
 ---
 
@@ -223,10 +237,10 @@ Do not communicate state by colour alone: status **text + chip + count**.
 | KPI | Feasibility | Notes |
 |---|---|---|
 | Pilot Status | **C** — needs persisted posting state + derived gate | Do not fake OPEN from Expert count |
-| Launch-ready `n / 15` | **B** if **all** tradies are loaded with the same rules as `computeEligibility` | Fix 50-user page; do not use lenient `getReadiness` undefined=OK |
-| Operating floor `n / 12` | **B** (same count, different target) | |
-| Category coverage `k / N` | **B** | Group `expertiseApproved` by catalog `category` (see §7) |
-| Geographic coverage | **B as home-base only**; **C** for true service-area | Label honestly |
+| Launch-ready `n / 15` | **C** until `acceptingJobs` + `serviceAreas[]` exist; then **B** | Count only technical eligibility + accepting + ≥1 enabled area. Fix 50-user page |
+| Operating floor `n / 12` | same as launch-ready count | |
+| Category coverage `k / N` | **C** then **B** | Count **only launch-ready** Experts per enabled category |
+| Geographic coverage | **C** until `serviceAreas[]` exists | After that: **B** from `serviceAreas[]`. Until implemented, Admin must **not** present home-base as service coverage |
 | Open jobs | **A** | Existing `stats.openJobs` |
 | Jobs needing attention | **B** with new time/invite rules | Current 6h/24h is too slow |
 | Zero-quote jobs | **B** | Quote meta already fetched for open jobs (capped 500) |
@@ -261,22 +275,31 @@ Visual: horizontal bar (count/target) + numeric count + **text** chip. Not colou
 
 ## 8. Geography coverage
 
-**Canonical allowlist:** `melbournePilotSuburbs` in `shared/auLocations.js`:
+**Canonical allowlist:** `melbournePilotSuburbs` / `melbournePilotLocations` in `shared/auLocations.js`:
 
 Melbourne, Southbank, Docklands, South Yarra, Prahran, St Kilda, Richmond, Carlton.
 
 **Do not** duplicate this list in Admin.
 
-**MVP table (honest):**
+**Activation model:** Inner Melbourne is **one controlled pilot zone**. Taskio does **not** require 4–5 Experts independently in every suburb before opening.
 
-| Suburb | Launch-ready Experts **home-based** (`serviceLocation.suburb`) | Status |
+However:
+
+- every **enabled** location must have **credible Expert service coverage** via `serviceAreas[]`
+- Admin must show weak/uncovered areas (informational WATCH)
+- `serviceLocation` (home-base) must **not** be interpreted as all suburbs the Expert will service
+- **`serviceAreas[]` is the explicit source** for service coverage once implemented
+
+The hard **4–5** target applies to **enabled Phase 1 categories**, not suburbs.
+
+**Before `serviceAreas[]` is implemented:** do **not** show a home-base suburb table as if it were service-area coverage. A note “service-area data not yet collected — do not treat home-base as coverage” is acceptable.
+
+**After implementation — simple table (no maps/GIS):**
+
+| Enabled area | Launch-ready Experts listing it in `serviceAreas[]` | Status |
 |---|---|---|
 
-This answers “where Experts **live / listed**”, **not** “who will travel to this job”.
-
-If per-suburb **service** coverage is required to operate safely: smallest add is optional `serviceAreas[]` (allowlisted suburbs). **No maps/GIS.**
-
-Until then, activation geography criterion **C** = every enabled suburb has **at least one** launch-ready Expert **home-based there**, **or** owner accepts “Inner Melbourne treated as one zone” and only requires overall home-bases inside the allowlist. **Owner must choose** that interpretation before treating geo as a hard gate. Default recommendation: **one-zone Inner Melbourne** for activation (all launch-ready Experts must have a valid allowlisted `serviceLocation`); per-suburb table is informational WATCH.
+One-zone activation: enough launch-ready Experts have **at least one** enabled area selected, and no enabled area is left with zero service listings if that area is turned on.
 
 ---
 
@@ -312,10 +335,11 @@ Current attention strip can remain as a **secondary** payment/dispute layer.
 | Stat | Feasibility | Use |
 |---|---|---|
 | Verified / active | **A** | Distinguish registered vs verified |
-| Launch-ready | **B** | Distinguish verified vs launch-ready |
+| Launch-ready | **C** then **B** | Only after `acceptingJobs` + `serviceAreas[]`; distinguish verified vs launch-ready |
 | Categories | **A** | `expertiseApproved` |
-| Service **home-base** | **A** | `serviceLocation` |
-| Service **areas** | **C** | missing |
+| Service **home-base** | **A** | `serviceLocation` — display as home-base only |
+| Service **areas** | **C** | `serviceAreas[]` — **required before posting opens** |
+| Accepting jobs | **C** | `acceptingJobs` — **required before posting opens** |
 | Invitations / quotes / invite→quote % | **B/C** | bounded aggregate |
 | Median response time | **B/C** | invite/job time → first quote |
 | Jobs awarded / completed | **B** | job assignments |
@@ -378,11 +402,11 @@ Demote `/admin/monitoring` and `/admin/daily-checklist` to links under Overview 
 
 | Item | Class | Missing / why | Simplest later impl | Launch-critical? |
 |---|---|---|---|---|
-| Launch-ready count | **B** (fix fetch + use server rules) | Incomplete if users `limit=50`; lenient client readiness | Admin `GET` tradies with eligibility derived server-side, paginate all or `role=tradie` unbounded-but-capped (~200) | Yes |
-| Category coverage | **B** | Need consistent grouping | Count `expertiseApproved` ∩ catalog category | Yes |
-| Geo home-base table | **B** | Single suburb only | Count by `serviceLocation.suburb` vs allowlist | Yes (as home-base) |
-| True service-area coverage | **C** | No `serviceAreas[]` | Optional array, default `[serviceLocation]` | Only if owner rejects one-zone geo |
-| Accepting jobs | **C** | No field | `acceptingJobs` boolean | After OPEN |
+| Launch-ready count | **C** until the two fields exist; then **B** | Incomplete if users `limit=50`; lenient client readiness; missing operational fields | Derive: technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]`. No stored `launchReady` boolean. Paginate all tradies (capped ~200) | **Yes — required before posting opens** |
+| Category coverage | **C** then **B** | Need consistent grouping | Count **only launch-ready** Experts whose `expertiseApproved` ∩ catalog category | Yes |
+| Geo home-base table | **A** (display only) | Single suburb | Show `serviceLocation` as **home-base**, never as coverage | No — must not be used as coverage |
+| True service-area coverage | **C** | No `serviceAreas[]` | Allowlisted multi-select. Do **not** default-copy `serviceLocation` as if chosen | **Yes — required before posting opens** |
+| Accepting jobs | **C** | No field | `acceptingJobs` boolean (no calendar) | **Yes — required before posting opens** |
 | Posting CLOSED/OPEN/PAUSED | **C** | No config | Audited config doc + confirm UI | Yes before OPEN |
 | Waitlist records | **C/D** | No collection | Minimal interest emails or existing waitlist if added later | Pre-activation UX; can be manual at first |
 | Attention 60m / 3h / invite count | **B** | Thresholds differ from 6h/24h | Extend `adminOps` + quote/invite meta | Yes |
@@ -417,7 +441,8 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 - Pilot status + posting CLOSED until explicit OPEN
 - Launch-ready n/15 and floor n/12
 - Category coverage
-- Geography as **home-base** table (service-areas later if required)
+- Geography coverage from `serviceAreas[]` (one Inner Melbourne zone; never treat home-base as coverage)
+- `acceptingJobs` + `serviceAreas[]` profile fields (small data change; no calendars/GIS/maps)
 - Job attention queue (60m / 3h / invites)
 - Quote liquidity (≥1, ≥2, zero-quote)
 - Expert responsiveness (simple)
@@ -437,11 +462,11 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 ## 17. Recommended implementation sequence (later; not this commit)
 
-1. Server-side launch-ready count + category coverage + home-base geo (read-only Overview cards).  
-2. Job Attention Queue with 60m / 3h / invite flags (reuse job detail invite).  
-3. Liquidity + funnel on bounded data.  
-4. Pilot Settings CLOSED/OPEN/PAUSED + confirmation + audit (**does not** ship legal copy).  
-5. Optional `acceptingJobs` and `serviceAreas[]` only if operators cannot run without them.  
+1. Persist `acceptingJobs` (boolean) and `serviceAreas[]` (canonical multi-select) on Expert profiles — **required before real posting opens**. No calendars, GIS, maps, or radius.
+2. Server-side **derived** launch-ready count (technical eligibility + accepting + ≥1 enabled area) + category coverage from launch-ready only + geography from `serviceAreas[]` (read-only Overview). Do **not** ship a home-base-as-coverage table.
+3. Job Attention Queue with 60m / 3h / invite flags (reuse job detail invite).
+4. Liquidity + funnel on bounded data.
+5. Pilot Settings CLOSED/OPEN/PAUSED + confirmation + audit (**does not** ship legal copy).
 6. Waitlist product UX after P06/P09 allow public copy.
 
 Do **not** implement in this documentation task.

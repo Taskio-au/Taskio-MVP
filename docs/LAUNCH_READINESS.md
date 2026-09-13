@@ -108,7 +108,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
-| P11 | **BLOCKED** — Controlled Open-Demand Pilot. Posting **CLOSED** until ~15 launch-ready Experts + category/geo coverage + other real-user gates + **explicit** owner activation. Floor ~12 → WATCH/PAUSE. 15 does **not** auto-open. | — |
+| P11 | **BLOCKED** — Controlled Open-Demand Pilot. Posting **CLOSED** until ~15 launch-ready Experts (eligibility + `acceptingJobs` + `serviceAreas[]`) + category/geo coverage + other real-user gates + **explicit** owner activation. Floor ~12 → WATCH/PAUSE. 15 does **not** auto-open. | — |
 
 Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LAUNCH READY**.
 
@@ -382,7 +382,15 @@ A repeatable checklist for every future release.
 
 **A. Founding Expert onboarding / supply build**
 
-Recruit and manually select launch-ready Experts (verification Taskio actually performs, approved categories, Stripe onboarding, bank payout capability, profile readiness, human welcome). Public Expert open-signup remains **off**.
+Recruit and manually select launch-ready Experts. Public Expert open-signup remains **off**.
+
+**Launch-ready Expert (derived; no stored `launchReady` flag)** counts toward ~15 / ~12 only when **all** of:
+
+1. **Technical eligibility** Taskio actually performs: Expert/tradie role; active account; manually verified; phone/profile complete; approved expertise; Stripe onboarding complete as required; ABN if required; age/business requirements.
+2. **`acceptingJobs === true`** — currently willing/available to receive pilot opportunities. Boolean only; no calendar/scheduling system.
+3. **`serviceAreas[]`** contains at least one **enabled** canonical pilot area — explicit multi-select; not inferred from home-base `serviceLocation`.
+
+`acceptingJobs` and `serviceAreas[]` are **small data/profile changes required before real homeowner posting opens**. They supplement eligibility; they do not replace it. They are **not** optional/post-pilot. Do **not** implement them in a docs-only task. Do **not** gold-plate with GIS, maps, radius, travel-time, or availability calendars.
 
 **B. Homeowner posting activation gate**
 
@@ -398,13 +406,13 @@ Before the supply/readiness gate:
 
 Enable real homeowner posting only when **all** are true:
 
-1. approximately **15 ACTIVE LAUNCH-READY EXPERTS**
-2. adequate coverage of every Phase 1 category intended to be enabled (ideally **4–5 launch-ready Experts per enabled category**)
-3. adequate coverage of the approved launch geography
+1. approximately **15 ACTIVE LAUNCH-READY EXPERTS** (technical eligibility **plus** `acceptingJobs=true` **plus** at least one enabled `serviceAreas[]` value)
+2. adequate coverage of every Phase 1 category intended to be enabled (ideally **4–5 launch-ready Experts per enabled category**). Hard 4–5 applies to **categories**, not every suburb
+3. adequate coverage of the approved launch geography as **one Inner Melbourne zone**. Every **enabled** location must have credible **service** coverage via `serviceAreas[]`. Do **not** require 4–5 Experts independently in every suburb. Do **not** treat home-base `serviceLocation` as service coverage
 4. all other required real-user launch-readiness gates are satisfied
 5. **owner/admin explicitly activates** homeowner acquisition / posting
 
-The raw number 15 is **not** sufficient if category or geographic coverage is weak. **15 does not auto-open posting.**
+The raw number 15 is **not** sufficient if category or geographic coverage is weak. **15 does not auto-open posting.** Do not count technically eligible but unavailable / area-unspecified Experts toward the ~15.
 
 Operating targets (not customer SLAs): recruit **18–20** candidates; launch-ready **~15**; after-activation floor **~12**; ideally **4–5** launch-ready Experts per enabled Phase 1 category; invite up to **~5** suitable Experts per job aiming for **2–3** qualified quotes; first qualified response ideally **≤ 60 minutes**; two quotes ideally **≤ 3 hours**; ≥1 quote on **≥ 90%** of supported jobs; zero-quote **< 10%**.
 
