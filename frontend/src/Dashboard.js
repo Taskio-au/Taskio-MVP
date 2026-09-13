@@ -15,6 +15,7 @@ import useAdminDashboardData from './features/admin/dashboard/useAdminDashboardD
 import useAdminDashboardDerivedData from './features/admin/dashboard/useAdminDashboardDerivedData';
 import useAdminDashboardMetrics from './features/admin/dashboard/useAdminDashboardMetrics';
 import useAdminDashboardQueryState from './features/admin/dashboard/useAdminDashboardQueryState';
+import usePilotSupply from './features/admin/dashboard/usePilotSupply';
 import { jobIdsMatchingWorkflowFilters } from './features/admin/utils/workflowQueueFilters';
 import { buildDashboardTabUrl } from './features/admin/utils/adminDashboardTabUrl';
 import { phase1ExpertiseCatalog } from './shared/expertiseCatalog';
@@ -58,6 +59,11 @@ function Dashboard({ variant = 'default' }) {
     fetchData,
     loadMoreUsers,
   } = useAdminDashboardData(api);
+  const {
+    loadState: pilotSupplyLoadState,
+    data: pilotSupply,
+    refresh: refreshPilotSupply,
+  } = usePilotSupply(api);
 
   const [sortOrder, setSortOrder] = useState('newest');
   const [expertiseFilter, setExpertiseFilter] = useState('all');
@@ -229,6 +235,10 @@ function Dashboard({ variant = 'default' }) {
     }
   }, [authReady, loading, jobs, refreshOpsSummary, refreshWorkflowSummary]);
 
+  useEffect(() => {
+    if (authReady) refreshPilotSupply();
+  }, [authReady, refreshPilotSupply]);
+
   const isSuperAdmin = adminAccess?.isSuperAdmin === true;
 
   const [jobWorkItemsTick, setJobWorkItemsTick] = useState(0);
@@ -237,8 +247,9 @@ function Dashboard({ variant = 'default' }) {
     await fetchData();
     await refreshOpsSummary();
     await refreshWorkflowSummary();
+    await refreshPilotSupply();
     setJobWorkItemsTick((t) => t + 1);
-  }, [fetchData, refreshOpsSummary, refreshWorkflowSummary]);
+  }, [fetchData, refreshOpsSummary, refreshWorkflowSummary, refreshPilotSupply]);
 
   // Show auth/debug panel only when explicitly enabled (avoid leaking claims in normal UI)
   const showDebugPanel = process.env.REACT_APP_SHOW_ADMIN_DEBUG === 'true';
@@ -957,6 +968,8 @@ function Dashboard({ variant = 'default' }) {
             tradies: filteredTradies.length,
             homeowners: filteredHomeowners.length,
           }}
+          pilotSupplyLoadState={pilotSupplyLoadState}
+          pilotSupply={pilotSupply}
         />
       ) : (
         <div style={{ marginBottom: 20 }}>

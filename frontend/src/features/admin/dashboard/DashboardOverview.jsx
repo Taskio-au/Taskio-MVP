@@ -1,6 +1,11 @@
 import React from 'react';
 import AttentionStrip from './AttentionStrip';
-import { Banner, Button, Card, PageHeader } from '../../../design/components';
+import PilotReadinessSection from './PilotReadinessSection';
+import { derivePilotReadiness, PILOT_STATUS } from './pilotReadinessDisplay';
+import Banner from '../../../design/components/Banner';
+import Button from '../../../design/components/Button';
+import Card from '../../../design/components/Card';
+import PageHeader from '../../../design/components/PageHeader';
 import { colors, spacing } from '../../../design/tokens';
 
 function MetricCard({ value, label, subtext, beta = false }) {
@@ -40,13 +45,26 @@ export default function DashboardOverview({
   activeTab,
   onTabChange,
   counts,
+  pilotSupplyLoadState = 'loading',
+  pilotSupply = null,
 }) {
+  const expertSupply = derivePilotReadiness(pilotSupply, pilotSupplyLoadState);
+  const launchReadyCardValue = (
+    expertSupply.status === PILOT_STATUS.LOADING || expertSupply.status === PILOT_STATUS.UNAVAILABLE
+  )
+    ? '—'
+    : expertSupply.totals.launchReady;
+  const launchReadyCardSubtext = expertSupply.status === PILOT_STATUS.UNAVAILABLE
+    ? 'Pilot supply data unavailable. This is not the paginated Experts table.'
+    : expertSupply.status === PILOT_STATUS.LOADING
+      ? 'Loading authoritative supply counts…'
+      : `${expertSupply.totals.experts} total · ${expertSupply.totals.technicallyEligible} technically eligible`;
   return (
     <>
       <PageHeader
         eyebrow="Operations"
         title="Admin dashboard"
-        description="Monitor task flow, triage issues, and keep the marketplace healthy with clearer operational signals."
+        description="See whether supply is ready to open, then triage attention, marketplace health, and account queues."
         actions={<Button variant="secondary" onClick={onRefresh}>Refresh data</Button>}
         style={{ marginBottom: spacing.xl }}
       />
@@ -82,6 +100,8 @@ export default function DashboardOverview({
           </div>
         </Card>
       ) : null}
+
+      <PilotReadinessSection loadState={pilotSupplyLoadState} snapshot={pilotSupply} />
 
       <div style={{ marginBottom: spacing.xl }}>
         <div style={{ marginBottom: 12, fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.primaryHover }}>
@@ -129,6 +149,29 @@ export default function DashboardOverview({
 
       <div style={{ marginBottom: spacing.xl }}>
         <div style={{ marginBottom: 12, fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.textSubtle }}>
+          Marketplace overview
+        </div>
+        <div style={styles.statsContainer}>
+          <MetricCard
+            value={stats.totalJobs}
+            label="Total tasks"
+            subtext={`${stats.openJobs} open and ${stats.assignedJobs} quote accepted`}
+          />
+          <MetricCard
+            value={launchReadyCardValue}
+            label="Launch-ready experts"
+            subtext={launchReadyCardSubtext}
+          />
+          <MetricCard
+            value={stats.totalHomeowners}
+            label="Clients"
+            subtext="All client accounts currently visible to operations."
+          />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: spacing.xl }}>
+        <div style={{ marginBottom: 12, fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.textSubtle }}>
           Risk & payments
         </div>
         <div style={styles.statsContainer}>
@@ -151,29 +194,6 @@ export default function DashboardOverview({
             value={opsSummary?.loading ? '—' : (Number(opsSummary?.riskHighJobs || 0) + Number(opsSummary?.riskCriticalJobs || 0))}
             label="Elevated risk tasks"
             subtext={`Automated score: high ${opsSummary?.riskHighJobs ?? 0} · critical ${opsSummary?.riskCriticalJobs ?? 0}`}
-          />
-        </div>
-      </div>
-
-      <div style={{ marginBottom: spacing.xl }}>
-        <div style={{ marginBottom: 12, fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.textSubtle }}>
-          Marketplace overview
-        </div>
-        <div style={styles.statsContainer}>
-          <MetricCard
-            value={stats.totalJobs}
-            label="Total tasks"
-            subtext={`${stats.openJobs} open and ${stats.assignedJobs} quote accepted`}
-          />
-          <MetricCard
-            value={stats.totalTradies}
-            label="Task experts"
-            subtext={`${stats.verifiedTradies} verified and ${stats.activeTradies} active`}
-          />
-          <MetricCard
-            value={stats.totalHomeowners}
-            label="Clients"
-            subtext="All client accounts currently visible to operations."
           />
         </div>
       </div>

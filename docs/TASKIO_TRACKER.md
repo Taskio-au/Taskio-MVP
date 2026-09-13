@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-13 Admin Slice 2 Pilot Operations Cockpit (GREEN local):** Visual supply-readiness cockpit on the Admin dashboard using `GET /api/admin/pilot-supply`. Display-only status; homeowner posting shown CLOSED with no activation control. Still **not** implemented: persisted Pilot Status, posting/waitlist mutation, job-attention upgrade, marketplace funnel, Expert response analytics. P06 **OPEN**. P09 blocked. Production untouched.
+
 **2026-09-13 Admin Slice 1 pre-push tightening (GREEN local):** Category coverage **minimum 4 / healthy target 5** (`ADEQUATE` at 4). Supply scan truncation fails closed (unread docs on a short last page, or a full page at the cap). `totals.scanComplete` must be false when truncated — later READY must not be inferred from incomplete Expert data. Category/geo totals are indicators only, not a category × area proof. Regenerated frontend `auLocations` to match `syncShared.js`. No push/deploy. Production untouched.
 
 **2026-09-13 Admin Slice 1 Expert supply foundation (GREEN local):** Implemented `acceptingJobs`, `serviceAreas[]`, derived launch-readiness, `GET /api/admin/pilot-supply`, and minimal Expert profile controls. No cockpit visuals, posting switch, waitlist, or homeowner posting change. P06 **OPEN**. P09 blocked. Production untouched.

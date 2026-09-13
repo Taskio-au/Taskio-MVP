@@ -1,6 +1,6 @@
 # Pilot Operations Cockpit — audit and design
 
-**Status:** DESIGN plus **Admin Slice 1 data foundation** (13 September 2026). Visual cockpit is **not** implemented.
+**Status:** DESIGN plus **Admin Slice 1 data foundation** and **Admin Slice 2 visual cockpit** (13 September 2026, local). Persisted Pilot Settings / posting activation are **not** implemented.
 
 **Date:** 13 September 2026  
 **Companion operating rules:** `docs/P06_OWNER_DECISIONS.md` §5–§5B  
@@ -19,13 +19,19 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 - Authoritative Admin supply data: `GET /api/admin/pilot-supply` (pages all tradies; not UI `limit=50`)
 - Minimal Expert profile controls to maintain the two fields
 
+**IMPLEMENTED (Slice 2 — visual cockpit, local)**
+
+- Admin dashboard Pilot Readiness section (display-only status, launch-ready / floor / category / geography cards)
+- Category HEALTHY / ADEQUATE / UNDER-COVERED and geography COVERED / UNCOVERED from `GET /api/admin/pilot-supply`
+- Truncation / scan-incomplete fail-safe (`DATA INCOMPLETE`); API error (`DATA UNAVAILABLE`)
+- Homeowner posting shown **CLOSED** with no activation control
+
 **NOT YET IMPLEMENTED**
 
-- Admin cockpit visuals
-- Pilot OPEN/CLOSED control
+- Persisted Pilot Status / Pilot OPEN/CLOSED/PAUSED control
 - Waitlist
 - Homeowner open posting
-- Job attention queue
+- Job attention queue upgrade (60m / 3h)
 - Liquidity / marketplace funnel
 - Responsiveness analytics
 
@@ -255,7 +261,7 @@ Do not communicate state by colour alone: status **text + chip + count**.
 | KPI | Feasibility | Notes |
 |---|---|---|
 | Pilot Status | **C** — needs persisted posting state + derived gate | Do not fake OPEN from Expert count |
-| Launch-ready `n / 15` | **B** via `GET /api/admin/pilot-supply` (visuals later) | Derived technical eligibility + accepting + ≥1 enabled area. Pages past UI `limit=50`. If `totals.truncated` / `scanComplete=false`, do **not** treat counts as proving READY |
+| Launch-ready `n / 15` | **A** via `GET /api/admin/pilot-supply` + Admin cockpit (Slice 2) | Derived technical eligibility + accepting + ≥1 enabled area. Pages past UI `limit=50`. If `totals.truncated` / `scanComplete=false`, do **not** treat counts as proving READY |
 | Operating floor `n / 12` | same as launch-ready count | |
 | Category coverage `k / N` | **B** data / **C** visuals | Count **only launch-ready** Experts per enabled category |
 | Geographic coverage | **B** data / **C** visuals | From `serviceAreas[]`. Do **not** present home-base as service coverage |
@@ -484,17 +490,19 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Done in Slice 1:** persist `acceptingJobs` + `serviceAreas[]`; derived launch-ready; `GET /api/admin/pilot-supply` (category coverage from launch-ready only; geography from `serviceAreas[]`; category **minimum 4 / target 5**).
 
+**Done in Slice 2 (local):** visual Pilot Operations Cockpit on the Admin dashboard. Display-only Pilot Status (`NOT READY` / `READY TO OPEN` / `DATA INCOMPLETE` / `DATA UNAVAILABLE`). No persisted posting control. Geography display heuristic: an area is COVERED when ≥1 launch-ready Expert lists it — not 4–5 per suburb, and not a category × area proof. WATCH/OPEN/PAUSED persisted states are not shown.
+
 **Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY from that incomplete Expert set.
 
 **Job-specific supply:** category and geography totals are indicators only. They do not prove every category × service-area combination is covered. Later matching / attention should count launch-ready Experts for the job’s actual category + service area. No category-by-suburb matrix and no GIS in this slice.
 
-**Still later (not this slice):**
+**Still later (not Slice 2):**
 
-1. Admin Overview cards / cockpit visuals (read the supply API; do **not** ship a home-base-as-coverage table).
+1. Persisted Pilot Status / homeowner posting OPEN/CLOSED/PAUSED control + confirmation + audit.
 2. Job Attention Queue with 60m / 3h / invite flags.
 3. Liquidity + funnel on bounded data.
-4. Pilot Settings CLOSED/OPEN/PAUSED + confirmation + audit (**does not** ship legal copy).
-5. Waitlist product UX after P06/P09 allow public copy.
+4. Waitlist product UX after P06/P09 allow public copy.
+5. Expert response analytics.
 
 ---
 
