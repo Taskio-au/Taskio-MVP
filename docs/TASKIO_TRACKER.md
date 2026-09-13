@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-13 Admin Slice 4 marketplace health metrics (GREEN local):** Bounded `GET /api/admin/marketplace-metrics?range=7d|30d|pilot` plus Admin Marketplace Health / funnel / Expert responsiveness. Quote-ready job cohort; ≥1 / ≥2 / zero-quote coverage; median first response from `quoteReadyAt`; invitation response time only when `invites.{uid}.invitedAt` exists. No auto-rank, posting control, waitlist, or Pilot OPEN/CLOSED. Still **not** implemented: full Pilot Status engine, persisted OPEN/CLOSED/PAUSED, waitlist, homeowner open posting. P06 **OPEN**. P09 blocked. Production untouched.
+
 **2026-09-13 Admin Slice 3 quote-ready clock (GREEN local):** Quote-liquidity now uses server `quoteReadyAt` (first time the job is available for Expert quoting), not job-record `createdAt`. Photo-gated jobs are stamped on the first `postingReady=false → true` transition; ready-at-create jobs get the same server timestamp as `createdAt`. Legacy fallback: `createdAt` only if `quoteReadyAt` is missing and the job was never photo-gated. `quoteReadyAt` is not a work appointment. No push/deploy.
 
 **2026-09-13 Admin Slice 3 stall-semantics check (GREEN local):** `FUNDED_JOB_STALLED` **removed**. `job.timeline` is a posting preference, not an agreed work time; `fundedAt` alone must not flag future-scheduled jobs. `LOW_INVITE_COVERAGE` has a 60m grace. `COMPLETION_STALLED` kept (`COMPLETED` + `completedAt` >48h, not if released/refunded/paid). No push/deploy.

@@ -6,6 +6,7 @@ const profileRoutes = require('./profileRoutes');
 const userRoutes = require('./userRoutes');
 const pilotSupplyRoutes = require('./pilotSupplyRoutes');
 const jobAttentionRoutes = require('./jobAttentionRoutes');
+const marketplaceMetricsRoutes = require('./marketplaceMetricsRoutes');
 const jobRoutes = require('./jobRoutes');
 const bootstrapRoutes = require('./bootstrapRoutes');
 const notesRoutes = require('./notesRoutes');
@@ -22,6 +23,7 @@ router.use(profileRoutes);
 router.use(userRoutes);
 router.use(pilotSupplyRoutes);
 router.use(jobAttentionRoutes);
+router.use(marketplaceMetricsRoutes);
 router.use(jobRoutes);
 
 module.exports = router;

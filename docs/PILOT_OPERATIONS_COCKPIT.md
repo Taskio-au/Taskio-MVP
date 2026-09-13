@@ -1,6 +1,6 @@
 # Pilot Operations Cockpit — audit and design
 
-**Status:** DESIGN plus **Admin Slices 1–3** (data foundation, visual cockpit, Job Attention Queue; 13 September 2026, local). Persisted Pilot Settings / posting activation are **not** implemented.
+**Status:** DESIGN plus **Admin Slices 1–4** (data foundation, visual cockpit, Job Attention Queue, marketplace health metrics; 13 September 2026, local). Persisted Pilot Settings / posting activation are **not** implemented.
 
 **Date:** 13 September 2026  
 **Companion operating rules:** `docs/P06_OWNER_DECISIONS.md` §5–§5B  
@@ -40,13 +40,22 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 - **`FUNDED_JOB_STALLED` is not implemented.** `job.timeline` is a posting preference string (`Today` / `Tomorrow` / `Within 2 days` / `Flexible` / or a YYYY-MM-DD request). There is no agreed/scheduled work timestamp. `fundedAt` alone is not stall evidence
 - `COMPLETION_STALLED` remains: `COMPLETED` + explicit `completedAt` older than 48h, and payment is not already released/refunded/paid
 
+**IMPLEMENTED (Slice 4 — marketplace health, local)**
+
+- `GET /api/admin/marketplace-metrics?range=7d|30d|pilot` (admin-only; default **7 days**)
+- Quote-ready **job cohort**: jobs that became available for quoting in the selected range, then followed through later stages. Do not mix “completed this week” into this funnel
+- Quote coverage (`≥1`, `≥2`, zero-quote) with numerator/denominator
+- Median first response and first quote `≤60m`, from `quoteReadyAt` (Slice 3 legacy fallback). Time metrics require a reliable clock and at least one submitted quote
+- Marketplace funnel: quote-ready → ≥1 quote → ≥2 quotes → accepted → funded → completed → Taskio payment released
+- Expert responsiveness table (operational stats only — no ranking, suspension, or hidden score)
+- Bounded job scan + batched quotes + one Expert load; `truncated` / `scanComplete` fail-safe (`METRICS DATA INCOMPLETE` / `METRICS DATA UNAVAILABLE`)
+
 **NOT YET IMPLEMENTED**
 
 - Persisted Pilot Status / Pilot OPEN/CLOSED/PAUSED control
 - Waitlist
 - Homeowner open posting
-- Liquidity / marketplace funnel
-- Responsiveness analytics
+- Full Pilot Status engine
 
 ---
 
@@ -394,11 +403,31 @@ Do **not** auto-punish or auto-suspend from these stats.
 
 ## 11. Marketplace funnel
 
-JOB POSTED → ≥1 QUOTE → ≥2 QUOTES → QUOTE ACCEPTED → FUNDED → COMPLETED → PAYMENT RELEASED
+**Implemented in Slice 4** on `GET /api/admin/marketplace-metrics`.
 
-Show count + conversion % for **7 days / 30 days / Pilot-to-date**.
+QUOTE-READY JOB → ≥1 QUOTE → ≥2 QUOTES → QUOTE ACCEPTED → FUNDED → COMPLETED → PAYMENT RELEASED
 
-**B** from admin jobs + quote meta. Keep job fetches bounded; do not scan unbounded Firestore from the browser. Prefer one admin summary endpoint when counts exceed a few hundred jobs.
+Show count + conversion % (from previous stage and from quote-ready) for **7 days / 30 days / Pilot-to-date**. Default Admin display is **7 days**.
+
+**Cohort:** jobs that **became quote-ready** in the selected range, then followed through later stages. Do not mix “jobs that completed this week” into a “became ready this week” funnel. Recent jobs may still be in progress.
+
+### Authoritative fields
+
+| Metric | Fields |
+|---|---|
+| Quote-ready clock | `quoteReadyAt`; `createdAt` only if `quoteReadyAt` is missing **and** the job was never photo-gated (`postingPhotoRequired !== true`). `postingReady===false` excluded. Historically photo-gated with no `quoteReadyAt` excluded from the cohort and from time metrics |
+| Visible quotes | `quotes.status` in `submitted` \| `accepted`. Draft / withdrawn / rejected are not counted. Superseded is used only to recover first-submission time |
+| ≥1 / ≥2 / zero-quote | Visible quote count on the quote-ready cohort |
+| First response | Median `quoteReadyAt` → earliest submitted/accepted/superseded `quotes.createdAt`. Sample = jobs with a reliable clock and at least one such quote. `≤60m` uses that same sample |
+| Accepted | `acceptedQuoteId` / `acceptedTradieUid` / quote `accepted` / status `ASSIGNED`+ through `PAID` |
+| Funded | status `FUNDED` / `IN_PROGRESS` / `COMPLETED` / `PAID`, or `paymentState` `in_escrow` \| `released`, or `fundedAt` |
+| Completed | status `COMPLETED` \| `PAID`, or `completedAt` |
+| Released | Taskio `PAID` / `paymentState=released` / `releasedAt`. **Not** Stripe `transferId` and **not** connected-account bank payout |
+| Expert invitations | `invitedTradieUids` on cohort jobs (one job-level invitation per Expert) |
+| Expert quoted | invited Expert submitted a visible quote on that job (revisions do not double-count) |
+| Expert response time | `invites.{uid}.invitedAt` → first submitted quote. If `invitedAt` is missing, the time metric is omitted — never invented, never relabelled as invitation response from `quoteReadyAt` |
+| Awarded / completed / cancelled | `acceptedTradieUid`; completed via job completion/release fields; cancellations only when the awarded Expert’s job is `CANCELLED` |
+| Launch-ready | derived `computeLaunchReadiness` (no stored flag) |
 
 Avoid GA4/external analytics for this cockpit.
 
@@ -507,17 +536,17 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Done in Slice 3 (local):** Job Attention Queue. Bounded `GET /api/admin/job-attention`. Quote-liquidity triggers **0 quotes >60m** and **1 quote >3h** replace the old 6h / 24h quoting cards. The clock starts when the job becomes available for quoting (`quoteReadyAt`), not when the job record was created. Incomplete scans must not show “all clear”. **Funded-job stall is deferred** — Taskio has no reliable agreed/scheduled work timestamp (`timeline` is a preference string only). Completion/release waiting uses `COMPLETED` + `completedAt` >48h and excludes settled payments.
 
-**Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). The attention endpoint pages jobs (page size 100, cap 250) and reuses one Expert supply load. `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY, and the attention queue must **not** imply it is exhaustive.
+**Done in Slice 4 (local):** Marketplace health. Bounded `GET /api/admin/marketplace-metrics?range=7d|30d|pilot`. Quote coverage, median first response, Expert responsiveness, and a quote-ready job-cohort funnel. Invitation response time is omitted unless `invites.{uid}.invitedAt` exists. Incomplete scans show `METRICS DATA INCOMPLETE`. API failure shows `METRICS DATA UNAVAILABLE` (no fake zeros). No auto-rank / auto-punish.
+
+**Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). The attention and marketplace-metrics endpoints page jobs (page size 100, cap 250) and reuse one Expert supply load. `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY, the attention queue must **not** imply it is exhaustive, and marketplace percentages/funnel must **not** be treated as complete.
 
 **Job-specific supply:** category and geography totals are indicators only. They do not prove every category × service-area combination is covered. Later matching / attention should count launch-ready Experts for the job’s actual category + service area. No category-by-suburb matrix and no GIS in this slice.
 
-**Still later (not Slice 3):**
+**Still later (not Slice 4):**
 
 1. Future **Pilot Status engine** (`NOT READY` / `READY TO OPEN` / `OPEN` / `WATCH` / `PAUSED`) plus persisted homeowner posting OPEN/CLOSED/PAUSED control + confirmation + audit. That engine must include supply **and** legal/privacy, production/security/operations, production acceptance, and explicit owner activation — not Expert supply alone.
-2. Marketplace funnel / liquidity % and Expert response analytics.
-3. Liquidity + funnel on bounded data.
-4. Waitlist product UX after P06/P09 allow public copy.
-5. Expert response analytics.
+2. Waitlist product UX after P06/P09 allow public copy.
+3. Homeowner open posting.
 
 ---
 
