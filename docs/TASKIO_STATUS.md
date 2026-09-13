@@ -51,7 +51,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
-| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Posting **CLOSED** until ~15 launch-ready (technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]`) + category coverage (4–5 per **enabled category**, not per suburb) + one-zone Inner Melbourne **service** coverage + other real-user gates + explicit owner activation. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1 data foundation implemented; cockpit visuals not built. | — |
+| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Posting **CLOSED** until ~15 launch-ready (technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]`) + category coverage (**minimum 4 / target 5** per **enabled category**, not per suburb) + one-zone Inner Melbourne **service** coverage + other real-user gates + explicit owner activation. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1 data foundation implemented; cockpit visuals not built. Incomplete Expert scans must not prove READY. | — |
 
 Mandatory remaining before controlled launch: P06, P07, P08, P09, P10, plus P03/P04/P05 **production** PASS.
 

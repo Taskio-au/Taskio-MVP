@@ -10,6 +10,8 @@ const router = express.Router();
 /**
  * GET /api/admin/pilot-supply
  * Authoritative Expert supply/readiness counts. Pages all tradies (capped).
+ * If totals.truncated / scanComplete=false, do not treat counts as proving READY.
+ * Category and geography totals are indicators, not a category × area matrix.
  * Not the visual cockpit.
  */
 router.get('/api/admin/pilot-supply', requireAuth, requireAdmin, async (req, res) => {

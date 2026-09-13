@@ -1,6 +1,10 @@
 'use strict';
 
-const { aggregatePilotSupply } = require('../src/services/pilotSupplyService');
+const {
+  aggregatePilotSupply,
+  buildPilotSupplySnapshot,
+  listAllPilotExperts,
+} = require('../src/services/pilotSupplyService');
 
 function eligibleExpert(overrides = {}) {
   return {
@@ -38,7 +42,22 @@ describe('aggregatePilotSupply', () => {
     expect(snapshot.totals.launchReady).toBe(1);
     const mounting = snapshot.categoryCoverage.find((row) => row.category === 'Mounting');
     expect(mounting.launchReadyCount).toBe(1);
+    expect(mounting.minimum).toBe(4);
     expect(mounting.target).toBe(5);
+    expect(mounting.status).toBe('UNDER-COVERED');
+  });
+
+  it('marks category coverage HEALTHY at 5, ADEQUATE at 4, UNDER-COVERED below 4', () => {
+    const make = (count, categoryKey = 'mounting_tv') => Array.from({ length: count }, (_, i) => ({
+      uid: `n-${i}`,
+      data: eligibleExpert({ expertiseApproved: [categoryKey] }),
+    }));
+    const healthy = aggregatePilotSupply(make(5)).categoryCoverage.find((row) => row.category === 'Mounting');
+    const adequate = aggregatePilotSupply(make(4)).categoryCoverage.find((row) => row.category === 'Mounting');
+    const under = aggregatePilotSupply(make(3)).categoryCoverage.find((row) => row.category === 'Mounting');
+    expect(healthy.status).toBe('HEALTHY');
+    expect(adequate.status).toBe('ADEQUATE');
+    expect(under.status).toBe('UNDER-COVERED');
   });
 
   it('uses serviceAreas for geography and ignores home-base', () => {
@@ -71,6 +90,84 @@ describe('aggregatePilotSupply', () => {
       { uid: 'a', data: eligibleExpert({ serviceAreas: ['Richmond'] }) },
     ]);
     expect(snapshot.geographyCoverage.every((row) => row.target === undefined)).toBe(true);
-    expect(snapshot.targets.categoryCoverage).toBe(5);
+    expect(snapshot.targets.categoryCoverageMinimum).toBe(4);
+    expect(snapshot.targets.categoryCoverageTarget).toBe(5);
+  });
+});
+
+function makePagedDb(ids) {
+  return {
+    collection() {
+      const chain = {
+        _after: null,
+        _limit: 100,
+        where() { return chain; },
+        orderBy() { return chain; },
+        limit(n) {
+          chain._limit = n;
+          return chain;
+        },
+        startAfter(doc) {
+          chain._after = doc.id;
+          return chain;
+        },
+        async get() {
+          let start = 0;
+          if (chain._after) {
+            start = ids.indexOf(chain._after) + 1;
+          }
+          const slice = ids.slice(start, start + chain._limit);
+          return {
+            empty: slice.length === 0,
+            docs: slice.map((id) => ({
+              id,
+              data: () => ({ role: 'tradie' }),
+            })),
+          };
+        },
+      };
+      return chain;
+    },
+  };
+}
+
+describe('listAllPilotExperts truncation', () => {
+  it('is not truncated when the last page is short of pageSize and below cap', async () => {
+    const ids = Array.from({ length: 55 }, (_, i) => `e${i}`);
+    const listed = await listAllPilotExperts(makePagedDb(ids), { pageSize: 20, cap: 250 });
+    expect(listed.scanned).toBe(55);
+    expect(listed.truncated).toBe(false);
+  });
+
+  it('marks truncated when a short last page still has unread Experts past the cap', async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => `e${i}`);
+    const listed = await listAllPilotExperts(makePagedDb(ids), { pageSize: 10, cap: 11 });
+    expect(listed.scanned).toBe(11);
+    expect(listed.truncated).toBe(true);
+  });
+
+  it('marks truncated when the cap lands on a full page', async () => {
+    const ids = Array.from({ length: 20 }, (_, i) => `e${i}`);
+    const listed = await listAllPilotExperts(makePagedDb(ids), { pageSize: 10, cap: 10 });
+    expect(listed.scanned).toBe(10);
+    expect(listed.truncated).toBe(true);
+  });
+
+  it('does not treat a complete short final page at the cap as truncated', async () => {
+    const ids = Array.from({ length: 15 }, (_, i) => `e${i}`);
+    const listed = await listAllPilotExperts(makePagedDb(ids), { pageSize: 10, cap: 15 });
+    expect(listed.scanned).toBe(15);
+    expect(listed.truncated).toBe(false);
+  });
+});
+
+describe('buildPilotSupplySnapshot scanComplete', () => {
+  it('sets scanComplete false when the Expert scan is truncated', async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => `e${i}`);
+    const snapshot = await buildPilotSupplySnapshot(makePagedDb(ids), { pageSize: 10, cap: 11 });
+    expect(snapshot.totals.truncated).toBe(true);
+    expect(snapshot.totals.scanComplete).toBe(false);
+    expect(snapshot.totals.scanned).toBe(11);
+    expect(snapshot.totals.cap).toBe(11);
   });
 });

@@ -56,6 +56,15 @@ describe('computeLaunchReadiness', () => {
     expect(result.reasons).toContain('NOT_ACCEPTING_JOBS');
   });
 
+  it('is not launch-ready when serviceAreas is missing (legacy)', () => {
+    const userDoc = eligibleExpert();
+    delete userDoc.serviceAreas;
+    const result = computeLaunchReadiness({ decodedToken: token, userDoc });
+    expect(result.serviceAreas).toEqual([]);
+    expect(result.launchReady).toBe(false);
+    expect(result.reasons).toContain('NO_SERVICE_AREA');
+  });
+
   it('is not launch-ready without a canonical service area', () => {
     const result = computeLaunchReadiness({
       decodedToken: token,

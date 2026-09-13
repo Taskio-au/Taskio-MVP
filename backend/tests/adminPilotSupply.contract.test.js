@@ -124,11 +124,17 @@ describe('Admin pilot supply readiness', () => {
     expect(res.body.totals.technicallyEligible).toBe(55);
     expect(res.body.targets.launchReady).toBe(15);
     expect(res.body.targets.afterActivationFloor).toBe(12);
+    expect(res.body.targets.categoryCoverageMinimum).toBe(4);
+    expect(res.body.targets.categoryCoverageTarget).toBe(5);
+    expect(res.body.totals.truncated).toBe(false);
+    expect(res.body.totals.scanComplete).toBe(true);
     const richmond = res.body.geographyCoverage.find((row) => row.area === 'Richmond');
     expect(richmond.launchReadyCount).toBe(20);
     const mounting = res.body.categoryCoverage.find((row) => row.category === 'Mounting');
     expect(mounting.launchReadyCount).toBe(20);
+    expect(mounting.minimum).toBe(4);
     expect(mounting.target).toBe(5);
+    expect(mounting.status).toBe('HEALTHY');
   });
 
   it('rejects non-admin callers', async () => {

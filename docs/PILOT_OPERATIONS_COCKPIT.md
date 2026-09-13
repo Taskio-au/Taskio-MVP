@@ -45,7 +45,7 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 **ACTIVATION GATE — all required:**
 
 A. approximately **15 ACTIVE LAUNCH-READY EXPERTS** (definition in §2 — technical eligibility **plus** `acceptingJobs=true` **plus** at least one enabled `serviceAreas[]` value)
-B. every **enabled** Phase 1 category has adequate launch-ready coverage (ideally **4–5** launch-ready Experts capable of servicing it). The hard 4–5 target applies to **categories**, not to every suburb
+B. every **enabled** Phase 1 category has adequate launch-ready coverage (**minimum 4**, **healthy target 5**). The hard 4–5 band applies to **categories**, not to every suburb
 C. approved launch geography has **credible service coverage** as **one Inner Melbourne zone** (see §8). Not 4–5 Experts independently in every suburb
 D. all other real-user launch-readiness gates are satisfied
 E. owner/admin **explicitly activates** homeowner posting/acquisition  
@@ -61,7 +61,7 @@ E. owner/admin **explicitly activates** homeowner posting/acquisition
 | Expert recruitment | **18–20** candidates |
 | Launch-ready (activation) | **~15** |
 | After-activation floor | **~12** |
-| Category coverage | ideally **4–5** launch-ready Experts per **enabled** Phase 1 category |
+| Category coverage | **minimum 4** / **healthy target 5** launch-ready Experts per **enabled** Phase 1 category |
 | Initial job invitations | up to **~5** suitable Experts |
 | Desired quotes | **2–3** qualified quotes |
 | First qualified response | ideally **≤ 60 minutes** in normal operating periods |
@@ -255,7 +255,7 @@ Do not communicate state by colour alone: status **text + chip + count**.
 | KPI | Feasibility | Notes |
 |---|---|---|
 | Pilot Status | **C** — needs persisted posting state + derived gate | Do not fake OPEN from Expert count |
-| Launch-ready `n / 15` | **B** via `GET /api/admin/pilot-supply` (visuals later) | Derived technical eligibility + accepting + ≥1 enabled area. Not truncated by UI `limit=50` |
+| Launch-ready `n / 15` | **B** via `GET /api/admin/pilot-supply` (visuals later) | Derived technical eligibility + accepting + ≥1 enabled area. Pages past UI `limit=50`. If `totals.truncated` / `scanComplete=false`, do **not** treat counts as proving READY |
 | Operating floor `n / 12` | same as launch-ready count | |
 | Category coverage `k / N` | **B** data / **C** visuals | Count **only launch-ready** Experts per enabled category |
 | Geographic coverage | **B** data / **C** visuals | From `serviceAreas[]`. Do **not** present home-base as service coverage |
@@ -281,11 +281,13 @@ Optional operating merge (matches owner example): **Mounting + Hanging → “Mo
 
 Per row:
 
-| Category | Launch-ready Experts | Target (4–5) | Status |
-|---|---|---|---|
-| … | count | 5 | HEALTHY / WATCH / UNDER-COVERED |
+| Category | Launch-ready Experts | Minimum | Target | Status |
+|---|---|---|---|---|
+| … | count | 4 | 5 | HEALTHY / ADEQUATE / UNDER-COVERED |
 
-Status text (example): HEALTHY if ≥5; WATCH if 4; UNDER-COVERED if ≤3. Disabled categories omitted.
+Status text: **HEALTHY** if ≥5; **ADEQUATE** (watch band) if 4; **UNDER-COVERED** if ≤3. Disabled categories omitted.
+
+These category totals are **readiness indicators**. They do **not** prove every category × service-area pair has adequate supply. Later job matching / attention logic should count launch-ready Experts for the job’s actual category + service area. Do not build a large category-by-suburb matrix or GIS here.
 
 Visual: horizontal bar (count/target) + numeric count + **text** chip. Not colour-only.
 
@@ -308,7 +310,7 @@ However:
 - `serviceLocation` (home-base) must **not** be interpreted as all suburbs the Expert will service
 - **`serviceAreas[]` is the explicit source** for service coverage once implemented
 
-The hard **4–5** target applies to **enabled Phase 1 categories**, not suburbs.
+The hard **4–5** band applies to **enabled Phase 1 categories**, not suburbs. Geography totals are also indicators only: they do **not** prove every category is covered in every listed area.
 
 **Before `serviceAreas[]` is implemented:** do **not** show a home-base suburb table as if it were service-area coverage. A note “service-area data not yet collected — do not treat home-base as coverage” is acceptable.
 
@@ -480,7 +482,11 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 ## 17. Implementation sequence
 
-**Done in Slice 1:** persist `acceptingJobs` + `serviceAreas[]`; derived launch-ready; `GET /api/admin/pilot-supply` (category coverage from launch-ready only; geography from `serviceAreas[]`).
+**Done in Slice 1:** persist `acceptingJobs` + `serviceAreas[]`; derived launch-ready; `GET /api/admin/pilot-supply` (category coverage from launch-ready only; geography from `serviceAreas[]`; category **minimum 4 / target 5**).
+
+**Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY from that incomplete Expert set.
+
+**Job-specific supply:** category and geography totals are indicators only. They do not prove every category × service-area combination is covered. Later matching / attention should count launch-ready Experts for the job’s actual category + service area. No category-by-suburb matrix and no GIS in this slice.
 
 **Still later (not this slice):**
 

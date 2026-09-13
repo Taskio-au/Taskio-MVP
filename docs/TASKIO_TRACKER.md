@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-13 Admin Slice 1 pre-push tightening (GREEN local):** Category coverage **minimum 4 / healthy target 5** (`ADEQUATE` at 4). Supply scan truncation fails closed (unread docs on a short last page, or a full page at the cap). `totals.scanComplete` must be false when truncated — later READY must not be inferred from incomplete Expert data. Category/geo totals are indicators only, not a category × area proof. Regenerated frontend `auLocations` to match `syncShared.js`. No push/deploy. Production untouched.
+
 **2026-09-13 Admin Slice 1 Expert supply foundation (GREEN local):** Implemented `acceptingJobs`, `serviceAreas[]`, derived launch-readiness, `GET /api/admin/pilot-supply`, and minimal Expert profile controls. No cockpit visuals, posting switch, waitlist, or homeowner posting change. P06 **OPEN**. P09 blocked. Production untouched.
 
 **2026-09-13 Pilot Expert readiness criteria tightened (GREEN docs only):** Launch-ready for ~15 / ~12 = technical eligibility **AND** `acceptingJobs=true` **AND** `serviceAreas[]` contains ≥1 enabled canonical pilot area. Those two fields are **required before real homeowner posting opens**. No stored `launchReady` boolean. Geography = **one Inner Melbourne zone**; hard **4–5** applies to **enabled Phase 1 categories**, not every suburb; do not treat home-base `serviceLocation` as service coverage. Cockpit counts must use this derived definition. No calendars/GIS/maps/radius. Production untouched.

@@ -3,6 +3,7 @@
 /**
  * Server-side Expert supply aggregation for the Controlled Open-Demand Pilot.
  * Pages through all tradie profiles so Admin counts are not truncated by UI limit=50.
+ * A truncated scan must never be interpreted as positively proving readiness.
  */
 
 const { admin } = require('../firebaseAdmin');
@@ -14,6 +15,7 @@ const PILOT_SUPPLY_PAGE_SIZE = 100;
 const PILOT_SUPPLY_EXPERT_CAP = 250;
 const LAUNCH_READY_TARGET = 15;
 const AFTER_ACTIVATION_FLOOR = 12;
+const CATEGORY_COVERAGE_MINIMUM = 4;
 const CATEGORY_COVERAGE_TARGET = 5;
 
 function enabledPhase1Categories() {
@@ -33,7 +35,7 @@ function enabledPhase1Categories() {
 
 function categoryStatus(count) {
   if (count >= CATEGORY_COVERAGE_TARGET) return 'HEALTHY';
-  if (count === CATEGORY_COVERAGE_TARGET - 1) return 'WATCH';
+  if (count >= CATEGORY_COVERAGE_MINIMUM) return 'ADEQUATE';
   return 'UNDER-COVERED';
 }
 
@@ -65,15 +67,19 @@ async function listAllPilotExperts(db, {
     const snap = await query.get();
     if (!snap || snap.empty || !Array.isArray(snap.docs) || snap.docs.length === 0) break;
 
-    for (const doc of snap.docs) {
+    for (let i = 0; i < snap.docs.length; i += 1) {
+      const doc = snap.docs[i];
       experts.push({ uid: doc.id, data: doc.data() || {} });
       if (experts.length >= cap) {
-        truncated = snap.docs.length >= pageSize;
+        // Fail closed: leftover docs on this page, or a full page at the cap,
+        // means the scan did not prove it saw every Expert.
+        const moreInThisPage = i + 1 < snap.docs.length;
+        truncated = moreInThisPage || snap.docs.length >= pageSize;
         break;
       }
     }
     lastDoc = snap.docs[snap.docs.length - 1];
-    if (snap.docs.length < pageSize) break;
+    if (experts.length >= cap || snap.docs.length < pageSize) break;
   }
 
   return { experts, truncated, scanned: experts.length, cap };
@@ -119,7 +125,8 @@ function aggregatePilotSupply(experts) {
     targets: {
       launchReady: LAUNCH_READY_TARGET,
       afterActivationFloor: AFTER_ACTIVATION_FLOOR,
-      categoryCoverage: CATEGORY_COVERAGE_TARGET,
+      categoryCoverageMinimum: CATEGORY_COVERAGE_MINIMUM,
+      categoryCoverageTarget: CATEGORY_COVERAGE_TARGET,
     },
     totals: {
       experts: totalExperts,
@@ -129,6 +136,7 @@ function aggregatePilotSupply(experts) {
     categoryCoverage: categories.map((row) => ({
       category: row.category,
       launchReadyCount: categoryCounts[row.category],
+      minimum: CATEGORY_COVERAGE_MINIMUM,
       target: CATEGORY_COVERAGE_TARGET,
       status: categoryStatus(categoryCounts[row.category]),
     })),
@@ -145,6 +153,8 @@ async function buildPilotSupplySnapshot(db, options) {
   snapshot.totals.truncated = listed.truncated;
   snapshot.totals.scanned = listed.scanned;
   snapshot.totals.cap = listed.cap;
+  // Future Pilot Status / READY must not treat an incomplete scan as proof.
+  snapshot.totals.scanComplete = listed.truncated !== true;
   return snapshot;
 }
 
@@ -153,6 +163,7 @@ module.exports = {
   PILOT_SUPPLY_EXPERT_CAP,
   LAUNCH_READY_TARGET,
   AFTER_ACTIVATION_FLOOR,
+  CATEGORY_COVERAGE_MINIMUM,
   CATEGORY_COVERAGE_TARGET,
   enabledPhase1Categories,
   listAllPilotExperts,

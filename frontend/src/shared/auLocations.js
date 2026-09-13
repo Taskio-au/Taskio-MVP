@@ -47,7 +47,8 @@ export const auLocations = [
   { suburb: "Darwin", state: "NT", postcode: "0800", label: "Darwin NT 0800", latitude: null, longitude: null },
 ];
 
-export const melbournePilotLocations = auLocations.filter((item) => item.state === "VIC" && ["Melbourne", "Southbank", "Docklands", "South Yarra", "Prahran", "St Kilda", "Richmond", "Carlton"].includes(item.suburb));
+export const melbournePilotSuburbNames = ["Melbourne","Southbank","Docklands","South Yarra","Prahran","St Kilda","Richmond","Carlton"];
+export const melbournePilotLocations = auLocations.filter((item) => item.state === "VIC" && melbournePilotSuburbNames.includes(item.suburb));
 
 export function searchAuLocations(query, limit = 10) {
   const q = String(query || "").trim().toLowerCase();
