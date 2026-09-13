@@ -1,13 +1,33 @@
 # Pilot Operations Cockpit — audit and design
 
-**Status:** DESIGN / DOCUMENTATION ONLY — **not implemented**. No Admin, backend, schema, posting, or waitlist code in this batch.
+**Status:** DESIGN plus **Admin Slice 1 data foundation** (13 September 2026). Visual cockpit is **not** implemented.
 
 **Date:** 13 September 2026  
 **Companion operating rules:** `docs/P06_OWNER_DECISIONS.md` §5–§5B  
-**Canonical catalog:** `shared/expertiseCatalog.js`  
-**Canonical geography:** `shared/auLocations.js` (`melbournePilotSuburbs` / `melbournePilotLocations`)
+**Canonical catalog:** `shared/expertiseCatalog.js` — all Phase 1 categories treated as enabled until a persisted Pilot Settings switch exists
+**Canonical geography:** `shared/auLocations.js` (`melbournePilotSuburbNames` / `melbournePilotLocations`) — all 8 Inner Melbourne areas treated as enabled until a persisted Pilot Settings switch exists
 
-P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin design may proceed independently and must **not** imply legal review is complete.
+P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin work must **not** imply legal review is complete.
+
+### Implementation status (do not change operating rules)
+
+**IMPLEMENTED (Slice 1 — data foundation)**
+
+- `acceptingJobs` (boolean; missing/legacy ⇒ not accepting)
+- `serviceAreas[]` (canonical suburb names only; missing/legacy ⇒ `[]`; home-base `serviceLocation` is not a substitute)
+- Derived launch-readiness (`computeLaunchReadiness` — no stored `launchReady` flag)
+- Authoritative Admin supply data: `GET /api/admin/pilot-supply` (pages all tradies; not UI `limit=50`)
+- Minimal Expert profile controls to maintain the two fields
+
+**NOT YET IMPLEMENTED**
+
+- Admin cockpit visuals
+- Pilot OPEN/CLOSED control
+- Waitlist
+- Homeowner open posting
+- Job attention queue
+- Liquidity / marketplace funnel
+- Responsiveness analytics
 
 ---
 
@@ -76,7 +96,7 @@ Align with `backend/src/utils/v11TradieEligibility.js` and tighten admin `getRea
 
 `serviceLocation` (home-base suburb/postcode/state) remains part of profile completeness. It is **not** a substitute for `serviceAreas[]`.
 
-### Operational supply conditions — LAUNCH-CRITICAL (not implemented in this task)
+### Operational supply conditions — LAUNCH-CRITICAL (implemented in Slice 1)
 
 These **supplement** technical eligibility. They are **small data/profile changes required before real homeowner posting opens**. Without them the ~15 count and geography coverage would be misleading.
 
@@ -91,23 +111,21 @@ Do **not** infer accepting-jobs from `verified`. Do **not** infer service areas 
 
 **Not in MVP:** weekly availability calendars, booking calendars, route optimisation, travel-time, radius matching, GIS, maps, predictive availability.
 
-### A. Fields available now (technical only)
+### A. Fields available now
 
-Admin “Ready to quote” today is **technical eligibility only**. Do **not** label it launch-ready until `acceptingJobs` and `serviceAreas[]` exist.
+Technical eligibility fields plus Slice 1 `acceptingJobs` and `serviceAreas[]`. Admin “Ready to quote” remains **technical eligibility only**. Launch-ready counts come from `GET /api/admin/pilot-supply`.
 
-### B. Derivable after the two profile fields exist
+### B. Derivable now
 
-- **Launch-ready count:** technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]` value.
+- **Launch-ready count:** technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]` value (`computeLaunchReadiness`).
 - **Category coverage:** count **only launch-ready** Experts whose `expertiseApproved` intersects that enabled Phase 1 category.
 - **Geography coverage:** count **only launch-ready** Experts whose `serviceAreas[]` includes an enabled pilot area. **Never** present `serviceLocation` as service-area coverage.
 - Invite / quote / funnel: existing job and quote data.
 
-### C. Missing — required before posting opens (do not implement in this docs task)
+### C. Still missing before posting opens
 
 | Gap | Why | Smallest later change | Launch-critical? |
 |---|---|---|---|
-| `serviceAreas[]` | Home-base ≠ willing-to-service | Allowlisted multi-select. Do **not** silently default-copy `serviceLocation` as if the Expert chose every area | **YES — required before real homeowner posting opens** |
-| `acceptingJobs` | Verified Expert may be unavailable | Boolean. No calendar | **YES — required before real homeowner posting opens** |
 | Waitlist / posting switch | No persisted CLOSED/OPEN/PAUSED | Audited config + confirm | **YES** before OPEN |
 | Invitation-to-quote aggregates | No Expert-level API | Bounded admin join | Useful; not a substitute for the two fields |
 
@@ -237,10 +255,10 @@ Do not communicate state by colour alone: status **text + chip + count**.
 | KPI | Feasibility | Notes |
 |---|---|---|
 | Pilot Status | **C** — needs persisted posting state + derived gate | Do not fake OPEN from Expert count |
-| Launch-ready `n / 15` | **C** until `acceptingJobs` + `serviceAreas[]` exist; then **B** | Count only technical eligibility + accepting + ≥1 enabled area. Fix 50-user page |
+| Launch-ready `n / 15` | **B** via `GET /api/admin/pilot-supply` (visuals later) | Derived technical eligibility + accepting + ≥1 enabled area. Not truncated by UI `limit=50` |
 | Operating floor `n / 12` | same as launch-ready count | |
-| Category coverage `k / N` | **C** then **B** | Count **only launch-ready** Experts per enabled category |
-| Geographic coverage | **C** until `serviceAreas[]` exists | After that: **B** from `serviceAreas[]`. Until implemented, Admin must **not** present home-base as service coverage |
+| Category coverage `k / N` | **B** data / **C** visuals | Count **only launch-ready** Experts per enabled category |
+| Geographic coverage | **B** data / **C** visuals | From `serviceAreas[]`. Do **not** present home-base as service coverage |
 | Open jobs | **A** | Existing `stats.openJobs` |
 | Jobs needing attention | **B** with new time/invite rules | Current 6h/24h is too slow |
 | Zero-quote jobs | **B** | Quote meta already fetched for open jobs (capped 500) |
@@ -335,11 +353,11 @@ Current attention strip can remain as a **secondary** payment/dispute layer.
 | Stat | Feasibility | Use |
 |---|---|---|
 | Verified / active | **A** | Distinguish registered vs verified |
-| Launch-ready | **C** then **B** | Only after `acceptingJobs` + `serviceAreas[]`; distinguish verified vs launch-ready |
+| Launch-ready | **B** | Derived; distinguish verified vs launch-ready |
 | Categories | **A** | `expertiseApproved` |
 | Service **home-base** | **A** | `serviceLocation` — display as home-base only |
-| Service **areas** | **C** | `serviceAreas[]` — **required before posting opens** |
-| Accepting jobs | **C** | `acceptingJobs` — **required before posting opens** |
+| Service **areas** | **A** | `serviceAreas[]` on profile + Admin supply API |
+| Accepting jobs | **A** | `acceptingJobs` on profile + Admin supply API |
 | Invitations / quotes / invite→quote % | **B/C** | bounded aggregate |
 | Median response time | **B/C** | invite/job time → first quote |
 | Jobs awarded / completed | **B** | job assignments |
@@ -402,11 +420,11 @@ Demote `/admin/monitoring` and `/admin/daily-checklist` to links under Overview 
 
 | Item | Class | Missing / why | Simplest later impl | Launch-critical? |
 |---|---|---|---|---|
-| Launch-ready count | **C** until the two fields exist; then **B** | Incomplete if users `limit=50`; lenient client readiness; missing operational fields | Derive: technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]`. No stored `launchReady` boolean. Paginate all tradies (capped ~200) | **Yes — required before posting opens** |
-| Category coverage | **C** then **B** | Need consistent grouping | Count **only launch-ready** Experts whose `expertiseApproved` ∩ catalog category | Yes |
+| Launch-ready count | **B** | UI list still `limit=50` | `GET /api/admin/pilot-supply` pages tradies (cap 250). Derived; no stored `launchReady` | Data yes; cockpit visuals later |
+| Category coverage | **B** | Visuals not built | Count **only launch-ready** Experts whose `expertiseApproved` ∩ catalog category | Data yes |
 | Geo home-base table | **A** (display only) | Single suburb | Show `serviceLocation` as **home-base**, never as coverage | No — must not be used as coverage |
-| True service-area coverage | **C** | No `serviceAreas[]` | Allowlisted multi-select. Do **not** default-copy `serviceLocation` as if chosen | **Yes — required before posting opens** |
-| Accepting jobs | **C** | No field | `acceptingJobs` boolean (no calendar) | **Yes — required before posting opens** |
+| True service-area coverage | **B** | Field implemented | `serviceAreas[]` allowlisted multi-select. Do **not** default-copy `serviceLocation` | Data yes |
+| Accepting jobs | **B** | Field implemented | `acceptingJobs` boolean (no calendar) | Data yes |
 | Posting CLOSED/OPEN/PAUSED | **C** | No config | Audited config doc + confirm UI | Yes before OPEN |
 | Waitlist records | **C/D** | No collection | Minimal interest emails or existing waitlist if added later | Pre-activation UX; can be manual at first |
 | Attention 60m / 3h / invite count | **B** | Thresholds differ from 6h/24h | Extend `adminOps` + quote/invite meta | Yes |
@@ -460,16 +478,17 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 ---
 
-## 17. Recommended implementation sequence (later; not this commit)
+## 17. Implementation sequence
 
-1. Persist `acceptingJobs` (boolean) and `serviceAreas[]` (canonical multi-select) on Expert profiles — **required before real posting opens**. No calendars, GIS, maps, or radius.
-2. Server-side **derived** launch-ready count (technical eligibility + accepting + ≥1 enabled area) + category coverage from launch-ready only + geography from `serviceAreas[]` (read-only Overview). Do **not** ship a home-base-as-coverage table.
-3. Job Attention Queue with 60m / 3h / invite flags (reuse job detail invite).
-4. Liquidity + funnel on bounded data.
-5. Pilot Settings CLOSED/OPEN/PAUSED + confirmation + audit (**does not** ship legal copy).
-6. Waitlist product UX after P06/P09 allow public copy.
+**Done in Slice 1:** persist `acceptingJobs` + `serviceAreas[]`; derived launch-ready; `GET /api/admin/pilot-supply` (category coverage from launch-ready only; geography from `serviceAreas[]`).
 
-Do **not** implement in this documentation task.
+**Still later (not this slice):**
+
+1. Admin Overview cards / cockpit visuals (read the supply API; do **not** ship a home-base-as-coverage table).
+2. Job Attention Queue with 60m / 3h / invite flags.
+3. Liquidity + funnel on bounded data.
+4. Pilot Settings CLOSED/OPEN/PAUSED + confirmation + audit (**does not** ship legal copy).
+5. Waitlist product UX after P06/P09 allow public copy.
 
 ---
 

@@ -32,6 +32,13 @@ const {
   requiresAbn,
   requiresBusinessName,
 } = require('../utils/v11TradieEligibility');
+const { computeLaunchReadiness } = require('../utils/pilotLaunchReadiness');
+const {
+  parseAcceptingJobsInput,
+  parseServiceAreasInput,
+  readAcceptingJobs,
+  readServiceAreas,
+} = require('../utils/pilotOperationalFields');
 const { writeUserAuditLog } = require('../utils/auditLogs');
 const { hasVerifiedPhone } = require('../utils/verifiedPhone');
 const { evaluateProfileRequestRiskById } = require('../services/riskAutomationPipeline');
@@ -462,6 +469,8 @@ router.get('/api/me', requireAuth, async (req, res) => {
         businessType: data.businessType || '',
         dob: data.dob || null,
         serviceLocation: data.serviceLocation || null,
+        acceptingJobs: data.role === 'tradie' ? readAcceptingJobs(data) : undefined,
+        serviceAreas: data.role === 'tradie' ? readServiceAreas(data) : undefined,
         primaryServiceSuburb: data.primaryServiceSuburb || data.serviceLocation?.suburb || '',
         primaryServicePostcode: data.primaryServicePostcode || data.serviceLocation?.postcode || '',
         bio: data.bio || '',
@@ -493,12 +502,17 @@ router.get('/api/me', requireAuth, async (req, res) => {
         deletion: data.deletion || null,
       },
       eligibility: data?.role === 'tradie'
-        ? {
-          canQuote: eligibility.eligible,
-          code: eligibility.eligible ? null : 'TRADIE_NOT_ELIGIBLE',
-          reasons: eligibility.reasons,
-          checklist: eligibility.checklist,
-        }
+        ? (() => {
+          const launch = computeLaunchReadiness({ decodedToken: req.user, userDoc: data });
+          return {
+            canQuote: eligibility.eligible,
+            code: eligibility.eligible ? null : 'TRADIE_NOT_ELIGIBLE',
+            reasons: eligibility.reasons,
+            checklist: eligibility.checklist,
+            launchReady: launch.launchReady,
+            launchReasons: launch.reasons,
+          };
+        })()
         : null,
       foundingExpertFeeProfile,
     });
@@ -551,6 +565,30 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
         return res.status(400).send({ message: 'Invalid profilePhotoPath.' });
       }
       updates.profilePhotoPath = photoPath;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'acceptingJobs')
+      || Object.prototype.hasOwnProperty.call(body, 'serviceAreas')) {
+      if (before?.role !== 'tradie') {
+        return res.status(403).send({
+          message: 'Only Experts can update availability and service areas.',
+          code: 'EXPERT_FIELDS_FORBIDDEN',
+        });
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'acceptingJobs')) {
+      const parsed = parseAcceptingJobsInput(body.acceptingJobs);
+      if (!parsed.ok) {
+        return res.status(400).send({ message: parsed.message, code: parsed.code });
+      }
+      updates.acceptingJobs = parsed.value;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'serviceAreas')) {
+      const parsed = parseServiceAreasInput(body.serviceAreas);
+      if (!parsed.ok) {
+        return res.status(400).send({ message: parsed.message, code: parsed.code });
+      }
+      updates.serviceAreas = parsed.value;
     }
 
     // Service location (Task Expert)
@@ -811,6 +849,9 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
     const eligibility = data?.role === 'tradie'
       ? computeEligibility({ decodedToken: req.user, userDoc: data })
       : null;
+    const launch = data?.role === 'tradie'
+      ? computeLaunchReadiness({ decodedToken: req.user, userDoc: data })
+      : null;
     const hasPaymentHistory = isHomeowner ? await getHomeownerPaymentHistory(uid) : false;
     const homeownerNameChangeWindow = isHomeowner ? getHomeownerNameChangeWindow(data) : null;
 
@@ -823,7 +864,15 @@ router.put('/api/me/profile', requireAuth, async (req, res) => {
         nameChangeBlockedUntilMs: homeownerNameChangeWindow?.blockedUntilMs || null,
         nameChangeBlockedMessage: homeownerNameChangeWindow?.message || '',
       },
-      eligibility: eligibility ? { canQuote: eligibility.eligible, reasons: eligibility.reasons, checklist: eligibility.checklist } : null,
+      eligibility: eligibility
+        ? {
+          canQuote: eligibility.eligible,
+          reasons: eligibility.reasons,
+          checklist: eligibility.checklist,
+          launchReady: launch?.launchReady === true,
+          launchReasons: launch?.reasons || eligibility.reasons,
+        }
+        : null,
     });
   } catch (e) {
     if (sendIfMissingProfile(res, e)) return undefined;

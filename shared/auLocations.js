@@ -65,7 +65,7 @@ const auLocations = [
   { suburb: 'Darwin', state: 'NT', postcode: '0800', label: 'Darwin NT 0800' },
 ];
 
-const melbournePilotSuburbs = new Set([
+const melbournePilotSuburbNames = Object.freeze([
   'Melbourne',
   'Southbank',
   'Docklands',
@@ -75,6 +75,8 @@ const melbournePilotSuburbs = new Set([
   'Richmond',
   'Carlton',
 ]);
+
+const melbournePilotSuburbs = new Set(melbournePilotSuburbNames);
 
 const INNER_MELBOURNE_LAUNCH_MESSAGE = "We're currently launching in inner Melbourne. We'll be in your area soon.";
 
@@ -132,6 +134,8 @@ function isSupportedMelbournePilotLocation(input) {
 
 module.exports = {
   auLocations,
+  melbournePilotSuburbNames,
+  melbournePilotSuburbs,
   melbournePilotLocations,
   searchMelbournePilotLocations,
   isSupportedMelbournePilotLocation,

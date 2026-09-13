@@ -30,6 +30,7 @@ import {
 import VerificationGateBanner from './profile/VerificationGateBanner';
 import TradieIdentitySection from './profile/TradieIdentitySection';
 import TradieExpertiseSection from './profile/TradieExpertiseSection';
+import ExpertPilotAvailabilityPanel from './profile/ExpertPilotAvailabilityPanel';
 import { GoogleActionButton } from './profile/GoogleBrand';
 import { ChangeRequestModal, PrivateDetailsConfirmModal } from './profile/ProfileModals';
 import TradiePrivateDetailsPanel from './profile/TradiePrivateDetailsPanel';
@@ -1252,6 +1253,19 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {role === 'tradie' ? (
+            <div style={styles.profileCard} className="pp-expert-profile-card pp-expert-pilot-card">
+              <ExpertPilotAvailabilityPanel
+                profile={profile}
+                api={api}
+                onSaved={(data) => {
+                  const next = data?.profile;
+                  if (next) setProfile((prev) => ({ ...(prev || {}), ...next }));
+                }}
+              />
+            </div>
+          ) : null}
 
           {/* Private Details & Verification Section */}
           {role === 'tradie' ? (

@@ -15,6 +15,8 @@ const {
   FoundingExpertEnrollmentError,
 } = require('../../services/foundingExpertEnrollmentService');
 const { computeProfileCompleted, computeStripeOnboardingComplete } = require('../../utils/v11TradieEligibility');
+const { computeLaunchReadiness } = require('../../utils/pilotLaunchReadiness');
+const { readAcceptingJobs, readServiceAreas } = require('../../utils/pilotOperationalFields');
 const { sanitizePlainText } = require('./shared/text');
 const { is18PlusConfirmed, hasServiceLocation, hasBusinessType } = require('./shared/eligibility');
 const { getFoundingExpertStage } = require('../../services/expertFeeProgram');
@@ -388,6 +390,11 @@ router.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
         is18PlusConfirmed: adultOk,
         serviceLocationPresent,
         businessTypeSet,
+        acceptingJobs: data.role === 'tradie' ? readAcceptingJobs(data) : undefined,
+        serviceAreas: data.role === 'tradie' ? readServiceAreas(data) : undefined,
+        launchReady: data.role === 'tradie'
+          ? computeLaunchReadiness({ userDoc: data }).launchReady
+          : undefined,
         // Boost (MVP): prefer new boost schema, fall back to legacy boostedVisibility.
         boostedVisibility: data.role === 'tradie'
           ? ((data.boost && data.boost.isBoosted === true) || data.boostedVisibility === true)
@@ -503,6 +510,11 @@ router.get('/api/admin/users/:uid', requireAuth, requireAdmin, async (req, res) 
     };
 
     if (response.role === 'tradie') {
+      const launch = computeLaunchReadiness({ userDoc: data });
+      response.acceptingJobs = readAcceptingJobs(data);
+      response.serviceAreas = readServiceAreas(data);
+      response.launchReady = launch.launchReady;
+      response.launchReasons = launch.reasons;
       const foundingRaw = data.foundingExpert && typeof data.foundingExpert === 'object'
         ? data.foundingExpert
         : null;

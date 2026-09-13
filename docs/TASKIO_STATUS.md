@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 13 September 2026 (launch-ready Expert criteria tightened)
+**Last updated:** 13 September 2026 (Admin Slice 1 Expert supply foundation)
 
 ## Active scope
 
@@ -51,7 +51,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
-| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Posting **CLOSED** until ~15 launch-ready (technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]`) + category coverage (4–5 per **enabled category**, not per suburb) + one-zone Inner Melbourne **service** coverage + other real-user gates + explicit owner activation. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Cockpit design: `docs/PILOT_OPERATIONS_COCKPIT.md` (not implemented). | — |
+| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Posting **CLOSED** until ~15 launch-ready (technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]`) + category coverage (4–5 per **enabled category**, not per suburb) + one-zone Inner Melbourne **service** coverage + other real-user gates + explicit owner activation. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1 data foundation implemented; cockpit visuals not built. | — |
 
 Mandatory remaining before controlled launch: P06, P07, P08, P09, P10, plus P03/P04/P05 **production** PASS.
 
