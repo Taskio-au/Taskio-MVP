@@ -2,6 +2,7 @@ import React from 'react';
 import AttentionStrip from './AttentionStrip';
 import JobAttentionQueue from './JobAttentionQueue';
 import MarketplaceHealthSection from './MarketplaceHealthSection';
+import LaunchReadinessSection from './LaunchReadinessSection';
 import PilotReadinessSection from './PilotReadinessSection';
 import { derivePilotReadiness, PILOT_STATUS } from './pilotReadinessDisplay';
 import Banner from '../../../design/components/Banner';
@@ -55,6 +56,8 @@ export default function DashboardOverview({
   marketplaceMetrics = null,
   marketplaceRange = '7d',
   onMarketplaceRangeChange,
+  pilotLaunchLoadState = 'loading',
+  pilotLaunch = null,
 }) {
   const expertSupply = derivePilotReadiness(pilotSupply, pilotSupplyLoadState);
   const launchReadyCardValue = (
@@ -109,7 +112,13 @@ export default function DashboardOverview({
         </Card>
       ) : null}
 
-      <PilotReadinessSection loadState={pilotSupplyLoadState} snapshot={pilotSupply} />
+      <LaunchReadinessSection loadState={pilotLaunchLoadState} snapshot={pilotLaunch} />
+
+      <PilotReadinessSection
+        loadState={pilotSupplyLoadState}
+        snapshot={pilotSupply}
+        launchOverallStatus={pilotLaunch?.overallStatus}
+      />
 
       <div style={{ marginBottom: spacing.xl }}>
         <div style={{ marginBottom: 12, fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.primaryHover }}>

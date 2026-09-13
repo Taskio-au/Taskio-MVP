@@ -55,6 +55,8 @@ describe('DashboardOverview pilot supply card', () => {
       geographyCoverage: [{ area: 'Richmond', launchReadyCount: 4 }],
     });
 
+    expect(screen.getByText('Launch readiness')).toBeInTheDocument();
+    expect(screen.getByText('Supply readiness')).toBeInTheDocument();
     expect(screen.getAllByText('Launch-ready experts').length).toBeGreaterThan(0);
     expect(screen.getAllByText('9 total · 6 technically eligible').length).toBeGreaterThan(0);
     expect(screen.queryByText('Task experts')).not.toBeInTheDocument();

@@ -6,6 +6,8 @@ Completion of this document means:
 
 This is the product-launch overlay on top of the existing P01–P06 technical gates. It does **not** replace those gates or their evidence. Adding these gates does **not** authorise production mutation.
 
+**Admin machine-readable source (Slice 5A):** `shared/launchReadinessManifest.js`. The read-only Pilot Status engine evaluates this reviewed file plus Expert supply. It does **not** scrape this markdown at runtime. Update the manifest in the same commit as any gate-status change.
+
 Companion records:
 
 - Current statuses: `docs/TASKIO_STATUS.md`

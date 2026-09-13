@@ -14,6 +14,9 @@ import {
 } from './pilotReadinessDisplay';
 import './PilotReadinessSection.css';
 
+const READY_TO_OPEN_POSTING_COPY =
+  'All required launch gates are satisfied. Homeowner posting remains closed until explicitly activated by the owner.';
+
 function statusTone(status) {
   if (status === 'HEALTHY' || status === 'TARGET MET' || status === 'AT OR ABOVE FLOOR' || status === 'COVERED' || status === 'SUPPLY READY') {
     return 'ok';
@@ -41,7 +44,11 @@ function ReadinessCard({ label, value, status, note }) {
   );
 }
 
-export default function PilotReadinessSection({ loadState = 'loading', snapshot = null }) {
+export default function PilotReadinessSection({
+  loadState = 'loading',
+  snapshot = null,
+  launchOverallStatus = null,
+}) {
   const view = useMemo(() => derivePilotReadiness(snapshot, loadState), [snapshot, loadState]);
 
   if (view.status === PILOT_STATUS.LOADING) {
@@ -117,7 +124,7 @@ export default function PilotReadinessSection({ loadState = 'loading', snapshot 
           label="Homeowner posting"
           value="CLOSED"
           status="CLOSED"
-          note={POSTING_CLOSED_COPY}
+          note={launchOverallStatus === 'READY TO OPEN' ? READY_TO_OPEN_POSTING_COPY : POSTING_CLOSED_COPY}
         />
       </div>
 

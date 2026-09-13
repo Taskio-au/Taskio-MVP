@@ -87,6 +87,19 @@ describe('PilotReadinessSection', () => {
     expect(container.querySelector('[data-open-posting]')).toBeNull();
   });
 
+  it('keeps posting CLOSED when overall status is READY TO OPEN and does not add an activate control', () => {
+    render(
+      <PilotReadinessSection
+        loadState="ok"
+        snapshot={readySnapshot()}
+        launchOverallStatus="READY TO OPEN"
+      />
+    );
+    expect(screen.getAllByText('CLOSED').length).toBeGreaterThan(0);
+    expect(screen.getByText(/All required launch gates are satisfied/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /open posting|activate/i })).toBeNull();
+  });
+
   it('shows SUPPLY NOT READY when target, category, or geography fail', () => {
     render(
       <PilotReadinessSection

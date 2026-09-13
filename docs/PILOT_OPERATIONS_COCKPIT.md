@@ -1,6 +1,6 @@
 # Pilot Operations Cockpit — audit and design
 
-**Status:** DESIGN plus **Admin Slices 1–4** (data foundation, visual cockpit, Job Attention Queue, marketplace health metrics; 13 September 2026, local). Persisted Pilot Settings / posting activation are **not** implemented.
+**Status:** DESIGN plus **Admin Slices 1–5A** (data foundation, visual cockpit, Job Attention Queue, marketplace health, read-only Pilot Status engine; 14 September 2026, local). Persisted Pilot Settings / posting activation are **not** implemented.
 
 **Date:** 13 September 2026  
 **Companion operating rules:** `docs/P06_OWNER_DECISIONS.md` §5–§5B  
@@ -50,12 +50,21 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 - Expert responsiveness table (operational stats only — no ranking, suspension, or hidden score)
 - Bounded job scan + batched quotes + one Expert load; `truncated` / `scanComplete` fail-safe (`METRICS DATA INCOMPLETE` / `METRICS DATA UNAVAILABLE`)
 
+**IMPLEMENTED (Slice 5A — read-only Pilot Status, local)**
+
+- Reviewed launch-gate manifest: `shared/launchReadinessManifest.js` (not markdown scraping)
+- `GET /api/admin/pilot-launch-readiness` (admin-only, no mutation)
+- Overall states only: `LOADING` / `DATA UNAVAILABLE` / `DATA INCOMPLETE` / `NOT READY` / `READY TO OPEN`
+- `OPEN` / `WATCH` / `PAUSED` are not returned (they need persisted Pilot Settings)
+- P11 is shown as an execution gate and is **not** required for READY TO OPEN
+- Homeowner posting remains **CLOSED** even if READY TO OPEN; no activate control
+
 **NOT YET IMPLEMENTED**
 
 - Persisted Pilot Status / Pilot OPEN/CLOSED/PAUSED control
+- Owner activation control
 - Waitlist
 - Homeowner open posting
-- Full Pilot Status engine
 
 ---
 
@@ -538,13 +547,15 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Done in Slice 4 (local):** Marketplace health. Bounded `GET /api/admin/marketplace-metrics?range=7d|30d|pilot`. Quote coverage, median first response, Expert responsiveness, and a quote-ready job-cohort funnel. Invitation response time is omitted unless `invites.{uid}.invitedAt` exists. Incomplete scans show `METRICS DATA INCOMPLETE`. API failure shows `METRICS DATA UNAVAILABLE` (no fake zeros). No auto-rank / auto-punish.
 
+**Done in Slice 5A (local):** Read-only Pilot Status engine. `GET /api/admin/pilot-launch-readiness` evaluates `shared/launchReadinessManifest.js` plus one Expert supply scan. READY TO OPEN requires every required P01–P10 result **and** supply readiness. Staging pass is not production pass. P11 is not required. Homeowner posting stays CLOSED. No activate control.
+
 **Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). The attention and marketplace-metrics endpoints page jobs (page size 100, cap 250) and reuse one Expert supply load. `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY, the attention queue must **not** imply it is exhaustive, and marketplace percentages/funnel must **not** be treated as complete.
 
 **Job-specific supply:** category and geography totals are indicators only. They do not prove every category × service-area combination is covered. Later matching / attention should count launch-ready Experts for the job’s actual category + service area. No category-by-suburb matrix and no GIS in this slice.
 
-**Still later (not Slice 4):**
+**Still later (not Slice 5A):**
 
-1. Future **Pilot Status engine** (`NOT READY` / `READY TO OPEN` / `OPEN` / `WATCH` / `PAUSED`) plus persisted homeowner posting OPEN/CLOSED/PAUSED control + confirmation + audit. That engine must include supply **and** legal/privacy, production/security/operations, production acceptance, and explicit owner activation — not Expert supply alone.
+1. Persisted homeowner posting OPEN/CLOSED/PAUSED control + confirmation + audit, and operational states `OPEN` / `WATCH` / `PAUSED`.
 2. Waitlist product UX after P06/P09 allow public copy.
 3. Homeowner open posting.
 
