@@ -469,6 +469,19 @@ describe('Storage authorization', () => {
     )));
   });
 
+  test('denies all client reads and writes to expertWaitlist including admin claims', async () => {
+    await seedFirestore([
+      ['expertWaitlist/signup-1', { email: 'expert@example.com' }],
+    ]);
+
+    const homeowner = firestoreFor('homeowner-1');
+    const adminClient = firestoreFor('claims-admin', { admin: true });
+    await assertFails(getDoc(doc(homeowner, 'expertWaitlist/signup-1')));
+    await assertFails(getDoc(doc(adminClient, 'expertWaitlist/signup-1')));
+    await assertFails(setDoc(doc(homeowner, 'expertWaitlist/signup-2'), { email: 'other@example.com' }));
+    await assertFails(setDoc(doc(adminClient, 'expertWaitlist/signup-2'), { email: 'other@example.com' }));
+  });
+
   test('denies all client reads and writes to pilotWaitlist including admin claims', async () => {
     await seedFirestore([
       ['pilotWaitlist/signup-1', { email: 'homeowner@example.com' }],

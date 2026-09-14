@@ -7,6 +7,8 @@ import './PilotSettingsSection.css';
 
 export const OPERATIONAL_GUIDANCE =
   'Operational state controls new homeowner posting. Existing jobs continue to operate when posting is paused or closed.';
+export const EXPERT_ONBOARDING_GUIDANCE =
+  'Expert onboarding controls new Expert applications. Existing Experts and pending applicants can continue their onboarding and account activity.';
 
 const OPEN_CONFIRM =
   'Opening the pilot allows supported homeowners in the approved pilot area to submit new jobs. Existing category, geography, authentication and validation rules still apply.';
@@ -14,6 +16,10 @@ const PAUSE_CONFIRM =
   'Pause new homeowner job posts. Existing jobs and Expert workflows continue. Homeowners will be directed to the waitlist.';
 const CLOSE_CONFIRM =
   'Close the pilot to new homeowner job posts. Existing jobs continue. This is a closed state, not a deletion or shutdown.';
+const EXPERT_WAITLIST_CONFIRM =
+  'Move new Expert applications to the waitlist. Existing Experts and already-created pending applicants can still log in and complete onboarding.';
+const EXPERT_OPEN_CONFIRM =
+  'Open public Expert applications. New Experts can create an account and complete onboarding, but stay pending review until Taskio verifies them. This does not open homeowner posting.';
 
 function toneForOperational(state) {
   if (state === 'OPEN') return 'ok';
@@ -42,6 +48,7 @@ export default function PilotSettingsSection({
   busy = false,
   mutationError = null,
   onChangeState,
+  onChangeExpertOnboarding,
 }) {
   const launchView = useMemo(
     () => resolveLaunchView(launch, launchLoadState),
@@ -67,7 +74,7 @@ export default function PilotSettingsSection({
         <Banner
           tone="danger"
           title="DATA UNAVAILABLE"
-          message="Pilot operational state could not be loaded. Effective control remains CLOSED."
+          message="Pilot operational state could not be loaded. Homeowner posting remains CLOSED. Expert applications remain on the waitlist."
         />
       </section>
     );
@@ -75,6 +82,7 @@ export default function PilotSettingsSection({
 
   const operational = settings.effectiveState || 'CLOSED';
   const posting = operational;
+  const expertMode = settings.effectiveExpertOnboardingMode === 'OPEN' ? 'OPEN' : 'WAITLIST';
   const launchStatus = launchView.status;
   const ready = launchStatus === LAUNCH_STATUS.READY_TO_OPEN;
   const blockers = Array.isArray(launch?.blockers) ? launch.blockers : [];
@@ -87,12 +95,20 @@ export default function PilotSettingsSection({
 
   function requestChange(nextState, title, message, confirmLabel, danger = false) {
     setReason('');
-    setConfirm({ nextState, title, message, confirmLabel, danger });
+    setConfirm({ kind: 'state', nextState, title, message, confirmLabel, danger });
+  }
+
+  function requestExpertChange(nextMode, title, message, confirmLabel) {
+    setReason('');
+    setConfirm({ kind: 'expert', nextMode, title, message, confirmLabel, danger: false });
   }
 
   async function confirmChange() {
-    if (!confirm || !onChangeState) return;
-    const result = await onChangeState(confirm.nextState, reason);
+    if (!confirm) return;
+    const mutate = confirm.kind === 'expert' ? onChangeExpertOnboarding : onChangeState;
+    if (!mutate) return;
+    const nextValue = confirm.kind === 'expert' ? confirm.nextMode : confirm.nextState;
+    const result = await mutate(nextValue, reason);
     if (result?.ok !== false) {
       setConfirm(null);
       setReason('');
@@ -135,6 +151,17 @@ export default function PilotSettingsSection({
                 : 'New posting blocked / waitlist path.'}
           </p>
         </article>
+        <article className="ad-pilot-settings__card">
+          <h3 className="ad-pilot-settings__label">Expert onboarding</h3>
+          <p className={`ad-pilot-settings__value ad-pilot-settings__value--${expertMode === 'OPEN' ? 'ok' : 'watch'}`}>
+            {expertMode}
+          </p>
+          <p className="ad-pilot-settings__note">
+            {expertMode === 'OPEN'
+              ? 'New Experts may apply. They stay pending review until verified.'
+              : 'New Expert applications go to the waitlist.'}
+          </p>
+        </article>
       </div>
 
       <p className="ad-pilot-settings__meta">
@@ -149,6 +176,26 @@ export default function PilotSettingsSection({
           tone="warning"
           title="Configuration invalid"
           message={settings.configurationWarning || 'Stored operational state is invalid. Effective state is CLOSED.'}
+        />
+      ) : null}
+      {!settings.expertOnboardingConfigurationValid && settings.expertOnboardingConfigurationWarning ? (
+        <Banner
+          tone="warning"
+          title="Expert onboarding invalid"
+          message={settings.expertOnboardingConfigurationWarning}
+        />
+      ) : settings.expertOnboardingConfigurationWarning ? (
+        <Banner
+          tone="info"
+          title="Expert onboarding default"
+          message={settings.expertOnboardingConfigurationWarning}
+        />
+      ) : null}
+      {settings.expertEnrollmentSafetyWarning ? (
+        <Banner
+          tone="warning"
+          title="Enrollment safety switch"
+          message={settings.expertEnrollmentSafetyWarning}
         />
       ) : null}
 
@@ -220,6 +267,37 @@ export default function PilotSettingsSection({
             </Button>
           </>
         ) : null}
+      </div>
+
+      <Banner tone="info" title="Expert onboarding" message={EXPERT_ONBOARDING_GUIDANCE} />
+      <div className="ad-pilot-settings__actions">
+        {expertMode === 'OPEN' ? (
+          <Button
+            variant="secondary"
+            disabled={busy}
+            onClick={() => requestExpertChange(
+              'WAITLIST',
+              'Move new Expert applications to waitlist?',
+              EXPERT_WAITLIST_CONFIRM,
+              'Move to waitlist'
+            )}
+          >
+            Move new Expert applications to waitlist
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            disabled={busy}
+            onClick={() => requestExpertChange(
+              'OPEN',
+              'Open Expert applications?',
+              EXPERT_OPEN_CONFIRM,
+              'Open Expert applications'
+            )}
+          >
+            Open Expert applications
+          </Button>
+        )}
       </div>
 
       {(operational === 'CLOSED' || operational === 'PAUSED') && !ready && launchStatus !== LAUNCH_STATUS.LOADING ? (

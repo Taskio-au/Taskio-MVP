@@ -75,6 +75,9 @@ const server = http.createServer(async (req, res) => {
         homeownerPosting: 'CLOSED',
         canPost: false,
         waitlistAvailable: true,
+        expertOnboarding: 'WAITLIST',
+        canExpertApply: false,
+        expertWaitlistAvailable: true,
       });
     }
 

@@ -15,6 +15,10 @@
  * phone-verified POST /api/me/homeowner/activate-quote-access. New job posting
  * is gated by persisted pilot operational state (OPEN / CLOSED / PAUSED).
  *
+ * Expert business control is persisted expertOnboardingMode (OPEN / WAITLIST).
+ * This flag remains the deployment/emergency enrollment kill switch. New Expert
+ * signup requires both OPEN mode and this switch.
+ *
  * Do not infer enablement from Firebase client config or Hosting.
  */
 

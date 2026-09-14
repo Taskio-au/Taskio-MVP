@@ -150,6 +150,8 @@ export default function useAdminDashboardDerivedData({
         });
       } else if (tradieQuickFilter === 'boosted') {
         result = result.filter((tradie) => (tradie?.boost?.isBoosted === true) || tradie.boostedVisibility === true);
+      } else if (tradieQuickFilter === 'pending_review') {
+        result = result.filter((tradie) => tradie.status === 'active' && tradie.verified !== true);
       }
     }
 

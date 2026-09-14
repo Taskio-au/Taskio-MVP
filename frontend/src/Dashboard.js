@@ -89,6 +89,7 @@ function Dashboard({ variant = 'default' }) {
     data: pilotSettings,
     refresh: refreshPilotSettings,
     changeState: changePilotState,
+    changeExpertOnboarding: changePilotExpertOnboarding,
     mutationError: pilotSettingsError,
     busy: pilotSettingsBusy,
   } = usePilotSettings(api);
@@ -1035,6 +1036,7 @@ function Dashboard({ variant = 'default' }) {
           pilotSettingsBusy={pilotSettingsBusy}
           pilotSettingsError={pilotSettingsError}
           onPilotStateChange={changePilotState}
+          onPilotExpertOnboardingChange={changePilotExpertOnboarding}
         />
       ) : (
         <div style={{ marginBottom: 20 }}>

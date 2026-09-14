@@ -1682,6 +1682,26 @@ describe('admin job route contracts', () => {
     expect(job.status).toBe('OPEN');
   });
 
+  it('rejects inviting a pending unverified Expert', async () => {
+    writeCollectionDoc('jobs', 'job-pending-invite', {
+      status: 'OPEN',
+      invitedTradieUids: [],
+    });
+    writeCollectionDoc('users', 'pending-expert', {
+      role: 'tradie',
+      status: 'active',
+      verified: false,
+    });
+
+    const res = await request(app)
+      .post('/api/admin/jobs/job-pending-invite/assign')
+      .send({ tradieUid: 'pending-expert' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Task expert is not verified.');
+    expect(readCollectionDoc('jobs', 'job-pending-invite').invitedTradieUids || []).toEqual([]);
+  });
+
   it('PUT /status accepts canonical admin status values when transition is valid', async () => {
     writeCollectionDoc('jobs', 'job-11', {
       status: 'OPEN',

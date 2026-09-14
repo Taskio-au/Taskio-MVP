@@ -19,19 +19,12 @@ jest.mock('../hooks/usePublicPilotStatus', () => ({
   default: () => mockPilot.value,
 }));
 
-const mockExpertSignup = { enabled: false };
-jest.mock('../config/publicAcquisitionConfig', () => ({
-  isExpertPublicSignupEnabled: () => mockExpertSignup.enabled,
-  isPublicAcquisitionEnabled: () => mockExpertSignup.enabled,
-}));
-
 jest.mock('../components/PublicPageHeader', () => () => <header>Header</header>);
 
 const GetStartedPage = require('./GetStartedPage').default;
 
 describe('GetStartedPage', () => {
   beforeEach(() => {
-    mockExpertSignup.enabled = false;
     mockPilot.value = {
       loadState: 'ok',
       status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
@@ -39,12 +32,11 @@ describe('GetStartedPage', () => {
     };
   });
 
-  it('keeps Expert signup invite-only while offering homeowner waitlist when CLOSED', () => {
+  it('offers homeowner waitlist and Expert waitlist when both are closed', () => {
     render(<GetStartedPage />);
     expect(screen.getByRole('link', { name: /join waitlist/i })).toHaveAttribute('href', '/waitlist');
-    expect(screen.getByRole('link', { name: /log in/i })).toHaveAttribute('href', '/login');
-    expect(screen.queryByRole('link', { name: /become an expert/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/onboards founding experts manually/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^log in$/i })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: /join expert waitlist/i })).toHaveAttribute('href', '/expert-waitlist');
   });
 
   it('lets a new homeowner continue to posting when OPEN without an invitation', () => {
@@ -56,7 +48,26 @@ describe('GetStartedPage', () => {
     render(<GetStartedPage />);
     expect(screen.getByRole('link', { name: /post a task/i })).toHaveAttribute('href', '/post-job');
     expect(screen.getByText(/no invitation is required/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /log in/i })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /become an expert/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^log in$/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /join expert waitlist/i })).toHaveAttribute('href', '/expert-waitlist');
+  });
+
+  it('lets a new Expert apply while homeowner posting stays CLOSED', () => {
+    mockPilot.value = {
+      loadState: 'ok',
+      status: {
+        homeownerPosting: 'CLOSED',
+        canPost: false,
+        waitlistAvailable: true,
+        expertOnboarding: 'OPEN',
+        canExpertApply: true,
+        expertWaitlistAvailable: false,
+      },
+      refresh: jest.fn(),
+    };
+    render(<GetStartedPage />);
+    expect(screen.getByRole('link', { name: /join waitlist/i })).toHaveAttribute('href', '/waitlist');
+    expect(screen.getByRole('link', { name: /become an expert/i })).toHaveAttribute('href', '/tradie/signup');
+    expect(screen.getByRole('link', { name: /^log in$/i })).toHaveAttribute('href', '/login');
   });
 });

@@ -146,10 +146,10 @@ describe('QuoteSubmissionCard', () => {
 
     renderCard({ eligibility });
 
-    expect(screen.getByText(/awaiting expert verification/i)).toBeInTheDocument();
+    expect(screen.getByText(/pending review/i)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /open profile/i })).not.toBeInTheDocument();
     expect(screen.getByText(/what happens next/i)).toBeInTheDocument();
-    expect(screen.getByText(/quoting unlocks once our team has verified/i)).toBeInTheDocument();
+    expect(screen.getByText(/quoting unlocks once our team has reviewed and verified/i)).toBeInTheDocument();
   });
 
   it('uses client-facing success copy after quote submission', () => {

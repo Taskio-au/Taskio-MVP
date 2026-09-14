@@ -34,7 +34,7 @@ export const LANDING_HERO_PREVIEW = {
 };
 
 export const LANDING_PROOF = [
-  { label: 'Verified Experts', detail: 'Invited and checked by Taskio', icon: BadgeCheck },
+  { label: 'Verified Experts', detail: 'Verified by Taskio before quoting', icon: BadgeCheck },
   { label: 'Compare quotes', detail: 'One thread, side by side', icon: ListChecks },
   { label: 'Payment through Taskio', detail: 'Released after you approve', icon: ShieldCheck },
   { label: 'Inner Melbourne', detail: 'Small indoor jobs only', icon: MapPin },
@@ -170,7 +170,7 @@ export const LANDING_PILLARS = [
   },
 ];
 
-export function landingLaunchFacts({ postingOpen = false } = {}) {
+export function landingLaunchFacts({ postingOpen = false, canExpertApply = false } = {}) {
   return [
     {
       label: 'Access',
@@ -180,7 +180,12 @@ export function landingLaunchFacts({ postingOpen = false } = {}) {
     },
     { label: 'Area', value: 'Inner Melbourne' },
     { label: 'Scope', value: 'Small indoor jobs in Phase 1 categories' },
-    { label: 'Experts', value: 'Invited and verified by Taskio' },
+    {
+      label: 'Experts',
+      value: canExpertApply
+        ? 'Public applications — Taskio reviews before marketplace access'
+        : 'Expert waitlist — Taskio reviews before marketplace access',
+    },
   ];
 }
 

@@ -51,8 +51,8 @@ describe('LandingPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: /small indoor jobs, sorted/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /join waitlist/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /how taskio works/i })).toHaveAttribute('href', '#how-taskio-works');
-    expect(screen.getAllByText(/^experts invited$/i).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('link', { name: /become an expert/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /join expert waitlist/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^experts invited$/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/verified experts/i).length).toBeGreaterThan(0);
     expect(screen.getByText('Payment through Taskio')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /one place\. clear from start to finish/i })).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('LandingPage', () => {
     expect(screen.queryByRole('heading', { name: /clients and experts in their own words/i })).not.toBeInTheDocument();
   });
 
-  it('explains closed homeowner posting and invite-only Experts', () => {
+  it('explains closed homeowner posting and Expert waitlist', () => {
     render(
       <MemoryRouter>
         <LandingPage />
@@ -95,7 +95,7 @@ describe('LandingPage', () => {
       screen.getByRole('heading', { name: /private early access in inner melbourne/i })
     ).toBeInTheDocument();
     expect(screen.getByText(/homeowner posting closed — join the waitlist/i)).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /how expert access works/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /join the expert waitlist/i }).length).toBeGreaterThan(0);
   });
 
   it('keeps public acquisition closed in every landing call to action', () => {
@@ -111,7 +111,7 @@ describe('LandingPage', () => {
     expect(
       screen.getByRole('button', { name: /join waitlist for mounting/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /expert access/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /join expert waitlist/i }).length).toBeGreaterThan(0);
   });
 
   it('lets a new homeowner post when OPEN even if Expert public signup is off', () => {
@@ -129,7 +129,7 @@ describe('LandingPage', () => {
     expect(screen.queryByRole('button', { name: /log in if invited/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^join waitlist$/i })).not.toBeInTheDocument();
     expect(screen.getByText(/sign up or log in, no invitation/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/^experts invited$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /join expert waitlist/i }).length).toBeGreaterThan(0);
     unmount();
     mockPilotStatus.value = {
       loadState: 'ok',
@@ -182,7 +182,35 @@ describe('LandingPage', () => {
     };
   });
 
-  it('fails closed when public status cannot be loaded', () => {
+  it('lets a new Expert apply when Expert onboarding is OPEN even if homeowner posting is CLOSED', () => {
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: {
+        homeownerPosting: 'CLOSED',
+        canPost: false,
+        waitlistAvailable: true,
+        expertOnboarding: 'OPEN',
+        canExpertApply: true,
+        expertWaitlistAvailable: false,
+      },
+      refresh: jest.fn(),
+    };
+    const { unmount } = render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>
+    );
+    expect(screen.getAllByRole('link', { name: /become an expert/i })[0]).toHaveAttribute('href', '/tradie/signup');
+    expect(screen.getAllByRole('button', { name: /join waitlist/i }).length).toBeGreaterThan(0);
+    unmount();
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
+      refresh: jest.fn(),
+    };
+  });
+
+  it('fails Expert applications closed when public status cannot be loaded', () => {
     mockPilotStatus.value = {
       loadState: 'error',
       status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
@@ -195,6 +223,7 @@ describe('LandingPage', () => {
     );
     expect(screen.getByText(/temporarily unavailable/i)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /join waitlist/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /join expert waitlist/i })[0]).toHaveAttribute('href', '/expert-waitlist');
     unmount();
     mockPilotStatus.value = {
       loadState: 'ok',

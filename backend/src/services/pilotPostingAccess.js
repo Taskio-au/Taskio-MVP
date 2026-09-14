@@ -5,7 +5,9 @@
  * Launch readiness is not re-checked here. Missing/invalid settings fail closed.
  */
 
-const { OPERATIONAL_STATES } = require('./pilotSettingsDerive');
+const { isPublicSignupEnabled } = require('../config/publicSignup');
+const { OPERATIONAL_STATES, EXPERT_ONBOARDING_MODES } = require('./pilotSettingsDerive');
+const { serializeEffectiveExpertOnboarding } = require('./expertOnboardingAccess');
 const { readPilotSettings } = require('./pilotSettingsService');
 
 function publicPostingClosedError(state) {
@@ -19,18 +21,35 @@ function publicPostingClosedError(state) {
   };
 }
 
-function serializePublicPilotStatus(settings) {
+function serializePublicPilotStatus(settings, options = {}) {
   const raw = settings && settings.effectiveState;
   const homeownerPosting = raw === OPERATIONAL_STATES.OPEN || raw === OPERATIONAL_STATES.PAUSED
     ? raw
     : OPERATIONAL_STATES.CLOSED;
+  const expert = serializeEffectiveExpertOnboarding({
+    persistedMode: settings && settings.effectiveExpertOnboardingMode,
+    safetyEnabled: options.expertSignupSafetyEnabled === true,
+  });
   // Waitlist writes are a separate Admin SDK route and do not read pilotSettings.
   // Status failures therefore still advertise waitlist while posting stays CLOSED.
   return {
     homeownerPosting,
     canPost: homeownerPosting === OPERATIONAL_STATES.OPEN,
     waitlistAvailable: homeownerPosting !== OPERATIONAL_STATES.OPEN,
+    expertOnboarding: expert.expertOnboarding,
+    canExpertApply: expert.canExpertApply,
+    expertWaitlistAvailable: expert.expertWaitlistAvailable,
   };
+}
+
+function failClosedPublicPilotStatus() {
+  return serializePublicPilotStatus(
+    {
+      effectiveState: OPERATIONAL_STATES.CLOSED,
+      effectiveExpertOnboardingMode: EXPERT_ONBOARDING_MODES.WAITLIST,
+    },
+    { expertSignupSafetyEnabled: false }
+  );
 }
 
 async function assertPilotPostingOpen(db) {
@@ -51,18 +70,21 @@ async function assertPilotPostingOpen(db) {
   }
 }
 
-async function readPublicPilotStatus(db) {
+async function readPublicPilotStatus(db, env = process.env) {
   try {
     const settings = await readPilotSettings(db);
-    return serializePublicPilotStatus(settings);
+    return serializePublicPilotStatus(settings, {
+      expertSignupSafetyEnabled: isPublicSignupEnabled(env),
+    });
   } catch (_) {
-    return serializePublicPilotStatus({ effectiveState: OPERATIONAL_STATES.CLOSED });
+    return failClosedPublicPilotStatus();
   }
 }
 
 module.exports = {
   publicPostingClosedError,
   serializePublicPilotStatus,
+  failClosedPublicPilotStatus,
   assertPilotPostingOpen,
   readPublicPilotStatus,
 };

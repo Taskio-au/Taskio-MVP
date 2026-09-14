@@ -9,6 +9,7 @@ const mockState = {
   storedUsers: new Map(),
   authUsers: new Map(),
   failNextClaim: false,
+  pilotSettings: null,
 };
 
 function resetMockState() {
@@ -17,6 +18,7 @@ function resetMockState() {
   mockState.storedUsers = new Map();
   mockState.authUsers = new Map();
   mockState.failNextClaim = false;
+  mockState.pilotSettings = { state: 'CLOSED', expertOnboardingMode: 'OPEN' };
 }
 
 jest.mock('../src/middleware/auth', () => ({
@@ -77,28 +79,40 @@ jest.mock('../src/firebaseAdmin', () => ({
     },
   },
   db: {
-    collection: jest.fn(() => ({
-      doc: jest.fn((uid) => ({
-        get: jest.fn(async () => ({
-          exists: mockState.storedUsers.has(uid),
-          data: () => mockState.storedUsers.get(uid),
+    collection: jest.fn((name) => {
+      if (name === 'system') {
+        return {
+          doc: jest.fn((id) => ({
+            get: jest.fn(async () => ({
+              exists: id === 'pilotSettings' && !!mockState.pilotSettings,
+              data: () => mockState.pilotSettings,
+            })),
+          })),
+        };
+      }
+      return {
+        doc: jest.fn((uid) => ({
+          get: jest.fn(async () => ({
+            exists: mockState.storedUsers.has(uid),
+            data: () => mockState.storedUsers.get(uid),
+          })),
+          set: jest.fn(async (payload, options = {}) => {
+            const previous = mockState.storedUsers.get(uid) || {};
+            const next = options.merge ? { ...previous, ...payload } : { ...previous, ...payload };
+            mockState.storedUsers.set(uid, next);
+          }),
+          update: jest.fn(async (payload) => {
+            if (!mockState.storedUsers.has(uid)) {
+              const error = new Error('NOT_FOUND');
+              error.code = 5;
+              throw error;
+            }
+            const previous = mockState.storedUsers.get(uid);
+            mockState.storedUsers.set(uid, { ...previous, ...payload });
+          }),
         })),
-        set: jest.fn(async (payload, options = {}) => {
-          const previous = mockState.storedUsers.get(uid) || {};
-          const next = options.merge ? { ...previous, ...payload } : { ...previous, ...payload };
-          mockState.storedUsers.set(uid, next);
-        }),
-        update: jest.fn(async (payload) => {
-          if (!mockState.storedUsers.has(uid)) {
-            const error = new Error('NOT_FOUND');
-            error.code = 5;
-            throw error;
-          }
-          const previous = mockState.storedUsers.get(uid);
-          mockState.storedUsers.set(uid, { ...previous, ...payload });
-        }),
-      })),
-    })),
+      };
+    }),
     runTransaction: jest.fn(async (fn) => {
       const tx = {
         get: (ref) => ref.get(),
@@ -153,6 +167,8 @@ describe('tradie registration contracts', () => {
     expect(mockState.claims).toEqual([{ uid: 'tradie-1', claims: { role: 'tradie' } }]);
     expect(mockState.storedUsers.get('tradie-1')).toEqual(expect.objectContaining({
       role: 'tradie',
+      status: 'active',
+      verified: false,
       primaryServiceSuburb: 'Richmond',
       primaryServicePostcode: '3121',
       phone: '',
@@ -591,6 +607,140 @@ describe('tradie registration contracts', () => {
     expect(response.status).toBe(200);
     expect(mockState.claims).toEqual([{ uid: 'google-tradie-1', claims: { role: 'tradie' } }]);
     expect(mockState.storedUsers.get('google-tradie-1').role).toBe('tradie');
+  });
+
+  it('rejects new Expert signup when onboarding mode is WAITLIST', async () => {
+    mockState.pilotSettings = { state: 'CLOSED', expertOnboardingMode: 'WAITLIST' };
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .send({
+        role: 'tradie',
+        firstName: 'Jane',
+        lastName: 'Expert',
+        email: 'jane@example.com',
+        password: 'hunter22',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe('EXPERT_ONBOARDING_WAITLIST');
+    expect(JSON.stringify(response.body)).not.toMatch(/TASKIO_PUBLIC_SIGNUP|pilotSettings|Firebase/i);
+    expect(mockState.createdUsers).toHaveLength(0);
+    expect(mockState.storedUsers.size).toBe(0);
+  });
+
+  it('fails new Expert signup to WAITLIST when the mode is missing or invalid', async () => {
+    mockState.pilotSettings = { state: 'OPEN' };
+    const missing = await request(buildApp())
+      .post('/api/users/register')
+      .send({
+        role: 'tradie',
+        firstName: 'Jane',
+        lastName: 'Expert',
+        email: 'jane@example.com',
+        password: 'hunter22',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+    expect(missing.status).toBe(403);
+    expect(missing.body.code).toBe('EXPERT_ONBOARDING_WAITLIST');
+
+    mockState.pilotSettings = { state: 'OPEN', expertOnboardingMode: 'LIMITED' };
+    const invalid = await request(buildApp())
+      .post('/api/users/register')
+      .send({
+        role: 'tradie',
+        firstName: 'Jane',
+        lastName: 'Expert',
+        email: 'second@example.com',
+        password: 'hunter22',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+    expect(invalid.status).toBe(403);
+    expect(mockState.createdUsers).toHaveLength(0);
+  });
+
+  it('lets an existing pending Expert complete Google onboarding while WAITLIST', async () => {
+    mockState.pilotSettings = { state: 'OPEN', expertOnboardingMode: 'WAITLIST' };
+    mockState.storedUsers.set('google-tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: false,
+      email: 'google.expert@example.com',
+      firstName: 'Old',
+    });
+    const response = await request(buildApp())
+      .post('/api/users/register/expert-google')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Expert',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+    expect(response.status).toBe(200);
+    expect(mockState.storedUsers.get('google-tradie-1')).toEqual(expect.objectContaining({
+      role: 'tradie',
+      verified: false,
+      firstName: 'Jane',
+    }));
+  });
+
+  it('rejects new Google Expert signup while WAITLIST', async () => {
+    mockState.pilotSettings = { state: 'CLOSED', expertOnboardingMode: 'WAITLIST' };
+    const response = await request(buildApp())
+      .post('/api/users/register/expert-google')
+      .set('Authorization', 'Bearer test-token')
+      .send({
+        firstName: 'Jane',
+        lastName: 'Expert',
+        serviceLocation: {
+          label: 'Richmond VIC 3121',
+          suburb: 'Richmond',
+          state: 'VIC',
+          postcode: '3121',
+          country: 'AU',
+        },
+        primaryServiceSuburb: 'Richmond',
+        primaryServicePostcode: '3121',
+        expertise: ['mounting_shelves'],
+      });
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe('EXPERT_ONBOARDING_WAITLIST');
+    expect(mockState.storedUsers.size).toBe(0);
   });
 
   describe('public signup kill switch on enrollment routes', () => {

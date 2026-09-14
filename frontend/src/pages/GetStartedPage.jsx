@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PublicPageHeader from '../components/PublicPageHeader';
-import { isExpertPublicSignupEnabled } from '../config/publicAcquisitionConfig';
 import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
 import { resolveHomeownerPosting } from '../utils/homeownerPostingEntry';
+import { resolveExpertOnboarding } from '../utils/expertOnboardingEntry';
 import { ArrowRight, Briefcase, Home } from 'lucide-react';
 
 const styles = {
@@ -100,8 +100,9 @@ const styles = {
 };
 
 export default function GetStartedPage() {
-  const expertPublicSignup = isExpertPublicSignupEnabled();
-  const posting = resolveHomeownerPosting(usePublicPilotStatus());
+  const publicStatus = usePublicPilotStatus();
+  const posting = resolveHomeownerPosting(publicStatus);
+  const expert = resolveExpertOnboarding(publicStatus);
 
   return (
     <div style={styles.page}>
@@ -111,7 +112,7 @@ export default function GetStartedPage() {
           <div style={styles.headerBlock}>
             <h1 style={styles.title}>Get started with Taskio</h1>
             <p style={styles.subtitle}>
-              Homeowners follow the Melbourne pilot posting state. Experts stay invited and verified.
+              Homeowners follow the Melbourne pilot posting state. Expert applications are reviewed by Taskio before marketplace access.
             </p>
           </div>
 
@@ -132,32 +133,21 @@ export default function GetStartedPage() {
               </span>
             </Link>
 
-            {expertPublicSignup ? (
-              <Link to="/tradie/signup" style={styles.optionCard}>
-                <div style={styles.optionIcon}>
-                  <Briefcase size={20} />
-                </div>
-                <h2 style={styles.optionTitle}>Become an Expert</h2>
-                <p style={styles.optionCopy}>Set up your expert profile and start quoting on suitable jobs.</p>
-                <span style={styles.optionAction}>
-                  Continue
-                  <ArrowRight size={16} />
-                </span>
-              </Link>
-            ) : (
-              <div style={styles.optionCard} aria-label="Expert access is invite-only">
-                <div style={styles.optionIcon}>
-                  <Briefcase size={20} />
-                </div>
-                <h2 style={styles.optionTitle}>Become an Expert</h2>
-                <p style={styles.optionCopy}>
-                  Taskio onboards founding Experts manually. If you already have an invited account, log in.
-                </p>
-                <span style={styles.optionAction}>
-                  Invite-only
-                </span>
+            <Link to={expert.path} style={styles.optionCard}>
+              <div style={styles.optionIcon}>
+                <Briefcase size={20} />
               </div>
-            )}
+              <h2 style={styles.optionTitle}>{expert.shortLabel}</h2>
+              <p style={styles.optionCopy}>
+                {expert.canApply
+                  ? 'Create an Expert account and complete onboarding. You stay pending review until Taskio verifies you.'
+                  : 'Register interest in becoming a Taskio Expert. Existing Expert accounts can continue as usual.'}
+              </p>
+              <span style={styles.optionAction}>
+                Continue
+                <ArrowRight size={16} />
+              </span>
+            </Link>
           </div>
 
           <div style={styles.footer}>

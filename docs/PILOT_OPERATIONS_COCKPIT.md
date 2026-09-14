@@ -1,6 +1,6 @@
 # Pilot Operations Cockpit — audit and design
 
-**Status:** DESIGN plus **Admin Slices 1–5C** (data foundation, visual cockpit, Job Attention Queue, marketplace health, read-only Pilot Status engine, persisted operational state, homeowner posting wire-up, OPEN public homeowner access; 14 September 2026, local, not deployed).
+**Status:** DESIGN plus **Admin Slices 1–5C** and **controlled public Expert onboarding** (data foundation, visual cockpit, Job Attention Queue, marketplace health, read-only Pilot Status engine, persisted operational state, homeowner posting wire-up, independent Expert OPEN/WAITLIST; 14 September 2026, local, not deployed).
 
 **Date:** 13 September 2026  
 **Companion operating rules:** `docs/P06_OWNER_DECISIONS.md` §5–§5B  
@@ -71,33 +71,54 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 **IMPLEMENTED (Slice 5C — posting wire-up, local, not deployed)**
 
 - Authoritative create gate: `POST /api/jobs` rejects unless effective operational state is OPEN
-- Public fail-closed `GET /api/pilot-status` (`homeownerPosting`, `canPost`, `waitlistAvailable`)
+- Public fail-closed `GET /api/pilot-status` (`homeownerPosting`, `canPost`, `waitlistAvailable`, `expertOnboarding`, `canExpertApply`, `expertWaitlistAvailable`)
 - Hardened waitlist: `POST /api/pilot-waitlist` → `pilotWaitlist` (Admin SDK only; client reads/writes denied; email-key upsert; generic success; contact-consent evidence)
 - Landing, dashboard, `/post-job`, Get started, and header CTAs follow public status. Backend remains authority
 - OPEN does not bypass auth, Phase 1 categories, or approved Inner Melbourne geography
 - CLOSED/PAUSED block **new** homeowner jobs only. Existing jobs continue
 - Admin homeowner-posting card now shows OPEN / CLOSED / PAUSED
 
+**IMPLEMENTED (Expert onboarding mode — local, not deployed)**
+
+- Persisted `expertOnboardingMode: OPEN | WAITLIST` on `system/pilotSettings`, independent of homeowner `CLOSED | OPEN | PAUSED`
+- Missing/invalid/unload fail-safe is **WAITLIST** (does not affect existing or pending Experts)
+- Public Expert applications when OPEN **and** `TASKIO_PUBLIC_SIGNUP_ENABLED` allows enrollment
+- New Experts stay `verified=false` / marketplace-ineligible until Admin Verify; launch-ready remains derived
+- WAITLIST blocks **new** Expert account creation only; public CTA uses `expertWaitlist` (not `pilotWaitlist`)
+- LIMITED mode is **not** implemented
+
 **Canonical activation semantics (local code; not deployed)**
 
-| State | Homeowners | Experts |
+| Control | Homeowners | Experts |
 |---|---|---|
-| **OPEN** | Public supported signup/posting. No manual homeowner invitation. Normal authentication (phone OTP + profile/legal) still required. | Remain gated / manually verified. Expert self-signup stays off unless `REACT_APP_PUBLIC_ACQUISITION_ENABLED=true` **and** `TASKIO_PUBLIC_SIGNUP_ENABLED=true`. |
-| **CLOSED / PAUSED** | New job posting blocked. Public demand CTA is waitlist / register interest. Existing login still works. Phone-authenticated homeowner profile creation is allowed; posting is still denied. | Recruitment/onboarding may continue. |
+| **Homeowner OPEN** | Public supported signup/posting. No manual homeowner invitation. Normal authentication still required. | Unchanged. Expert applications follow Expert onboarding mode. |
+| **Homeowner CLOSED / PAUSED** | New job posting blocked. Public demand CTA is waitlist / register interest. Existing login still works. | Recruitment/onboarding may continue when Expert mode is OPEN. |
+| **Expert onboarding OPEN** | Unchanged. | Public Expert application/account creation. Applicants complete onboarding and remain pending review until Taskio verifies them. |
+| **Expert onboarding WAITLIST** | Unchanged. | New Expert signup blocked. Public CTA is Expert waitlist. Existing and pending Experts continue login/onboarding. |
 
-**One posting authority:** persisted `system/pilotSettings` effective state. `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is **Expert self-signup UX only** (deprecated name `isPublicAcquisitionEnabled`). `TASKIO_PUBLIC_SIGNUP_ENABLED` is the **Expert / production enrollment kill switch**, not a homeowner invitation gate.
+Expected independent combinations: homeowner **CLOSED** + Expert **OPEN** (supply-building); later homeowner **OPEN** + Expert **WAITLIST** (enough supply).
 
-**Known production limitation (not changed in this slice):** Identity Toolkit `disabledUserSignup=true` on staging/production still blocks **new Firebase Auth users**. Code-level OPEN is correct, but those deployed environments are **not** ready for brand-new public homeowner acquisition. This is acceptable while Pilot Status is NOT READY and nothing is deployed. **P07** must evidence that production Auth permits the approved homeowner signup path before READY TO OPEN / P07 PASS. **P10** must prove a brand-new homeowner can authenticate and post. Do not probe this from `GET /api/pilot-status`. Enabling Auth signup later must not open Expert enrollment (frontend Expert UX gate + `TASKIO_PUBLIC_SIGNUP_ENABLED` + Admin verification remain). Local tests mock auth.
+**Two Expert authorities, both required for new signup:**
 
-**Waitlist:** public write with route limiter (30/15 min), normalized/bounded email, optional bounded suburb, bounded source, server timestamps only, SHA-256 email document id upsert. Server requires `consentAccepted === true` before writing. Evidence stored: `consentVersion=pilot-waitlist-contact-v1`, `consentAcceptedAt` server timestamp. Meaning: Taskio may contact the person about Melbourne-pilot availability. Not marketing opt-in, not promotional consent, not Privacy Act compliance. P06 remains OPEN.
+- Business control: persisted `expertOnboardingMode`
+- Deployment/emergency kill switch: `TASKIO_PUBLIC_SIGNUP_ENABLED`
+- `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is deprecated and must not override server Expert or homeowner eligibility
 
-**Public status failure:** posting fail-closes. `waitlistAvailable` stays true because waitlist writes do not read `system/pilotSettings`. If the whole API is down, waitlist submit still fails safely.
+**Public status:** `GET /api/pilot-status` also returns effective `expertOnboarding`, `canExpertApply`, `expertWaitlistAvailable`. Fail-safe Expert WAITLIST. Does not expose the kill-switch env name, Firebase config, counts, or launch blockers.
+
+**Known production limitation (not changed in this slice):** Identity Toolkit `disabledUserSignup=true` on staging/production still blocks **new Firebase Auth users**. Enabling Auth signup later does **not** approve an Expert. Application-level Expert mode + kill switch + manual verification still apply. **P07/P10** must prove both approved public account paths as applicable. Do not probe Identity Toolkit from `GET /api/pilot-status`. Local tests mock auth.
+
+**Waitlist:** homeowner `pilotWaitlist` and Expert `expertWaitlist` are separate Admin SDK collections. Expert consent is `expert-waitlist-contact-v1` (“contacted about becoming a Taskio Expert”). Not marketing consent. P06 remains OPEN.
+
+**Public status failure:** posting fail-closes. Expert applications fail-safe to WAITLIST. Waitlist routes remain advertised because writes do not read `system/pilotSettings`. If the whole API is down, waitlist submit still fails safely.
 
 **NOT YET IMPLEMENTED**
 
 - Deploy / create `system/pilotSettings` in staging or production
 - Persisted WATCH auto-pause
+- Expert LIMITED mode (category/area-specific recruitment)
 - P06/P09 legal completion for waitlist or public launch copy
+
 
 ---
 
@@ -109,7 +130,7 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 |---|---|---|
 | **PRE-ACTIVATION** | Public landing may exist. Experts may be recruited/onboarded. Homeowners may register interest / join a waitlist. | Real homeowner **task posting CLOSED** (or capacity-gated). No paid homeowner acquisition into an under-supplied marketplace. |
 | **READY TO OPEN** | Activation gate satisfied. | Posting still **CLOSED** until owner/admin **explicitly** switches it on. **Never auto-open.** |
-| **OPEN (post-activation)** | Homeowners use the supported public posting flow **without a manual invitation**. Geography / category / capacity / auth / approved legal controls still apply. Expert supply remains gated and verified. | Unrestricted public scale. Open Expert signup. Licensed/high-regulatory work. |
+| **OPEN (post-activation)** | Homeowners use the supported public posting flow **without a manual invitation**. Geography / category / capacity / auth / approved legal controls still apply. Expert supply remains gated and verified. | Unrestricted public scale. Licensed/high-regulatory work. Automatic Expert marketplace access. |
 | **WATCH / PAUSED** | Operator may pause acquisition, enable waitlist, narrow categories/geography, recruit. | Accepting demand blindly when supply or coverage is weak. Automatic shutdown without operator confirmation (unless a later approved safety rule requires it). |
 
 **ACTIVATION GATE — all required:**

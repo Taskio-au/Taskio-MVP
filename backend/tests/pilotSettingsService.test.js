@@ -61,7 +61,7 @@ function createFakeDb() {
   };
 }
 
-const { readPilotSettings, updatePilotSettingsState } = require('../src/services/pilotSettingsService');
+const { readPilotSettings, updatePilotSettingsState, updateExpertOnboardingMode } = require('../src/services/pilotSettingsService');
 
 describe('pilotSettingsService', () => {
   const db = createFakeDb();
@@ -211,6 +211,40 @@ describe('pilotSettingsService', () => {
     });
     expect(noop.ok).toBe(true);
     expect(noop.changed).toBe(false);
+    expect(store.history).toEqual([]);
+  });
+
+  it('updates Expert onboarding independently of homeowner state and READY TO OPEN', async () => {
+    store.settings = { state: 'CLOSED', expertOnboardingMode: 'WAITLIST', version: 1 };
+    const result = await updateExpertOnboardingMode(db, {
+      nextMode: 'OPEN',
+      reason: 'build supply',
+      actorUid: 'admin-1',
+    });
+    expect(result.ok).toBe(true);
+    expect(result.changed).toBe(true);
+    expect(store.settings.state).toBe('CLOSED');
+    expect(store.settings.expertOnboardingMode).toBe('OPEN');
+    expect(store.history).toHaveLength(1);
+    expect(store.history[0]).toEqual(expect.objectContaining({
+      eventType: 'EXPERT_ONBOARDING_MODE_CHANGED',
+      previousMode: 'WAITLIST',
+      newMode: 'OPEN',
+      changedByUid: 'admin-1',
+      reason: 'build supply',
+    }));
+    expect(store.history[0].previousState).toBeUndefined();
+    expect(store.history[0].newState).toBeUndefined();
+  });
+
+  it('treats same Expert onboarding mode as a no-op without audit', async () => {
+    store.settings = { state: 'OPEN', expertOnboardingMode: 'WAITLIST', version: 4 };
+    const result = await updateExpertOnboardingMode(db, {
+      nextMode: 'WAITLIST',
+      actorUid: 'admin-1',
+    });
+    expect(result.ok).toBe(true);
+    expect(result.changed).toBe(false);
     expect(store.history).toEqual([]);
   });
 });

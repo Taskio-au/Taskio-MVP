@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { ArrowRight } from 'lucide-react';
 import { auth } from '../firebase';
-import { isExpertPublicSignupEnabled } from '../config/publicAcquisitionConfig';
 import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
 import { publicPilotPostingCopy } from '../constants/pilotPostingCopy';
+import { resolveExpertOnboarding } from '../utils/expertOnboardingEntry';
 import { ANALYTICS_EVENTS, trackEvent, trackEventOnce } from '../config/analytics';
 import { Button } from '../design/components';
 import '../styles/publicPageHeader.css';
@@ -42,9 +42,9 @@ function LandingPage() {
   const authState = useAuthState(auth) || [];
   const user = authState[0] || null;
   const homeHref = user ? '/dashboard' : '/';
-  const expertPublicSignup = isExpertPublicSignupEnabled();
   const { loadState: postingLoadState, status: postingStatus } = usePublicPilotStatus();
-  const expertEntry = expertPublicSignup ? '/tradie/signup' : '/get-started';
+  const expert = resolveExpertOnboarding({ loadState: postingLoadState, status: postingStatus });
+  const expertEntry = expert.path;
   trackEventOnce(ANALYTICS_EVENTS.LANDING_VIEWED, 'session', { surface: 'landing' });
 
   const goLogin = (surface) => {
@@ -81,21 +81,12 @@ function LandingPage() {
     <div className="landing-page">
       <PublicPageHeader
         homeTo={homeHref}
-        brandAddon={
-          expertPublicSignup ? null : (
-            <span className="landing-nav-status">
-              <span className="landing-nav-status-dot" aria-hidden />
-              Experts invited
-            </span>
-          )
-        }
+        brandAddon={null}
         actions={
           <nav className="landing-nav" aria-label="Primary">
-            {expertPublicSignup ? (
-              <Link className="landing-nav-link" to="/tradie/signup">
-                Become an Expert
-              </Link>
-            ) : null}
+            <Link className="landing-nav-link" to={expertEntry}>
+              {expert.shortLabel}
+            </Link>
             <Button variant="secondary" onClick={() => goLogin('header')}>
               Log in
             </Button>
@@ -137,16 +128,10 @@ function LandingPage() {
                 </a>
               </div>
               <p className="landing-hero-note">
-                {expertPublicSignup ? (
-                  <>
-                    <Link className="landing-inline-link" to="/tradie/signup">
-                      Become an Expert
-                    </Link>
-                    <span> — inner Melbourne</span>
-                  </>
-                ) : (
-                  'Experts are invited and verified by Taskio.'
-                )}
+                <Link className="landing-inline-link" to={expertEntry}>
+                  {expert.shortLabel}
+                </Link>
+                <span> — inner Melbourne. Taskio reviews before marketplace access.</span>
               </p>
             </div>
 
@@ -258,15 +243,15 @@ function LandingPage() {
               </h2>
               <p className="landing-launch-copy">
                 {postingOpen
-                  ? 'Homeowners can create an account and post a supported indoor job. Experts remain invited and verified by Taskio.'
-                  : 'We\u2019re starting with a carefully selected set of indoor jobs and verified Experts, so every part of the Taskio experience can be properly supported.'}
+                  ? 'Homeowners can create an account and post a supported indoor job. Experts apply separately and remain marketplace-ineligible until Taskio verifies them.'
+                  : 'Homeowner posting is closed while Taskio prepares the Melbourne pilot. Experts can apply or register interest independently.'}
               </p>
-              <Link className="landing-inline-link" to={postingOpen ? '/post-job' : '/get-started'}>
-                {postingOpen ? 'Post a supported task' : 'How Expert access works'}
+              <Link className="landing-inline-link" to={expertEntry}>
+                {expert.canApply ? 'How Expert applications work' : 'Join the Expert waitlist'}
               </Link>
             </div>
             <dl className="landing-launch-facts">
-              {landingLaunchFacts({ postingOpen }).map((fact) => (
+              {landingLaunchFacts({ postingOpen, canExpertApply: expert.canApply }).map((fact) => (
                 <div key={fact.label} className="landing-launch-fact">
                   <dt>{fact.label}</dt>
                   <dd>{fact.value}</dd>
@@ -334,15 +319,9 @@ function LandingPage() {
               >
                 {homeownerCtaLabel}
               </Button>
-              {expertPublicSignup ? (
-                <Link className="landing-close-link" to="/tradie/signup">
-                  Become an Expert
-                </Link>
-              ) : (
-                <Link className="landing-close-link" to="/get-started">
-                  Expert access
-                </Link>
-              )}
+              <Link className="landing-close-link" to={expertEntry}>
+                {expert.shortLabel}
+              </Link>
             </div>
           </div>
         </section>
@@ -363,7 +342,7 @@ function LandingPage() {
                 {showWaitlist ? <Link to="/waitlist">Join waitlist</Link> : null}
                 <Link to="/login">Log in</Link>
                 <Link to={expertEntry} className="landing-footer-expert-link">
-                  {expertPublicSignup ? 'Become an Expert' : 'Expert access'}
+                  {expert.shortLabel}
                 </Link>
                 <Link to="/privacy">Privacy</Link>
                 <Link to="/terms">Terms</Link>

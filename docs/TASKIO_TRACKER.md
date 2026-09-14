@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-14 Controlled public Expert onboarding (GREEN local):** Expert applications are a persisted `expertOnboardingMode` (`OPEN` / `WAITLIST`) on `system/pilotSettings`, independent of homeowner CLOSED/OPEN/PAUSED. OPEN allows public Expert account creation; applicants stay pending review (`verified=false`) until Admin Verify; launch-ready stays derived. WAITLIST blocks **new** Expert signup only and uses a separate `expertWaitlist`. Missing/invalid mode fail-safes to WAITLIST. `TASKIO_PUBLIC_SIGNUP_ENABLED` remains the enrollment kill switch. `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is no longer a business authority. Identity Toolkit `disabledUserSignup=true` unchanged. LIMITED not implemented. P06 **OPEN**. P09 blocked. Nothing pushed or deployed. Production untouched.
+
 **2026-09-14 Slice 5C final pre-push waitlist consent + Auth launch prerequisite (GREEN local):** Waitlist writes require `consentAccepted === true` on the server before storing contact-consent evidence. Duplicates stay idempotent and do not weaken consent. Meaning is Melbourne-pilot contact only — not marketing consent; P06 remains OPEN. Documented that Identity Toolkit `disabledUserSignup=true` still blocks brand-new Firebase users in staging/production: code OPEN is not cloud-ready. P07 must prove production Auth permits the approved homeowner signup path before READY TO OPEN; P10 must prove a brand-new homeowner can authenticate and post. Expert signup remains separately gated. No cloud mutation. No push/deploy. Production untouched.
 
 **2026-09-14 Slice 5C pre-push OPEN homeowner access + waitlist hardening (GREEN local):** OPEN no longer depends on `REACT_APP_PUBLIC_ACQUISITION_ENABLED` or a homeowner invitation. New homeowners can reach signup/OTP and post supported Phase 1 jobs in approved geography when operational state is OPEN; auth remains required; Experts stay gated. CLOSED/PAUSED keep new posting blocked and use waitlist. Waitlist is idempotent by normalized-email key, rate-limited, stores contact-consent evidence, and never enumerates emails. Still **not deployed**. No staging/production `system/pilotSettings`. Identity Toolkit `disabledUserSignup` unchanged. P06 **OPEN**. P09 blocked. Production untouched.
@@ -100,7 +102,7 @@
 
 **Mandatory before controlled launch:** P01 (COMPLETE on staging TEST), P02 (already complete on staging TEST; production refund re-proof is inside P10), P03–P05 **production** PASS, P06, P07, P08, P09, P10.
 
-**Explicitly post-launch / not launch-critical** unless the owner later requires them: native mobile apps, public Expert signup, advanced matching AI, advanced analytics dashboards, subscriptions, dynamic pricing, multi-city expansion, sophisticated automated disputes, major variation workflow expansion. Existing **N01–N03** stay optional.
+**Explicitly post-launch / not launch-critical** unless the owner later requires them: native mobile apps, Expert LIMITED-mode recruitment, advanced matching AI, advanced analytics dashboards, subscriptions, dynamic pricing, multi-city expansion, sophisticated automated disputes, major variation workflow expansion. Existing **N01–N03** stay optional.
 
 **Recommended next sequence:**
 

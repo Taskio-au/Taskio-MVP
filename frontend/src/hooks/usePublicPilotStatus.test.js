@@ -47,6 +47,36 @@ describe('usePublicPilotStatus', () => {
       homeownerPosting: 'PAUSED',
       canPost: false,
       waitlistAvailable: true,
+      expertOnboarding: 'WAITLIST',
+      canExpertApply: false,
+      expertWaitlistAvailable: true,
     });
+  });
+
+  it('fails Expert applications closed when public status errors', async () => {
+    const api = { get: jest.fn().mockRejectedValue(new Error('network')) };
+    const { result } = renderHook(() => usePublicPilotStatus(api));
+    await waitFor(() => expect(result.current.loadState).toBe('error'));
+    expect(result.current.status.canExpertApply).toBe(false);
+    expect(result.current.status.expertOnboarding).toBe('WAITLIST');
+  });
+
+  it('keeps Expert OPEN independent of homeowner CLOSED', async () => {
+    const api = {
+      get: jest.fn().mockResolvedValue({
+        data: {
+          homeownerPosting: 'CLOSED',
+          canPost: false,
+          waitlistAvailable: true,
+          expertOnboarding: 'OPEN',
+          canExpertApply: true,
+          expertWaitlistAvailable: false,
+        },
+      }),
+    };
+    const { result } = renderHook(() => usePublicPilotStatus(api));
+    await waitFor(() => expect(result.current.loadState).toBe('ok'));
+    expect(result.current.status.canPost).toBe(false);
+    expect(result.current.status.canExpertApply).toBe(true);
   });
 });

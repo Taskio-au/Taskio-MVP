@@ -96,10 +96,34 @@ describe('admin pilot settings contract', () => {
     expect(write.status).toBe(403);
   });
 
+  it('opens Expert onboarding without READY TO OPEN and records a distinct audit event', async () => {
+    const res = await request(buildApp())
+      .put('/api/admin/pilot-settings/expert-onboarding')
+      .send({ mode: 'OPEN', reason: 'recruit supply' });
+    expect(res.status).toBe(200);
+    expect(res.body.changed).toBe(true);
+    expect(res.body.settings.effectiveState).toBe('CLOSED');
+    expect(res.body.settings.effectiveExpertOnboardingMode).toBe('OPEN');
+    expect(store.history).toHaveLength(1);
+    expect(store.history[0].eventType).toBe('EXPERT_ONBOARDING_MODE_CHANGED');
+    expect(store.history[0].previousMode).toBe('WAITLIST');
+    expect(store.history[0].newMode).toBe('OPEN');
+  });
+
+  it('rejects non-admin Expert onboarding mutations', async () => {
+    const res = await request(buildApp())
+      .put('/api/admin/pilot-settings/expert-onboarding')
+      .set('x-test-admin', 'false')
+      .send({ mode: 'OPEN' });
+    expect(res.status).toBe(403);
+    expect(store.history).toEqual([]);
+  });
+
   it('reads missing settings as effective CLOSED', async () => {
     const res = await request(buildApp()).get('/api/admin/pilot-settings');
     expect(res.status).toBe(200);
     expect(res.body.effectiveState).toBe('CLOSED');
+    expect(res.body.effectiveExpertOnboardingMode).toBe('WAITLIST');
     expect(res.body.documentExists).toBe(false);
     expect(res.body.postingWired).toBe(true);
     expect(res.body.postingBehaviour).toBe('CLOSED');

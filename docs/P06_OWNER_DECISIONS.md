@@ -25,10 +25,16 @@ P09 remains **blocked** until P06 PASS. Do not treat Slice 5C waitlist email col
 
 **Canonical activation semantics (local product code; not deployed; P06 still OPEN):**
 
-- **OPEN:** public supported homeowner signup/posting; no manual homeowner invitation; normal authentication still required; Experts remain gated/verified.
-- **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest used for demand; existing login still works.
+- **Homeowner OPEN:** public supported homeowner signup/posting; no manual homeowner invitation; normal authentication still required.
+- **Homeowner CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest used for demand; existing login still works.
+- **Expert OPEN:** public Expert applications; complete onboarding; remain pending review / marketplace-ineligible until Taskio Admin Verify. Launch-ready stays derived (`computeLaunchReadiness`).
+- **Expert WAITLIST:** stop new Expert account creation; public CTA is Expert waitlist / register interest. Existing and already-created pending Experts may still log in and complete onboarding.
+- These controls are **independent**. Expected: homeowner CLOSED + Expert OPEN while building supply; later homeowner OPEN + Expert WAITLIST if supply exceeds operational need.
+- LIMITED (category/area-specific recruitment) is **not** implemented.
 
-Homeowner posting authority is persisted operational state only. `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is Expert self-signup UX. `TASKIO_PUBLIC_SIGNUP_ENABLED` is the Expert/production enrollment kill switch. Production Identity Toolkit `disabledUserSignup=true` is a separate cloud setting and was **not** changed in this slice. Enabling Auth user creation later must not open Expert enrollment. P07 must prove production Auth permits the approved homeowner signup path before READY TO OPEN; P10 must prove a brand-new homeowner can authenticate and post.
+Homeowner posting authority is persisted operational state only. Expert business control is persisted `expertOnboardingMode`. `TASKIO_PUBLIC_SIGNUP_ENABLED` is the Expert/production enrollment kill switch (new Expert signup requires both OPEN mode and this switch). `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is deprecated and must not override either control. Production Identity Toolkit `disabledUserSignup=true` is a separate cloud setting and was **not** changed in this slice. Enabling Auth user creation later must not approve an Expert. P07/P10 must prove approved public account paths.
+
+**P06 review item (Expert waitlist, local, not deployed):** `POST /api/expert-waitlist` is a public write to `expertWaitlist` (not `pilotWaitlist`). The backend accepts a record only when `consentAccepted === true`. After that it stores normalized email, optional canonical Phase 1 expertise, optional canonical Inner Melbourne suburb, source, `consentVersion=expert-waitlist-contact-v1`, and `consentAcceptedAt`. Meaning: Taskio may contact the person about becoming a Taskio Expert — **not** marketing opt-in or Privacy Act completion. P06 remains OPEN. P09 remains blocked.
 
 This pack records **owner-confirmed working facts**, **lean validation working positions**, and **open professional questions**. It does **not** make Privacy Act conclusions, rewrite Terms or Privacy Policy, invent a company, or treat Pty Ltd incorporation or broad insurance spend as automatic launch blockers.
 
@@ -180,7 +186,7 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 |---|---|
 | Status | **OWNER CAN DECIDE** + **AU SOLICITOR DECISION / CONFIRMATION REQUIRED** |
 | Question | What may “verified Expert” mean in public copy? |
-| Current repo/product position | Landing repeats “verified Experts” / “invited and verified by Taskio.” Actual process: invite-only, admin `verified=true`, profile complete, Stripe onboarding, ABN lookup if configured. **No** licence, insurance, or criminal-history check **in code**. “Verified Expert” must **not** automatically imply insurance verified, trade licence verified, police/background check, government certification, or workmanship guarantee. |
+| Current repo/product position | Landing repeats “verified Experts.” Actual marketplace access: Admin `verified=true`, profile complete, Stripe onboarding, ABN lookup if configured, plus derived launch-ready. Public Expert applications (when Expert onboarding is OPEN) do **not** grant quoting or invitations. **No** licence, insurance, or criminal-history check **in code**. “Verified Expert” must **not** automatically imply insurance verified, trade licence verified, police/background check, government certification, or workmanship guarantee. |
 | Recommended working business position | Verified = only those checks. Do not imply licensed / insured / background-checked / quality-guaranteed. |
 | Owner must supply/choose | Definition confirmed as working position. F11 recorded. Do not imply licensed / insured / background-checked / quality-guaranteed. |
 | Solicitor must confirm | Whether current landing claims are supportable; required qualifications/disclaimers. |

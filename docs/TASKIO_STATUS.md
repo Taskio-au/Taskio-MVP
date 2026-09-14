@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 14 September 2026 (Slice 5C final pre-push — waitlist consent contract + Auth launch prerequisite, local)
+**Last updated:** 14 September 2026 (controlled public Expert onboarding mode, local)
 
 ## Active scope
 
@@ -51,11 +51,11 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** — must prove a brand-new homeowner can authenticate and post. Existing invited/synthetic users are not enough for public OPEN. | **Yes** |
-| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. **OPEN (code):** public supported homeowner signup/posting, no manual homeowner invitation, normal auth still required, Experts remain gated. **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue. Local code only; **not deployed**. Current cloud `disabledUserSignup=true` means staging/production are not ready for brand-new public homeowner acquisition. P07 must configure/prove Auth; P10 must E2E a brand-new homeowner. Activation still requires ~15 launch-ready + category/geo coverage + other real-user gates + explicit owner OPEN. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1–5C implemented locally. P06 **OPEN**. P09 blocked. Incomplete scans must not prove supply-ready or “all clear”. | — |
+| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Homeowner **OPEN (code):** public supported signup/posting, no manual invitation, normal auth still required. **CLOSED / PAUSED:** new posting blocked; homeowner waitlist. Expert onboarding is **independent**: **OPEN** allows public Expert applications that stay pending review until Admin Verify; **WAITLIST** blocks new Expert accounts and uses `expertWaitlist`. Launch-ready remains derived. Local code only; **not deployed**. Current cloud `disabledUserSignup=true` still blocks brand-new Firebase users for both public account paths. P07/P10 must prove approved public account paths. Activation still requires ~15 launch-ready + category/geo coverage + other real-user gates + explicit owner OPEN. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. P06 **OPEN**. P09 blocked. | — |
 
 Mandatory remaining before controlled launch: P06, P07, P08, P09, P10, plus P03/P04/P05 **production** PASS.
 
-Explicitly post-launch unless later required: native apps, public Expert signup, advanced matching AI, advanced analytics dashboards, subscriptions, dynamic pricing, multi-city expansion, sophisticated automated disputes, major variation expansion.
+Explicitly post-launch unless later required: native apps, Expert LIMITED-mode recruitment, advanced matching AI, advanced analytics dashboards, subscriptions, dynamic pricing, multi-city expansion, sophisticated automated disputes, major variation expansion.
 
 ## External blockers
 

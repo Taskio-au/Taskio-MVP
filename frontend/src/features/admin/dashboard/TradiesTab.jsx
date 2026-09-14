@@ -52,6 +52,7 @@ export default function TradiesTab({
           />
           <select value={tradieQuickFilter} onChange={(e) => setTradieQuickFilter(e.target.value)} style={styles.select}>
             <option value="">All</option>
+            <option value="pending_review">Pending review</option>
             <option value="ready_now">Ready now (eligible to quote)</option>
             <option value="verified_stripe">Verified + Stripe complete</option>
             <option value="active_7d">Active in last 7 days (beta)</option>
@@ -85,6 +86,10 @@ export default function TradiesTab({
                     {trustChip('Trust', !!u.verified)}
                     {trustChip('Stripe', u.stripeOnboardingComplete === true || u.stripeOnboardingStatus === 'completed')}
                     {trustChip('ABN', isAbnRequirementSatisfied(u))}
+                    {u.verified !== true && u.status === 'active' ? (
+                      <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e' }}>Pending review</span>
+                    ) : null}
+                    {trustChip('Launch-ready', u.launchReady === true)}
                     {u.verificationReviewRequired === true ? (
                       <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e' }}>Review</span>
                     ) : null}

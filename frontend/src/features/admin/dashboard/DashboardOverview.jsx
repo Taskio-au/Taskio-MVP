@@ -64,6 +64,7 @@ export default function DashboardOverview({
   pilotSettingsBusy = false,
   pilotSettingsError = null,
   onPilotStateChange,
+  onPilotExpertOnboardingChange,
 }) {
   const expertSupply = derivePilotReadiness(pilotSupply, pilotSupplyLoadState);
   const launchReadyCardValue = (
@@ -128,6 +129,7 @@ export default function DashboardOverview({
         busy={pilotSettingsBusy}
         mutationError={pilotSettingsError}
         onChangeState={onPilotStateChange}
+        onChangeExpertOnboarding={onPilotExpertOnboardingChange}
       />
 
       <PilotReadinessSection

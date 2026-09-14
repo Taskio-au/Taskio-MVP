@@ -102,4 +102,21 @@ describe('useAdminDashboardDerivedData', () => {
     expect(screen.getByTestId('filtered-tradies')).toHaveTextContent('individual-1');
     expect(screen.getByTestId('filtered-tradies')).not.toHaveTextContent('sole-1');
   });
+
+  it('identifies pending review Experts', () => {
+    render(
+      <Harness
+        jobs={[]}
+        tradieQuickFilter="pending_review"
+        users={[
+          { uid: 'pending-1', role: 'tradie', status: 'active', verified: false },
+          { uid: 'verified-1', role: 'tradie', status: 'active', verified: true },
+          { uid: 'disabled-1', role: 'tradie', status: 'suspended', verified: false },
+        ]}
+      />
+    );
+    expect(screen.getByTestId('filtered-tradies')).toHaveTextContent('pending-1');
+    expect(screen.getByTestId('filtered-tradies')).not.toHaveTextContent('verified-1');
+    expect(screen.getByTestId('filtered-tradies')).not.toHaveTextContent('disabled-1');
+  });
 });

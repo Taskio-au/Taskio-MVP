@@ -52,9 +52,9 @@ export const EXPERT_QUOTE_READINESS = {
 
 /** Expert: all checklist items done except admin verification */
 export const EXPERT_QUOTE_READINESS_PENDING_ADMIN = {
-  title: 'Awaiting Expert verification',
+  title: 'Pending review',
   body:
-    'You’ve finished your setup on Taskio. Quoting unlocks once our team has verified your Expert account — we’ll email you when that’s done.',
+    'You’ve finished your setup on Taskio. Quoting unlocks once our team has reviewed and verified your Expert account — we’ll email you when that’s done.',
 };
 
 /** Expert: Stripe onboarding for quotes / payouts */

@@ -5,7 +5,8 @@ const rateLimit = require('express-rate-limit');
 
 const { admin, db } = require('../firebaseAdmin');
 const { requireAuth } = require('../middleware/auth');
-const { requirePublicSignupEnabled } = require('../config/publicSignup');
+const { requirePublicSignupEnabled, isPublicSignupEnabled, signupDisabledBody } = require('../config/publicSignup');
+const { assertNewExpertSignupAllowed } = require('../services/expertOnboardingAccess');
 const { classifyUserProfile, sendAccountNotActive, sendAccountStateInvalid } = require('../utils/enrolledProfile');
 const { isNonEmptyString, isStringMax } = require('../utils/validation');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
@@ -178,6 +179,11 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
       return res.status(400).send({ message: 'Last name is required and must be under 80 characters.' });
     }
 
+    const onboarding = await assertNewExpertSignupAllowed(db);
+    if (!onboarding.ok) {
+      return res.status(onboarding.status || 403).send(onboarding.error);
+    }
+
     let normalizedTradieLocation = null;
     let normalizedTradieExpertise = [];
 
@@ -237,7 +243,7 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
   }
 });
 
-router.post('/api/users/register/expert-google', authLimiter, requireAuth, requirePublicSignupEnabled, async (req, res) => {
+router.post('/api/users/register/expert-google', authLimiter, requireAuth, async (req, res) => {
   try {
     const {
       firstName,
@@ -272,6 +278,18 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, requi
     }
 
     const userRef = db.collection('users').doc(uid);
+    const existingSnap = await userRef.get();
+    const existingClassified = classifyUserProfile(existingSnap);
+    if (existingClassified.kind === 'missing') {
+      if (!isPublicSignupEnabled()) {
+        return res.status(503).send(signupDisabledBody());
+      }
+      const onboarding = await assertNewExpertSignupAllowed(db);
+      if (!onboarding.ok) {
+        return res.status(onboarding.status || 403).send(onboarding.error);
+      }
+    }
+
     let transactionResult;
     try {
       transactionResult = await db.runTransaction(async (tx) => {

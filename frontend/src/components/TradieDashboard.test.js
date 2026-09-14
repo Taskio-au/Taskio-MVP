@@ -123,7 +123,7 @@ describe('TradieDashboard stripe return sync', () => {
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('/tradie/dashboard', { replace: true });
-    expect(screen.getByText(/awaiting expert verification/i)).toBeInTheDocument();
+    expect(screen.getByText(/pending review/i)).toBeInTheDocument();
   });
 });
 

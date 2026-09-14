@@ -5,21 +5,18 @@ export function publicAcquisitionEnvFromProcess() {
 }
 
 /**
- * Expert self-signup only.
+ * @deprecated Do not use as Expert or homeowner eligibility authority.
+ * Public Expert applications follow GET /api/pilot-status (`canExpertApply`).
+ * Homeowner posting follows `canPost`. This env flag must not override either.
  *
- * Homeowner posting and homeowner OTP enrollment follow public pilot status
- * (OPEN / CLOSED / PAUSED). This env flag must not block public homeowner
- * demand when operational state is OPEN.
- *
- * Off by default. Set REACT_APP_PUBLIC_ACQUISITION_ENABLED=true only when
- * Saeed opens Expert self-signup. Do not infer this from Hosting or Firebase
- * client config.
+ * Kept only for backwards-compatible reads. It is off by default and is not a
+ * business control.
  */
 export function isExpertPublicSignupEnabled(env = publicAcquisitionEnvFromProcess()) {
   return String(env.REACT_APP_PUBLIC_ACQUISITION_ENABLED || '').trim() === 'true';
 }
 
-/** @deprecated Use isExpertPublicSignupEnabled. Same env flag; Expert-only. */
+/** @deprecated Same env flag. Must not gate homeowner or Expert eligibility. */
 export function isPublicAcquisitionEnabled(env = publicAcquisitionEnvFromProcess()) {
   return isExpertPublicSignupEnabled(env);
 }

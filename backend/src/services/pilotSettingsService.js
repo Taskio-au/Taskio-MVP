@@ -9,10 +9,13 @@ const { admin } = require('../firebaseAdmin');
 const { buildPilotLaunchReadinessSnapshot } = require('./pilotLaunchStatusService');
 const {
   OPERATIONAL_STATES,
+  EXPERT_ONBOARDING_EVENT_TYPE,
   normalizeStoredSettings,
   serializePilotSettings,
   evaluateTransition,
   buildSettingsWrite,
+  evaluateExpertOnboardingChange,
+  buildExpertOnboardingWrite,
   sanitizeReason,
 } = require('./pilotSettingsDerive');
 
@@ -122,10 +125,54 @@ async function updatePilotSettingsState(db, {
   return { ok: true, changed: true, settings: saved };
 }
 
+async function updateExpertOnboardingMode(db, {
+  nextMode,
+  reason,
+  actorUid,
+} = {}) {
+  const current = await readPilotSettings(db);
+  const planned = evaluateExpertOnboardingChange(current.effectiveExpertOnboardingMode, nextMode);
+  if (!planned.ok) {
+    return { ok: false, status: 400, error: { code: planned.code, message: planned.message } };
+  }
+  if (planned.noop) {
+    return { ok: true, changed: false, settings: current };
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const fields = buildExpertOnboardingWrite({
+    from: planned.from,
+    to: planned.to,
+    reason,
+    actorUid,
+    version: current.version,
+  });
+  const ref = settingsRef(db);
+  const historyRef = ref.collection(HISTORY_COLLECTION).doc();
+  const batch = db.batch();
+  batch.set(ref, {
+    ...fields,
+    updatedAt: now,
+  }, { merge: true });
+  batch.set(historyRef, {
+    eventType: EXPERT_ONBOARDING_EVENT_TYPE,
+    previousMode: planned.from,
+    newMode: planned.to,
+    changedAt: now,
+    changedByUid: String(actorUid || ''),
+    reason: sanitizeReason(reason),
+  });
+  await batch.commit();
+
+  const saved = await readPilotSettings(db);
+  return { ok: true, changed: true, settings: saved };
+}
+
 module.exports = {
   SETTINGS_COLLECTION,
   SETTINGS_DOC,
   HISTORY_COLLECTION,
   readPilotSettings,
   updatePilotSettingsState,
+  updateExpertOnboardingMode,
 };

@@ -1143,6 +1143,42 @@ describe('quote lifecycle contracts', () => {
     expect(res.body.message).toBe('Forbidden: You are not invited to quote on this task.');
   });
 
+  it('rejects quote submit from a pending unverified Expert even when invited', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+      phone_number: '+61400000001',
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: false,
+      phoneVerified: true,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Pending Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'completed',
+    });
+    seedDoc('jobs', 'job-quote-pending', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-pending/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.reasons).toEqual(expect.arrayContaining(['UNVERIFIED']));
+    expect(mockGetCollectionStore('quotes').size).toBe(0);
+  });
+
   it('rejects quote submit when the tradie profile is missing without writing quotes or users', async () => {
     mockState.currentUser = {
       uid: 'tradie-1',

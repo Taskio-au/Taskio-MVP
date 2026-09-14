@@ -8,19 +8,21 @@ This is the product-launch overlay on top of the existing P01–P06 technical ga
 
 **Admin machine-readable source (Slice 5A):** `shared/launchReadinessManifest.js`. The read-only Pilot Status engine evaluates this reviewed file plus Expert supply. It does **not** scrape this markdown at runtime. Update the manifest in the same commit as any gate-status change.
 
-**Admin persisted operational state (Slice 5B/5C, local):** `system/pilotSettings` stores `CLOSED` / `OPEN` / `PAUSED` only. Derived launch status (`NOT READY` / `READY TO OPEN`) is separate and must not be persisted. A transition to OPEN is allowed only when the live Slice 5A engine returns READY TO OPEN. Slice 5C wires that persisted state to real homeowner posting:
+**Admin persisted operational state (Slice 5B/5C + Expert onboarding, local):** `system/pilotSettings` stores homeowner `CLOSED` / `OPEN` / `PAUSED` and independent Expert `expertOnboardingMode` `OPEN` / `WAITLIST`. Derived launch status (`NOT READY` / `READY TO OPEN`) is separate and must not be persisted. A homeowner transition to OPEN is allowed only when the live Slice 5A engine returns READY TO OPEN. Expert OPEN does **not** require READY TO OPEN.
 
-- **OPEN:** public supported homeowner signup and posting; **no** manual homeowner invitation; normal authentication still required; Experts remain gated/verified.
-- **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue.
+- **Homeowner OPEN:** public supported homeowner signup and posting; **no** manual homeowner invitation; normal authentication still required.
+- **Homeowner CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue.
+- **Expert OPEN:** public Expert applications; new accounts stay pending review / marketplace-ineligible until Admin Verify; launch-ready remains derived.
+- **Expert WAITLIST:** new Expert signup blocked; Expert waitlist available; existing and pending Experts continue.
 
-`REACT_APP_PUBLIC_ACQUISITION_ENABLED` is Expert self-signup UX only and must not override OPEN. Still **not deployed**. Do not create the settings document in staging or production without a separate approval.
+`REACT_APP_PUBLIC_ACQUISITION_ENABLED` is deprecated and must not override homeowner or Expert eligibility. New Expert signup also requires `TASKIO_PUBLIC_SIGNUP_ENABLED`. Still **not deployed**. Do not create the settings document in staging or production without a separate approval.
 
 **Code vs current cloud Auth (do not confuse):**
 
-- **Code semantics when OPEN:** no manual homeowner invitation; normal homeowner auth/signup; supported posting permitted. Experts remain separately gated.
+- **Code semantics when OPEN:** no manual homeowner invitation; normal homeowner auth/signup; supported posting permitted. Expert applications follow independent Expert onboarding mode and stay marketplace-ineligible until verification.
 - **Current staging/production Identity Toolkit:** `disabledUserSignup=true`. Brand-new Firebase Auth users cannot be created there today. Local tests mock auth. This slice does **not** change that cloud setting.
 - That cloud constraint is acceptable while Pilot Status is **NOT READY** and nothing is deployed/opened.
-- Production must **never** be marked **READY TO OPEN** / **P07 PASS** until the production Firebase Auth configuration permits the approved homeowner authentication/signup path, and **P10** has proven a brand-new homeowner can authenticate and post. Public `GET /api/pilot-status` must not probe this cloud setting; operational OPEN remains the posting authority.
+- Production must **never** be marked **READY TO OPEN** / **P07 PASS** until the production Firebase Auth configuration permits the approved public account paths (homeowner posting and, when Expert mode is OPEN, Expert application), and **P10** has proven those paths. Public `GET /api/pilot-status` must not probe this cloud setting. Enabling Auth signup does not approve an Expert.
 
 Companion records:
 
@@ -97,7 +99,7 @@ P07 also consumes P03/P04/P05 production proof
 **Explicitly out of launch-critical scope** unless the owner later requires them:
 
 - native mobile apps
-- public Expert signup
+- Expert LIMITED-mode recruitment
 - advanced matching AI
 - advanced analytics dashboards
 - subscriptions

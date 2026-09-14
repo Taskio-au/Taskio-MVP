@@ -60,6 +60,10 @@ const {
   SUBURB_MAX,
   waitlistDocId,
 } = require('../src/services/pilotWaitlistService');
+const {
+  CONSENT_VERSION: EXPERT_CONSENT_VERSION,
+  waitlistDocId: expertWaitlistDocId,
+} = require('../src/services/expertWaitlistService');
 
 function buildApp() {
   const app = express();
@@ -84,8 +88,11 @@ describe('public pilot status and waitlist', () => {
       homeownerPosting: 'OPEN',
       canPost: true,
       waitlistAvailable: false,
+      expertOnboarding: 'WAITLIST',
+      canExpertApply: false,
+      expertWaitlistAvailable: true,
     });
-    expect(JSON.stringify(res.body)).not.toMatch(/P0[0-9]|blocker|updatedBy|manifest|expert/i);
+    expect(JSON.stringify(res.body)).not.toMatch(/P0[0-9]|blocker|updatedBy|manifest|TASKIO_PUBLIC_SIGNUP|expert count|launchReady/i);
   });
 
   it('returns canPost false for CLOSED', async () => {
@@ -96,6 +103,9 @@ describe('public pilot status and waitlist', () => {
       homeownerPosting: 'CLOSED',
       canPost: false,
       waitlistAvailable: true,
+      expertOnboarding: 'WAITLIST',
+      canExpertApply: false,
+      expertWaitlistAvailable: true,
     });
   });
 
@@ -107,6 +117,9 @@ describe('public pilot status and waitlist', () => {
       homeownerPosting: 'PAUSED',
       canPost: false,
       waitlistAvailable: true,
+      expertOnboarding: 'WAITLIST',
+      canExpertApply: false,
+      expertWaitlistAvailable: true,
     });
   });
 
@@ -117,6 +130,45 @@ describe('public pilot status and waitlist', () => {
       homeownerPosting: 'CLOSED',
       canPost: false,
       waitlistAvailable: true,
+      expertOnboarding: 'WAITLIST',
+      canExpertApply: false,
+      expertWaitlistAvailable: true,
+    });
+  });
+
+  it('allows Expert applications while homeowner posting is CLOSED', async () => {
+    mockGetCollectionStore('system').set('pilotSettings', {
+      id: 'pilotSettings',
+      state: 'CLOSED',
+      expertOnboardingMode: 'OPEN',
+    });
+    const res = await request(app).get('/api/pilot-status');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      homeownerPosting: 'CLOSED',
+      canPost: false,
+      waitlistAvailable: true,
+      expertOnboarding: 'OPEN',
+      canExpertApply: true,
+      expertWaitlistAvailable: false,
+    });
+  });
+
+  it('blocks Expert applications while homeowner posting is OPEN', async () => {
+    mockGetCollectionStore('system').set('pilotSettings', {
+      id: 'pilotSettings',
+      state: 'OPEN',
+      expertOnboardingMode: 'WAITLIST',
+    });
+    const res = await request(app).get('/api/pilot-status');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      homeownerPosting: 'OPEN',
+      canPost: true,
+      waitlistAvailable: false,
+      expertOnboarding: 'WAITLIST',
+      canExpertApply: false,
+      expertWaitlistAvailable: true,
     });
   });
 
@@ -226,6 +278,83 @@ describe('public pilot status and waitlist', () => {
     expect(rows[0].createdAt).toBe('__server_ts__');
     expect(rows[0].updatedAt).toBe('__server_ts__');
     expect(rows[0].consentVersion).toBe(CONSENT_VERSION);
+    expect(rows[0].consentAcceptedAt).toBe('first-consent-ts');
+  });
+
+  it('accepts Expert waitlist email with strict consent and canonical optional fields', async () => {
+    const res = await request(app)
+      .post('/api/expert-waitlist')
+      .send({
+        email: '  Expert@Example.com ',
+        expertise: 'mounting_shelves',
+        suburb: 'Richmond',
+        source: 'landing',
+        consentAccepted: true,
+        role: 'admin',
+        createdAt: 'client-supplied',
+      });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, message: "You're on the waitlist." });
+    const id = expertWaitlistDocId('expert@example.com');
+    const stored = mockGetCollectionStore('expertWaitlist').get(id);
+    expect(stored).toEqual(expect.objectContaining({
+      email: 'expert@example.com',
+      expertise: 'mounting_shelves',
+      suburb: 'Richmond',
+      source: 'landing',
+      consentVersion: EXPERT_CONSENT_VERSION,
+      consentAcceptedAt: '__server_ts__',
+    }));
+    expect(stored.role).toBeUndefined();
+    expect(mockGetCollectionStore('pilotWaitlist').size).toBe(0);
+  });
+
+  it.each([
+    ['missing', { email: 'expert@example.com' }],
+    ['false', { email: 'expert@example.com', consentAccepted: false }],
+    ['string true', { email: 'expert@example.com', consentAccepted: 'true' }],
+  ])('rejects Expert waitlist writes when consentAccepted is %s', async (_label, body) => {
+    const res = await request(app).post('/api/expert-waitlist').send(body);
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/becoming a taskio expert/i);
+    expect(mockGetCollectionStore('expertWaitlist').size).toBe(0);
+  });
+
+  it('rejects non-canonical Expert waitlist expertise and suburb', async () => {
+    const badCategory = await request(app)
+      .post('/api/expert-waitlist')
+      .send({ email: 'expert@example.com', expertise: 'electrical', consentAccepted: true });
+    expect(badCategory.status).toBe(400);
+    const badSuburb = await request(app)
+      .post('/api/expert-waitlist')
+      .send({ email: 'expert@example.com', suburb: 'Sydney', consentAccepted: true });
+    expect(badSuburb.status).toBe(400);
+    expect(mockGetCollectionStore('expertWaitlist').size).toBe(0);
+  });
+
+  it('upserts Expert waitlist duplicates without enumeration', async () => {
+    const first = await request(app)
+      .post('/api/expert-waitlist')
+      .send({ email: '  Repeat.Expert@Example.com ', consentAccepted: true });
+    expect(first.status).toBe(200);
+    const id = expertWaitlistDocId('repeat.expert@example.com');
+    mockGetCollectionStore('expertWaitlist').get(id).consentAcceptedAt = 'first-consent-ts';
+    const second = await request(app)
+      .post('/api/expert-waitlist')
+      .send({
+        email: 'repeat.expert@example.com',
+        expertise: 'mounting_tv',
+        suburb: 'Carlton',
+        source: 'get-started',
+        consentAccepted: true,
+      });
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(first.body);
+    expect(JSON.stringify(second.body)).not.toMatch(/already|exists|registered/i);
+    const rows = Array.from(mockGetCollectionStore('expertWaitlist').values());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].expertise).toBe('mounting_tv');
+    expect(rows[0].suburb).toBe('Carlton');
     expect(rows[0].consentAcceptedAt).toBe('first-consent-ts');
   });
 

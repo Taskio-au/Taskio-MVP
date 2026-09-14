@@ -39,4 +39,20 @@ describe('usePilotSettings', () => {
     });
     expect(result.current.mutationError.code).toBe('PILOT_NOT_READY');
   });
+
+  it('updates Expert onboarding through a separate admin API', async () => {
+    const api = {
+      get: jest.fn(),
+      put: jest.fn().mockResolvedValue({
+        data: { changed: true, settings: { effectiveExpertOnboardingMode: 'OPEN', effectiveState: 'CLOSED' } },
+      }),
+    };
+    const { result } = renderHook(() => usePilotSettings(api));
+    await act(async () => {
+      await result.current.changeExpertOnboarding('OPEN', 'recruit');
+    });
+    expect(api.put).toHaveBeenCalledWith('/api/admin/pilot-settings/expert-onboarding', { mode: 'OPEN', reason: 'recruit' });
+    expect(result.current.data.effectiveExpertOnboardingMode).toBe('OPEN');
+    expect(result.current.data.effectiveState).toBe('CLOSED');
+  });
 });

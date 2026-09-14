@@ -57,5 +57,34 @@ export default function usePilotSettings(api) {
     }
   }, [api, refresh]);
 
-  return { loadState, data, refresh, changeState, mutationError, busy };
+  const changeExpertOnboarding = useCallback(async (mode, reason = '') => {
+    if (!api?.put) {
+      const error = { code: 'UNAVAILABLE', message: 'Pilot settings API is unavailable.' };
+      setMutationError(error);
+      return { ok: false, error };
+    }
+    setBusy(true);
+    setMutationError(null);
+    try {
+      const res = await api.put('/api/admin/pilot-settings/expert-onboarding', { mode, reason });
+      const payload = res?.data;
+      if (payload?.settings && typeof payload.settings === 'object') {
+        setData(payload.settings);
+        setLoadState('ok');
+      } else {
+        await refresh();
+      }
+      return { ok: true, result: payload };
+    } catch (err) {
+      const error = err?.response?.data && typeof err.response.data === 'object'
+        ? err.response.data
+        : { code: 'UPDATE_FAILED', message: 'Could not update Expert onboarding mode.' };
+      setMutationError(error);
+      return { ok: false, error };
+    } finally {
+      setBusy(false);
+    }
+  }, [api, refresh]);
+
+  return { loadState, data, refresh, changeState, changeExpertOnboarding, mutationError, busy };
 }

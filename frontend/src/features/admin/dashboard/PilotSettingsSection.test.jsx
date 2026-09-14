@@ -44,6 +44,7 @@ describe('PilotSettingsSection', () => {
     expect(screen.getByText(OPERATIONAL_GUIDANCE)).toBeInTheDocument();
     expect(screen.getByText('New posting blocked / waitlist path.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /activate|open posting/i })).toBeNull();
+    expect(screen.getByText(/Expert onboarding controls new Expert applications/i)).toBeInTheDocument();
   });
 
   it('enables Open Pilot when CLOSED and READY TO OPEN, and requires confirmation', async () => {
@@ -67,6 +68,28 @@ describe('PilotSettingsSection', () => {
     expect(onChangeState).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Open Pilot' }));
     await waitFor(() => expect(onChangeState).toHaveBeenCalledWith('OPEN', ''));
+  });
+
+  it('opens Expert applications without READY TO OPEN and requires confirmation', async () => {
+    const onChangeExpertOnboarding = jest.fn().mockResolvedValue({ ok: true });
+    render(
+      <PilotSettingsSection
+        loadState="ok"
+        settings={settings({ effectiveExpertOnboardingMode: 'WAITLIST' })}
+        launchLoadState="ok"
+        launch={notReadyLaunch()}
+        onChangeExpertOnboarding={onChangeExpertOnboarding}
+      />
+    );
+    const openExperts = screen.getByRole('button', { name: 'Open Expert applications' });
+    expect(openExperts).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Open Pilot' })).toBeDisabled();
+    fireEvent.click(openExperts);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/does not open homeowner posting/i)).toBeInTheDocument();
+    expect(onChangeExpertOnboarding).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Open Expert applications' }));
+    await waitFor(() => expect(onChangeExpertOnboarding).toHaveBeenCalledWith('OPEN', ''));
   });
 
   it('shows Pause and Close when OPEN, and homeowner posting as OPEN', () => {

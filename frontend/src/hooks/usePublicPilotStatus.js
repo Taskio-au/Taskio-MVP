@@ -4,11 +4,13 @@ export const FAILED_CLOSED_STATUS = Object.freeze({
   homeownerPosting: 'CLOSED',
   canPost: false,
   waitlistAvailable: true,
+  expertOnboarding: 'WAITLIST',
+  canExpertApply: false,
+  expertWaitlistAvailable: true,
 });
-// Status load failure fail-closes posting. Waitlist stays advertised because
-// POST /api/pilot-waitlist is a separate self-contained route; a settings-read
-// failure does not mean waitlist writes are unavailable. If the whole API is
-// down, the waitlist form still fails safely on submit.
+// Status load failure fail-closes posting and Expert applications.
+// Homeowner and Expert waitlists stay advertised because those writes are
+// separate routes. If the whole API is down, waitlist submit still fails safely.
 
 let defaultApi;
 
@@ -23,11 +25,24 @@ function resolveApi(apiClient) {
 
 function normalizePublicPilotStatus(payload) {
   if (!payload || typeof payload !== 'object') return FAILED_CLOSED_STATUS;
+  const expertOpen = payload.expertOnboarding === 'OPEN' && payload.canExpertApply === true;
+  const expert = expertOpen
+    ? {
+      expertOnboarding: 'OPEN',
+      canExpertApply: true,
+      expertWaitlistAvailable: false,
+    }
+    : {
+      expertOnboarding: 'WAITLIST',
+      canExpertApply: false,
+      expertWaitlistAvailable: true,
+    };
   if (payload.homeownerPosting === 'OPEN' && payload.canPost === true) {
     return {
       homeownerPosting: 'OPEN',
       canPost: true,
       waitlistAvailable: false,
+      ...expert,
     };
   }
   if (payload.homeownerPosting === 'PAUSED') {
@@ -35,12 +50,14 @@ function normalizePublicPilotStatus(payload) {
       homeownerPosting: 'PAUSED',
       canPost: false,
       waitlistAvailable: true,
+      ...expert,
     };
   }
   return {
     homeownerPosting: 'CLOSED',
     canPost: false,
     waitlistAvailable: true,
+    ...expert,
   };
 }
 

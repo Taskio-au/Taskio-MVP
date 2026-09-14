@@ -17,6 +17,7 @@ describe('pilotSettingsDerive', () => {
     expect(view.documentExists).toBe(false);
     expect(view.postingWired).toBe(true);
     expect(view.postingBehaviour).toBe(OPERATIONAL_STATES.CLOSED);
+    expect(view.effectiveExpertOnboardingMode).toBe('WAITLIST');
   });
 
   it('marks posting as wired to the effective operational state', () => {
@@ -70,5 +71,11 @@ describe('pilotSettingsDerive', () => {
   it('bounds optional reasons', () => {
     expect(sanitizeReason('  keep the marketplace calm  ')).toBe('keep the marketplace calm');
     expect(sanitizeReason('x'.repeat(300)).length).toBe(240);
+  });
+
+  it('fails Expert onboarding to WAITLIST when the mode is missing or invalid', () => {
+    expect(normalizeStoredSettings({ state: 'CLOSED' }).effectiveExpertOnboardingMode).toBe('WAITLIST');
+    expect(normalizeStoredSettings({ state: 'OPEN', expertOnboardingMode: 'LIMITED' }).effectiveExpertOnboardingMode).toBe('WAITLIST');
+    expect(normalizeStoredSettings({ state: 'OPEN', expertOnboardingMode: 'OPEN' }).effectiveExpertOnboardingMode).toBe('OPEN');
   });
 });
