@@ -3,6 +3,7 @@ import AttentionStrip from './AttentionStrip';
 import JobAttentionQueue from './JobAttentionQueue';
 import MarketplaceHealthSection from './MarketplaceHealthSection';
 import LaunchReadinessSection from './LaunchReadinessSection';
+import PilotSettingsSection from './PilotSettingsSection';
 import PilotReadinessSection from './PilotReadinessSection';
 import { derivePilotReadiness, PILOT_STATUS } from './pilotReadinessDisplay';
 import Banner from '../../../design/components/Banner';
@@ -58,6 +59,11 @@ export default function DashboardOverview({
   onMarketplaceRangeChange,
   pilotLaunchLoadState = 'loading',
   pilotLaunch = null,
+  pilotSettingsLoadState = 'loading',
+  pilotSettings = null,
+  pilotSettingsBusy = false,
+  pilotSettingsError = null,
+  onPilotStateChange,
 }) {
   const expertSupply = derivePilotReadiness(pilotSupply, pilotSupplyLoadState);
   const launchReadyCardValue = (
@@ -113,6 +119,16 @@ export default function DashboardOverview({
       ) : null}
 
       <LaunchReadinessSection loadState={pilotLaunchLoadState} snapshot={pilotLaunch} />
+
+      <PilotSettingsSection
+        loadState={pilotSettingsLoadState}
+        settings={pilotSettings}
+        launchLoadState={pilotLaunchLoadState}
+        launch={pilotLaunch}
+        busy={pilotSettingsBusy}
+        mutationError={pilotSettingsError}
+        onChangeState={onPilotStateChange}
+      />
 
       <PilotReadinessSection
         loadState={pilotSupplyLoadState}

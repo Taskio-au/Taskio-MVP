@@ -8,6 +8,8 @@ This is the product-launch overlay on top of the existing P01–P06 technical ga
 
 **Admin machine-readable source (Slice 5A):** `shared/launchReadinessManifest.js`. The read-only Pilot Status engine evaluates this reviewed file plus Expert supply. It does **not** scrape this markdown at runtime. Update the manifest in the same commit as any gate-status change.
 
+**Admin persisted operational state (Slice 5B, local foundation):** `system/pilotSettings` stores `CLOSED` / `OPEN` / `PAUSED` only. Derived launch status (`NOT READY` / `READY TO OPEN`) is separate and must not be persisted. A transition to OPEN is allowed only when the live Slice 5A engine returns READY TO OPEN. This document does **not** yet control public homeowner posting; Slice 5C will wire behaviour. Do not create the settings document in staging or production without a separate approval.
+
 Companion records:
 
 - Current statuses: `docs/TASKIO_STATUS.md`
@@ -15,7 +17,7 @@ Companion records:
 - Production command plan (NOT EXECUTED): `docs/TASKIO_RELEASE_PLAN.md`
 - P06 owner pack (not PASS): `docs/P06_OWNER_DECISIONS.md`
 - P06 solicitor brief (not PASS): `docs/P06_SOLICITOR_BRIEF.md`
-- Controlled Open-Demand Pilot + Admin cockpit design (not implemented): `docs/PILOT_OPERATIONS_COCKPIT.md`
+- Controlled Open-Demand Pilot + Admin cockpit: `docs/PILOT_OPERATIONS_COCKPIT.md`
 
 ## Approval model (unchanged)
 

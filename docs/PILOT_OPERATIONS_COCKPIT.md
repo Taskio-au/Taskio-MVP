@@ -59,11 +59,20 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 - P11 is shown as an execution gate and is **not** required for READY TO OPEN
 - Homeowner posting remains **CLOSED** even if READY TO OPEN; no activate control
 
+**IMPLEMENTED (Slice 5B — persisted operational state foundation, local)**
+
+- Document: `system/pilotSettings` (Admin SDK only). Missing/invalid → effective **CLOSED**
+- Persisted states only: `CLOSED` / `OPEN` / `PAUSED` (not READY TO OPEN / NOT READY / WATCH)
+- `GET /api/admin/pilot-settings` and `PUT /api/admin/pilot-settings/state` (admin-only)
+- OPEN allowed only when live Slice 5A readiness is **READY TO OPEN**. CLOSED/PAUSED always allowed
+- Append-only `system/pilotSettings/history/{eventId}`. Client Firestore writes denied
+- Admin Pilot Settings panel with confirmation. Does **not** wire homeowner posting
+
 **NOT YET IMPLEMENTED**
 
-- Persisted Pilot Status / Pilot OPEN/CLOSED/PAUSED control
-- Owner activation control
-- Waitlist
+- Slice 5C: wire operational state to homeowner posting / waitlist / public CTA
+- Persisted WATCH auto-pause
+- Waitlist product UX
 - Homeowner open posting
 
 ---
@@ -549,15 +558,17 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Done in Slice 5A (local):** Read-only Pilot Status engine. `GET /api/admin/pilot-launch-readiness` evaluates `shared/launchReadinessManifest.js` plus one Expert supply scan. READY TO OPEN requires every required P01–P10 result **and** supply readiness. Staging pass is not production pass. P11 is not required. Homeowner posting stays CLOSED. No activate control.
 
+**Done in Slice 5B (local):** Persisted operational state foundation. `system/pilotSettings` stores `CLOSED` / `OPEN` / `PAUSED` with admin-only read/mutation, server-side OPEN readiness guard, and append-only history. This does **not** change public homeowner posting. Transition table: CLOSED→OPEN and PAUSED→OPEN require live READY TO OPEN; OPEN→PAUSED, OPEN→CLOSED, PAUSED→CLOSED always allowed; CLOSED→PAUSED rejected; same-state is a no-op. Degraded readiness while OPEN does not auto-pause.
+
 **Scan cap:** the supply endpoint pages tradie profiles (page size 100, cap 250). The attention and marketplace-metrics endpoints page jobs (page size 100, cap 250) and reuse one Expert supply load. `totals.truncated` must be accurate. If truncated / `scanComplete=false`, later Pilot Status logic and dashboards must **not** show READY, the attention queue must **not** imply it is exhaustive, and marketplace percentages/funnel must **not** be treated as complete.
 
 **Job-specific supply:** category and geography totals are indicators only. They do not prove every category × service-area combination is covered. Later matching / attention should count launch-ready Experts for the job’s actual category + service area. No category-by-suburb matrix and no GIS in this slice.
 
-**Still later (not Slice 5A):**
+**Still later (not Slice 5B):**
 
-1. Persisted homeowner posting OPEN/CLOSED/PAUSED control + confirmation + audit, and operational states `OPEN` / `WATCH` / `PAUSED`.
-2. Waitlist product UX after P06/P09 allow public copy.
-3. Homeowner open posting.
+1. Slice 5C — wire persisted operational state to homeowner posting / waitlist / public CTA.
+2. WATCH / auto-pause when readiness degrades while OPEN.
+3. Waitlist product UX after P06/P09 allow public copy.
 
 ---
 

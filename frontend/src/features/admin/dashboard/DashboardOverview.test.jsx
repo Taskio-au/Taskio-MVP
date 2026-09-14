@@ -56,6 +56,7 @@ describe('DashboardOverview pilot supply card', () => {
     });
 
     expect(screen.getByText('Launch readiness')).toBeInTheDocument();
+    expect(screen.getByText('Pilot settings')).toBeInTheDocument();
     expect(screen.getByText('Supply readiness')).toBeInTheDocument();
     expect(screen.getAllByText('Launch-ready experts').length).toBeGreaterThan(0);
     expect(screen.getAllByText('9 total · 6 technically eligible').length).toBeGreaterThan(0);

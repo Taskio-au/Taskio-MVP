@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-14 Admin Slice 5B persisted operational state foundation (GREEN local):** `system/pilotSettings` stores CLOSED / OPEN / PAUSED. Admin-only GET/PUT. OPEN requires live Slice 5A READY TO OPEN. CLOSED/PAUSED remain available as fail-safe shutdown. Append-only history. Client Firestore writes denied. Homeowner posting still **not wired**. Still **not** implemented: Slice 5C posting/waitlist wire-up, WATCH auto-pause. P06 **OPEN**. P09 blocked. Production untouched.
+
 **2026-09-14 Admin Slice 5A read-only Pilot Status engine (GREEN local):** Reviewed `shared/launchReadinessManifest.js` plus `GET /api/admin/pilot-launch-readiness`. Overall states: NOT READY / READY TO OPEN / DATA INCOMPLETE / DATA UNAVAILABLE. P11 is not required for READY TO OPEN. Homeowner posting remains CLOSED with no activate control. Still **not** implemented: persisted OPEN/CLOSED/PAUSED, owner activation, waitlist, homeowner open posting. P06 **OPEN**. P09 blocked. Production untouched.
 
 **2026-09-13 Admin Slice 4 marketplace health metrics (GREEN local):** Bounded `GET /api/admin/marketplace-metrics?range=7d|30d|pilot` plus Admin Marketplace Health / funnel / Expert responsiveness. Quote-ready job cohort; ≥1 / ≥2 / zero-quote coverage; median first response from `quoteReadyAt`; invitation response time only when `invites.{uid}.invitedAt` exists. No auto-rank, posting control, waitlist, or Pilot OPEN/CLOSED. Still **not** implemented: full Pilot Status engine, persisted OPEN/CLOSED/PAUSED, waitlist, homeowner open posting. P06 **OPEN**. P09 blocked. Production untouched.

@@ -19,6 +19,7 @@ import usePilotSupply from './features/admin/dashboard/usePilotSupply';
 import useJobAttention from './features/admin/dashboard/useJobAttention';
 import useMarketplaceMetrics from './features/admin/dashboard/useMarketplaceMetrics';
 import usePilotLaunchReadiness from './features/admin/dashboard/usePilotLaunchReadiness';
+import usePilotSettings from './features/admin/dashboard/usePilotSettings';
 import { jobIdsMatchingWorkflowFilters } from './features/admin/utils/workflowQueueFilters';
 import { buildDashboardTabUrl } from './features/admin/utils/adminDashboardTabUrl';
 import { phase1ExpertiseCatalog } from './shared/expertiseCatalog';
@@ -83,6 +84,14 @@ function Dashboard({ variant = 'default' }) {
     data: pilotLaunch,
     refresh: refreshPilotLaunch,
   } = usePilotLaunchReadiness(api);
+  const {
+    loadState: pilotSettingsLoadState,
+    data: pilotSettings,
+    refresh: refreshPilotSettings,
+    changeState: changePilotState,
+    mutationError: pilotSettingsError,
+    busy: pilotSettingsBusy,
+  } = usePilotSettings(api);
 
   const [sortOrder, setSortOrder] = useState('newest');
   const [expertiseFilter, setExpertiseFilter] = useState('all');
@@ -274,6 +283,10 @@ function Dashboard({ variant = 'default' }) {
     if (authReady) refreshPilotLaunch();
   }, [authReady, refreshPilotLaunch]);
 
+  useEffect(() => {
+    if (authReady) refreshPilotSettings();
+  }, [authReady, refreshPilotSettings]);
+
   const isSuperAdmin = adminAccess?.isSuperAdmin === true;
 
   const [jobWorkItemsTick, setJobWorkItemsTick] = useState(0);
@@ -286,8 +299,9 @@ function Dashboard({ variant = 'default' }) {
     await refreshJobAttention();
     await refreshMarketplaceMetrics();
     await refreshPilotLaunch();
+    await refreshPilotSettings();
     setJobWorkItemsTick((t) => t + 1);
-  }, [fetchData, refreshOpsSummary, refreshWorkflowSummary, refreshPilotSupply, refreshJobAttention, refreshMarketplaceMetrics, refreshPilotLaunch]);
+  }, [fetchData, refreshOpsSummary, refreshWorkflowSummary, refreshPilotSupply, refreshJobAttention, refreshMarketplaceMetrics, refreshPilotLaunch, refreshPilotSettings]);
 
   // Show auth/debug panel only when explicitly enabled (avoid leaking claims in normal UI)
   const showDebugPanel = process.env.REACT_APP_SHOW_ADMIN_DEBUG === 'true';
@@ -1016,6 +1030,11 @@ function Dashboard({ variant = 'default' }) {
           onMarketplaceRangeChange={setMarketplaceRange}
           pilotLaunchLoadState={pilotLaunchLoadState}
           pilotLaunch={pilotLaunch}
+          pilotSettingsLoadState={pilotSettingsLoadState}
+          pilotSettings={pilotSettings}
+          pilotSettingsBusy={pilotSettingsBusy}
+          pilotSettingsError={pilotSettingsError}
+          onPilotStateChange={changePilotState}
         />
       ) : (
         <div style={{ marginBottom: 20 }}>

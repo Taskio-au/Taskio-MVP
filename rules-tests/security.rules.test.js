@@ -469,6 +469,22 @@ describe('Storage authorization', () => {
     )));
   });
 
+  test('denies all client reads and writes to system/pilotSettings including admin claims', async () => {
+    await seedFirestore([
+      ['system/pilotSettings', { state: 'CLOSED' }],
+    ]);
+
+    const homeowner = firestoreFor('homeowner-1');
+    const adminClient = firestoreFor('claims-admin', { admin: true });
+    await assertFails(getDoc(doc(homeowner, 'system/pilotSettings')));
+    await assertFails(getDoc(doc(adminClient, 'system/pilotSettings')));
+    await assertFails(setDoc(doc(homeowner, 'system/pilotSettings'), { state: 'OPEN' }));
+    await assertFails(setDoc(doc(adminClient, 'system/pilotSettings'), { state: 'OPEN' }));
+    await assertFails(setDoc(doc(adminClient, 'system/pilotSettings/history/event-1'), {
+      newState: 'OPEN',
+    }));
+  });
+
   test('does not trust Firestore admin fields for protected file reads', async () => {
     await seedFirestore([
       ['users/profile-admin', { role: 'admin', admin: true }],

@@ -615,5 +615,13 @@ service cloud.firestore {
     match /deletion_tokens/{tokenId} {
       allow read, write: if false;
     }
+
+    /* ---------------------------------------------------------------------- */
+    /* Pilot operational state (server/Admin SDK only)                         */
+    /* Path: system/pilotSettings + system/pilotSettings/history/{eventId}     */
+    /* ---------------------------------------------------------------------- */
+    match /system/{document=**} {
+      allow read, write: if false;
+    }
   }
 }
