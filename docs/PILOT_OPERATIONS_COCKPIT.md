@@ -7,7 +7,7 @@
 **Canonical catalog:** `shared/expertiseCatalog.js` — all Phase 1 categories treated as enabled until a persisted Pilot Settings switch exists
 **Canonical geography:** `shared/auLocations.js` (`melbournePilotSuburbNames` / `melbournePilotLocations`) — all 8 Inner Melbourne areas treated as enabled until a persisted Pilot Settings switch exists
 
-P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin work must **not** imply legal review is complete.
+P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. P06A reconciliation is in `docs/P06_REMEDIATION_MATRIX.md`. This Admin work must **not** imply legal review is complete.
 
 ### Implementation status (do not change operating rules)
 
@@ -541,7 +541,7 @@ Demote `/admin/monitoring` and `/admin/daily-checklist` to links under Overview 
 | True service-area coverage | **B** | Field implemented | `serviceAreas[]` allowlisted multi-select. Do **not** default-copy `serviceLocation` | Data yes |
 | Accepting jobs | **B** | Field implemented | `acceptingJobs` boolean (no calendar) | Data yes |
 | Posting CLOSED/OPEN/PAUSED | **C** | No config | Audited config doc + confirm UI | Yes before OPEN |
-| Waitlist records | **C** | Local collection `pilotWaitlist` (email + optional suburb + source). Not deployed | Admin SDK write via `POST /api/pilot-waitlist`. Client access denied | Pre-activation UX. P06 review item |
+| Waitlist records | **C** | Local `pilotWaitlist` + `expertWaitlist` (email, optional suburb/category, source, consent evidence). Not deployed | Admin SDK writes. Client access denied. Distinct consent purposes. | Pre-activation UX. P06 review item — see `docs/P06_REMEDIATION_MATRIX.md` §6–§7 |
 | Attention 60m / 3h / invite count | **B** | Thresholds differ from 6h/24h | Extend `adminOps` + quote/invite meta | Yes |
 | ≥1 / ≥2 / zero-quote % | **B** | — | Same quote meta, bounded | Yes |
 | Funnel | **B** then **C** if slow | Client aggregation on full job list | Server summary if > few hundred jobs | Yes (simple) |
@@ -617,7 +617,7 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 1. Deploy / create `system/pilotSettings` only with a separate approval.
 2. WATCH / auto-pause when readiness degrades while OPEN.
-3. P06 solicitor review of waitlist email collection before treating it as privacy-complete.
+3. P06 solicitor review of **both** waitlist email collections (homeowner + Expert) before treating them as privacy-complete. See `docs/P06_REMEDIATION_MATRIX.md`.
 
 ---
 

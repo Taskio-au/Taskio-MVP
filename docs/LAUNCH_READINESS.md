@@ -31,6 +31,7 @@ Companion records:
 - Production command plan (NOT EXECUTED): `docs/TASKIO_RELEASE_PLAN.md`
 - P06 owner pack (not PASS): `docs/P06_OWNER_DECISIONS.md`
 - P06 solicitor brief (not PASS): `docs/P06_SOLICITOR_BRIEF.md`
+- P06A reconciliation / remediation matrix (not PASS): `docs/P06_REMEDIATION_MATRIX.md`
 - Controlled Open-Demand Pilot + Admin cockpit: `docs/PILOT_OPERATIONS_COCKPIT.md`
 
 ## Approval model (unchanged)
@@ -110,6 +111,10 @@ P07 also consumes P03/P04/P05 production proof
 
 Existing nice-to-have IDs **N01–N03** stay post-launch / optional.
 
+**Launch proposition (working product, not legal copy; P06A):** Taskio helps small home jobs get properly scoped, matched to a small number of suitable Experts, quoted clearly, paid through Taskio, and supported through completion. Do **not** position launch around generic AI, Expert/quote counts, cheapest price, “fully vetted”, workmanship guarantee, or escrow.
+
+**Post/pilot experiments (roadmap only — not P01–P10 unless later required for legal/safety):** more structured/comparable quotes; written variations; completion checklist/evidence; more transparent category-level verification; issue-free completion metric; rehire flow; outcome-driven price/matching intelligence.
+
 ## Current launch-readiness summary (12 September 2026)
 
 Technical staging readiness is advanced. Full production launch is **not** ready.
@@ -121,7 +126,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P06 | **OPEN** — owner facts **COMPLETE**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
+| P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
 | P07 | **NOT STARTED** | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |

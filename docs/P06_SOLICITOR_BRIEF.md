@@ -4,13 +4,19 @@
 
 **Not:** legal advice, a Privacy Act determination, or approved production wording.
 
-**Companion:** `docs/P06_OWNER_DECISIONS.md` (owner facts, working positions, solicitor question register).
+**Companion:** `docs/P06_OWNER_DECISIONS.md` (owner facts, working positions, solicitor question register). **Reconciliation matrix:** `docs/P06_REMEDIATION_MATRIX.md`.
 
-**Last documentation update:** 13 September 2026 (Controlled Open-Demand Pilot + posting activation gate). Companion pack: `docs/P06_OWNER_DECISIONS.md`. Admin design (not implemented): `docs/PILOT_OPERATIONS_COCKPIT.md`. Production Firebase `taskio-v2` is frozen. Do not treat staging proofs as live-user operation.
+**Last documentation update:** 14 September 2026 (P06A current-state reconciliation). Production Firebase `taskio-v2` is frozen. Local product code is **not** cloud-activated. Auth `disabledUserSignup=true` on staging/production is unchanged. Do not treat staging proofs as live-user operation.
 
 The owner wants **focused advice for two stages**, deliberately avoiding unnecessary pre-revenue corporate/insurance cost while still managing real legal/risk exposure. This is **not** a request to ignore liability, privacy, ACL, insurance, or safety.
 
-**STAGE 1 — CONTROLLED PILOT:** Can Taskio reasonably conduct the **Controlled Open-Demand Pilot** (homeowner posting **CLOSED** until a supply gate and explicit owner activation; Experts recruited/manually selected; no open Expert signup) under the current sole-trader structure, and what **minimum** legal/insurance controls should be in place?
+**STAGE 1 — CONTROLLED PILOT:** Can Taskio reasonably conduct the **Controlled Open-Demand Pilot** under the current sole-trader structure, and what **minimum** legal/insurance controls should be in place?
+
+Current **intended** Stage 1 operating model (code; not production-enabled):
+
+- Homeowner posting **CLOSED** until a supply gate **and** explicit owner OPEN. CLOSED/PAUSED use a **homeowner waitlist**. OPEN is public supported homeowner signup/posting (no invitation), still Phase 1 + Inner Melbourne + auth.
+- Expert onboarding is **independent**. It may be **OPEN** (public Expert applications, pending Admin Verify) **before** homeowner posting opens. It may later switch to **WAITLIST**. Public apply is **not** auto-approval.
+- High-touch support; modest-value household jobs; no licensed electrical/plumbing categories in the catalog.
 
 **STAGE 2 — BROADER SCALE:** At what point should Taskio transition to a Pty Ltd / company structure, and what legal/insurance changes should accompany broader public operation?
 
@@ -49,7 +55,7 @@ Live draft pages (staging; production Hosting is maintenance-only):
 ## B. Melbourne launch scope
 
 - Intended first cohort: Inner Melbourne, frozen **8 suburbs**, Phase 1 catalog only.
-- **CONTROLLED PILOT** (owner definition): Inner Melbourne; Phase 1 only; Experts recruited/applied and manually selected (no open Expert signup); every initial job monitored; high-touch support; modest-value household jobs; no licensed electrical/plumbing.
+- **CONTROLLED PILOT** (owner definition): Inner Melbourne; Phase 1 only; Expert applications may be publicly OPEN with **manual Admin Verify** (not auto-approval) or WAITLIST; every initial job monitored; high-touch support; modest-value household jobs; no licensed electrical/plumbing.
 - **CONTROLLED OPEN-DEMAND does not open posting immediately.** Before the supply gate: landing **may** be public; Expert recruitment **may** run; homeowners **may** waitlist / register interest; **real homeowner task posting stays CLOSED or capacity-gated**. Do not buy homeowner traffic into an under-supplied marketplace.
 - **Posting activation gate (all required):** ~**15 active launch-ready Experts**; ideally **4–5 launch-ready Experts per enabled Phase 1 category**; adequate approved-geography coverage; other real-user launch gates satisfied; **owner/admin explicitly activates** posting. The number 15 alone is not enough if coverage is weak.
 - **After activation:** homeowners may use the public supported posting flow without a manual invitation, still limited by geography, categories, capacity, auth, and approved legal terms. **After-activation floor:** ~**12** launch-ready Experts — if supply or category coverage falls below target, admin flags **WATCH / PAUSE** (pause acquisition, waitlist, narrow categories/geography, recruit).
@@ -60,12 +66,12 @@ Live draft pages (staging; production Hosting is maintenance-only):
 
 ---
 
-## C. Invite-only model
+## C. Access model (code vs cloud)
 
-- Public signup is **closed** (`TASKIO_PUBLIC_SIGNUP_ENABLED=false`; Auth signup disabled on staging).
-- Founding Experts are **invited**.
+- **Intended launch (code):** when homeowner state is OPEN, public supported homeowner signup/posting with normal Firebase authentication; no homeowner invitation. When CLOSED/PAUSED, homeowner waitlist. Expert OPEN allows public Expert account creation (pending review). Expert WAITLIST uses a separate waitlist. See `docs/P06_REMEDIATION_MATRIX.md` §1.
+- **Current cloud:** `TASKIO_PUBLIC_SIGNUP_ENABLED` is the Expert enrollment kill switch; Identity Toolkit `disabledUserSignup=true` on staging/production still blocks **brand-new** Firebase users. P07/P10 must prove public account paths. Enabling Auth signup does **not** approve an Expert.
 - Guest post-job OTP architecture exists behind a flag and is **not** the current public path.
-- Current staging landing still promotes invite-only / log in to post. Intended model is **Controlled Open-Demand** (posting closed until gate + explicit activation) — not implemented in product yet.
+- Landing copy still includes **stale** “invited and verified — not an open directory” (flagged for P09 after your wording).
 
 ---
 
@@ -73,17 +79,19 @@ Live draft pages (staging; production Hosting is maintenance-only):
 
 | Role | Function |
 |---|---|
-| Homeowner / Client | Posts jobs, compares quotes, funds via Stripe Checkout, approves completion, can cancel funded unreleased jobs (refund path). |
-| Expert / tradie | Invited, completes profile (including 18+ DOB gate, phone, expertise, ABN where required, Stripe Connect), quotes invited jobs, marks complete, receives Connect transfer then later Stripe bank payout. |
-| Admin | Manual Expert verify/unverify; user deletion execute; support/dispute tooling. |
+| Homeowner / Client | Posts jobs (when OPEN), waitlists when CLOSED/PAUSED, compares quotes, funds via Stripe Checkout, approves completion, can cancel funded unreleased jobs **before work starts** (refund path). After work starts, cancel is blocked in-product; after release, no automatic refund. |
+| Expert / tradie | May **apply publicly** when Expert onboarding is OPEN (or waitlist when WAITLIST). Completes profile (18+ DOB gate, phone, requested expertise, ABN where required, Stripe Connect, `acceptingJobs`, `serviceAreas[]`). Quotes only after Admin Verify + eligibility. Marks complete; receives Connect transfer then later Stripe bank payout. |
+| Admin | Manual Expert verify/unverify; approve requested expertise; user deletion execute; pilot settings; support/dispute/refund/release tooling. |
+
+**Please advise** on contractor/marketplace relationship wording, Taskio verification representations, Expert responsibilities, ABN/business declarations, payment relationship, tax responsibilities, insurance wording, licensing responsibility, and independent service-provider relationship. Do not expect engineering to answer these legally.
 
 ---
 
 ## E. Job / quote / payment flow
 
 1. Homeowner posts a Phase 1 job (photos/description allowed).
-2. Admin invites an Expert to quote (no AI matching).
-3. Expert submits a quote (optional AI draft assist).
+2. Admin invites an **eligible** Expert to quote (no AI matching). Eligibility uses Taskio-approved expertise, not merely requested categories.
+3. Expert submits a quote (optional AI draft assist exists in code; **intended OFF at launch**).
 4. Homeowner accepts → Stripe Checkout Session (TEST in staging).
 5. Payment succeeds → job funded (internal state key `in_escrow`; user-facing copy generally avoids “escrow”).
 6. Expert marks complete → Homeowner **Approve & Release**.
@@ -113,7 +121,7 @@ Please do not describe Taskio as holding client money as a trustee unless you co
 - **Before release:** eligible funded/unreleased amounts can be refunded.
 - **After release:** no automatic refund; manual support/dispute.
 
-Draft Terms already describe funded-unreleased refunds and no automatic refund after release, plus broad Taskio rights to pause/review/release/refund/investigate. Those clauses are **unfair-terms / ACL candidates** for your review (see Q).
+**Product fact (14 September 2026):** Homeowner self-serve cancel with Stripe refund applies when the job is funded/unreleased **and work has not started**. Once status is `IN_PROGRESS`, `/cancel` returns 409. Homeowner “report issue” is available while `COMPLETED` and payment still unreleased. After release, no automatic Client refund. Admin has manual refund/release/dispute tools. See `docs/P06_REMEDIATION_MATRIX.md` §9. Please advise on after-start cancellation, no-show, partial completion, variations, chargebacks, Expert withdrawal, and abandoned jobs — **do not invent policy in product**.
 
 ---
 
@@ -121,24 +129,31 @@ Draft Terms already describe funded-unreleased refunds and no automatic refund a
 
 What the product actually does:
 
-- Invite-only founding Experts.
-- Admin sets `verified=true` (manual).
-- Eligibility helpers: profile complete, phone, 18+ DOB, expertise, location, Stripe Connect onboarding complete.
+- Expert onboarding **OPEN** or **WAITLIST** (independent of homeowner posting).
+- New Expert: account/onboard allowed when OPEN + signup kill-switch; `verified=false`; requested expertise only; `expertiseApproved=[]`.
+- Admin sets `verified=true` (manual) and, on Verify, explicitly approves currently requested Phase 1 categories.
+- Later category adds require `PUT /api/admin/users/:uid/expertise/approve`.
+- Eligibility helpers: profile complete, phone, 18+ DOB, **approved** expertise, location/`serviceAreas[]`, `acceptingJobs`, Stripe Connect onboarding complete.
 - ABN stored; ABR lookup if configured (optional; can 501 without GUID).
+- Launch-ready is **derived** (not a stored flag). Admin Verify must not write `launchReady`.
 - Admin trust-bucket / risk-scoring **assists admins**. Code comments: automation **does not auto-verify**.
 
 What the product does **not** currently do in code:
 
 - Government licence check
 - Insurance verification (no certificate workflow in product yet)
-- Criminal history check
-- Quality guarantee
+- Criminal history / police check
+- Identity-document verification
+- Qualification / government certification check
+- Quality / workmanship guarantee
+
+**“Taskio-approved expertise”** must not be described as licensed, qualified, insured, or certified.
+
+Landing nevertheless uses **“verified Experts”** and still says “invited and verified by Taskio — not an open directory anyone can join.” Catalog copy includes “Mount a TV **safely**.” Expert signup says “protected payments” and “verified reviews.” Please advise what is supportable for the pilot based on checks actually performed.
 
 **Owner insurance working position (lean):** Taskio platform/operator insurance is **NOT YET CONFIRMED / BROKER REVIEW REQUIRED**. Do not treat Taskio as insured or as needing no insurance. Before real users, the owner will obtain a **focused** AU broker discussion/quote on **minimum sensible pilot** cover (questions may include public liability, cyber, professional/management/platform-related cover — these are questions, not predetermined mandatory policies). Broad/expensive cover is **not** an automatic launch blocker.
 
 **Expert insurance (lean):** collect status; ask whether they hold current public-liability insurance; if they say they are insured, Taskio may request a certificate of currency; “insurance verified” **only** if Taskio actually checks current evidence. Do **not** imply Taskio provides platform-wide insurance, that every Expert is insured, or that a policy covers a specific job. Whether insurance is **mandatory for all founding Experts** is for **owner + solicitor + broker**. Higher-risk categories may later require verified insurance.
-
-Landing nevertheless uses **“verified Experts”** / “invited and verified by Taskio.” Catalog copy includes “Mount a TV **safely**.” Please advise what is supportable.
 
 ---
 
@@ -158,7 +173,9 @@ Collected or derived in product (not an exhaustive legal characterisation):
 
 **Homeowners:** name, email, phone, suburb/location, job details, photos/files, chat, reviews, payment metadata, support content, Firebase UID, timestamps.
 
-**Experts:** above plus profile photo, expertise, ABN + lookup status, DOB, Stripe Connect identifiers/status, payout metadata, admin verified flag.
+**Experts:** above plus profile photo, requested expertise, Taskio-approved expertise, ABN + lookup status, DOB, Stripe Connect identifiers/status, payout metadata, admin verified flag, `acceptingJobs`, `serviceAreas[]`.
+
+**Waitlists (new):** see §J1–J2. Not in draft Privacy.
 
 **Admins:** account + audit/activity (actor, action, userAgent).
 
@@ -168,7 +185,37 @@ Collected or derived in product (not an exhaustive legal characterisation):
 
 **Off-platform PI:** Limited handling is expected, including potentially `admin@taskio.com.au`, `support@taskio.com.au`, Microsoft 365 / Outlook, manual Expert verification correspondence, support/dispute evidence, insurance certificates if collected, and temporary operator files. Do **not** state that all personal information exists only in Firebase, or that no off-platform processing exists. Minimise copies; avoid uncontrolled spreadsheets/downloads. Exact off-repo storage/access/retention must be documented before controlled launch under **P08/P09**.
 
-Draft Privacy Policy describes this only generically (“account details, task and quote content, payment-related metadata…”) and names **Stripe** for cards. It does **not** list DOB, ABN, photos, chat, GA4, Postmark, App Check, Firebase/Google, Gemini, Microsoft 365, or off-platform artefacts.
+Draft Privacy Policy describes this only generically (“account details, task and quote content, payment-related metadata…”) and names **Stripe** for cards. It does **not** list DOB, ABN, photos, chat, GA4, Postmark, App Check, Firebase/Google, Gemini, Microsoft 365, waitlists, or off-platform artefacts.
+
+---
+
+## J1. Homeowner waitlist
+
+Public `POST /api/pilot-waitlist` → Firestore `pilotWaitlist` (Admin SDK). Client rules deny all read/write.
+
+Stored: normalized email; optional suburb; source; createdAt/updatedAt; `consentVersion=pilot-waitlist-contact-v1`; `consentAcceptedAt`. Server requires `consentAccepted === true` (strict boolean). Idempotent hashed doc id; no email enumeration.
+
+**Consent meaning:** contact about Melbourne **pilot availability**. **Not** generic marketing consent.
+
+Please advise Privacy disclosure, retention, access/deletion, marketing distinction, and operational owner. Do **not** treat current consent UX as legally sufficient.
+
+---
+
+## J2. Expert waitlist
+
+Public `POST /api/expert-waitlist` → `expertWaitlist` (separate collection). Same strict consent and Firestore deny pattern.
+
+Stored: normalized email; optional canonical Phase 1 category; optional canonical Inner Melbourne suburb; source; timestamps; `consentVersion=expert-waitlist-contact-v1`; `consentAcceptedAt`.
+
+**Consent meaning:** contact about **becoming a Taskio Expert**. Keep this purpose distinct from the homeowner waitlist.
+
+Same disclosure/retention/deletion questions as J1.
+
+---
+
+## J3. Reviews
+
+After **paid release**, homeowner and accepted Expert may each submit one rating/text within 14 days (double-blind until both submit or the window ends). Public Expert profile shows reviews without reviewer PII and a “Verified Taskio review” badge. No in-product moderation/edit/delete of published reviews was found. Please advise whether “verified review” is supportable and what moderation/takedown process is required.
 
 ---
 
@@ -219,7 +266,7 @@ User deletion: request + cooling-off + **manual admin execute**. Execute **anony
 
 Draft Privacy: deletion “review through support.” Expert UI has a danger zone describing cooling-off and legal-record keeping.
 
-**Mismatch:** policy/UI vs actual implementation. Please advise what “delete” must mean before Privacy claims are finalised.
+**Mismatch:** policy/UI vs actual implementation (including **waitlist** records, which have no deletion path described). Please advise what “delete” must mean before Privacy claims are finalised.
 
 ---
 
@@ -239,13 +286,15 @@ Draft Privacy: deletion “review through support.” Expert UI has a danger zon
 1. “Pay through Taskio” vs “not a payment institution.”
 2. E02 “Funds are held” vs Terms “does not act as a custodian.”
 3. Internal `in_escrow` vs user-facing avoidance of “escrow.”
-4. “Verified Experts” vs manual eligibility checks only.
+4. “Verified Experts” vs Admin boolean + eligibility only; landing still says invite-only / not an open directory while Expert OPEN is the intended apply path.
 5. “Mount a TV safely” vs no safety certification.
 6. 10% fee in UI vs silence in Terms.
 7. Privacy “deletion via support” vs Expert self-serve request + anonymise-only execute.
-8. Privacy generic data list vs DOB/ABN/photos/chat/GA4/Postmark/App Check/AI.
+8. Privacy generic data list vs DOB/ABN/photos/chat/GA4/Postmark/App Check/AI/**waitlists**.
 9. ACL mentioned in draft Terms while banner says ACL wording unresolved.
+10. Expert signup “protected payments” / “verified reviews” vs delayed Stripe release and job-linked reviews only.
 11. Identity recorded in owner pack vs still absent from draft `/terms` and `/privacy`.
+12. After-start cancel blocked in code vs Terms “funded unreleased can be refunded” without that qualifier.
 
 ---
 
@@ -274,9 +323,35 @@ Please advise on each (owner facts F01–F15 are now recorded in `docs/P06_OWNER
 19. Automated decision-making transparency (from 10 December 2026) vs admin risk scoring.
 20. AI/Gemini disclosure if assistants stay **off** at launch vs if later enabled; also reCAPTCHA, GA4, Firebase, Microsoft 365.
 21. **Stage 1 vs Stage 2 structure:** can this tightly controlled pilot reasonably proceed as a sole trader, and at what point / risk change should Taskio move to a Pty Ltd? Do not treat incorporation as automatically required now. Do not advise as if a company eliminates personal/director liability.
+22. Waitlist contact-consent (homeowner vs Expert — distinct purposes): disclosure, retention, deletion/access, Spam Act.
+23. What wording can Taskio safely use around “verified Expert” and “Taskio-approved expertise” given the checks actually performed?
+24. Review badge “Verified Taskio review” and moderation/defamation posture.
+25. Victorian governing law / jurisdiction (currently missing).
+26. Optional: TASKIO word-mark protection.
+
+The numbered solicitor register with working positions is in `docs/P06_OWNER_DECISIONS.md` §8 (SR01–SR24). Remediation severity is in `docs/P06_REMEDIATION_MATRIX.md` §17.
 
 **Also required (accountant, not solicitor unless you advise otherwise) before real trading:** Stripe Connect marketplace accounting; whether Taskio recognises only platform commission as revenue; treatment of funds passing through Stripe; GST registration/turnover treatment; invoicing/tax invoice responsibilities. Do not determine these in the repo.
 
 **Requested output from counsel:** marked-up or replacement Terms and Privacy (identity facts now available except public street address), a short “do/don’t say” list for landing/payments/email, and a list of product changes that are legally required vs optional.
 
 Engineering will **not** implement copy or retention changes until owner + solicitor approval is recorded. That implementation is tracker **P09**, which cannot PASS before **P06**. P06 remains **OPEN** until focused solicitor, insurance-broker, and accountant marketplace/GST confirmation are accepted. Pty Ltd and broad insurance spend are **not** automatic PASS blockers unless you advise they must be.
+
+---
+
+## R. Solicitor attachment pack
+
+Send these (not source, secrets, or production PI):
+
+1. This brief
+2. `docs/P06_OWNER_DECISIONS.md`
+3. `docs/P06_REMEDIATION_MATRIX.md`
+4. `docs/LAUNCH_READINESS.md` (gate definitions only)
+5. Current Terms — `frontend/src/pages/TermsPage.jsx` (`/terms`, Draft)
+6. Current Privacy — `frontend/src/pages/PrivacyPolicyPage.jsx` (`/privacy`, Draft)
+7. Funds-flow summary — this brief §E–G + matrix §3 and §9
+8. Category list — `shared/expertiseCatalog.js` summaries + this brief §I
+9. Expert verification summary — this brief §H
+10. Waitlist summaries — this brief §J1–J2
+11. Processor list — this brief §K + matrix §12
+12. Refund/dispute workflow — this brief §G + matrix §9

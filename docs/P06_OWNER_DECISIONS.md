@@ -1,22 +1,24 @@
 # P06 owner decision pack
 
-**Status (this document):** PREPARED — owner facts recorded 9 September 2026; lean alignment 12 September 2026; **Controlled Open-Demand Pilot + posting gate 13 September 2026**. Not solicitor-approved, not legal advice, not P06 PASS.
+**Status (this document):** PREPARED — owner facts recorded 9 September 2026; lean alignment 12 September 2026; Controlled Open-Demand Pilot 13 September 2026; **P06A current-state reconciliation 14 September 2026**. Not solicitor-approved, not legal advice, not P06 PASS.
 
-**INTERNAL MODEL NAME:** Controlled Open-Demand Pilot. Admin cockpit: `docs/PILOT_OPERATIONS_COCKPIT.md` (Slices 1–5C local code, not deployed; this pack is still not P06 PASS).
+**INTERNAL MODEL NAME:** Controlled Open-Demand Pilot. Admin cockpit: `docs/PILOT_OPERATIONS_COCKPIT.md` (Slices 1–5C + Expert onboarding local code, not deployed). Reconciliation matrix: `docs/P06_REMEDIATION_MATRIX.md`.
 
 | Classification | State |
 |---|---|
 | P06 INVENTORY | **COMPLETE** (read-only preflight; no Terms/Privacy rewrite) |
 | P06 OWNER DECISION PACK | **PREPARED** (this file + `docs/P06_SOLICITOR_BRIEF.md`) |
+| P06A CURRENT-STATE RECONCILIATION | **PREPARED 14 September 2026** — product inventory, public-claim/payment/verification/waitlist audit, processor list, solicitor register, remediation matrix. **Not PASS.** |
 | P06 OWNER FACTS | **COMPLETE** (working facts below; public street address still withheld) |
 | P06 STRUCTURE DECISION | **LEAN CONTROLLED SOLE-TRADER PILOT — OWNER WORKING POSITION** (not an automatic Pty Ltd launch blocker) |
 | P06 LEGAL STRUCTURE REVIEW | **REQUIRED before controlled real-user pilot** — current sole-trader plan permitted by owner, **subject to AU solicitor confirmation** |
 | P06 COMPANY CONVERSION | **DEFERRED** unless solicitor advises it is required/materially preferable before pilot; **must be reconsidered before broader scaling** |
-| P06 AU SOLICITOR REVIEW | **PENDING** (Stage 1 controlled pilot + Stage 2 broader scale — see solicitor brief) |
+| P06 AU SOLICITOR REVIEW | **PENDING** (Stage 1 controlled pilot + Stage 2 broader scale — see solicitor brief + `docs/P06_REMEDIATION_MATRIX.md`) |
 | P06 INSURANCE REVIEW | **PENDING** — minimum sensible **pilot** cover to be reviewed with broker/solicitor before real users. Broad/expensive cover is **not** an automatic launch blocker |
 | P06 ACCOUNTING MARKETPLACE/GST CONFIRMATION | **PENDING** |
-| P06 PILOT MODEL | **CONTROLLED OPEN-DEMAND PILOT** — posting **CLOSED** until activation gate + explicit owner/admin switch. 15 Experts does **not** auto-open posting |
-| P06 REMEDIATION | **NOT STARTED** |
+| P06 PILOT MODEL | **CONTROLLED OPEN-DEMAND PILOT** — homeowner posting **CLOSED** until activation gate + explicit OPEN. Expert onboarding is **independent** (`OPEN` / `WAITLIST`). 15 Experts does **not** auto-open posting |
+| P06 REMEDIATION MATRIX | **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`) |
+| P06 REMEDIATION IMPLEMENTATION | **NOT STARTED** (P09 after P06 PASS — do not rewrite Terms/Privacy now) |
 | P06 OVERALL | **OPEN** |
 
 P09 remains **blocked** until P06 PASS. Do not treat Slice 5C waitlist email collection as privacy-complete.
@@ -49,7 +51,7 @@ Do **not** describe Taskio as **Taskio Pty Ltd** or as **a company** while the s
 ## How to use / professional review sequence
 
 1. Owner facts — **COMPLETE**.
-2. **Focused** AU commercial/privacy solicitor review for **Stage 1 (controlled pilot)** and **Stage 2 (broader scale)** — this pack + `docs/P06_SOLICITOR_BRIEF.md` + draft `/terms` and `/privacy`.
+2. **Focused** AU commercial/privacy solicitor review for **Stage 1 (controlled pilot)** and **Stage 2 (broader scale)** — this pack + `docs/P06_SOLICITOR_BRIEF.md` + `docs/P06_REMEDIATION_MATRIX.md` + draft `/terms` and `/privacy`.
 3. **Focused** Australian business-insurance broker discussion/quote: what **minimum sensible pilot** cover is appropriate (not “buy every policy before PMF”).
 4. Accountant confirmation of Stripe Connect marketplace / GST / invoicing treatment.
 5. If the solicitor advises incorporation is **required or materially preferable before the pilot**, address it **before P10/P11**.
@@ -72,13 +74,17 @@ Statuses used below:
 
 ## 1. Current product snapshot (facts already in repo)
 
-- Invite-only Inner Melbourne MVP. Public signup **closed**. Founding Experts invited and admin-verified.
+Canonical **code** model on `develop` (HEAD `cd5e468`, 14 September 2026). **Not** cloud-activated. Production `taskio-v2` frozen. Staging/production Auth `disabledUserSignup=true` unchanged.
+
+- **Homeowner operational state** `CLOSED` / `OPEN` / `PAUSED`: OPEN = public supported homeowner signup/posting, no invitation, auth still required, Phase 1 + Inner Melbourne still apply. CLOSED/PAUSED = new posting blocked; homeowner waitlist. Existing jobs continue.
+- **Expert onboarding** is independent: `OPEN` = public Expert applications (pending until Admin Verify); `WAITLIST` = new Expert accounts blocked, Expert waitlist. Missing/invalid mode fail-safes to WAITLIST. `TASKIO_PUBLIC_SIGNUP_ENABLED` remains the enrollment kill switch.
 - Roles: Homeowner (Client), Expert (tradie), Admin.
-- Flow: post job → invited Expert quotes → Homeowner accepts → Stripe Checkout funds → Expert marks complete → Homeowner approves → Stripe Connect **transfer** to Expert connected account → Stripe later **bank payout** (not the same event).
+- Flow: post job → invited eligible Expert quotes → Homeowner accepts → Stripe Checkout funds → Expert marks complete → Homeowner approves → Stripe Connect **transfer** → Stripe later **bank payout** (not the same event).
+- Expertise: `expertise` = requested; `expertiseApproved` = Taskio-approved subset (Admin). Launch-ready is **derived**.
 - Phase 1 catalog: mounting/hanging, curtains/blinds, furniture assembly, minor repairs, wall patch, cosmetic silicone, apartment make-good. Electrical/plumbing categories are not in the catalog.
-- Draft Terms of Use and Privacy Policy (`frontend/src/pages/TermsPage.jsx`, `frontend/src/pages/PrivacyPolicyPage.jsx`) show **Draft — not final** (`LegalDraftBanner`). Effective date on pages: April 2026. **User-facing pages still omit** entity/ABN/address/governing law. Owner-confirmed identity is recorded in **§3 of this pack** for solicitor use; it is **not** published in Terms/Privacy until P09 after P06 PASS.
-- Staging: Postmark transactional email (E01 proven), GA4 `G-SZ7RZDKTJY` (production **OFF**), App Check reCAPTCHA Enterprise with Firestore + Storage **ENFORCED**, Auth App Check **OFF**.
-- Production (`taskio-v2`) remains **frozen**. Production email, analytics, and App Check are **not** enabled.
+- Draft Terms / Privacy still **Draft — not final**. Entity/ABN/address/governing law omitted on pages. Identity is in **§3** for solicitor use only until P09 after P06 PASS.
+- Staging: Postmark (E01 proven), GA4 `G-SZ7RZDKTJY` (production **OFF**), App Check Firestore + Storage **ENFORCED**, Auth App Check **OFF**. Gemini intended **OFF** at launch.
+- Detailed claim/processor/refund inventory: `docs/P06_REMEDIATION_MATRIX.md`.
 
 ---
 
@@ -92,7 +98,7 @@ Recorded for owner alignment and solicitor review. These are **intended operatin
 | Marketplace | Taskio intends to operate as a **marketplace / intermediary** connecting Homeowners and independent Experts. |
 | Underlying services | Intended **direct service relationship** between Homeowner and Expert, subject to solicitor confirmation. Taskio does not intend to be the contracting tradesperson for the underlying job. |
 | Payments | **Stripe** processes card payments and Connect transfers/payouts. Taskio must **not** claim to be a bank, trustee, custodian, or regulated escrow provider unless independently legally established. Stripe Connect **transfer** is not a bank payout. |
-| Verified Expert | Means **only** the specific manual verification / eligibility checks Taskio actually performs (invite, admin `verified` flag, profile completeness, Stripe onboarding, ABN lookup where configured). Do **not** imply licensed, insured, criminal-history checked, government-certified, or quality-guaranteed unless separately verified. |
+| Verified Expert | Means **only** the specific manual verification / eligibility checks Taskio actually performs (Admin `verified` flag, profile completeness, requested vs Taskio-approved expertise, Stripe onboarding, ABN lookup where configured, derived launch-ready). Public Expert applications (when Expert onboarding is OPEN) do **not** grant quoting. Do **not** imply licensed, insured, criminal-history checked, government-certified, or quality-guaranteed. “Taskio-approved expertise” is category approval only. |
 | Licensed / high-regulatory work | Remain **outside Phase 1** unless Taskio creates an approved verification and compliance process. |
 | Expert minimum age | **18+** (already gated in product for Experts). Final Terms wording for solicitor confirmation. |
 | Homeowner / account-holder age | **18+** (owner-confirmed working position). Final Terms wording for solicitor confirmation. Product Homeowner age gate is **not** yet implemented. |
@@ -236,7 +242,7 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 |---|---|
 | Status | **OWNER CAN DECIDE** + **AU SOLICITOR DECISION / CONFIRMATION REQUIRED** |
 | Question | What happens before vs after payment release? |
-| Current repo/product position | Funded unreleased: Homeowner cancel can full-refund (P02 proven on Stripe TEST). After release: no automatic Client refund; support/admin path. Draft Terms already describe this pattern. |
+| Current repo/product position | Funded unreleased **and work not started**: Homeowner cancel can full-refund (P02 proven on Stripe TEST). Once `IN_PROGRESS`, cancel returns 409. After release: no automatic Client refund; support/admin path. Homeowner “report issue” only at `COMPLETED` + unreleased. Draft Terms describe funded-unreleased refunds without the work-started qualifier. |
 | Recommended working business position | Before release: eligible funded/unreleased amounts can be refunded. After release: no automatic refund; manual support/dispute. **Subject to ACL.** |
 | Owner must supply/choose | Confirm this operating model for launch. |
 | Solicitor must confirm | ACL / unfair-terms / consumer-guarantee interaction; after-release remedies. |
@@ -296,7 +302,7 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 |---|---|
 | Status | **OWNER CONFIRMED WORKING POSITION** + **AU SOLICITOR CONFIRMATION REQUIRED** before real users |
 | Question | May the Controlled Open-Demand Pilot (posting closed until supply gate + explicit activation) proceed under the current sole-trader structure? |
-| Current repo/product position | Draft legal pages do not name an entity. **Local code** now implements Controlled Open-Demand operational states (CLOSED waitlist / OPEN public supported homeowner posting, Experts still invited). **Not deployed.** Staging/production remain invite-closed until a separate launch batch. |
+| Current repo/product position | Draft legal pages do not name an entity. **Local code** implements homeowner CLOSED/OPEN/PAUSED (waitlist vs public supported posting) and **independent** Expert OPEN/WAITLIST. Public Expert apply does not auto-verify. **Not deployed.** Cloud Auth signup remains disabled (`disabledUserSignup=true`). |
 | Recommended working business position | Owner prefers to **validate first** as **Saeed Zafari trading as Taskio** (individual / sole trader; ABN 15 729 254 373; no ACN) to avoid unnecessary pre-revenue company/accounting/compliance cost. **Pty Ltd is not automatically required by this tracker before the controlled pilot.** If the solicitor advises incorporation is required or materially preferable before pilot launch, address it **before P10/P11**. A sole trader does **not** have limited liability. |
 | Owner must supply/choose | **Recorded.** See §5–§6. |
 | Solicitor must confirm | Whether the limited pilot may reasonably proceed as a sole trader given marketplace activity, physical household work, Stripe Connect, refund/dispute exposure, ACL, and property-damage / personal-injury risk; how to disclose identity/ABN; public address without publishing a home street address. |
@@ -337,7 +343,7 @@ This limited operating model is part of Taskio's **risk-control strategy** while
 
 - Inner Melbourne
 - narrow Phase 1 categories
-- no public Expert **open** signup (Experts are recruited / applied and manually selected)
+- Expert applications may be **OPEN** (public apply + manual Admin Verify) or **WAITLIST**; marketplace participation still requires Taskio approval. This is **not** unrestricted Expert auto-approval.
 - manual operator oversight
 - every initial job monitored
 - modest-value household jobs
@@ -494,39 +500,42 @@ Until that confirmation, P06 **ACCOUNTING MARKETPLACE/GST CONFIRMATION** remains
 
 ---
 
-## 8. Solicitor decision register
+## 8. Solicitor decision register (P06A)
 
-Matters that require **Australian solicitor confirmation**. Do not treat owner working positions as answers.
+Matters that require **Australian solicitor confirmation**. Do **not** treat owner working positions as answers. Engineering must not implement P09 copy from this table until P06 PASS.
 
-| ID | Matter |
-|---|---|
-| S01 | Privacy Act / APP applicability (including small-business exception inputs from F09, F12, F13) |
-| S02 | Voluntary APP-compliance wording if technically exempt |
-| S03 | APP 8 / overseas disclosure (Postmark, Google/Firebase, GA4, Stripe, reCAPTCHA, Gemini if enabled) — **countries not to be guessed from brand** |
-| S04 | Exact entity / ABN / address / contact disclosure requirements (F01–F08 recorded; **public street address still withheld**; do not describe as a company) |
-| S05 | Marketplace contract structure |
-| S06 | Underlying Homeowner / Expert contract for the job |
-| S07 | Payment / legal characterisation (not bank / trustee / custodian / escrow unless established) |
-| S08 | ACL consumer guarantees allocation |
-| S09 | Unfair contract terms risk in draft Terms (unilateral updates, suspend, pause/release/refund payments, after-release no automatic refund) |
-| S10 | Cancellation / refund rules (before vs after release) |
-| S11 | Liability limitations |
-| S12 | Indemnities |
-| S13 | Warranties |
-| S14 | Dispute resolution process |
-| S15 | Governing law / jurisdiction |
-| S16 | Expert contractor vs employment position |
-| S17 | Verification claims (“verified Expert”) |
-| S18 | Licensing responsibility (platform vs Expert vs Homeowner) and Phase 1 catalog edges |
-| S19 | Insurance: minimum sensible **pilot** cover (not a predetermined policy list); Expert “insurance verified” wording; whether founding-Expert insurance must be mandatory; residual risk if cover is not yet bound |
-| S20 | Age eligibility (owner: Expert 18+ and Homeowner 18+; Terms wording) |
-| S21 | Spam Act treatment of E01–E05 (currently sparse/factual; no unsubscribe; no promo found) |
-| S22 | Deletion / retention obligations vs current anonymise-only implementation |
-| S23 | Privacy complaints handling / contact |
-| S24 | NDB / data-breach posture (do not assert NDB duty until applicability is confirmed) |
-| S25 | Automated decision-making transparency (from 10 December 2026) vs admin risk scoring |
-| S26 | AI / provider disclosures (Gemini **OFF** at controlled launch unless later approved) |
-| S27 | **Stage 1:** can the Controlled Open-Demand Pilot (posting closed until gate + explicit activation) reasonably proceed as a sole trader, and what minimum legal/insurance controls should be in place? **Stage 2:** when should Taskio transition to a Pty Ltd, and what legal/insurance changes should accompany broader public operation? Public address without publishing a home street address. Do not treat Pty Ltd as automatically required now. |
+**Blocks launch?** = needed as a solicitor (or broker/accountant) decision before P06 can PASS / before real-user launch. Copy implementation remains P09.
+
+| ID | Matter | Current working position | Decision required from solicitor | Product / code dependency | Blocks launch? |
+|---|---|---|---|---|---|
+| SR01 | Legal entity / sole-trader suitability for controlled pilot | Saeed Zafari trading as Taskio; sole trader; ABN 15 729 254 373; not a company | May Stage 1 pilot proceed as sole trader? Minimum legal controls? When Pty Ltd for Stage 2? | Identity on `/terms` `/privacy` only after approval | **Yes** |
+| SR02 | Public / service-of-documents address | Home-based Victoria; residential street **withheld** | What address (if any) must appear publicly? | Legal pages, invoices, support | **Yes** |
+| SR03 | Marketplace / intermediary role | Intended marketplace, not tradesperson, not employer | Confirm characterisation and public wording | Terms, landing, disputes | **Yes** |
+| SR04 | Underlying Homeowner–Expert contract | Intended direct HO–Expert job contract; **not explicit in Terms** | How to document platform terms vs job contract | Terms, quotes, support | **Yes** |
+| SR05 | Stripe payment wording / escrow prohibition | Stripe processes; delayed release; **do not say escrow** unless approved; E02 says “funds are held” | Lawful fund/hold/secure/release wording; is “escrow” forbidden? | Terms, job UI, E02 email, Expert signup “protected payments” | **Yes** |
+| SR06 | Refund / cancellation / release terms | Auto full refund if funded + work not started; after start cancel **409**; after release **no** auto refund; dispute only at COMPLETED unreleased | Policy for after-start, no-show, partial, chargebacks, Expert withdrawal, abandoned jobs | Cancel/dispute UI, Terms, P08 SOP | **Yes** |
+| SR07 | ACL / unfair contract terms | Draft Terms mention ACL; broad Taskio pause/release/refund rights; banner says ACL unresolved | Consumer guarantees + UCT review of draft | Terms rewrite P09 | **Yes** |
+| SR08 | Expert verification wording | Admin `verified` + eligibility + approved categories. No licence/insurance/police/ID-doc checks in code. Landing: “verified Experts”; “invited and verified / not an open directory” is **stale** vs Expert OPEN | What may Taskio say for the pilot? | Landing, quote badge, Admin Verify copy | **Yes** |
+| SR09 | Licensing / category boundaries | Phase 1 catalog; copy excludes electrical/hidden-cable/waterproofing; no licence engine; “Mount a TV safely”; wet-area silicone; make-good | Victorian licensing risk of remaining items; warning vs exclude | Catalog, job-post, AI prompts if later on | **Yes** |
+| SR10 | Expert insurance expectations | Collect status; evidence if claimed; not mandatory-for-all in tracker | Must founding Experts be insured? Residual wording if some are not | Onboarding fields later; **no badges now** | **Yes** |
+| SR11 | Taskio insurance needs | **Not confirmed**; focused broker review of minimum sensible **pilot** cover | What operator cover is appropriate for Stage 1? | None until bound; do not claim insured | **Yes** |
+| SR12 | Privacy Act / APP applicability | Owner intends APP-style practice; turnover input recorded as fact only | Is Taskio an APP entity? **Do not answer in-repo** | Privacy Policy | **Yes** |
+| SR13 | Voluntary APP-style standard if exempt | Owner will still aim for APP-style disclosures | How to word voluntary compliance if exempt | Privacy Policy | **Yes** if exempt path used |
+| SR14 | Overseas processors / disclosure | Privacy names Stripe (cards) only. Firebase, Postmark, GA4, reCAPTCHA, M365, Gemini **unnamed**. Countries **not** attested | Which processors to name and how, without guessing countries | Privacy, collection notices | **Yes** |
+| SR15 | Waitlist / contact consent | Two flows: homeowner `pilot-waitlist-contact-v1` (Melbourne pilot availability); Expert `expert-waitlist-contact-v1` (becoming an Expert). Strict `consentAccepted===true`. **Not** marketing consent | Sufficiency of consent, retention, access/deletion, Spam Act vs transactional contact | Waitlist pages already collect; Privacy must disclose | **Yes** |
+| SR16 | Data retention / deletion | Internal schedule exists; execute **anonymises** profile + disables Auth; no purge jobs; waitlists omitted from Privacy | What “delete” may promise vs actual capability | Privacy claims; P08 DSAR; later code if required | **Yes** (claim accuracy) |
+| SR17 | Complaint / dispute process | In-app support; privacy contact `admin@taskio.com.au`; support `support@taskio.com.au`; homeowner issue report at COMPLETED unreleased; Admin tools | Required complaint/dispute wording and process | Terms, Support page, P08 | **Yes** |
+| SR18 | Review / moderation wording | Job-linked reviews after **paid release**; 14-day double-blind; badge “Verified Taskio review”; no moderation UI | Defamation/moderation/platform-policy; is “verified review” supportable? | Expert reviews page | Decision **yes**; build later if required |
+| SR19 | AI future disclosure | Gemini **OFF** at launch unless approved; code exists; fallback if no key | If off: must Privacy mention it? If later on: naming + ADM (from 10 Dec 2026) vs admin risk scoring | Do not enable now | Wording **yes** |
+| SR20 | Analytics / cookies / tracking | Staging GA4 on; production **OFF**; App Check staging partial; Privacy generic “coarse events” | Cookies/opt-out/overseas; what to say while production analytics are off | P04 production is separate RED | Wording **yes** before production ON |
+| SR21 | Liability / indemnities / limitations | Largely **absent** from draft Terms | Allocation among Taskio / Homeowner / Expert | Terms | **Yes** |
+| SR22 | Victorian governing law / jurisdiction | Geography copy is a **service area**, not a governing-law clause. **Missing** | Vic law/jurisdiction appropriate? | Terms | **Yes** |
+| SR23 | ABN / tax / provider relationship | ABN stored; optional ABR lookup; 10% fee in product **not** in Terms | Expert contractor vs employment; ABN declarations; tax/invoicing (accountant for GST) | Expert signup, Terms, invoices | **Yes** |
+| SR24 | TASKIO word-mark | Brand used in product | Optional: word-mark / brand protection if still useful | None for launch | **No** |
+
+Related extras still open (not in the 24): Spam Act for E01–E05 (no unsubscribe today); NDB / incident posture; Homeowner 18+ product gate; 10% fee disclosure (also accountant).
+
+Crosswalk to older S01–S27 IDs: SR12=S01, SR13=S02, SR14=S03, SR02/SR01=S04/S27, SR03=S05, SR04=S06, SR05=S07, SR07=S08–S09, SR06=S10, SR21=S11–S13, SR17=S14, SR22=S15, SR23=S16, SR08=S17, SR09=S18, SR10–SR11=S19, SR16=S22, SR19=S26.
 
 ---
 
@@ -551,6 +560,8 @@ Do **not** start these until P06 PASS (approved text / decisions). P09 implement
 | Analytics naming / production hold (D11) | Privacy vs `docs/ANALYTICS.md`; production GA4 remains a **separate RED** enablement |
 | App Check / reCAPTCHA disclosure | Privacy technical-processing wording; **do not** change enforcement here |
 | Spam Act confirmation (S21) | Keep transactional emails factual; do **not** auto-add unsubscribe unless advised |
+| Waitlist consent (SR15) | Privacy disclosure of both waitlists; retention/deletion; ops owner for contact |
+| Review wording (SR18) | Badge/help text; optional moderation SOP |
 | Login / activation legal links | Footer/onboarding Privacy + Terms **after** approved pages exist |
 | Draft banner removal | Only when solicitor-approved production documents replace drafts |
 
@@ -576,3 +587,15 @@ This documentation batch must **not**:
 - claim Taskio is insured, Experts are insured, a sole trader has limited liability, or that a company eliminates personal/director liability
 
 Those belong after approved P06 decisions, generally under **P09** (and separate RED production enablement for email/analytics/App Check).
+
+---
+
+## 11. Competitive strategy — ROADMAP ONLY (not P01–P10)
+
+Recorded 14 September 2026. **Do not build now.** Do **not** add to P01–P10 unless later required for legal/safety.
+
+**Launch proposition (working, not legal copy):** Taskio helps small home jobs get properly scoped, matched to a small number of suitable Experts, quoted clearly, paid through Taskio, and supported through completion.
+
+**Do not position launch around:** generic AI; number of Experts; number of quotes; cheapest price; “fully vetted”; workmanship guarantee; escrow.
+
+**Possible post/pilot experiments:** more structured/comparable quotes; written variations; completion checklist/evidence; more transparent category-level verification; issue-free completion metric; rehire flow; outcome-driven price/matching intelligence.
