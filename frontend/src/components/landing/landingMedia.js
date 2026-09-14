@@ -170,12 +170,21 @@ export const LANDING_PILLARS = [
   },
 ];
 
-export const LANDING_LAUNCH_FACTS = [
-  { label: 'Access', value: 'Invitation only — public signup is not open' },
-  { label: 'Area', value: 'Inner Melbourne' },
-  { label: 'Scope', value: 'Small indoor jobs in Phase 1 categories' },
-  { label: 'Experts', value: 'Invited and verified by Taskio' },
-];
+export function landingLaunchFacts({ postingOpen = false } = {}) {
+  return [
+    {
+      label: 'Access',
+      value: postingOpen
+        ? 'Public homeowner posting — sign up or log in, no invitation'
+        : 'Homeowner posting closed — join the waitlist',
+    },
+    { label: 'Area', value: 'Inner Melbourne' },
+    { label: 'Scope', value: 'Small indoor jobs in Phase 1 categories' },
+    { label: 'Experts', value: 'Invited and verified by Taskio' },
+  ];
+}
+
+export const LANDING_LAUNCH_FACTS = landingLaunchFacts();
 
 export const LANDING_EXAMPLES = [
   {

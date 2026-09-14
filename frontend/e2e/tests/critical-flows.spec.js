@@ -64,10 +64,11 @@ test('public launch page labels examples and exposes route metadata without fict
   expect(overflow).toBe(false);
 });
 
-test('task brief page is invite-only for unauthenticated visitors', async ({ page }) => {
+test('task brief page is closed for unauthenticated visitors until posting opens', async ({ page }) => {
   await page.goto('/post-job');
 
-  await expect(page.getByRole('heading', { name: /log in to post a task/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /log in/i })).toBeVisible();
-  await expect(page.getByText(/guest phone signup is not open/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /homeowner posting is not open yet/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /join waitlist/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /back to home/i })).toBeVisible();
+  await expect(page.getByText(/guest phone signup is not open/i)).toHaveCount(0);
 });

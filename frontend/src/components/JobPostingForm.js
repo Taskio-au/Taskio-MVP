@@ -32,9 +32,7 @@ import { ANALYTICS_EVENTS, trackEvent, trackEventOnce } from '../config/analytic
 import { coercePilotSuburb } from '../config/analyticsConfig';
 import { InlineErrorCardWithNavLinks } from './ui/AsyncPageStates';
 import { getPostJobFlowErrorPresentation } from '../utils/userFacingApiErrors';
-import InviteOnlyNotice from './InviteOnlyNotice';
 import JobPostingAvailabilityScreen from './JobPostingAvailabilityScreen';
-import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
 import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
 
 // Shared API client
@@ -862,12 +860,6 @@ function JobPostingForm() {
                 const token = await user.getIdToken();
                 await createAndFinalizeTask(token);
             } else {
-                if (!isPublicAcquisitionEnabled()) {
-                    const errorMsg = 'This private launch is invite-only. Log in with your invited account to post a task.';
-                    setFormErrors({ submit: errorMsg });
-                    setLiveRegionMessage(errorMsg);
-                    return;
-                }
                 if (!acceptedLegal) {
                     const errorMsg = 'Please accept the Terms of Use and Privacy Policy to continue.';
                     setFormErrors({ submit: errorMsg });
@@ -1436,17 +1428,6 @@ function JobPostingForm() {
     }
 
     return (
-        !user && !isPublicAcquisitionEnabled() ? (
-        <div className="taskio-postJobPage">
-            <PublicPageHeader homeTo="/" logoStyle={{ textDecoration: 'none' }} />
-            <div className="public-page-shell" style={{ padding: '48px 24px' }}>
-                <InviteOnlyNotice
-                    title="Log in to post a task"
-                    description="Posting a task during this private Melbourne launch requires an invited account. Guest phone signup is not open."
-                />
-            </div>
-        </div>
-        ) : (
         <div className="taskio-postJobPage">
             <PublicPageHeader homeTo={user ? "/dashboard" : "/"} logoStyle={{ textDecoration: 'none' }} />
             <div className="public-page-shell taskio-postTaskShell">
@@ -1534,7 +1515,6 @@ function JobPostingForm() {
             </div>
         </div>
         </div>
-        )
     );
 }
 

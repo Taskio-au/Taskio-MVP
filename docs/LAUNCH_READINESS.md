@@ -8,7 +8,12 @@ This is the product-launch overlay on top of the existing P01–P06 technical ga
 
 **Admin machine-readable source (Slice 5A):** `shared/launchReadinessManifest.js`. The read-only Pilot Status engine evaluates this reviewed file plus Expert supply. It does **not** scrape this markdown at runtime. Update the manifest in the same commit as any gate-status change.
 
-**Admin persisted operational state (Slice 5B/5C, local):** `system/pilotSettings` stores `CLOSED` / `OPEN` / `PAUSED` only. Derived launch status (`NOT READY` / `READY TO OPEN`) is separate and must not be persisted. A transition to OPEN is allowed only when the live Slice 5A engine returns READY TO OPEN. Slice 5C wires that persisted state to real homeowner posting: OPEN allows supported new jobs; CLOSED/PAUSED block new posts and use the waitlist path; existing jobs continue. Still **not deployed**. Do not create the settings document in staging or production without a separate approval.
+**Admin persisted operational state (Slice 5B/5C, local):** `system/pilotSettings` stores `CLOSED` / `OPEN` / `PAUSED` only. Derived launch status (`NOT READY` / `READY TO OPEN`) is separate and must not be persisted. A transition to OPEN is allowed only when the live Slice 5A engine returns READY TO OPEN. Slice 5C wires that persisted state to real homeowner posting:
+
+- **OPEN:** public supported homeowner signup and posting; **no** manual homeowner invitation; normal authentication still required; Experts remain gated/verified.
+- **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue.
+
+`REACT_APP_PUBLIC_ACQUISITION_ENABLED` is Expert self-signup UX only and must not override OPEN. Still **not deployed**. Do not create the settings document in staging or production without a separate approval. Production Identity Toolkit `disabledUserSignup` still blocks new Firebase Auth users until a separate approved ops change.
 
 Companion records:
 

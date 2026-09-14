@@ -1,5 +1,5 @@
 import React from 'react';
-import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
+import { isExpertPublicSignupEnabled } from '../config/publicAcquisitionConfig';
 import PublicPageHeader from './PublicPageHeader';
 import InviteOnlyNotice from './InviteOnlyNotice';
 import ExpertSignUpPage from './ExpertSignUpPage';
@@ -17,7 +17,7 @@ const mainStyle = {
 };
 
 export default function ExpertSignUpRoute() {
-  if (isPublicAcquisitionEnabled()) {
+  if (isExpertPublicSignupEnabled()) {
     return <ExpertSignUpPage />;
   }
 

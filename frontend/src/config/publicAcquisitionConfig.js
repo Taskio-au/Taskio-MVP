@@ -5,12 +5,21 @@ export function publicAcquisitionEnvFromProcess() {
 }
 
 /**
- * Public acquisition (open homeowner OTP enrollment + expert self-signup).
+ * Expert self-signup only.
  *
- * Off by default. The private Melbourne MVP is invite-only.
- * Set REACT_APP_PUBLIC_ACQUISITION_ENABLED=true only when Saeed opens public
- * acquisition. Do not infer this from Hosting or Firebase client config.
+ * Homeowner posting and homeowner OTP enrollment follow public pilot status
+ * (OPEN / CLOSED / PAUSED). This env flag must not block public homeowner
+ * demand when operational state is OPEN.
+ *
+ * Off by default. Set REACT_APP_PUBLIC_ACQUISITION_ENABLED=true only when
+ * Saeed opens Expert self-signup. Do not infer this from Hosting or Firebase
+ * client config.
  */
-export function isPublicAcquisitionEnabled(env = publicAcquisitionEnvFromProcess()) {
+export function isExpertPublicSignupEnabled(env = publicAcquisitionEnvFromProcess()) {
   return String(env.REACT_APP_PUBLIC_ACQUISITION_ENABLED || '').trim() === 'true';
+}
+
+/** @deprecated Use isExpertPublicSignupEnabled. Same env flag; Expert-only. */
+export function isPublicAcquisitionEnabled(env = publicAcquisitionEnvFromProcess()) {
+  return isExpertPublicSignupEnabled(env);
 }

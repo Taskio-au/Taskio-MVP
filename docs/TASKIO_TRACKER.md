@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-14 Slice 5C pre-push OPEN homeowner access + waitlist hardening (GREEN local):** OPEN no longer depends on `REACT_APP_PUBLIC_ACQUISITION_ENABLED` or a homeowner invitation. New homeowners can reach signup/OTP and post supported Phase 1 jobs in approved geography when operational state is OPEN; auth remains required; Experts stay gated. CLOSED/PAUSED keep new posting blocked and use waitlist. Waitlist is idempotent by normalized-email key, rate-limited, stores contact-consent evidence, and never enumerates emails. Still **not deployed**. No staging/production `system/pilotSettings`. Identity Toolkit `disabledUserSignup` unchanged. P06 **OPEN**. P09 blocked. Production untouched.
+
 **2026-09-14 Admin Slice 5C operational state wired to homeowner posting (GREEN local):** Persisted CLOSED / OPEN / PAUSED now controls new homeowner job creation. Backend `POST /api/jobs` is the hard gate. Public `GET /api/pilot-status` is fail-closed. CLOSED/PAUSED use the waitlist path; existing jobs continue. Still **not deployed**. No staging/production `system/pilotSettings`. P06 **OPEN** (waitlist email collection is a review item). P09 blocked. Production untouched.
 
 **2026-09-14 Admin Slice 5B persisted operational state foundation (GREEN local):** `system/pilotSettings` stores CLOSED / OPEN / PAUSED. Admin-only GET/PUT. OPEN requires live Slice 5A READY TO OPEN. CLOSED/PAUSED remain available as fail-safe shutdown. Append-only history. Client Firestore writes denied. Homeowner posting still **not wired**. Still **not** implemented: Slice 5C posting/waitlist wire-up, WATCH auto-pause. P06 **OPEN**. P09 blocked. Production untouched.

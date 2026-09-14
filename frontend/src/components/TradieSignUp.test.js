@@ -28,6 +28,7 @@ jest.mock('../firebase', () => ({
 
 jest.mock('../config/publicAcquisitionConfig', () => ({
   isPublicAcquisitionEnabled: () => true,
+  isExpertPublicSignupEnabled: () => true,
 }));
 
 jest.mock('./profile/GoogleBrand', () => ({

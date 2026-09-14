@@ -34,6 +34,7 @@ jest.mock('../hooks/usePublicPilotStatus', () => ({
 
 const mockPublicAcquisition = { enabled: false };
 jest.mock('../config/publicAcquisitionConfig', () => ({
+  isExpertPublicSignupEnabled: () => mockPublicAcquisition.enabled,
   isPublicAcquisitionEnabled: () => mockPublicAcquisition.enabled,
 }));
 
@@ -50,7 +51,7 @@ describe('LandingPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: /small indoor jobs, sorted/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /join waitlist/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /how taskio works/i })).toHaveAttribute('href', '#how-taskio-works');
-    expect(screen.getAllByText(/^invite-only$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^experts invited$/i).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: /become an expert/i })).not.toBeInTheDocument();
     expect(screen.getAllByText(/verified experts/i).length).toBeGreaterThan(0);
     expect(screen.getByText('Payment through Taskio')).toBeInTheDocument();
@@ -83,7 +84,7 @@ describe('LandingPage', () => {
     expect(screen.queryByRole('heading', { name: /clients and experts in their own words/i })).not.toBeInTheDocument();
   });
 
-  it('keeps the invite-only launch explanation visible', () => {
+  it('explains closed homeowner posting and invite-only Experts', () => {
     render(
       <MemoryRouter>
         <LandingPage />
@@ -93,8 +94,8 @@ describe('LandingPage', () => {
     expect(
       screen.getByRole('heading', { name: /private early access in inner melbourne/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/public signup is not open/i)).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /how invite-only access works/i }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/homeowner posting closed — join the waitlist/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /how expert access works/i }).length).toBeGreaterThan(0);
   });
 
   it('keeps public acquisition closed in every landing call to action', () => {
@@ -110,10 +111,10 @@ describe('LandingPage', () => {
     expect(
       screen.getByRole('button', { name: /join waitlist for mounting/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /expert access/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /expert access/i }).length).toBeGreaterThan(0);
   });
 
-  it('keeps the authentication gate when posting is OPEN and public acquisition is closed', () => {
+  it('lets a new homeowner post when OPEN even if Expert public signup is off', () => {
     mockPilotStatus.value = {
       loadState: 'ok',
       status: { homeownerPosting: 'OPEN', canPost: true, waitlistAvailable: false },
@@ -124,8 +125,11 @@ describe('LandingPage', () => {
         <LandingPage />
       </MemoryRouter>
     );
-    expect(screen.getByRole('button', { name: /log in if invited/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /post your task for free/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /log in if invited/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^join waitlist$/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/sign up or log in, no invitation/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^experts invited$/i).length).toBeGreaterThan(0);
     unmount();
     mockPilotStatus.value = {
       loadState: 'ok',

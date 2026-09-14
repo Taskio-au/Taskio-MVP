@@ -46,16 +46,22 @@ jest.mock('../services/phoneVerification', () => ({
   confirmPhoneOtpForSignIn: jest.fn(),
 }));
 
+jest.mock('../config/publicAcquisitionConfig', () => ({
+  isPublicAcquisitionEnabled: () => false,
+  isExpertPublicSignupEnabled: () => false,
+}));
+
 const JobPostingForm = require('./JobPostingForm').default;
 
-test('invite-only private launch blocks guest job posting without OTP', () => {
+test('OPEN guest posting does not require a homeowner invitation', () => {
   render(
     <MemoryRouter>
       <JobPostingForm />
     </MemoryRouter>
   );
 
-  expect(screen.getByRole('heading', { name: /log in to post a task/i })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument();
-  expect(screen.queryByLabelText(/description/i)).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /post a task/i })).toBeInTheDocument();
+  expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /log in to post a task/i })).not.toBeInTheDocument();
+  expect(screen.queryByText(/guest phone signup is not open/i)).not.toBeInTheDocument();
 });

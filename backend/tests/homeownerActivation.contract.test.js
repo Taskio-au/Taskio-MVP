@@ -142,7 +142,7 @@ describe('homeowner quote-access activation and deletion confirm', () => {
     else process.env.TASKIO_PUBLIC_SIGNUP_ENABLED = originalFlag;
   });
 
-  it('enrols a missing profile as a homeowner when phone is verified and signup is enabled', async () => {
+  it('enrols a missing profile as a homeowner when phone is verified', async () => {
     const res = await request(app)
       .post('/api/me/homeowner/activate-quote-access')
       .send({ firstName: 'Saeed' });
@@ -236,16 +236,20 @@ describe('homeowner quote-access activation and deletion confirm', () => {
     expect(mockGetCollectionStore('users').get('homeowner-1').role).toBe('tradie');
   });
 
-  it('does not enrol or grant quote access when signup is disabled', async () => {
+  it('enrols a new homeowner even when Expert public signup is disabled', async () => {
     process.env.TASKIO_PUBLIC_SIGNUP_ENABLED = 'false';
 
     const missingRes = await request(app)
       .post('/api/me/homeowner/activate-quote-access')
-      .send({});
-    expect(missingRes.status).toBe(503);
-    expect(missingRes.body.code).toBe('signup_disabled');
-    expect(mockGetCollectionStore('users').has('homeowner-1')).toBe(false);
+      .send({ firstName: 'Saeed' });
+    expect(missingRes.status).toBe(200);
+    expect(missingRes.body.profile.quoteAccessVerified).toBe(true);
+    expect(mockGetCollectionStore('users').get('homeowner-1')).toEqual(expect.objectContaining({
+      role: 'homeowner',
+      quoteAccessVerified: true,
+    }));
 
+    resetState();
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',
       status: 'active',
@@ -254,12 +258,11 @@ describe('homeowner quote-access activation and deletion confirm', () => {
     const grantRes = await request(app)
       .post('/api/me/homeowner/activate-quote-access')
       .send({});
-    expect(grantRes.status).toBe(503);
-    expect(grantRes.body.code).toBe('signup_disabled');
-    expect(mockGetCollectionStore('users').get('homeowner-1').quoteAccessVerified).toBe(false);
+    expect(grantRes.status).toBe(200);
+    expect(mockGetCollectionStore('users').get('homeowner-1').quoteAccessVerified).toBe(true);
   });
 
-  it('remains idempotent when signup is disabled for an already quote-verified homeowner', async () => {
+  it('remains idempotent when Expert public signup is disabled for an already quote-verified homeowner', async () => {
     process.env.TASKIO_PUBLIC_SIGNUP_ENABLED = 'false';
     seedDoc('users', 'homeowner-1', {
       role: 'homeowner',

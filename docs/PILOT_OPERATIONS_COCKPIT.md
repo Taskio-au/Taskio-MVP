@@ -1,6 +1,6 @@
 # Pilot Operations Cockpit — audit and design
 
-**Status:** DESIGN plus **Admin Slices 1–5A** (data foundation, visual cockpit, Job Attention Queue, marketplace health, read-only Pilot Status engine; 14 September 2026, local). Persisted Pilot Settings / posting activation are **not** implemented.
+**Status:** DESIGN plus **Admin Slices 1–5C** (data foundation, visual cockpit, Job Attention Queue, marketplace health, read-only Pilot Status engine, persisted operational state, homeowner posting wire-up, OPEN public homeowner access; 14 September 2026, local, not deployed).
 
 **Date:** 13 September 2026  
 **Companion operating rules:** `docs/P06_OWNER_DECISIONS.md` §5–§5B  
@@ -72,11 +72,26 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 
 - Authoritative create gate: `POST /api/jobs` rejects unless effective operational state is OPEN
 - Public fail-closed `GET /api/pilot-status` (`homeownerPosting`, `canPost`, `waitlistAvailable`)
-- Minimal waitlist: `POST /api/pilot-waitlist` → `pilotWaitlist` (Admin SDK only; client reads/writes denied)
-- Landing, dashboard, `/post-job`, and header CTAs follow public status. Backend remains authority
+- Hardened waitlist: `POST /api/pilot-waitlist` → `pilotWaitlist` (Admin SDK only; client reads/writes denied; email-key upsert; generic success; contact-consent evidence)
+- Landing, dashboard, `/post-job`, Get started, and header CTAs follow public status. Backend remains authority
 - OPEN does not bypass auth, Phase 1 categories, or approved Inner Melbourne geography
 - CLOSED/PAUSED block **new** homeowner jobs only. Existing jobs continue
 - Admin homeowner-posting card now shows OPEN / CLOSED / PAUSED
+
+**Canonical activation semantics (local code; not deployed)**
+
+| State | Homeowners | Experts |
+|---|---|---|
+| **OPEN** | Public supported signup/posting. No manual homeowner invitation. Normal authentication (phone OTP + profile/legal) still required. | Remain gated / manually verified. Expert self-signup stays off unless `REACT_APP_PUBLIC_ACQUISITION_ENABLED=true` **and** `TASKIO_PUBLIC_SIGNUP_ENABLED=true`. |
+| **CLOSED / PAUSED** | New job posting blocked. Public demand CTA is waitlist / register interest. Existing login still works. Phone-authenticated homeowner profile creation is allowed; posting is still denied. | Recruitment/onboarding may continue. |
+
+**One posting authority:** persisted `system/pilotSettings` effective state. `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is **Expert self-signup UX only** (deprecated name `isPublicAcquisitionEnabled`). `TASKIO_PUBLIC_SIGNUP_ENABLED` is the **Expert / production enrollment kill switch**, not a homeowner invitation gate.
+
+**Known production limitation (not changed in this slice):** Identity Toolkit `disabledUserSignup=true` on staging/production still blocks **new Firebase Auth users** until a separate approved ops change. Local tests mock auth.
+
+**Waitlist:** public write with route limiter (30/15 min), normalized/bounded email, optional bounded suburb, bounded source, server timestamps only, SHA-256 email document id upsert. Consent checkbox means Taskio may contact the person about Melbourne-pilot availability (`consentVersion=pilot-waitlist-contact-v1`, `consentAcceptedAt` server timestamp). Not a marketing-consent or privacy-complete claim. P06 remains OPEN.
+
+**Public status failure:** posting fail-closes. `waitlistAvailable` stays true because waitlist writes do not read `system/pilotSettings`. If the whole API is down, waitlist submit still fails safely.
 
 **NOT YET IMPLEMENTED**
 

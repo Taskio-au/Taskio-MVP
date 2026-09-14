@@ -70,6 +70,14 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true });
     }
 
+    if (req.method === 'GET' && path === '/api/pilot-status') {
+      return send(res, 200, {
+        homeownerPosting: 'CLOSED',
+        canPost: false,
+        waitlistAvailable: true,
+      });
+    }
+
     if (req.method === 'POST' && /^\/api\/jobs\/[^/]+\/checkout$/.test(path)) {
       if (!requireAuth(req, res)) return;
       const body = await readJson(req);

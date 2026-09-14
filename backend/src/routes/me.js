@@ -19,9 +19,7 @@ const {
   sendIfMissingProfile,
   isMissingDocumentError,
   sendQuoteAccessRequired,
-  sendSignupDisabled,
 } = require('../utils/enrolledProfile');
-const { isPublicSignupEnabled } = require('../config/publicSignup');
 const { isValidAbn, cleanAbn } = require('../utils/abn');
 const { lookupAbnDetails, isAbnCurrentlyActive, summarizeAbnLookupError } = require('../services/abnLookup');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
@@ -1003,7 +1001,6 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
       const snap = await transaction.get(userRef);
       const classified = classifyUserProfile(snap);
       const existing = classified.data || {};
-      const signupEnabled = isPublicSignupEnabled();
 
       if (classified.kind === 'invalid') {
         return { type: 'invalid' };
@@ -1015,9 +1012,6 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
         }
         if (hasQuoteAccess(existing)) {
           return { type: 'already', data: existing };
-        }
-        if (!signupEnabled) {
-          return { type: 'signup_disabled' };
         }
         if (!isOperationallyActive(classified)) {
           return { type: 'not_active' };
@@ -1045,10 +1039,6 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         return { type: 'granted', derivedAccountCompleted };
-      }
-
-      if (!signupEnabled) {
-        return { type: 'signup_disabled' };
       }
 
       const displayName = firstName || '';
@@ -1080,7 +1070,6 @@ router.post('/api/me/homeowner/activate-quote-access', requireAuth, async (req, 
     });
 
     if (result.type === 'invalid') return sendAccountStateInvalid(res);
-    if (result.type === 'signup_disabled') return sendSignupDisabled(res);
     if (result.type === 'wrong_role') {
       return res.status(403).send({ message: 'Only homeowners can activate quote access.' });
     }

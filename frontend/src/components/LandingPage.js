@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { ArrowRight } from 'lucide-react';
 import { auth } from '../firebase';
-import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
+import { isExpertPublicSignupEnabled } from '../config/publicAcquisitionConfig';
 import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
 import { publicPilotPostingCopy } from '../constants/pilotPostingCopy';
 import { ANALYTICS_EVENTS, trackEvent, trackEventOnce } from '../config/analytics';
@@ -15,10 +15,10 @@ import LandingHeroPreview from './landing/LandingHeroPreview';
 import LandingJourney from './landing/LandingJourney';
 import {
   LANDING_EXAMPLES,
-  LANDING_LAUNCH_FACTS,
   LANDING_PILLARS,
   LANDING_PROOF,
   LANDING_SERVICES,
+  landingLaunchFacts,
 } from './landing/landingMedia';
 import './LandingPage.css';
 
@@ -42,9 +42,9 @@ function LandingPage() {
   const authState = useAuthState(auth) || [];
   const user = authState[0] || null;
   const homeHref = user ? '/dashboard' : '/';
-  const publicAcquisition = isPublicAcquisitionEnabled();
+  const expertPublicSignup = isExpertPublicSignupEnabled();
   const { loadState: postingLoadState, status: postingStatus } = usePublicPilotStatus();
-  const expertEntry = publicAcquisition ? '/tradie/signup' : '/get-started';
+  const expertEntry = expertPublicSignup ? '/tradie/signup' : '/get-started';
   trackEventOnce(ANALYTICS_EVENTS.LANDING_VIEWED, 'session', { surface: 'landing' });
 
   const goLogin = (surface) => {
@@ -53,15 +53,12 @@ function LandingPage() {
   };
 
   const postingOpen = postingLoadState === 'ok' && postingStatus.canPost === true;
-  const canPostDirectly = postingOpen && (publicAcquisition || Boolean(user));
   const showWaitlist = !postingOpen && postingLoadState !== 'loading';
   const homeownerCtaLabel = postingLoadState === 'loading'
     ? 'Checking availability…'
     : showWaitlist
       ? 'Join waitlist'
-      : canPostDirectly
-        ? 'Post a task'
-        : 'Log in if invited';
+      : 'Post a task';
 
   const goHomeownerCta = (surface) => {
     if (postingLoadState === 'loading') return;
@@ -69,11 +66,7 @@ function LandingPage() {
       navigate('/waitlist');
       return;
     }
-    if (canPostDirectly) {
-      navigate('/post-job');
-      return;
-    }
-    goLogin(surface);
+    navigate('/post-job');
   };
 
   useEffect(() => {
@@ -89,16 +82,16 @@ function LandingPage() {
       <PublicPageHeader
         homeTo={homeHref}
         brandAddon={
-          publicAcquisition ? null : (
+          expertPublicSignup ? null : (
             <span className="landing-nav-status">
               <span className="landing-nav-status-dot" aria-hidden />
-              Invite-only
+              Experts invited
             </span>
           )
         }
         actions={
           <nav className="landing-nav" aria-label="Primary">
-            {publicAcquisition ? (
+            {expertPublicSignup ? (
               <Link className="landing-nav-link" to="/tradie/signup">
                 Become an Expert
               </Link>
@@ -115,9 +108,9 @@ function LandingPage() {
           <div className="landing-hero-grid">
             <div className="landing-hero-copy-wrap">
               <p className="landing-eyebrow">
-                {publicAcquisition
+                {postingOpen
                   ? 'Inner Melbourne · indoor jobs'
-                  : 'Private early access · Inner Melbourne'}
+                  : 'Melbourne pilot · Inner Melbourne'}
               </p>
               <h1 className="landing-hero-title" id="landing-hero-title">
                 Small indoor jobs, sorted.
@@ -126,7 +119,7 @@ function LandingPage() {
                 Post once. Compare quotes from verified Experts. Pay securely through Taskio when you
                 approve the completed job.
                 {postingOpen
-                  ? (publicAcquisition ? '' : ' Access is invite-only while Taskio is in private early access.')
+                  ? ''
                   : ` ${publicPilotPostingCopy(postingStatus.homeownerPosting, postingLoadState)}`}
               </p>
               <div className="landing-hero-actions">
@@ -137,16 +130,14 @@ function LandingPage() {
                   disabled={postingLoadState === 'loading'}
                   onClick={() => goHomeownerCta('hero')}
                 >
-                  {homeownerCtaLabel === 'Post a task' && publicAcquisition
-                    ? 'Post your task for free'
-                    : homeownerCtaLabel}
+                  {homeownerCtaLabel === 'Post a task' ? 'Post your task for free' : homeownerCtaLabel}
                 </Button>
                 <a className="landing-btn-ghost" href="#how-taskio-works">
                   How Taskio works
                 </a>
               </div>
               <p className="landing-hero-note">
-                {publicAcquisition ? (
+                {expertPublicSignup ? (
                   <>
                     <Link className="landing-inline-link" to="/tradie/signup">
                       Become an Expert
@@ -197,9 +188,7 @@ function LandingPage() {
                 aria-label={
                   showWaitlist
                     ? `Join waitlist for ${service.name}`
-                    : canPostDirectly
-                      ? `Post a task: ${service.name}`
-                      : `Log in to post a ${service.name} task`
+                    : `Post a task: ${service.name}`
                 }
               >
                 <img
@@ -216,7 +205,7 @@ function LandingPage() {
                   <span className="landing-service-name">{service.name}</span>
                   <span className="landing-service-desc">{service.description}</span>
                   <span className="landing-service-cta">
-                    {showWaitlist ? 'Join waitlist' : canPostDirectly ? 'Post task' : 'Log in to post'}
+                    {showWaitlist ? 'Join waitlist' : 'Post task'}
                     <ArrowRight size={15} strokeWidth={2.5} aria-hidden />
                   </span>
                 </span>
@@ -261,20 +250,23 @@ function LandingPage() {
         <section className="landing-launch" aria-labelledby="landing-launch-title">
           <div className="landing-launch-grid">
             <div>
-              <p className="landing-eyebrow landing-eyebrow--section">Melbourne private launch</p>
+              <p className="landing-eyebrow landing-eyebrow--section">Melbourne pilot</p>
               <h2 className="landing-launch-title" id="landing-launch-title">
-                Private early access in Inner Melbourne
+                {postingOpen
+                  ? 'Supported homeowner posting in Inner Melbourne'
+                  : 'Private early access in Inner Melbourne'}
               </h2>
               <p className="landing-launch-copy">
-                We&apos;re starting with a carefully selected set of indoor jobs and verified Experts,
-                so every part of the Taskio experience can be properly supported.
+                {postingOpen
+                  ? 'Homeowners can create an account and post a supported indoor job. Experts remain invited and verified by Taskio.'
+                  : 'We\u2019re starting with a carefully selected set of indoor jobs and verified Experts, so every part of the Taskio experience can be properly supported.'}
               </p>
-              <Link className="landing-inline-link" to="/get-started">
-                How invite-only access works
+              <Link className="landing-inline-link" to={postingOpen ? '/post-job' : '/get-started'}>
+                {postingOpen ? 'Post a supported task' : 'How Expert access works'}
               </Link>
             </div>
             <dl className="landing-launch-facts">
-              {LANDING_LAUNCH_FACTS.map((fact) => (
+              {landingLaunchFacts({ postingOpen }).map((fact) => (
                 <div key={fact.label} className="landing-launch-fact">
                   <dt>{fact.label}</dt>
                   <dd>{fact.value}</dd>
@@ -321,13 +313,11 @@ function LandingPage() {
           <div className="landing-close-grid">
             <div>
               <p className="landing-eyebrow landing-eyebrow--dark">
-                {postingOpen ? (publicAcquisition ? 'Get quotes' : 'Invite-only') : 'Melbourne pilot'}
+                {postingOpen ? 'Get quotes' : 'Melbourne pilot'}
               </p>
               <h2 className="landing-close-title" id="landing-close-title">
                 {postingOpen
-                  ? (publicAcquisition
-                    ? 'Post a task. Hear from verified Experts.'
-                    : 'Got an invitation? Your next small job starts here.')
+                  ? 'Post a task. Hear from verified Experts.'
                   : 'Join the waitlist for homeowner posting'}
               </h2>
               <p className="landing-close-copy">
@@ -342,15 +332,15 @@ function LandingPage() {
                 style={ACCENT_CTA_TEXT}
                 onClick={() => goHomeownerCta('cta')}
               >
-                {homeownerCtaLabel === 'Log in if invited' ? 'Log in' : homeownerCtaLabel}
+                {homeownerCtaLabel}
               </Button>
-              {publicAcquisition ? (
+              {expertPublicSignup ? (
                 <Link className="landing-close-link" to="/tradie/signup">
                   Become an Expert
                 </Link>
               ) : (
                 <Link className="landing-close-link" to="/get-started">
-                  How invite-only access works
+                  Expert access
                 </Link>
               )}
             </div>
@@ -369,11 +359,11 @@ function LandingPage() {
             </div>
             <nav className="landing-footer-nav" aria-label="Footer">
               <div className="landing-footer-links">
-                {postingOpen && publicAcquisition ? <Link to="/post-job">Post a task</Link> : null}
+                {postingOpen ? <Link to="/post-job">Post a task</Link> : null}
                 {showWaitlist ? <Link to="/waitlist">Join waitlist</Link> : null}
                 <Link to="/login">Log in</Link>
                 <Link to={expertEntry} className="landing-footer-expert-link">
-                  {publicAcquisition ? 'Become an Expert' : 'Expert access'}
+                  {expertPublicSignup ? 'Become an Expert' : 'Expert access'}
                 </Link>
                 <Link to="/privacy">Privacy</Link>
                 <Link to="/terms">Terms</Link>

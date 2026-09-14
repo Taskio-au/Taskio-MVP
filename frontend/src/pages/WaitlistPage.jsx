@@ -29,6 +29,7 @@ export default function WaitlistPage() {
         email,
         suburb,
         source: 'waitlist',
+        consentAccepted: true,
       });
       setDone(true);
     } catch (err) {

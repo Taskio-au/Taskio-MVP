@@ -4,7 +4,10 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { db } = require('../firebaseAdmin');
 const { readPublicPilotStatus } = require('../services/pilotPostingAccess');
-const { addPilotWaitlistSignup } = require('../services/pilotWaitlistService');
+const {
+  addPilotWaitlistSignup,
+  publicWaitlistSuccess,
+} = require('../services/pilotWaitlistService');
 
 const router = express.Router();
 
@@ -26,6 +29,8 @@ const waitlistLimiter = rateLimit({
 /**
  * GET /api/pilot-status
  * Public, fail-closed posting availability. No launch gates or admin metadata.
+ * If this handler errors, posting stays CLOSED. Waitlist remains advertised
+ * because POST /api/pilot-waitlist is independent of system/pilotSettings.
  */
 router.get('/api/pilot-status', publicPilotLimiter, async (_req, res) => {
   try {
@@ -50,11 +55,12 @@ router.post('/api/pilot-waitlist', waitlistLimiter, async (req, res) => {
       email: req.body && req.body.email,
       suburb: req.body && req.body.suburb,
       source: req.body && req.body.source,
+      consentAccepted: req.body && req.body.consentAccepted,
     });
     if (!result.ok) {
       return res.status(result.status || 400).send(result.error);
     }
-    return res.status(201).send({ ok: true });
+    return res.status(200).send(publicWaitlistSuccess());
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('POST /api/pilot-waitlist failed:', error);

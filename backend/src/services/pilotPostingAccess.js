@@ -24,6 +24,8 @@ function serializePublicPilotStatus(settings) {
   const homeownerPosting = raw === OPERATIONAL_STATES.OPEN || raw === OPERATIONAL_STATES.PAUSED
     ? raw
     : OPERATIONAL_STATES.CLOSED;
+  // Waitlist writes are a separate Admin SDK route and do not read pilotSettings.
+  // Status failures therefore still advertise waitlist while posting stays CLOSED.
   return {
     homeownerPosting,
     canPost: homeownerPosting === OPERATIONAL_STATES.OPEN,

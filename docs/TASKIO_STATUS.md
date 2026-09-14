@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 14 September 2026 (Admin Slice 5C local — operational state wired to homeowner posting)
+**Last updated:** 14 September 2026 (Slice 5C pre-push — OPEN public homeowner access + waitlist hardening, local)
 
 ## Active scope
 
@@ -51,7 +51,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
-| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Posting follows persisted operational state locally: **OPEN** allows supported homeowner jobs; **CLOSED** / **PAUSED** block new posts and use the waitlist path. Existing jobs continue in all three states. Still **not deployed**. Activation still requires ~15 launch-ready + category/geo coverage + other real-user gates + explicit owner OPEN. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1–5C Admin data/cockpit/attention/marketplace metrics/Pilot Status/operational state + posting wire-up implemented locally. P06 **OPEN**. P09 blocked. Incomplete scans must not prove supply-ready or “all clear”. | — |
+| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. **OPEN:** public supported homeowner signup/posting, no manual homeowner invitation, normal auth still required, Experts remain gated. **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue. Local code only; **not deployed**. Activation still requires ~15 launch-ready + category/geo coverage + other real-user gates + explicit owner OPEN. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1–5C implemented locally. Production Auth `disabledUserSignup` still blocks new Firebase users until a separate ops change. P06 **OPEN**. P09 blocked. Incomplete scans must not prove supply-ready or “all clear”. | — |
 
 Mandatory remaining before controlled launch: P06, P07, P08, P09, P10, plus P03/P04/P05 **production** PASS.
 

@@ -1,8 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PublicPageHeader from '../components/PublicPageHeader';
-import InviteOnlyNotice from '../components/InviteOnlyNotice';
-import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
+import { isExpertPublicSignupEnabled } from '../config/publicAcquisitionConfig';
 import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
 import { resolveHomeownerPosting } from '../utils/homeownerPostingEntry';
 import { ArrowRight, Briefcase, Home } from 'lucide-react';
@@ -101,37 +100,39 @@ const styles = {
 };
 
 export default function GetStartedPage() {
-  const publicAcquisition = isPublicAcquisitionEnabled();
+  const expertPublicSignup = isExpertPublicSignupEnabled();
   const posting = resolveHomeownerPosting(usePublicPilotStatus());
 
   return (
     <div style={styles.page}>
       <PublicPageHeader homeTo="/" />
       <main style={styles.container}>
-        {publicAcquisition ? (
-          <div style={styles.card}>
-            <div style={styles.headerBlock}>
-              <h1 style={styles.title}>Get started with Taskio</h1>
-              <p style={styles.subtitle}>Choose how you want to use Taskio today.</p>
-            </div>
+        <div style={styles.card}>
+          <div style={styles.headerBlock}>
+            <h1 style={styles.title}>Get started with Taskio</h1>
+            <p style={styles.subtitle}>
+              Homeowners follow the Melbourne pilot posting state. Experts stay invited and verified.
+            </p>
+          </div>
 
-            <div style={styles.options}>
-              <Link to={posting.path} style={styles.optionCard}>
-                <div style={styles.optionIcon}>
-                  <Home size={20} />
-                </div>
-                <h2 style={styles.optionTitle}>{posting.label}</h2>
-                <p style={styles.optionCopy}>
-                  {posting.canPost
-                    ? 'Get quotes for a small indoor job and create your account along the way.'
-                    : 'Register interest and we will let you know when homeowner posting opens.'}
-                </p>
-                <span style={styles.optionAction}>
-                  Continue
-                  <ArrowRight size={16} />
-                </span>
-              </Link>
+          <div style={styles.options}>
+            <Link to={posting.path} style={styles.optionCard}>
+              <div style={styles.optionIcon}>
+                <Home size={20} />
+              </div>
+              <h2 style={styles.optionTitle}>{posting.label}</h2>
+              <p style={styles.optionCopy}>
+                {posting.canPost
+                  ? 'Create a homeowner account with phone verification and post a supported indoor job. No invitation is required.'
+                  : 'Register interest and we will let you know when homeowner posting opens.'}
+              </p>
+              <span style={styles.optionAction}>
+                Continue
+                <ArrowRight size={16} />
+              </span>
+            </Link>
 
+            {expertPublicSignup ? (
               <Link to="/tradie/signup" style={styles.optionCard}>
                 <div style={styles.optionIcon}>
                   <Briefcase size={20} />
@@ -143,18 +144,26 @@ export default function GetStartedPage() {
                   <ArrowRight size={16} />
                 </span>
               </Link>
-            </div>
-
-            <div style={styles.footer}>
-              Already have an account? <Link to="/login" style={styles.footerLink}>Log in</Link>
-            </div>
+            ) : (
+              <div style={styles.optionCard} aria-label="Expert access is invite-only">
+                <div style={styles.optionIcon}>
+                  <Briefcase size={20} />
+                </div>
+                <h2 style={styles.optionTitle}>Become an Expert</h2>
+                <p style={styles.optionCopy}>
+                  Taskio onboards founding Experts manually. If you already have an invited account, log in.
+                </p>
+                <span style={styles.optionAction}>
+                  Invite-only
+                </span>
+              </div>
+            )}
           </div>
-        ) : (
-          <InviteOnlyNotice
-            title="Taskio is invite-only right now"
-            description="If Taskio invited you as a Client or Expert, log in with that account. Public signup is closed for this private Melbourne launch."
-          />
-        )}
+
+          <div style={styles.footer}>
+            Already have an account? <Link to="/login" style={styles.footerLink}>Log in</Link>
+          </div>
+        </div>
       </main>
     </div>
   );

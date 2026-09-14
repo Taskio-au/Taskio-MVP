@@ -35,6 +35,7 @@ describe('WaitlistPage', () => {
       email: 'homeowner@example.com',
       suburb: '',
       source: 'waitlist',
+      consentAccepted: true,
     }));
     expect(await screen.findByText(/we'll be in touch/i)).toBeInTheDocument();
   });

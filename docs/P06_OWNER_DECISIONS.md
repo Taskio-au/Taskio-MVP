@@ -2,7 +2,7 @@
 
 **Status (this document):** PREPARED — owner facts recorded 9 September 2026; lean alignment 12 September 2026; **Controlled Open-Demand Pilot + posting gate 13 September 2026**. Not solicitor-approved, not legal advice, not P06 PASS.
 
-**INTERNAL MODEL NAME:** Controlled Open-Demand Pilot. Admin design: `docs/PILOT_OPERATIONS_COCKPIT.md` (audit/design only; not implemented).
+**INTERNAL MODEL NAME:** Controlled Open-Demand Pilot. Admin cockpit: `docs/PILOT_OPERATIONS_COCKPIT.md` (Slices 1–5C local code, not deployed; this pack is still not P06 PASS).
 
 | Classification | State |
 |---|---|
@@ -21,7 +21,14 @@
 
 P09 remains **blocked** until P06 PASS. Do not treat Slice 5C waitlist email collection as privacy-complete.
 
-**P06 review item (Slice 5C, local, not deployed):** `POST /api/pilot-waitlist` stores email, optional suburb, source, and server timestamp in `pilotWaitlist` via Admin SDK. Client Firestore access is denied. Consent is a UI gate only. This is a new personal-data flow and must be reviewed before any deploy. It does **not** change P06 from OPEN and does **not** unblock P09.
+**P06 review item (Slice 5C, local, not deployed):** `POST /api/pilot-waitlist` stores `email`, optional `suburb`, `source`, `createdAt`, `updatedAt`, `consentVersion` (`pilot-waitlist-contact-v1`), and `consentAcceptedAt` (server timestamp) in `pilotWaitlist` via Admin SDK. Client Firestore access is denied. The checkbox means Taskio may contact the person about Melbourne-pilot availability — not a marketing-consent or Privacy Act sufficiency claim. This is a new personal-data flow and must be reviewed before any deploy. It does **not** change P06 from OPEN and does **not** unblock P09.
+
+**Canonical activation semantics (local product code; not deployed; P06 still OPEN):**
+
+- **OPEN:** public supported homeowner signup/posting; no manual homeowner invitation; normal authentication still required; Experts remain gated/verified.
+- **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest used for demand; existing login still works.
+
+Homeowner posting authority is persisted operational state only. `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is Expert self-signup UX. `TASKIO_PUBLIC_SIGNUP_ENABLED` is the Expert/production enrollment kill switch. Production Identity Toolkit `disabledUserSignup` is a separate cloud setting and was **not** changed in this slice.
 
 This pack records **owner-confirmed working facts**, **lean validation working positions**, and **open professional questions**. It does **not** make Privacy Act conclusions, rewrite Terms or Privacy Policy, invent a company, or treat Pty Ltd incorporation or broad insurance spend as automatic launch blockers.
 
@@ -281,7 +288,7 @@ Each item is something the owner can choose as **business intent**. Solicitor co
 |---|---|
 | Status | **OWNER CONFIRMED WORKING POSITION** + **AU SOLICITOR CONFIRMATION REQUIRED** before real users |
 | Question | May the Controlled Open-Demand Pilot (posting closed until supply gate + explicit activation) proceed under the current sole-trader structure? |
-| Current repo/product position | Draft legal pages do not name an entity. **Current product** is still invite-only Inner Melbourne Phase 1. Intended model is Controlled Open-Demand (not implemented). |
+| Current repo/product position | Draft legal pages do not name an entity. **Local code** now implements Controlled Open-Demand operational states (CLOSED waitlist / OPEN public supported homeowner posting, Experts still invited). **Not deployed.** Staging/production remain invite-closed until a separate launch batch. |
 | Recommended working business position | Owner prefers to **validate first** as **Saeed Zafari trading as Taskio** (individual / sole trader; ABN 15 729 254 373; no ACN) to avoid unnecessary pre-revenue company/accounting/compliance cost. **Pty Ltd is not automatically required by this tracker before the controlled pilot.** If the solicitor advises incorporation is required or materially preferable before pilot launch, address it **before P10/P11**. A sole trader does **not** have limited liability. |
 | Owner must supply/choose | **Recorded.** See §5–§6. |
 | Solicitor must confirm | Whether the limited pilot may reasonably proceed as a sole trader given marketplace activity, physical household work, Stripe Connect, refund/dispute exposure, ACL, and property-damage / personal-injury risk; how to disclose identity/ABN; public address without publishing a home street address. |

@@ -43,12 +43,23 @@ jest.mock('../src/firebaseAdmin', () => ({
           const existing = mockGetCollectionStore(name).get(id);
           return { exists: !!existing, data: () => mockClone(existing) };
         }),
+        set: jest.fn(async (payload, options = {}) => {
+          const existing = mockGetCollectionStore(name).get(id) || {};
+          const next = options.merge ? { ...existing, ...mockClone(payload) } : mockClone(payload);
+          mockGetCollectionStore(name).set(id, { id, ...next });
+        }),
       })),
     })),
   },
 }));
 
 const publicPilotStatusRoutes = require('../src/routes/publicPilotStatus');
+const {
+  CONSENT_VERSION,
+  EMAIL_MAX,
+  SUBURB_MAX,
+  waitlistDocId,
+} = require('../src/services/pilotWaitlistService');
 
 function buildApp() {
   const app = express();
@@ -112,19 +123,111 @@ describe('public pilot status and waitlist', () => {
   it('accepts a minimal waitlist email without opening posting', async () => {
     const res = await request(app)
       .post('/api/pilot-waitlist')
-      .send({ email: '  Homeowner@Example.com ', suburb: 'Richmond', source: 'landing' });
-    expect(res.status).toBe(201);
-    expect(res.body).toEqual({ ok: true });
-    const rows = Array.from(mockGetCollectionStore('pilotWaitlist').values());
-    expect(rows).toHaveLength(1);
-    expect(rows[0].email).toBe('homeowner@example.com');
-    expect(rows[0].suburb).toBe('Richmond');
+      .send({
+        email: '  Homeowner@Example.com ',
+        suburb: 'Richmond',
+        source: 'landing',
+        consentAccepted: true,
+        role: 'admin',
+        createdAt: 'client-supplied',
+        status: 'OPEN',
+      });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, message: "You're on the waitlist." });
+    const id = waitlistDocId('homeowner@example.com');
+    const stored = mockGetCollectionStore('pilotWaitlist').get(id);
+    expect(stored).toEqual(expect.objectContaining({
+      email: 'homeowner@example.com',
+      suburb: 'Richmond',
+      source: 'landing',
+      consentVersion: CONSENT_VERSION,
+      consentAcceptedAt: '__server_ts__',
+      createdAt: '__server_ts__',
+      updatedAt: '__server_ts__',
+    }));
+    expect(stored.role).toBeUndefined();
+    expect(stored.status).toBeUndefined();
+    expect(stored.createdAt).toBe('__server_ts__');
     expect(mockGetCollectionStore('system').size).toBe(0);
   });
 
   it('rejects an invalid waitlist email', async () => {
-    const res = await request(app).post('/api/pilot-waitlist').send({ email: 'not-an-email' });
+    const res = await request(app)
+      .post('/api/pilot-waitlist')
+      .send({ email: 'not-an-email', consentAccepted: true });
     expect(res.status).toBe(400);
     expect(mockGetCollectionStore('pilotWaitlist').size).toBe(0);
+  });
+
+  it('rejects an overlong waitlist email', async () => {
+    const res = await request(app)
+      .post('/api/pilot-waitlist')
+      .send({ email: `${'a'.repeat(EMAIL_MAX)}@x.io`, consentAccepted: true });
+    expect(res.status).toBe(400);
+    expect(mockGetCollectionStore('pilotWaitlist').size).toBe(0);
+  });
+
+  it('requires waitlist contact consent', async () => {
+    const res = await request(app)
+      .post('/api/pilot-waitlist')
+      .send({ email: 'homeowner@example.com', consentAccepted: false });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/contact you about the melbourne pilot/i);
+    expect(mockGetCollectionStore('pilotWaitlist').size).toBe(0);
+  });
+
+  it('bounds suburb, maps unknown source, and upserts duplicates without enumeration', async () => {
+    const longSuburb = `Richmond ${'x'.repeat(200)}`;
+    const first = await request(app)
+      .post('/api/pilot-waitlist')
+      .send({
+        email: '  Repeat@Example.com ',
+        suburb: longSuburb,
+        source: 'not-a-source',
+        consentAccepted: true,
+      });
+    expect(first.status).toBe(200);
+    expect(first.body).toEqual({ ok: true, message: "You're on the waitlist." });
+    const id = waitlistDocId('repeat@example.com');
+    expect(mockGetCollectionStore('pilotWaitlist').get(id).suburb).toHaveLength(SUBURB_MAX);
+    expect(mockGetCollectionStore('pilotWaitlist').get(id).source).toBe('waitlist');
+
+    const second = await request(app)
+      .post('/api/pilot-waitlist')
+      .send({
+        email: 'repeat@example.com',
+        suburb: 'South Yarra',
+        source: 'post-job',
+        consentAccepted: true,
+      });
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(first.body);
+    expect(JSON.stringify(second.body)).not.toMatch(/already|exists|registered/i);
+
+    const rows = Array.from(mockGetCollectionStore('pilotWaitlist').values());
+    expect(rows).toHaveLength(1);
+    expect(rows[0].email).toBe('repeat@example.com');
+    expect(rows[0].suburb).toBe('South Yarra');
+    expect(rows[0].source).toBe('post-job');
+    expect(rows[0].createdAt).toBe('__server_ts__');
+    expect(rows[0].updatedAt).toBe('__server_ts__');
+  });
+
+  it('rate-limits waitlist writes', async () => {
+    let okCount = 0;
+    let limited = false;
+    for (let i = 0; i < 40; i += 1) {
+      const res = await request(app)
+        .post('/api/pilot-waitlist')
+        .send({ email: `ratelimit${i}@example.com`, consentAccepted: true });
+      if (res.status === 200) okCount += 1;
+      if (res.status === 429) {
+        limited = true;
+        expect(res.body.message).toMatch(/too many waitlist requests/i);
+        break;
+      }
+    }
+    expect(okCount).toBeGreaterThan(0);
+    expect(limited).toBe(true);
   });
 });

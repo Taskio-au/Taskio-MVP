@@ -5,6 +5,10 @@ export const FAILED_CLOSED_STATUS = Object.freeze({
   canPost: false,
   waitlistAvailable: true,
 });
+// Status load failure fail-closes posting. Waitlist stays advertised because
+// POST /api/pilot-waitlist is a separate self-contained route; a settings-read
+// failure does not mean waitlist writes are unavailable. If the whole API is
+// down, the waitlist form still fails safely on submit.
 
 let defaultApi;
 
