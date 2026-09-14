@@ -167,10 +167,23 @@ describe('public pilot status and waitlist', () => {
     expect(mockGetCollectionStore('pilotWaitlist').size).toBe(0);
   });
 
-  it('requires waitlist contact consent', async () => {
-    const res = await request(app)
+  it('accepts waitlist contact consent only as boolean true', async () => {
+    const accepted = await request(app)
       .post('/api/pilot-waitlist')
-      .send({ email: 'homeowner@example.com', consentAccepted: false });
+      .send({ email: 'homeowner@example.com', consentAccepted: true });
+    expect(accepted.status).toBe(200);
+    expect(accepted.body).toEqual({ ok: true, message: "You're on the waitlist." });
+    const stored = mockGetCollectionStore('pilotWaitlist').get(waitlistDocId('homeowner@example.com'));
+    expect(stored.consentVersion).toBe(CONSENT_VERSION);
+    expect(stored.consentAcceptedAt).toBe('__server_ts__');
+  });
+
+  it.each([
+    ['missing', { email: 'homeowner@example.com' }],
+    ['false', { email: 'homeowner@example.com', consentAccepted: false }],
+    ['string true', { email: 'homeowner@example.com', consentAccepted: 'true' }],
+  ])('rejects waitlist writes when consentAccepted is %s', async (_label, body) => {
+    const res = await request(app).post('/api/pilot-waitlist').send(body);
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/contact you about the melbourne pilot/i);
     expect(mockGetCollectionStore('pilotWaitlist').size).toBe(0);
@@ -191,6 +204,7 @@ describe('public pilot status and waitlist', () => {
     const id = waitlistDocId('repeat@example.com');
     expect(mockGetCollectionStore('pilotWaitlist').get(id).suburb).toHaveLength(SUBURB_MAX);
     expect(mockGetCollectionStore('pilotWaitlist').get(id).source).toBe('waitlist');
+    mockGetCollectionStore('pilotWaitlist').get(id).consentAcceptedAt = 'first-consent-ts';
 
     const second = await request(app)
       .post('/api/pilot-waitlist')
@@ -211,6 +225,8 @@ describe('public pilot status and waitlist', () => {
     expect(rows[0].source).toBe('post-job');
     expect(rows[0].createdAt).toBe('__server_ts__');
     expect(rows[0].updatedAt).toBe('__server_ts__');
+    expect(rows[0].consentVersion).toBe(CONSENT_VERSION);
+    expect(rows[0].consentAcceptedAt).toBe('first-consent-ts');
   });
 
   it('rate-limits waitlist writes', async () => {

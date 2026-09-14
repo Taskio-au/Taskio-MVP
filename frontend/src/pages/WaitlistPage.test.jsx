@@ -23,12 +23,18 @@ describe('WaitlistPage', () => {
     mockPost.mockReset();
   });
 
-  it('requires consent and submits email to the existing waitlist endpoint', async () => {
-    mockPost.mockResolvedValue({ data: { ok: true } });
+  it('does not submit when contact consent is unchecked', () => {
     render(<WaitlistPage />);
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: 'homeowner@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: /join waitlist/i }));
     expect(mockPost).not.toHaveBeenCalled();
+    expect(screen.getByText(/confirm we can contact you about the melbourne pilot/i)).toBeInTheDocument();
+  });
+
+  it('submits email with explicit consentAccepted true after the checkbox is checked', async () => {
+    mockPost.mockResolvedValue({ data: { ok: true } });
+    render(<WaitlistPage />);
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: 'homeowner@example.com' } });
     fireEvent.click(screen.getByLabelText(/i agree to be contacted/i));
     fireEvent.click(screen.getByRole('button', { name: /join waitlist/i }));
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/api/pilot-waitlist', {

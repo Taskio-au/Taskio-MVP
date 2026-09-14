@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 14 September 2026 (Slice 5C pre-push — OPEN public homeowner access + waitlist hardening, local)
+**Last updated:** 14 September 2026 (Slice 5C final pre-push — waitlist consent contract + Auth launch prerequisite, local)
 
 ## Active scope
 
@@ -47,11 +47,11 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **NOT STARTED**. Not PASS. | **Yes — current pickup** |
-| P07 | **NOT STARTED** | **Yes** |
+| P07 | **NOT STARTED** — includes production Auth configuration for the approved homeowner signup path. Current cloud `disabledUserSignup=true` blocks brand-new Firebase users. P07 cannot PASS public OPEN while that remains. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
-| P10 | **NOT STARTED** | **Yes** |
-| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. **OPEN:** public supported homeowner signup/posting, no manual homeowner invitation, normal auth still required, Experts remain gated. **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue. Local code only; **not deployed**. Activation still requires ~15 launch-ready + category/geo coverage + other real-user gates + explicit owner OPEN. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1–5C implemented locally. Production Auth `disabledUserSignup` still blocks new Firebase users until a separate ops change. P06 **OPEN**. P09 blocked. Incomplete scans must not prove supply-ready or “all clear”. | — |
+| P10 | **NOT STARTED** — must prove a brand-new homeowner can authenticate and post. Existing invited/synthetic users are not enough for public OPEN. | **Yes** |
+| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. **OPEN (code):** public supported homeowner signup/posting, no manual homeowner invitation, normal auth still required, Experts remain gated. **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue. Local code only; **not deployed**. Current cloud `disabledUserSignup=true` means staging/production are not ready for brand-new public homeowner acquisition. P07 must configure/prove Auth; P10 must E2E a brand-new homeowner. Activation still requires ~15 launch-ready + category/geo coverage + other real-user gates + explicit owner OPEN. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1–5C implemented locally. P06 **OPEN**. P09 blocked. Incomplete scans must not prove supply-ready or “all clear”. | — |
 
 Mandatory remaining before controlled launch: P06, P07, P08, P09, P10, plus P03/P04/P05 **production** PASS.
 

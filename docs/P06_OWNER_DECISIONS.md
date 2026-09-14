@@ -21,14 +21,14 @@
 
 P09 remains **blocked** until P06 PASS. Do not treat Slice 5C waitlist email collection as privacy-complete.
 
-**P06 review item (Slice 5C, local, not deployed):** `POST /api/pilot-waitlist` stores `email`, optional `suburb`, `source`, `createdAt`, `updatedAt`, `consentVersion` (`pilot-waitlist-contact-v1`), and `consentAcceptedAt` (server timestamp) in `pilotWaitlist` via Admin SDK. Client Firestore access is denied. The checkbox means Taskio may contact the person about Melbourne-pilot availability — not a marketing-consent or Privacy Act sufficiency claim. This is a new personal-data flow and must be reviewed before any deploy. It does **not** change P06 from OPEN and does **not** unblock P09.
+**P06 review item (Slice 5C, local, not deployed):** `POST /api/pilot-waitlist` is a public write. The backend accepts a record only when `consentAccepted === true` (strict boolean; `"true"` / `1` / missing / false are rejected). After that, it stores `email`, optional `suburb`, `source`, `createdAt`, `updatedAt`, `consentVersion` (`pilot-waitlist-contact-v1`), and `consentAcceptedAt` (server timestamp) in `pilotWaitlist` via Admin SDK. Duplicate normalized emails upsert without creating a second doc and without weakening prior consent evidence. Client Firestore access is denied. The checkbox/API flag means Taskio may contact the person about Melbourne-pilot availability — **not** marketing opt-in, promotional consent, Privacy Act compliance, or legal completion. This is a new personal-data flow and must be reviewed before any deploy. It does **not** change P06 from OPEN and does **not** unblock P09.
 
 **Canonical activation semantics (local product code; not deployed; P06 still OPEN):**
 
 - **OPEN:** public supported homeowner signup/posting; no manual homeowner invitation; normal authentication still required; Experts remain gated/verified.
 - **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest used for demand; existing login still works.
 
-Homeowner posting authority is persisted operational state only. `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is Expert self-signup UX. `TASKIO_PUBLIC_SIGNUP_ENABLED` is the Expert/production enrollment kill switch. Production Identity Toolkit `disabledUserSignup` is a separate cloud setting and was **not** changed in this slice.
+Homeowner posting authority is persisted operational state only. `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is Expert self-signup UX. `TASKIO_PUBLIC_SIGNUP_ENABLED` is the Expert/production enrollment kill switch. Production Identity Toolkit `disabledUserSignup=true` is a separate cloud setting and was **not** changed in this slice. Enabling Auth user creation later must not open Expert enrollment. P07 must prove production Auth permits the approved homeowner signup path before READY TO OPEN; P10 must prove a brand-new homeowner can authenticate and post.
 
 This pack records **owner-confirmed working facts**, **lean validation working positions**, and **open professional questions**. It does **not** make Privacy Act conclusions, rewrite Terms or Privacy Policy, invent a company, or treat Pty Ltd incorporation or broad insurance spend as automatic launch blockers.
 

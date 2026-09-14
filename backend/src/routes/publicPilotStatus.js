@@ -47,7 +47,8 @@ router.get('/api/pilot-status', publicPilotLimiter, async (_req, res) => {
 
 /**
  * POST /api/pilot-waitlist
- * Minimal interest email. Does not open posting or change operational state.
+ * Minimal interest email. Requires consentAccepted === true on the request.
+ * Does not open posting or change operational state.
  */
 router.post('/api/pilot-waitlist', waitlistLimiter, async (req, res) => {
   try {

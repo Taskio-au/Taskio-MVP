@@ -13,7 +13,14 @@ This is the product-launch overlay on top of the existing P01–P06 technical ga
 - **OPEN:** public supported homeowner signup and posting; **no** manual homeowner invitation; normal authentication still required; Experts remain gated/verified.
 - **CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue.
 
-`REACT_APP_PUBLIC_ACQUISITION_ENABLED` is Expert self-signup UX only and must not override OPEN. Still **not deployed**. Do not create the settings document in staging or production without a separate approval. Production Identity Toolkit `disabledUserSignup` still blocks new Firebase Auth users until a separate approved ops change.
+`REACT_APP_PUBLIC_ACQUISITION_ENABLED` is Expert self-signup UX only and must not override OPEN. Still **not deployed**. Do not create the settings document in staging or production without a separate approval.
+
+**Code vs current cloud Auth (do not confuse):**
+
+- **Code semantics when OPEN:** no manual homeowner invitation; normal homeowner auth/signup; supported posting permitted. Experts remain separately gated.
+- **Current staging/production Identity Toolkit:** `disabledUserSignup=true`. Brand-new Firebase Auth users cannot be created there today. Local tests mock auth. This slice does **not** change that cloud setting.
+- That cloud constraint is acceptable while Pilot Status is **NOT READY** and nothing is deployed/opened.
+- Production must **never** be marked **READY TO OPEN** / **P07 PASS** until the production Firebase Auth configuration permits the approved homeowner authentication/signup path, and **P10** has proven a brand-new homeowner can authenticate and post. Public `GET /api/pilot-status` must not probe this cloud setting; operational OPEN remains the posting authority.
 
 Companion records:
 
@@ -188,6 +195,13 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 - No unresolved high/critical launch blockers.
 - See `docs/SECURITY_COMPLIANCE_REVIEW.md`.
 
+**I. Production authentication / homeowner signup configuration**
+
+- Production Identity Toolkit must permit the **approved homeowner** authentication/signup path (currently phone OTP during post-a-task). Existing-account login is not enough for public OPEN.
+- Current staging/production fact: `disabledUserSignup=true`. That blocks brand-new Firebase Auth users. Do **not** mark P07 PASS, and do **not** mark production READY TO OPEN, until this is resolved by a separate approved ops change **and** evidenced.
+- Enabling Firebase Auth user creation for homeowners must **not** open Expert enrollment. Expert self-signup remains application-gated: frontend Expert UX flag + backend `TASKIO_PUBLIC_SIGNUP_ENABLED` / `requirePublicSignupEnabled` + Admin verification.
+- Do not probe Identity Toolkit from `GET /api/pilot-status`. This is a launch-readiness / acceptance prerequisite, not a per-request public-status check.
+
 ### Evidence required
 
 - Written audit results with redacted identifiers only.
@@ -196,7 +210,7 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 
 ### Exit criteria
 
-**P07 PASS** only when production security/configuration is independently validated and no critical/high launch blocker remains. Defining this gate does not perform that validation.
+**P07 PASS** only when production security/configuration is independently validated, including the approved homeowner Auth signup path, and no critical/high launch blocker remains. Defining this gate does not perform that validation.
 
 ---
 
@@ -336,7 +350,9 @@ Verify analytics, email, logs, profile data, retention, support uploads, and job
 
 **A. Core happy path (controlled, owner-approved, real money)**
 
-Invite/enrol controlled homeowner → controlled Expert → create task → admin invite → submit quote → accept quote → live Stripe payment → secured payment state → Expert marks complete → homeowner approves → Stripe transfer → connected-account bank payout → transactional emails → review.
+A **brand-new** homeowner authenticates through the supported signup path and posts a supported task → controlled Expert → create task → admin invite → submit quote → accept quote → live Stripe payment → secured payment state → Expert marks complete → homeowner approves → Stripe transfer → connected-account bank payout → transactional emails → review.
+
+Existing synthetic / previously invited homeowners are **not** sufficient proof for public OPEN. P10 cannot PASS public homeowner acquisition while production Auth still has `disabledUserSignup=true`. Enabling Auth signup for that proof must not open Expert self-signup.
 
 **B. Refund path**
 
@@ -374,7 +390,7 @@ A repeatable checklist for every future release.
 
 ### Exit criteria
 
-**P10 PASS** only when the actual production environment has proven the complete money loop and critical failure paths.
+**P10 PASS** only when the actual production environment has proven the complete money loop, a brand-new homeowner auth+post path, and critical failure paths.
 
 ---
 

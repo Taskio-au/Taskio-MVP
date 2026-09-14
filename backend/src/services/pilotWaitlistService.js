@@ -46,6 +46,10 @@ function publicWaitlistSuccess() {
   return { ok: true, message: "You're on the waitlist." };
 }
 
+function isExplicitWaitlistConsent(value) {
+  return value === true;
+}
+
 async function addPilotWaitlistSignup(db, { email, suburb, source, consentAccepted } = {}) {
   const normalizedEmail = normalizeWaitlistEmail(email);
   if (!normalizedEmail) {
@@ -55,7 +59,9 @@ async function addPilotWaitlistSignup(db, { email, suburb, source, consentAccept
       error: { message: 'Please enter a valid email address.' },
     };
   }
-  if (consentAccepted !== true) {
+  // Strict boolean true only. "true", 1, "yes", missing, and false are rejected.
+  // Contact-about-pilot-availability only — not marketing or privacy-complete.
+  if (!isExplicitWaitlistConsent(consentAccepted)) {
     return {
       ok: false,
       status: 400,
@@ -70,6 +76,7 @@ async function addPilotWaitlistSignup(db, { email, suburb, source, consentAccept
   const nextSource = normalizeWaitlistSource(source);
 
   if (snap.exists) {
+    // Idempotent upsert. Do not rewrite or weaken prior consent evidence.
     await ref.set({
       suburb: nextSuburb || String((snap.data() || {}).suburb || ''),
       source: nextSource,
@@ -101,5 +108,6 @@ module.exports = {
   normalizeWaitlistSource,
   waitlistDocId,
   publicWaitlistSuccess,
+  isExplicitWaitlistConsent,
   addPilotWaitlistSignup,
 };
