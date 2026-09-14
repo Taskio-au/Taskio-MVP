@@ -125,4 +125,17 @@ describe('computeLaunchReadiness', () => {
       else process.env.STRIPE_ENABLED = prev;
     }
   });
+
+  it('is not launch-ready from self-selected expertise without Taskio approval', () => {
+    const result = computeLaunchReadiness({
+      decodedToken: token,
+      userDoc: eligibleExpert({
+        expertise: ['mounting_tv'],
+        expertiseApproved: [],
+      }),
+    });
+    expect(result.launchReady).toBe(false);
+    expect(result.technicallyEligible).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+  });
 });

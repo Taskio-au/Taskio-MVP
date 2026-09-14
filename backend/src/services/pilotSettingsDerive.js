@@ -187,6 +187,7 @@ function evaluateTransition(fromEffective, nextState) {
 }
 
 function buildSettingsWrite({ from, to, reason, actorUid, version }) {
+  // Homeowner-only fields. Must merge; never include expertOnboardingMode.
   const payload = {
     state: to,
     previousState: from,
@@ -216,6 +217,7 @@ function evaluateExpertOnboardingChange(fromEffective, nextMode) {
 }
 
 function buildExpertOnboardingWrite({ from, to, reason, actorUid, version }) {
+  // Expert-only fields. Must merge; never include homeowner state.
   return {
     expertOnboardingMode: to,
     previousExpertOnboardingMode: from,

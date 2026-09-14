@@ -181,9 +181,11 @@ export default function ProfilePage() {
           setSavedBio(bio);
         }
         {
-          const approved = Array.isArray(p.expertiseApproved) ? p.expertiseApproved : [];
-          setDraftExpertiseApproved(approved);
-          setSavedExpertiseApproved(approved);
+          const requested = Array.isArray(p.expertise)
+            ? p.expertise
+            : (Array.isArray(p.expertiseApproved) ? p.expertiseApproved : []);
+          setDraftExpertiseApproved(requested);
+          setSavedExpertiseApproved(requested);
         }
         {
           const loc = p.serviceLocation && typeof p.serviceLocation === 'object' ? p.serviceLocation : null;
@@ -233,9 +235,11 @@ export default function ProfilePage() {
             setSavedBio(bio);
           }
           {
-            const approved = Array.isArray(data.expertiseApproved) ? data.expertiseApproved : [];
-            setDraftExpertiseApproved(approved);
-            setSavedExpertiseApproved(approved);
+            const requested = Array.isArray(data.expertise)
+              ? data.expertise
+              : (Array.isArray(data.expertiseApproved) ? data.expertiseApproved : []);
+            setDraftExpertiseApproved(requested);
+            setSavedExpertiseApproved(requested);
           }
           {
             const loc = data.serviceLocation && typeof data.serviceLocation === 'object' ? data.serviceLocation : null;
@@ -525,14 +529,16 @@ export default function ProfilePage() {
       if (add.length > 0 || remove.length > 0) {
         try {
           const res = await api.put('/api/tradie/expertise', { add, remove }, config);
-          const savedList = Array.isArray(res?.data?.expertiseApproved) ? res.data.expertiseApproved : next;
+          const savedRequested = Array.isArray(res?.data?.expertise) ? res.data.expertise : next;
+          const savedApproved = Array.isArray(res?.data?.expertiseApproved) ? res.data.expertiseApproved : [];
           const profileCompletedFromExpertise =
             typeof res?.data?.profileCompleted === 'boolean' ? res.data.profileCompleted : undefined;
-          setSavedExpertiseApproved(savedList);
-          setDraftExpertiseApproved(savedList);
+          setSavedExpertiseApproved(savedRequested);
+          setDraftExpertiseApproved(savedRequested);
           setProfile((prev) => ({
             ...(prev || {}),
-            expertiseApproved: savedList,
+            expertise: savedRequested,
+            expertiseApproved: savedApproved,
             ...(profileCompletedFromExpertise !== undefined ? { profileCompleted: profileCompletedFromExpertise } : {}),
           }));
         } catch (e) {

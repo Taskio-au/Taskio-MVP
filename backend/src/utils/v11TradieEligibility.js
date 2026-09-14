@@ -9,7 +9,8 @@
  * - user.abnVerified === true
  * - user.stripe.onboardingComplete === true when Stripe is enabled
  *   (this requirement is skipped while STRIPE_ENABLED is not exactly "true")
- * - user.profileCompleted === true (stored or derived)
+ * - user.profileCompleted === true (stored or derived; requested expertise may complete profile)
+ * - at least one Taskio-approved Phase 1 category (`expertiseApproved`)
  * - auth email_verified === true (recommended; appears in the dashboard checklist)
  *
  * Frontend should treat these as UX hints only; backend enforces.
@@ -17,6 +18,10 @@
 
 const { isStripeEnabled } = require('../config/stripeEnabled');
 const { hasVerifiedPhone } = require('./verifiedPhone');
+const {
+  hasApprovedMarketplaceExpertise,
+  readRequestedExpertise,
+} = require('./expertExpertise');
 
 function normalizeStatus(s) {
   const v = String(s || '').toLowerCase();
@@ -103,7 +108,7 @@ function isAbnRequirementSatisfied(userDoc) {
  * @param {object} [decodedToken] - Firebase ID token payload (optional); `name` fills identity when doc names are empty
  */
 function computeProfileCompleted(userDoc, decodedToken) {
-  // Phase 1: identity display + businessName + bio + expertiseApproved + photoURL
+  // Phase 1: identity display + businessName + bio + requested expertise + photoURL
   const dn = String(userDoc?.displayName || userDoc?.name || userDoc?.fullName || '').trim();
   const fn = String(userDoc?.firstName || '').trim();
   const ln = String(userDoc?.lastName || '').trim();
@@ -115,8 +120,7 @@ function computeProfileCompleted(userDoc, decodedToken) {
   const businessNameOk = !businessNameRequired || hasMinText(userDoc?.businessName, 2);
   const bioOk = hasMinText(userDoc?.bio, 20);
   const photoOk = hasMinText(userDoc?.photoURL || userDoc?.profilePhotoURL, 10);
-  const expertise = userDoc?.expertiseApproved;
-  const expertiseOk = Array.isArray(expertise) ? expertise.length > 0 : false;
+  const expertiseOk = readRequestedExpertise(userDoc).length > 0;
   return displayNameOk && businessNameOk && bioOk && photoOk && expertiseOk;
 }
 
@@ -182,6 +186,7 @@ function computeEligibility({ decodedToken, userDoc }) {
   if (checklist.abnRequired && !checklist.abnVerified) reasons.push('ABN_NOT_VERIFIED');
   if (isStripeEnabled() && !checklist.stripeOnboardingComplete) reasons.push('STRIPE_NOT_COMPLETE');
   if (!checklist.profileCompleted) reasons.push('PROFILE_INCOMPLETE');
+  if (!hasApprovedMarketplaceExpertise(userDoc)) reasons.push('EXPERTISE_NOT_APPROVED');
   if (!checklist.serviceLocationPresent) reasons.push('SERVICE_LOCATION_MISSING');
   if (!checklist.businessTypeSet) reasons.push('BUSINESS_TYPE_MISSING');
   if (!checklist.dobPresent) reasons.push('DOB_MISSING');

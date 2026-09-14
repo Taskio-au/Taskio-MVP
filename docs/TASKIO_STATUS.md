@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 14 September 2026 (controlled public Expert onboarding mode, local)
+**Last updated:** 14 September 2026 (Expert requested vs approved categories, local)
 
 ## Active scope
 

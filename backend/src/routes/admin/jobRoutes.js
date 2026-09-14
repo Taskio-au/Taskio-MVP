@@ -32,6 +32,7 @@ const {
   allocateCheckoutGeneration,
 } = require('../../services/stripeIdempotency');
 const { toHostedCheckoutPayload, isHostedCheckoutUrlError } = require('../../utils/stripeHostedCheckoutUrl');
+const { expertMatchesJobCategory, hasApprovedMarketplaceExpertise } = require('../../utils/expertExpertise');
 
 const router = express.Router();
 
@@ -259,12 +260,20 @@ router.post('/api/admin/jobs/:jobId/assign', requireAuth, requireAdmin, async (r
     if (tradieData.role !== 'tradie') return res.status(400).send({ message: 'User is not an expert.' });
     if (tradieData.verified !== true) return res.status(400).send({ message: 'Task expert is not verified.' });
     if (tradieData.status !== 'active') return res.status(400).send({ message: 'Task expert is not active.' });
+    if (!hasApprovedMarketplaceExpertise(tradieData)) {
+      return res.status(400).send({ message: 'Task expert does not have Taskio-approved expertise.' });
+    }
 
     const jobRef = db.collection('jobs').doc(jobId);
     const jobDoc = await jobRef.get();
     if (!jobDoc.exists) return res.status(404).send({ message: 'Task not found.' });
-    if (jobDoc.data()?.postingReady === false) {
+    const jobData = jobDoc.data() || {};
+    if (jobData.postingReady === false) {
       return res.status(409).send({ message: 'Task cannot be assigned until its required posting photos are uploaded.' });
+    }
+    const categoryMatch = expertMatchesJobCategory(tradieData, jobData);
+    if (categoryMatch.reliable && !categoryMatch.matches) {
+      return res.status(400).send({ message: 'Task expert is not approved for this task category.' });
     }
 
     await jobRef.update({

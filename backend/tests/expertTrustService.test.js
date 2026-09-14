@@ -33,7 +33,7 @@ function completeExpert(overrides = {}) {
     displayName: 'Alex Expert',
     bio: 'Experienced Melbourne plumber with residential work.',
     photoURL: 'https://example.com/photo.jpg',
-    expertiseApproved: ['plumbing'],
+    expertiseApproved: ['mounting_tv'],
     businessType: 'individual',
     businessName: '',
     abn: '',

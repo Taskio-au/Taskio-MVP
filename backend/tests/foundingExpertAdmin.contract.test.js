@@ -513,6 +513,38 @@ describe('admin founding expert enrolment', () => {
     expect(stored.audit.enrolledAt).toBe('keep');
     expect(stored.role).toBe('tradie');
   });
+
+  it('Verify approves currently requested expertise and later adds stay unapproved until explicit approve', async () => {
+    seedTradie('verify-expertise', {
+      verified: false,
+      expertise: ['mounting_tv', 'mounting_shelves'],
+      expertiseApproved: [],
+    });
+    const verified = await request(app)
+      .put('/api/admin/users/verify-expertise/verify')
+      .set('x-test-admin', 'true');
+    expect(verified.status).toBe(200);
+    expect(readCollectionDoc('users', 'verify-expertise').expertiseApproved).toEqual([
+      'mounting_tv',
+      'mounting_shelves',
+    ]);
+
+    writeCollectionDoc('users', 'verify-expertise', {
+      ...readCollectionDoc('users', 'verify-expertise'),
+      expertise: ['mounting_tv', 'mounting_shelves', 'hanging_picture_frames'],
+      expertiseApproved: ['mounting_tv', 'mounting_shelves'],
+    });
+    const approved = await request(app)
+      .put('/api/admin/users/verify-expertise/expertise/approve')
+      .set('x-test-admin', 'true')
+      .send({});
+    expect(approved.status).toBe(200);
+    expect(approved.body.expertiseApproved).toEqual([
+      'mounting_tv',
+      'mounting_shelves',
+      'hanging_picture_frames',
+    ]);
+  });
 });
 
 describe('getActiveFoundingExpertProgramId (isolateModules)', () => {

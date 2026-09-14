@@ -12,7 +12,7 @@ This is the product-launch overlay on top of the existing P01–P06 technical ga
 
 - **Homeowner OPEN:** public supported homeowner signup and posting; **no** manual homeowner invitation; normal authentication still required.
 - **Homeowner CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest for demand; existing jobs continue.
-- **Expert OPEN:** public Expert applications; new accounts stay pending review / marketplace-ineligible until Admin Verify; launch-ready remains derived.
+- **Expert OPEN:** public Expert applications; new accounts stay pending review / marketplace-ineligible until Admin Verify; self-selected categories are requested only (`expertise`); Taskio-approved categories (`expertiseApproved`) are written by Admin Verify or a later expertise-approve action; launch-ready remains derived and does not count unreviewed categories.
 - **Expert WAITLIST:** new Expert signup blocked; Expert waitlist available; existing and pending Experts continue.
 
 `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is deprecated and must not override homeowner or Expert eligibility. New Expert signup also requires `TASKIO_PUBLIC_SIGNUP_ENABLED`. Still **not deployed**. Do not create the settings document in staging or production without a separate approval.

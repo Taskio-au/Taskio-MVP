@@ -103,7 +103,52 @@ describe('PUT /api/tradie/expertise sets profileCompleted', () => {
     expect(res.status).toBe(200);
     expect(res.body.profileCompleted).toBe(true);
     expect(mockUserStore.get('tradie-exp').profileCompleted).toBe(true);
-    expect(mockUserStore.get('tradie-exp').expertiseApproved).toContain('mounting_tv');
+    expect(mockUserStore.get('tradie-exp').expertise).toContain('mounting_tv');
+    expect(mockUserStore.get('tradie-exp').expertiseApproved).not.toContain('mounting_tv');
+  });
+
+  it('does not auto-approve a newly added category on a verified Expert', async () => {
+    mockUserStore.set('tradie-exp', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      displayName: 'Saeed Zafari',
+      bio: 'I am working in this Industry for 10 years. XX',
+      photoURL: 'https://storage.example.com/profile.jpg',
+      businessType: 'individual',
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
+    });
+
+    const res = await request(app)
+      .put('/api/tradie/expertise')
+      .send({ add: ['mounting_shelves'], remove: [] });
+
+    expect(res.status).toBe(200);
+    expect(mockUserStore.get('tradie-exp').expertise).toEqual(['mounting_tv', 'mounting_shelves']);
+    expect(mockUserStore.get('tradie-exp').expertiseApproved).toEqual(['mounting_tv']);
+  });
+
+  it('removes approval when the Expert drops a category', async () => {
+    mockUserStore.set('tradie-exp', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      displayName: 'Saeed Zafari',
+      bio: 'I am working in this Industry for 10 years. XX',
+      photoURL: 'https://storage.example.com/profile.jpg',
+      businessType: 'individual',
+      expertise: ['mounting_tv', 'mounting_shelves'],
+      expertiseApproved: ['mounting_tv', 'mounting_shelves'],
+    });
+
+    const res = await request(app)
+      .put('/api/tradie/expertise')
+      .send({ add: [], remove: ['mounting_shelves'] });
+
+    expect(res.status).toBe(200);
+    expect(mockUserStore.get('tradie-exp').expertise).toEqual(['mounting_tv']);
+    expect(mockUserStore.get('tradie-exp').expertiseApproved).toEqual(['mounting_tv']);
   });
 
   it('keeps profileCompleted false when bio too short even after adding expertise', async () => {

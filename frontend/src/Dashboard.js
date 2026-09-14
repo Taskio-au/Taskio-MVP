@@ -123,6 +123,7 @@ function Dashboard({ variant = 'default' }) {
   const [userOpsNote, setUserOpsNote] = useState('');
   const [userOpsSaving, setUserOpsSaving] = useState(false);
   const [statusConfirm, setStatusConfirm] = useState({ open: false, uid: '', role: '', name: '', nextStatus: '' });
+  const [verifyConfirm, setVerifyConfirm] = useState({ open: false, uid: '', name: '' });
   const [tradieDrawer, setTradieDrawer] = useState({ open: false, uid: '' });
   const [clientDrawer, setClientDrawer] = useState({ open: false, uid: '' });
   const [clientFull, setClientFull] = useState({ loading: false, error: '', data: null });
@@ -424,6 +425,24 @@ function Dashboard({ variant = 'default' }) {
     } catch (err) {
       console.error('Failed to verify user:', err);
       alert('Error: Could not verify user.');
+    }
+  };
+
+  const requestVerify = (u) => {
+    setVerifyConfirm({
+      open: true,
+      uid: u?.uid || '',
+      name: u?.displayName || u?.emailMasked || u?.uid || 'this Expert',
+    });
+  };
+
+  const handleApproveExpertise = async (uid) => {
+    try {
+      await api.put(`/api/admin/users/${uid}/expertise/approve`, {});
+      await fetchData();
+    } catch (err) {
+      console.error('Failed to approve expertise:', err);
+      alert('Error: Could not approve requested expertise.');
     }
   };
 
@@ -1189,7 +1208,8 @@ function Dashboard({ variant = 'default' }) {
         saveTradieNote={saveTradieNote}
         tradieNoteSaving={tradieNoteSaving}
         tradieNoteInitial={tradieNoteInitial}
-        onVerify={handleVerify}
+        onVerify={requestVerify}
+        onApproveExpertise={handleApproveExpertise}
         onRequestStatusChange={requestStatusChange}
         onRequestBoostToggle={requestBoostToggle}
         onOpenInviteModal={openInviteModal}
@@ -1307,6 +1327,13 @@ function Dashboard({ variant = 'default' }) {
           const uid = statusConfirm.uid;
           setStatusConfirm({ open: false, uid: '', role: '', name: '', nextStatus: '' });
           await handleStatusChange(uid, 'active');
+        }}
+        verifyConfirm={verifyConfirm}
+        onCloseVerifyConfirm={() => setVerifyConfirm({ open: false, uid: '', name: '' })}
+        onConfirmVerify={async () => {
+          const uid = verifyConfirm.uid;
+          setVerifyConfirm({ open: false, uid: '', name: '' });
+          await handleVerify(uid);
         }}
         styles={styles}
       />

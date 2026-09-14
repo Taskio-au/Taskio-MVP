@@ -10,6 +10,7 @@ const { assertNewExpertSignupAllowed } = require('../services/expertOnboardingAc
 const { classifyUserProfile, sendAccountNotActive, sendAccountStateInvalid } = require('../utils/enrolledProfile');
 const { isNonEmptyString, isStringMax } = require('../utils/validation');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
+const { applySelfSelectedExpertise, signupExpertiseFields } = require('../utils/expertExpertise');
 const { isSupportedMelbournePilotLocation, INNER_MELBOURNE_LAUNCH_MESSAGE } = require('../../../shared/auLocations');
 const { logger } = require('../observability/logger');
 
@@ -132,10 +133,10 @@ function buildTradieUserData({
     phone: '',
     phoneVerified: false,
     profileCompleted: false,
-    expertiseApproved: normalizedTradieExpertise,
+    ...signupExpertiseFields(normalizedTradieExpertise),
     expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     expertiseChangeLog: [
-      { action: 'migrate', category: 'register', by: 'tradie', at: admin.firestore.Timestamp.now() },
+      { action: 'request', category: 'register', by: 'tradie', at: admin.firestore.Timestamp.now() },
     ],
   };
   if (includeCreatedAt) payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
@@ -307,20 +308,29 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, async
           }
         }
 
-        const payload = buildTradieUserData({
-          email,
-          firstName: String(firstName).trim(),
-          lastName: String(lastName).trim(),
-          normalizedTradieLocation: normalized.location,
-          normalizedTradieExpertise: normalized.expertise,
-        }, {
-          includeCreatedAt: classified.kind === 'missing',
-        });
-
         if (classified.kind === 'missing') {
-          tx.set(userRef, payload);
+          tx.set(userRef, buildTradieUserData({
+            email,
+            firstName: String(firstName).trim(),
+            lastName: String(lastName).trim(),
+            normalizedTradieLocation: normalized.location,
+            normalizedTradieExpertise: normalized.expertise,
+          }));
         } else {
-          tx.update(userRef, payload);
+          const existing = snap.data() || {};
+          const nextExpertise = applySelfSelectedExpertise(existing, normalized.expertise);
+          tx.update(userRef, {
+            email,
+            firstName: String(firstName).trim(),
+            lastName: String(lastName).trim(),
+            serviceLocation: normalized.location,
+            primaryServiceSuburb: normalized.location.suburb,
+            primaryServicePostcode: normalized.location.postcode,
+            expertise: nextExpertise.requested,
+            expertiseApproved: nextExpertise.approved,
+            expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
         }
         return { type: 'ok' };
       });

@@ -23,6 +23,9 @@ export default function DashboardOpsModals({
   statusConfirm,
   onCloseStatusConfirm,
   onConfirmStatusDisable,
+  verifyConfirm = { open: false, uid: '', name: '' },
+  onCloseVerifyConfirm,
+  onConfirmVerify,
   styles,
 }) {
   return (
@@ -141,6 +144,26 @@ export default function DashboardOpsModals({
                 onClick={onConfirmStatusDisable}
               >
                 Disable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {verifyConfirm.open && (
+        <div style={styles.modalOverlay} onMouseDown={onCloseVerifyConfirm}>
+          <div style={styles.modalCard} onMouseDown={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 6 }}>Verify Expert & approve selected expertise?</div>
+            <div style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
+              You are about to verify <strong>{verifyConfirm.name}</strong> and approve their currently requested
+              task categories for marketplace participation. This is Taskio’s review of the profile and selected
+              categories. It does not confirm licences, insurance, qualifications, or police checks.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button type="button" style={styles.buttonSecondary} onClick={onCloseVerifyConfirm}>
+                Cancel
+              </button>
+              <button type="button" style={styles.button} onClick={onConfirmVerify}>
+                Verify & approve expertise
               </button>
             </div>
           </div>

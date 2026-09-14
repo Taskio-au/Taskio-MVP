@@ -47,6 +47,31 @@ describe('aggregatePilotSupply', () => {
     expect(mounting.status).toBe('UNDER-COVERED');
   });
 
+  it('does not count pending or unapproved self-selected categories toward coverage', () => {
+    const snapshot = aggregatePilotSupply([
+      {
+        uid: 'pending',
+        data: eligibleExpert({
+          verified: false,
+          expertise: ['mounting_tv'],
+          expertiseApproved: [],
+        }),
+      },
+      {
+        uid: 'unapproved-extra',
+        data: eligibleExpert({
+          expertise: ['mounting_tv', 'hanging_picture_frames'],
+          expertiseApproved: ['mounting_tv'],
+        }),
+      },
+    ]);
+    const mounting = snapshot.categoryCoverage.find((row) => row.category === 'Mounting');
+    const hanging = snapshot.categoryCoverage.find((row) => row.category === 'Hanging');
+    expect(snapshot.totals.launchReady).toBe(1);
+    expect(mounting.launchReadyCount).toBe(1);
+    expect(hanging.launchReadyCount).toBe(0);
+  });
+
   it('marks category coverage HEALTHY at 5, ADEQUATE at 4, UNDER-COVERED below 4', () => {
     const make = (count, categoryKey = 'mounting_tv') => Array.from({ length: count }, (_, i) => ({
       uid: `n-${i}`,

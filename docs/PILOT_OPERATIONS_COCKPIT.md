@@ -84,6 +84,8 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 - Missing/invalid/unload fail-safe is **WAITLIST** (does not affect existing or pending Experts)
 - Public Expert applications when OPEN **and** `TASKIO_PUBLIC_SIGNUP_ENABLED` allows enrollment
 - New Experts stay `verified=false` / marketplace-ineligible until Admin Verify; launch-ready remains derived
+- Signup stores requested categories on `expertise` and leaves `expertiseApproved=[]`. Taskio approval is Admin Verify (approves currently requested categories) or later `PUT /api/admin/users/:uid/expertise/approve`. Experts cannot self-expand approved eligibility
+- Homeowner `PUT .../state` and Expert `PUT .../expert-onboarding` merge-write only their own fields; they must not clobber each other
 - WAITLIST blocks **new** Expert account creation only; public CTA uses `expertWaitlist` (not `pilotWaitlist`)
 - LIMITED mode is **not** implemented
 
@@ -178,8 +180,8 @@ Align with `backend/src/utils/v11TradieEligibility.js` and tighten admin `getRea
 - `status === 'active'`
 - `verified === true` (manual admin)
 - phone verified
-- profile complete (identity, bio, photo, `expertiseApproved[]`)
-- ≥1 approved Phase 1 expertise
+- profile complete (identity, bio, photo, requested `expertise[]`)
+- ≥1 Taskio-approved Phase 1 expertise (`expertiseApproved[]`, not unreviewed self-selection)
 - Stripe onboarding complete when Stripe is enabled
 - ABN verified if required
 - business type set

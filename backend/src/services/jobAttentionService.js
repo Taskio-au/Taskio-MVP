@@ -16,6 +16,7 @@ const { admin } = require('../firebaseAdmin');
 const { safeToMillis } = require('../utils/firestore');
 const { getShortJobRef } = require('../../../shared/taskReference');
 const { getCanonicalPilotServiceAreas } = require('../utils/pilotOperationalFields');
+const { effectiveApprovedExpertise } = require('../utils/expertExpertise');
 const {
   enabledPhase1Categories,
   listAllPilotExperts,
@@ -57,9 +58,7 @@ function buildLaunchReadyIndex(experts) {
   for (const expert of experts) {
     const readiness = launchReadinessFromExpertDoc(expert.data);
     if (!readiness.launchReady) continue;
-    const approved = new Set(
-      Array.isArray(expert.data?.expertiseApproved) ? expert.data.expertiseApproved : []
-    );
+    const approved = new Set(effectiveApprovedExpertise(expert.data));
     index.push({
       approved,
       serviceAreas: new Set(readiness.serviceAreas || []),

@@ -42,4 +42,13 @@ describe('admin dashboard ABN trust display', () => {
     }));
     expect(result.missing).toContain('ABN verification');
   });
+
+  it('does not treat requested-only expertise as marketplace ready', () => {
+    const result = getReadiness(readyBase({
+      expertise: ['mounting_tv'],
+      expertiseApproved: [],
+    }));
+    expect(result.missing).toContain('At least 1 expertise');
+    expect(result.statusLabel).toBe('Not ready');
+  });
 });

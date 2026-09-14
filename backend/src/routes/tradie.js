@@ -15,6 +15,11 @@ const {
 } = require('../services/stripe');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
 const { computeProfileCompleted } = require('../utils/v11TradieEligibility');
+const {
+  applySelfSelectedExpertise,
+  planExpertiseFieldSync,
+  readRequestedExpertise,
+} = require('../utils/expertExpertise');
 const { getShortJobRef } = require('../../../shared/taskReference');
 const { paymentDisplayTaskTitle } = require('../../../shared/paymentDisplayTaskTitle');
 const { admin } = require('../firebaseAdmin');
@@ -196,48 +201,15 @@ function validatePhase1Keys(keys) {
   }
 }
 
-async function ensureExpertiseApprovedPhase1({ uid, userRef, userDoc }) {
-  // NOTE: Firestore does not allow FieldValue.serverTimestamp() inside arrays.
-  const now = admin.firestore.Timestamp.now();
-  const existingApproved = Array.isArray(userDoc?.expertiseApproved) ? userDoc.expertiseApproved : null;
-  const legacy = userDoc?.expertise;
-  const log = Array.isArray(userDoc?.expertiseChangeLog) ? userDoc.expertiseChangeLog.slice(0, 50) : [];
-  let approved = existingApproved;
-  let changed = false;
-
-  if (!approved && legacy) {
-    const legacyArr = Array.isArray(legacy)
-      ? legacy
-      : String(legacy || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-    approved = legacyArr;
-    log.push({ action: 'migrate', category: 'legacy_expertise', by: 'admin', at: now });
-    changed = true;
-  }
-
-  approved = normalizeStringArray(approved || []);
-  const kept = approved.filter((k) => phase1KeysSet.has(k));
-  const removed = approved.filter((k) => !phase1KeysSet.has(k));
-  if (removed.length > 0) {
-    for (const r of removed) log.push({ action: 'phase1_prune', category: r, by: 'admin', at: now });
-    approved = kept;
-    changed = true;
-  } else {
-    approved = kept;
-  }
-
-  if (!changed) return userDoc;
-
-  await userRef.update(
-    {
-      expertiseApproved: approved,
-      expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      expertiseChangeLog: log.slice(-50),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }
-  );
+async function syncExpertiseFields({ userRef, userDoc }) {
+  const planned = planExpertiseFieldSync(userDoc);
+  if (!planned.changed) return userDoc;
+  await userRef.update({
+    expertise: planned.requested,
+    expertiseApproved: planned.approved,
+    expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
   const fresh = await userRef.get();
   return fresh.data() || userDoc;
 }
@@ -253,11 +225,12 @@ router.get('/api/tradie/profile', requireAuth, requireRole('tradie'), async (req
     const snap = await userRef.get();
     if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
     const raw = snap.data() || {};
-    const data = await ensureExpertiseApprovedPhase1({ uid, userRef, userDoc: raw });
+    const data = await syncExpertiseFields({ userRef, userDoc: raw });
 
     return res.status(200).send({
       uid,
       role: 'tradie',
+      expertise: Array.isArray(data.expertise) ? data.expertise : [],
       expertiseApproved: Array.isArray(data.expertiseApproved) ? data.expertiseApproved : [],
       expertiseUpdatedAt: data.expertiseUpdatedAt || null,
     });
@@ -329,9 +302,9 @@ router.put('/api/tradie/expertise', requireAuth, requireRole('tradie'), async (r
     const snap = await userRef.get();
     if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
     const raw = snap.data() || {};
-    const data = await ensureExpertiseApprovedPhase1({ uid, userRef, userDoc: raw });
+    const data = await syncExpertiseFields({ userRef, userDoc: raw });
 
-    const before = Array.isArray(data.expertiseApproved) ? data.expertiseApproved : [];
+    const before = readRequestedExpertise(data);
     const next = before.slice();
 
     // NOTE: Firestore does not allow FieldValue.serverTimestamp() inside arrays.
@@ -352,15 +325,18 @@ router.put('/api/tradie/expertise', requireAuth, requireRole('tradie'), async (r
       }
     }
 
-    // Always keep Phase 1 only (defensive)
-    const final = next.filter((k) => phase1KeysSet.has(k));
-
-    const mergedForCompletion = { ...(data || {}), expertiseApproved: final };
+    const applied = applySelfSelectedExpertise(data, next.filter((k) => phase1KeysSet.has(k)));
+    const mergedForCompletion = {
+      ...(data || {}),
+      expertise: applied.requested,
+      expertiseApproved: applied.approved,
+    };
     const profileCompleted = computeProfileCompleted(mergedForCompletion, req.user);
 
     await userRef.update(
       {
-        expertiseApproved: final,
+        expertise: applied.requested,
+        expertiseApproved: applied.approved,
         expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
         expertiseChangeLog: log.slice(-50),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -380,7 +356,8 @@ router.put('/api/tradie/expertise', requireAuth, requireRole('tradie'), async (r
 
     return res.status(200).send({
       message: 'Expertise updated.',
-      expertiseApproved: final,
+      expertise: applied.requested,
+      expertiseApproved: applied.approved,
       profileCompleted,
     });
   } catch (e) {

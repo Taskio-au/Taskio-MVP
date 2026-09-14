@@ -1702,6 +1702,53 @@ describe('admin job route contracts', () => {
     expect(readCollectionDoc('jobs', 'job-pending-invite').invitedTradieUids || []).toEqual([]);
   });
 
+  it('rejects inviting a verified Expert for an unapproved job category', async () => {
+    writeCollectionDoc('jobs', 'job-category-invite', {
+      status: 'OPEN',
+      invitedTradieUids: [],
+      primaryCategory: 'Hanging',
+      items: [{ type: 'hanging_picture_frames', quantity: 1 }],
+    });
+    writeCollectionDoc('users', 'mounting-expert', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
+    });
+
+    const res = await request(app)
+      .post('/api/admin/jobs/job-category-invite/assign')
+      .send({ tradieUid: 'mounting-expert' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Task expert is not approved for this task category.');
+    expect(readCollectionDoc('jobs', 'job-category-invite').invitedTradieUids || []).toEqual([]);
+  });
+
+  it('invites a verified Expert when approved expertise matches the job category', async () => {
+    writeCollectionDoc('jobs', 'job-category-ok', {
+      status: 'OPEN',
+      invitedTradieUids: [],
+      primaryCategory: 'Mounting',
+      items: [{ type: 'mounting_tv', quantity: 1 }],
+    });
+    writeCollectionDoc('users', 'mounting-expert-ok', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
+    });
+
+    const res = await request(app)
+      .post('/api/admin/jobs/job-category-ok/assign')
+      .send({ tradieUid: 'mounting-expert-ok' });
+
+    expect(res.status).toBe(200);
+    expect(readCollectionDoc('jobs', 'job-category-ok').invitedTradieUids).toContain('mounting-expert-ok');
+  });
+
   it('PUT /status accepts canonical admin status values when transition is valid', async () => {
     writeCollectionDoc('jobs', 'job-11', {
       status: 'OPEN',

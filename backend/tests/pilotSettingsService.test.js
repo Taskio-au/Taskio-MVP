@@ -44,15 +44,17 @@ function createFakeDb() {
     batch() {
       const ops = [];
       return {
-        set(ref, payload) {
-          ops.push({ ref, payload });
+        set(ref, payload, options) {
+          ops.push({ ref, payload, merge: !!(options && options.merge) });
         },
         async commit() {
           for (const op of ops) {
             if (op.ref && op.ref.kind === 'history') {
               store.history.push(op.payload);
-            } else {
+            } else if (op.merge) {
               store.settings = { ...(store.settings || {}), ...op.payload };
+            } else {
+              store.settings = { ...(op.payload || {}) };
             }
           }
         },
@@ -246,5 +248,72 @@ describe('pilotSettingsService', () => {
     expect(result.ok).toBe(true);
     expect(result.changed).toBe(false);
     expect(store.history).toEqual([]);
+  });
+
+  it('preserves Expert onboarding mode when homeowner state changes', async () => {
+    store.settings = { state: 'CLOSED', expertOnboardingMode: 'OPEN', version: 1 };
+    const result = await updatePilotSettingsState(db, {
+      nextState: 'OPEN',
+      actorUid: 'admin-1',
+      loadReadiness: async () => ({ overallStatus: 'READY TO OPEN', blockers: [] }),
+    });
+    expect(result.ok).toBe(true);
+    expect(store.settings.state).toBe('OPEN');
+    expect(store.settings.expertOnboardingMode).toBe('OPEN');
+    expect(store.history).toHaveLength(1);
+    expect(store.history[0].eventType).toBeUndefined();
+    expect(store.history[0]).toEqual(expect.objectContaining({
+      previousState: 'CLOSED',
+      newState: 'OPEN',
+    }));
+  });
+
+  it('preserves homeowner state when Expert onboarding mode changes', async () => {
+    store.settings = { state: 'OPEN', expertOnboardingMode: 'OPEN', version: 2 };
+    const result = await updateExpertOnboardingMode(db, {
+      nextMode: 'WAITLIST',
+      actorUid: 'admin-1',
+    });
+    expect(result.ok).toBe(true);
+    expect(store.settings.state).toBe('OPEN');
+    expect(store.settings.expertOnboardingMode).toBe('WAITLIST');
+    expect(store.history[0]).toEqual(expect.objectContaining({
+      eventType: 'EXPERT_ONBOARDING_MODE_CHANGED',
+      previousMode: 'OPEN',
+      newMode: 'WAITLIST',
+    }));
+    expect(store.history[0].previousState).toBeUndefined();
+  });
+
+  it('keeps both fields through sequential homeowner and Expert mutations', async () => {
+    store.settings = { state: 'CLOSED', expertOnboardingMode: 'OPEN', version: 0 };
+    const opened = await updatePilotSettingsState(db, {
+      nextState: 'OPEN',
+      actorUid: 'admin-1',
+      loadReadiness: async () => ({ overallStatus: 'READY TO OPEN', blockers: [] }),
+    });
+    expect(opened.ok).toBe(true);
+
+    const waitlisted = await updateExpertOnboardingMode(db, {
+      nextMode: 'WAITLIST',
+      actorUid: 'admin-1',
+    });
+    expect(waitlisted.ok).toBe(true);
+
+    const paused = await updatePilotSettingsState(db, {
+      nextState: 'PAUSED',
+      actorUid: 'admin-1',
+    });
+    expect(paused.ok).toBe(true);
+    expect(store.settings.state).toBe('PAUSED');
+    expect(store.settings.expertOnboardingMode).toBe('WAITLIST');
+    expect(store.history).toHaveLength(3);
+    expect(store.history[0]).toEqual(expect.objectContaining({ previousState: 'CLOSED', newState: 'OPEN' }));
+    expect(store.history[1]).toEqual(expect.objectContaining({
+      eventType: 'EXPERT_ONBOARDING_MODE_CHANGED',
+      previousMode: 'OPEN',
+      newMode: 'WAITLIST',
+    }));
+    expect(store.history[2]).toEqual(expect.objectContaining({ previousState: 'OPEN', newState: 'PAUSED' }));
   });
 });

@@ -243,8 +243,8 @@ export default function TradieExpertiseSection({
             <div>
               <p className="pp-expert-eyebrow pp-expert-eyebrow--inline">Task types</p>
               <p className="pp-expertise-lede pp-expertise-lede--tight">
-                Your core focus (up to {MAX_CORE_EXPERTISE}) appears first. Add more for broader visibility—many Experts
-                do best with a tight set that matches how Clients search.
+                Choose the Phase 1 tasks you want to offer. Taskio reviews requested categories before they become
+                eligible for jobs. Adding a category later does not approve it automatically.
               </p>
             </div>
             {expertiseSaving ? (

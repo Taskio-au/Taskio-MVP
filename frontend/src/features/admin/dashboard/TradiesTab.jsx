@@ -95,7 +95,9 @@ export default function TradiesTab({
                     ) : null}
                   </div>
                   <div style={styles.smallText}>
-                    {Array.isArray(u?.expertiseApproved) && u.expertiseApproved.length > 0 ? (<><ExpertiseChips user={u} styles={styles} /> <span style={styles.smallDot}>•</span> </>) : null}
+                    {Array.isArray(u?.expertiseApproved) && u.expertiseApproved.length > 0 ? (<><ExpertiseChips user={u} styles={styles} /> <span style={styles.smallDot}>•</span> </>) : (
+                      Array.isArray(u?.expertise) && u.expertise.length > 0 ? (<><ExpertiseChips user={{ expertiseApproved: u.expertise }} styles={styles} /> <span style={styles.smallDot}>•</span> </>) : null
+                    )}
                     Open tasks: <strong>{tradieOpenTasks[u.uid] || 0}</strong>
                     {' '}• Status: <StatusTag status={u.status} />
                     {' '}• Last active: {formatAgeShort(u.updatedAtMs)} <span style={styles.betaTiny}>beta</span>

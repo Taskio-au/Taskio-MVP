@@ -10,6 +10,7 @@ const { admin } = require('../firebaseAdmin');
 const { phase1ExpertiseCatalog } = require('../../../shared/expertiseCatalog');
 const { computeLaunchReadiness } = require('../utils/pilotLaunchReadiness');
 const { getCanonicalPilotServiceAreas } = require('../utils/pilotOperationalFields');
+const { effectiveApprovedExpertise } = require('../utils/expertExpertise');
 
 const PILOT_SUPPLY_PAGE_SIZE = 100;
 const PILOT_SUPPLY_EXPERT_CAP = 250;
@@ -102,9 +103,7 @@ function aggregatePilotSupply(experts) {
     if (!readiness.launchReady) continue;
     launchReady += 1;
 
-    const approved = new Set(
-      Array.isArray(expert.data?.expertiseApproved) ? expert.data.expertiseApproved : []
-    );
+    const approved = new Set(effectiveApprovedExpertise(expert.data));
     for (const row of categories) {
       if (row.keys.some((key) => approved.has(key))) {
         categoryCounts[row.category] += 1;

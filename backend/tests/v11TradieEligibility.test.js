@@ -22,6 +22,7 @@ function baseTradie(overrides = {}) {
     profileCompleted: true,
     serviceLocation: { postcode: '2000', suburb: 'Sydney', state: 'NSW' },
     dob: { day: 1, month: 1, year: 1990 },
+    expertiseApproved: ['mounting_tv'],
     ...overrides,
   };
 }
@@ -120,7 +121,7 @@ describe('v11TradieEligibility regression rules', () => {
       businessType: 'individual',
       bio: 'x'.repeat(20),
       photoURL: 'https://example.com/photo.jpg',
-      expertiseApproved: ['tv_mounting'],
+      expertiseApproved: ['mounting_tv'],
       displayName: '',
       firstName: 'Saeed',
       lastName: 'Zafari',
@@ -134,7 +135,7 @@ describe('v11TradieEligibility regression rules', () => {
       businessType: 'individual',
       bio: 'x'.repeat(20),
       photoURL: 'https://example.com/photo.jpg',
-      expertiseApproved: ['tv_mounting'],
+      expertiseApproved: ['mounting_tv'],
       displayName: '',
       firstName: '',
       lastName: '',
@@ -152,7 +153,7 @@ describe('v11TradieEligibility regression rules', () => {
       lastName: '',
       bio: 'x'.repeat(20),
       photoURL: 'https://example.com/photo.jpg',
-      expertiseApproved: ['tv_mounting'],
+      expertiseApproved: ['mounting_tv'],
     });
     const result = computeEligibility({
       decodedToken: { email_verified: true, name: 'Saeed Zafari' },
@@ -313,5 +314,29 @@ describe('v11TradieEligibility regression rules', () => {
       if (prev === undefined) delete process.env.STRIPE_ENABLED;
       else process.env.STRIPE_ENABLED = prev;
     }
+  });
+
+  it('treats requested expertise as profile-complete without Taskio approval', () => {
+    expect(computeProfileCompleted({
+      role: 'tradie',
+      businessType: 'individual',
+      bio: 'x'.repeat(20),
+      photoURL: 'https://example.com/photo.jpg',
+      displayName: 'Saeed Zafari',
+      expertise: ['mounting_tv'],
+      expertiseApproved: [],
+    })).toBe(true);
+  });
+
+  it('does not make a verified Expert eligible from self-selected expertise alone', () => {
+    const result = computeEligibility({
+      decodedToken: { email_verified: true },
+      userDoc: baseTradie({
+        expertise: ['mounting_tv'],
+        expertiseApproved: [],
+      }),
+    });
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
   });
 });

@@ -174,7 +174,8 @@ describe('tradie registration contracts', () => {
       phone: '',
       phoneVerified: false,
       profileCompleted: false,
-      expertiseApproved: ['mounting_shelves'],
+      expertise: ['mounting_shelves'],
+      expertiseApproved: [],
       serviceLocation: {
         label: 'Richmond VIC 3121',
         suburb: 'Richmond',
@@ -385,9 +386,8 @@ describe('tradie registration contracts', () => {
       email: 'google.expert@example.com',
       firstName: 'Jane',
       lastName: 'Expert',
-      primaryServiceSuburb: 'Richmond',
-      primaryServicePostcode: '3121',
-      expertiseApproved: ['mounting_shelves'],
+      expertise: ['mounting_shelves'],
+      expertiseApproved: [],
     }));
   });
 

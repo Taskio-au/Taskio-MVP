@@ -16,6 +16,11 @@ const {
 } = require('../../services/foundingExpertEnrollmentService');
 const { computeProfileCompleted, computeStripeOnboardingComplete } = require('../../utils/v11TradieEligibility');
 const { computeLaunchReadiness } = require('../../utils/pilotLaunchReadiness');
+const {
+  approveRequestedExpertise,
+  readRequestedExpertise,
+  readApprovedExpertise,
+} = require('../../utils/expertExpertise');
 const { readAcceptingJobs, readServiceAreas } = require('../../utils/pilotOperationalFields');
 const { sanitizePlainText } = require('./shared/text');
 const { is18PlusConfirmed, hasServiceLocation, hasBusinessType } = require('./shared/eligibility');
@@ -382,6 +387,7 @@ router.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
         stripeOnboardingStatus: data.role === 'tradie' ? (data.stripeOnboardingStatus || 'pending') : undefined,
         stripeOnboardingComplete: stripeOk,
         // tradie-only non-PII fields used for operational filtering
+        expertise: data.role === 'tradie' ? (Array.isArray(data.expertise) ? data.expertise : []) : undefined,
         expertiseApproved: data.role === 'tradie' ? (Array.isArray(data.expertiseApproved) ? data.expertiseApproved : []) : undefined,
         profileCompleted,
         phoneVerified: data.role === 'tradie' ? (data.phoneVerified === true) : undefined,
@@ -510,6 +516,8 @@ router.get('/api/admin/users/:uid', requireAuth, requireAdmin, async (req, res) 
     };
 
     if (response.role === 'tradie') {
+      response.expertise = Array.isArray(data.expertise) ? data.expertise : [];
+      response.expertiseApproved = Array.isArray(data.expertiseApproved) ? data.expertiseApproved : [];
       const launch = computeLaunchReadiness({ userDoc: data });
       response.acceptingJobs = readAcceptingJobs(data);
       response.serviceAreas = readServiceAreas(data);
@@ -553,9 +561,13 @@ router.put('/api/admin/users/:uid/verify', requireAuth, requireAdmin, async (req
     if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
     const existing = snap.data() || {};
     const existingAudit = (existing.audit && typeof existing.audit === 'object') ? existing.audit : {};
+    const requested = readRequestedExpertise(existing);
+    const nextApproved = requested.length ? requested : readApprovedExpertise(existing);
     await userRef.update(
       {
         verified: true,
+        expertise: requested,
+        expertiseApproved: nextApproved,
         audit: {
           ...existingAudit,
           verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -573,7 +585,7 @@ router.put('/api/admin/users/:uid/verify', requireAuth, requireAdmin, async (req
       actorUid: req.user.uid,
       action: 'ADMIN_VERIFY_USER',
       before: null,
-      after: { verified: true },
+      after: { verified: true, expertiseApproved: nextApproved },
       req,
     });
 
@@ -587,12 +599,55 @@ router.put('/api/admin/users/:uid/verify', requireAuth, requireAdmin, async (req
       });
     }
 
-    return res.status(200).send({ message: `Successfully verified user ${uid}.` });
+    return res.status(200).send({
+      message: `Successfully verified user ${uid}.`,
+      expertiseApproved: nextApproved,
+    });
   } catch (error) {
     if (sendIfAdminUserMissing(res, error)) return undefined;
     // eslint-disable-next-line no-console
     console.error('Error verifying user:', error);
     return res.status(500).send({ message: 'Error verifying user', error: error.message });
+  }
+});
+
+router.put('/api/admin/users/:uid/expertise/approve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const uid = req.params.uid;
+    const userRef = db.collection('users').doc(uid);
+    const snap = await userRef.get();
+    if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
+    const existing = snap.data() || {};
+    if (existing.role !== 'tradie') {
+      return res.status(400).send({ message: 'User is not an expert.' });
+    }
+    const next = approveRequestedExpertise(existing, req.body && req.body.keys);
+    await userRef.update({
+      expertise: next.requested,
+      expertiseApproved: next.approved,
+      expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      adminLastTouchAt: admin.firestore.FieldValue.serverTimestamp(),
+      adminLastTouchBy: req.user.uid,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await writeUserAuditLog({
+      uid,
+      actorUid: req.user.uid,
+      action: 'ADMIN_APPROVE_EXPERTISE',
+      before: { expertiseApproved: readApprovedExpertise(existing) },
+      after: { expertiseApproved: next.approved },
+      req,
+    });
+    return res.status(200).send({
+      message: 'Requested expertise approved.',
+      expertise: next.requested,
+      expertiseApproved: next.approved,
+    });
+  } catch (error) {
+    if (sendIfAdminUserMissing(res, error)) return undefined;
+    // eslint-disable-next-line no-console
+    console.error('Error approving expertise:', error);
+    return res.status(500).send({ message: 'Failed to approve expertise.' });
   }
 });
 

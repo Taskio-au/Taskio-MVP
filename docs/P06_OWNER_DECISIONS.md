@@ -27,7 +27,7 @@ P09 remains **blocked** until P06 PASS. Do not treat Slice 5C waitlist email col
 
 - **Homeowner OPEN:** public supported homeowner signup/posting; no manual homeowner invitation; normal authentication still required.
 - **Homeowner CLOSED / PAUSED:** new homeowner posting blocked; waitlist/register interest used for demand; existing login still works.
-- **Expert OPEN:** public Expert applications; complete onboarding; remain pending review / marketplace-ineligible until Taskio Admin Verify. Launch-ready stays derived (`computeLaunchReadiness`).
+- **Expert OPEN:** public Expert applications; complete onboarding; remain pending review / marketplace-ineligible until Taskio Admin Verify. Self-selected categories are requested (`expertise`); Taskio-approved categories (`expertiseApproved`) are not created by signup. Launch-ready stays derived (`computeLaunchReadiness`) and uses approved expertise for category coverage.
 - **Expert WAITLIST:** stop new Expert account creation; public CTA is Expert waitlist / register interest. Existing and already-created pending Experts may still log in and complete onboarding.
 - These controls are **independent**. Expected: homeowner CLOSED + Expert OPEN while building supply; later homeowner OPEN + Expert WAITLIST if supply exceeds operational need.
 - LIMITED (category/area-specific recruitment) is **not** implemented.
@@ -35,6 +35,8 @@ P09 remains **blocked** until P06 PASS. Do not treat Slice 5C waitlist email col
 Homeowner posting authority is persisted operational state only. Expert business control is persisted `expertOnboardingMode`. `TASKIO_PUBLIC_SIGNUP_ENABLED` is the Expert/production enrollment kill switch (new Expert signup requires both OPEN mode and this switch). `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is deprecated and must not override either control. Production Identity Toolkit `disabledUserSignup=true` is a separate cloud setting and was **not** changed in this slice. Enabling Auth user creation later must not approve an Expert. P07/P10 must prove approved public account paths.
 
 **P06 review item (Expert waitlist, local, not deployed):** `POST /api/expert-waitlist` is a public write to `expertWaitlist` (not `pilotWaitlist`). The backend accepts a record only when `consentAccepted === true`. After that it stores normalized email, optional canonical Phase 1 expertise, optional canonical Inner Melbourne suburb, source, `consentVersion=expert-waitlist-contact-v1`, and `consentAcceptedAt`. Meaning: Taskio may contact the person about becoming a Taskio Expert — **not** marketing opt-in or Privacy Act completion. P06 remains OPEN. P09 remains blocked.
+
+**P06 review item (Expert category approval, local, not deployed):** Taskio-approved expertise means Admin reviewed the Expert’s requested Phase 1 categories. It does **not** mean licence, insurance, qualification, police-check, or government certification verification unless those checks are separately implemented and recorded. P06 remains OPEN. P09 remains blocked.
 
 This pack records **owner-confirmed working facts**, **lean validation working positions**, and **open professional questions**. It does **not** make Privacy Act conclusions, rewrite Terms or Privacy Policy, invent a company, or treat Pty Ltd incorporation or broad insurance spend as automatic launch blockers.
 

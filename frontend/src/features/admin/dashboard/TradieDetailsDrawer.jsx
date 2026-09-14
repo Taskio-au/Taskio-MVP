@@ -21,6 +21,7 @@ function TradieDetailsDrawer({
   tradieNoteSaving,
   tradieNoteInitial,
   onVerify,
+  onApproveExpertise,
   onRequestStatusChange,
   onRequestBoostToggle,
   onOpenInviteModal,
@@ -87,7 +88,11 @@ function TradieDetailsDrawer({
                       {drawerTradie.profileCompleted !== undefined ? (
                         <div style={styles.drawerItem}><span style={styles.drawerKey}>Profile completion</span><span style={styles.drawerVal}>{drawerTradie.profileCompleted === true ? 'Yes' : 'No'}</span></div>
                       ) : null}
-                      <div style={styles.drawerItem}><span style={styles.drawerKey}>Has expertise</span><span style={styles.drawerVal}>{Array.isArray(drawerTradie.expertiseApproved) && drawerTradie.expertiseApproved.length > 0 ? 'Yes' : 'No'}</span></div>
+                      <div style={styles.drawerItem}><span style={styles.drawerKey}>Account</span><span style={styles.drawerVal}>{drawerTradie.status === 'active' ? 'Active' : 'Disabled'}</span></div>
+                      <div style={styles.drawerItem}><span style={styles.drawerKey}>Review</span><span style={styles.drawerVal}>{drawerTradie.verified === true ? 'Verified' : 'Pending review'}</span></div>
+                      <div style={styles.drawerItem}><span style={styles.drawerKey}>Marketplace</span><span style={styles.drawerVal}>{drawerTradie.verified === true && Array.isArray(drawerTradie.expertiseApproved) && drawerTradie.expertiseApproved.length > 0 ? 'Eligible when other checks pass' : 'Not yet eligible'}</span></div>
+                      <div style={styles.drawerItem}><span style={styles.drawerKey}>Requested expertise</span><span style={styles.drawerVal}>{Array.isArray(drawerTradie.expertise) && drawerTradie.expertise.length > 0 ? drawerTradie.expertise.join(', ') : 'None'}</span></div>
+                      <div style={styles.drawerItem}><span style={styles.drawerKey}>Approved expertise</span><span style={styles.drawerVal}>{Array.isArray(drawerTradie.expertiseApproved) && drawerTradie.expertiseApproved.length > 0 ? 'Yes' : 'No'}</span></div>
                     </div>
                   </>
                 );
@@ -104,9 +109,14 @@ function TradieDetailsDrawer({
 
             <div style={styles.drawerSection}>
               <div style={styles.drawerSectionTitle}>Expertise</div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: '#6B7280', marginBottom: 6 }}>Requested</div>
+              {Array.isArray(drawerTradie.expertise) && drawerTradie.expertise.length > 0
+                ? <ExpertiseChips user={{ expertiseApproved: drawerTradie.expertise }} styles={styles} />
+                : <div style={{ fontSize: 13, color: '#6B7280' }}>No expertise requested.</div>}
+              <div style={{ fontSize: 12, fontWeight: 900, color: '#6B7280', margin: '10px 0 6px' }}>Taskio-approved</div>
               {Array.isArray(drawerTradie.expertiseApproved) && drawerTradie.expertiseApproved.length > 0
                 ? <ExpertiseChips user={drawerTradie} styles={styles} />
-                : <div style={{ fontSize: 13, color: '#6B7280' }}>No expertise selected.</div>}
+                : <div style={{ fontSize: 13, color: '#6B7280' }}>None approved yet. Verify or approve requested categories after review.</div>}
             </div>
 
             <div style={styles.drawerSection}>
@@ -147,10 +157,19 @@ function TradieDetailsDrawer({
 
             <div style={styles.drawerFooter}>
               {!drawerTradie.verified && (
-                <button type="button" style={styles.button} onClick={() => onVerify(drawerTradie.uid)}>
-                  Verify
+                <button type="button" style={styles.button} onClick={() => onVerify(drawerTradie)}>
+                  Verify Expert & approve selected expertise
                 </button>
               )}
+              {drawerTradie.verified === true
+                && Array.isArray(drawerTradie.expertise)
+                && drawerTradie.expertise.some((key) => !(Array.isArray(drawerTradie.expertiseApproved) && drawerTradie.expertiseApproved.includes(key)))
+                ? (
+                  <button type="button" style={styles.button} onClick={() => onApproveExpertise && onApproveExpertise(drawerTradie.uid)}>
+                    Approve requested expertise
+                  </button>
+                )
+                : null}
               <button type="button" style={styles.buttonSecondary} onClick={() => onRequestStatusChange(null, drawerTradie)}>
                 {drawerTradie.status === 'active' ? 'Disable' : 'Activate'}
               </button>

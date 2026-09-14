@@ -22,7 +22,7 @@ const {
 } = require('../utils/enrolledProfile');
 const { isValidAbn, cleanAbn } = require('../utils/abn');
 const { lookupAbnDetails, isAbnCurrentlyActive, summarizeAbnLookupError } = require('../services/abnLookup');
-const { phase1KeysSet } = require('../shared/expertiseCatalog');
+const { planExpertiseFieldSync } = require('../utils/expertExpertise');
 const {
   computeEligibility,
   computeProfileCompleted,
@@ -318,73 +318,15 @@ async function loadValidProfileOrSend(uid, res) {
   return classified;
 }
 
-function normalizeStringArray(input, max = 50) {
-  if (!Array.isArray(input)) return [];
-  const out = [];
-  for (const x of input) {
-    const s = String(x || '').trim();
-    if (!s) continue;
-    if (!out.includes(s)) out.push(s);
-    if (out.length >= max) break;
-  }
-  return out;
-}
-
-function pruneToPhase1(keys) {
-  const cleaned = normalizeStringArray(keys);
-  const kept = [];
-  const removed = [];
-  for (const k of cleaned) {
-    if (phase1KeysSet.has(k)) kept.push(k);
-    else removed.push(k);
-  }
-  return { kept, removed };
-}
-
-async function ensureExpertiseApprovedPhase1({ uid, userRef, userDoc }) {
-  // Phase 1 migration:
-  // - If legacy user.expertise exists and expertiseApproved missing, copy it.
-  // - Always prune expertiseApproved to Phase 1 keys.
-  const beforeApproved = Array.isArray(userDoc?.expertiseApproved) ? userDoc.expertiseApproved : null;
-  const legacy = userDoc?.expertise;
-
-  let approved = beforeApproved;
-  const log = Array.isArray(userDoc?.expertiseChangeLog) ? userDoc.expertiseChangeLog.slice(0, 50) : [];
-  // NOTE: Firestore does not allow FieldValue.serverTimestamp() inside arrays.
-  // Use a concrete timestamp value.
-  const now = admin.firestore.Timestamp.now();
-  let changed = false;
-
-  if (!approved && legacy) {
-    const legacyArr = Array.isArray(legacy)
-      ? legacy
-      : String(legacy || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-    approved = legacyArr;
-    log.push({ action: 'migrate', category: 'legacy_expertise', by: 'admin', at: now });
-    changed = true;
-  }
-
-  if (approved) {
-    const { kept, removed } = pruneToPhase1(approved);
-    if (removed.length > 0) {
-      for (const r of removed) log.push({ action: 'phase1_prune', category: r, by: 'admin', at: now });
-      approved = kept;
-      changed = true;
-    }
-  }
-
-  if (!changed) return userDoc;
-
-  const updates = {
-    expertiseApproved: Array.isArray(approved) ? approved : [],
+async function syncExpertiseFields({ userRef, userDoc }) {
+  const planned = planExpertiseFieldSync(userDoc);
+  if (!planned.changed) return userDoc;
+  await userRef.update({
+    expertise: planned.requested,
+    expertiseApproved: planned.approved,
     expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    expertiseChangeLog: log.slice(-50),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
-  await userRef.update(updates);
+  });
   const fresh = await userRef.get();
   return fresh.data() || userDoc;
 }
@@ -401,7 +343,7 @@ router.get('/api/me', requireAuth, async (req, res) => {
     const mirrored = await mirrorAuthContactFields(classified, req.user);
     const ref = mirrored.ref;
     const raw = mirrored.data;
-    const data = raw?.role === 'tradie' ? await ensureExpertiseApprovedPhase1({ uid, userRef: ref, userDoc: raw }) : raw;
+    const data = raw?.role === 'tradie' ? await syncExpertiseFields({ userRef: ref, userDoc: raw }) : raw;
     const isHomeowner = data?.role === 'homeowner';
 
     // Auto-heal: if a tradie already has private details saved, mark them as locked so locks persist after relogin.
@@ -472,6 +414,7 @@ router.get('/api/me', requireAuth, async (req, res) => {
         primaryServiceSuburb: data.primaryServiceSuburb || data.serviceLocation?.suburb || '',
         primaryServicePostcode: data.primaryServicePostcode || data.serviceLocation?.postcode || '',
         bio: data.bio || '',
+        expertise: data.role === 'tradie' ? (Array.isArray(data.expertise) ? data.expertise : []) : undefined,
         expertiseApproved: Array.isArray(data.expertiseApproved) ? data.expertiseApproved : [],
         phone: data.phone || '',
         phoneNumber: data.phone || '',
