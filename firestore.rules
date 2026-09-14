@@ -617,6 +617,13 @@ service cloud.firestore {
     }
 
     /* ---------------------------------------------------------------------- */
+    /* Pilot waitlist (server/Admin SDK only)                                  */
+    /* ---------------------------------------------------------------------- */
+    match /pilotWaitlist/{docId} {
+      allow read, write: if false;
+    }
+
+    /* ---------------------------------------------------------------------- */
     /* Pilot operational state (server/Admin SDK only)                         */
     /* Path: system/pilotSettings + system/pilotSettings/history/{eventId}     */
     /* ---------------------------------------------------------------------- */

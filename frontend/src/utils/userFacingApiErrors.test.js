@@ -13,6 +13,22 @@ describe('userFacingApiErrors', () => {
     expect(looksLikeInternalApiLeak('Please choose a shorter title')).toBe(false);
   });
 
+  it('maps PILOT_POSTING_CLOSED before treating 403 as a role error', () => {
+    const p = getPostJobFlowErrorPresentation({
+      response: {
+        status: 403,
+        data: {
+          code: 'PILOT_POSTING_CLOSED',
+          state: 'PAUSED',
+          message: 'Taskio is temporarily pausing new job posts while we manage current demand.',
+        },
+      },
+    });
+    expect(p.kind).toBe('blocked_generic');
+    expect(p.body).toMatch(/pausing new job posts/i);
+    expect(p.body).not.toMatch(/Client account/i);
+  });
+
   it('maps 403 role errors to blocked permission copy without echoing backend text', () => {
     const p = getPostJobFlowErrorPresentation({
       response: {

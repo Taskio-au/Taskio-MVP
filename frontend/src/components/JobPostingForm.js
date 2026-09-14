@@ -33,7 +33,9 @@ import { coercePilotSuburb } from '../config/analyticsConfig';
 import { InlineErrorCardWithNavLinks } from './ui/AsyncPageStates';
 import { getPostJobFlowErrorPresentation } from '../utils/userFacingApiErrors';
 import InviteOnlyNotice from './InviteOnlyNotice';
+import JobPostingAvailabilityScreen from './JobPostingAvailabilityScreen';
 import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
+import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
 
 // Shared API client
 const api = createApiClient();
@@ -357,6 +359,7 @@ function JobPostingForm() {
     });
 
     const navigate = useNavigate();
+    const { loadState: postingLoadState, status: postingStatus, refresh: refreshPilotStatus } = usePublicPilotStatus(api);
     const [user, setUser] = useState(auth.currentUser);
     const [formErrors, setFormErrors] = useState({});
     /** Structured post errors (never raw API text for permission / leaked messages). */
@@ -749,6 +752,22 @@ function JobPostingForm() {
     }, [photos]);
 
     const createAndFinalizeTask = useCallback(async (token) => {
+        const latest = await refreshPilotStatus();
+        if (!latest?.canPost) {
+            const paused = latest?.homeownerPosting === 'PAUSED';
+            const error = new Error(paused
+                ? 'Taskio is temporarily pausing new job posts while we manage current demand.'
+                : 'Taskio is not accepting new jobs right now.');
+            error.response = {
+                status: 403,
+                data: {
+                    code: 'PILOT_POSTING_CLOSED',
+                    state: paused ? 'PAUSED' : 'CLOSED',
+                    message: error.message,
+                },
+            };
+            throw error;
+        }
         const config = { headers: { Authorization: `Bearer ${token}` } };
         const createRes = await api.post(`/api/jobs`, buildTaskData(), config);
         const jobId = createRes?.data?.jobId;
@@ -774,7 +793,7 @@ function JobPostingForm() {
         }
         sessionStorage.removeItem('taskio_job_draft');
         navigate(`/job-posted/${jobId}`);
-    }, [buildTaskData, formData.jobType, formData.location, navigate, photos.length, selectedTopLevelGroup, uploadPhotosForJob]);
+    }, [buildTaskData, formData.jobType, formData.location, navigate, photos.length, refreshPilotStatus, selectedTopLevelGroup, uploadPhotosForJob]);
 
     const ensureRecaptchaVerifier = useCallback(() => (
         ensureOfficialRecaptchaVerifier({
@@ -1411,6 +1430,10 @@ function JobPostingForm() {
             default: return null;
         }
     };
+
+    if (postingLoadState === 'loading' || !postingStatus.canPost) {
+        return <JobPostingAvailabilityScreen loadState={postingLoadState} status={postingStatus} />;
+    }
 
     return (
         !user && !isPublicAcquisitionEnabled() ? (

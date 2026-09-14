@@ -51,6 +51,19 @@ jest.mock('../config/publicAcquisitionConfig', () => ({
   isPublicAcquisitionEnabled: () => true,
 }));
 
+jest.mock('../hooks/usePublicPilotStatus', () => ({
+  __esModule: true,
+  default: () => ({
+    loadState: 'ok',
+    status: { homeownerPosting: 'OPEN', canPost: true, waitlistAvailable: false },
+    refresh: jest.fn().mockResolvedValue({
+      homeownerPosting: 'OPEN',
+      canPost: true,
+      waitlistAvailable: false,
+    }),
+  }),
+}));
+
 const JobPostingForm = require('./JobPostingForm').default;
 
 function renderForm() {

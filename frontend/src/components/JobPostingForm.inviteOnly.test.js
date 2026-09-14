@@ -28,6 +28,15 @@ jest.mock('../api/createApiClient', () => ({
   createApiClient: () => ({ post: jest.fn() }),
 }));
 
+jest.mock('../hooks/usePublicPilotStatus', () => ({
+  __esModule: true,
+  default: () => ({
+    loadState: 'ok',
+    status: { homeownerPosting: 'OPEN', canPost: true, waitlistAvailable: false },
+    refresh: jest.fn(),
+  }),
+}));
+
 jest.mock('../services/phoneVerification', () => ({
   normalizeAuMobileToE164: jest.fn(),
   createInvisibleRecaptcha: jest.fn(),

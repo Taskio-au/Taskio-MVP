@@ -15,8 +15,15 @@ describe('pilotSettingsDerive', () => {
     expect(normalized.effectiveState).toBe(OPERATIONAL_STATES.CLOSED);
     expect(normalized.configurationValid).toBe(true);
     expect(view.documentExists).toBe(false);
-    expect(view.postingWired).toBe(false);
+    expect(view.postingWired).toBe(true);
     expect(view.postingBehaviour).toBe(OPERATIONAL_STATES.CLOSED);
+  });
+
+  it('marks posting as wired to the effective operational state', () => {
+    const normalized = normalizeStoredSettings({ state: 'OPEN' });
+    const view = serializePilotSettings(normalized, { state: 'OPEN' });
+    expect(view.postingWired).toBe(true);
+    expect(view.postingBehaviour).toBe(OPERATIONAL_STATES.OPEN);
   });
 
   it('fails closed and marks configuration invalid for an unknown stored state', () => {

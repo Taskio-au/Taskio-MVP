@@ -19,6 +19,24 @@ jest.mock('react-firebase-hooks/auth', () => ({
   useAuthState: jest.fn(() => [null, false, null]),
 }), { virtual: true });
 
+const mockPilotStatus = {
+  value: {
+    loadState: 'ok',
+    status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
+    refresh: jest.fn(),
+  },
+};
+
+jest.mock('../hooks/usePublicPilotStatus', () => ({
+  __esModule: true,
+  default: () => mockPilotStatus.value,
+}));
+
+const mockPublicAcquisition = { enabled: false };
+jest.mock('../config/publicAcquisitionConfig', () => ({
+  isPublicAcquisitionEnabled: () => mockPublicAcquisition.enabled,
+}));
+
 const LandingPage = require('./LandingPage').default;
 
 describe('LandingPage', () => {
@@ -30,7 +48,7 @@ describe('LandingPage', () => {
     );
 
     expect(screen.getByRole('heading', { level: 1, name: /small indoor jobs, sorted/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /log in if invited/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /join waitlist/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /how taskio works/i })).toHaveAttribute('href', '#how-taskio-works');
     expect(screen.getAllByText(/^invite-only$/i).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: /become an expert/i })).not.toBeInTheDocument();
@@ -86,14 +104,99 @@ describe('LandingPage', () => {
       </MemoryRouter>
     );
 
-    // Category cards route invited users to login, so they must not promise open posting.
-    expect(screen.getAllByText('Log in to post').length).toBe(8);
+    expect(screen.getAllByText('Join waitlist').length).toBeGreaterThan(0);
     expect(screen.queryByText('Post task')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^post a task$/i })).not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /log in to post a mounting task/i })
+      screen.getByRole('button', { name: /join waitlist for mounting/i })
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /expert access/i })).toBeInTheDocument();
+  });
+
+  it('keeps the authentication gate when posting is OPEN and public acquisition is closed', () => {
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: { homeownerPosting: 'OPEN', canPost: true, waitlistAvailable: false },
+      refresh: jest.fn(),
+    };
+    const { unmount } = render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('button', { name: /log in if invited/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^join waitlist$/i })).not.toBeInTheDocument();
+    unmount();
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
+      refresh: jest.fn(),
+    };
+  });
+
+  it('shows Post a task when posting is OPEN and public acquisition is enabled', () => {
+    mockPublicAcquisition.enabled = true;
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: { homeownerPosting: 'OPEN', canPost: true, waitlistAvailable: false },
+      refresh: jest.fn(),
+    };
+    const { unmount } = render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('button', { name: /post your task for free/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /post a task$/i })).toBeInTheDocument();
+    unmount();
+    mockPublicAcquisition.enabled = false;
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
+      refresh: jest.fn(),
+    };
+  });
+
+  it('shows pause copy and a waitlist CTA when posting is PAUSED', () => {
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: { homeownerPosting: 'PAUSED', canPost: false, waitlistAvailable: true },
+      refresh: jest.fn(),
+    };
+    const { unmount } = render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/temporarily pausing new job posts/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /join waitlist/i }).length).toBeGreaterThan(0);
+    unmount();
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
+      refresh: jest.fn(),
+    };
+  });
+
+  it('fails closed when public status cannot be loaded', () => {
+    mockPilotStatus.value = {
+      loadState: 'error',
+      status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
+      refresh: jest.fn(),
+    };
+    const { unmount } = render(
+      <MemoryRouter>
+        <LandingPage />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/temporarily unavailable/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /join waitlist/i }).length).toBeGreaterThan(0);
+    unmount();
+    mockPilotStatus.value = {
+      loadState: 'ok',
+      status: { homeownerPosting: 'CLOSED', canPost: false, waitlistAvailable: true },
+      refresh: jest.fn(),
+    };
   });
 
   it('describes payment without claiming Taskio holds the money', () => {

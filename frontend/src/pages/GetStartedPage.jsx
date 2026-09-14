@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import PublicPageHeader from '../components/PublicPageHeader';
 import InviteOnlyNotice from '../components/InviteOnlyNotice';
 import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
+import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
+import { resolveHomeownerPosting } from '../utils/homeownerPostingEntry';
 import { ArrowRight, Briefcase, Home } from 'lucide-react';
 
 const styles = {
@@ -100,6 +102,7 @@ const styles = {
 
 export default function GetStartedPage() {
   const publicAcquisition = isPublicAcquisitionEnabled();
+  const posting = resolveHomeownerPosting(usePublicPilotStatus());
 
   return (
     <div style={styles.page}>
@@ -113,12 +116,16 @@ export default function GetStartedPage() {
             </div>
 
             <div style={styles.options}>
-              <Link to="/post-job" style={styles.optionCard}>
+              <Link to={posting.path} style={styles.optionCard}>
                 <div style={styles.optionIcon}>
                   <Home size={20} />
                 </div>
-                <h2 style={styles.optionTitle}>Post a task</h2>
-                <p style={styles.optionCopy}>Get quotes for a small indoor job and create your account along the way.</p>
+                <h2 style={styles.optionTitle}>{posting.label}</h2>
+                <p style={styles.optionCopy}>
+                  {posting.canPost
+                    ? 'Get quotes for a small indoor job and create your account along the way.'
+                    : 'Register interest and we will let you know when homeowner posting opens.'}
+                </p>
                 <span style={styles.optionAction}>
                   Continue
                   <ArrowRight size={16} />

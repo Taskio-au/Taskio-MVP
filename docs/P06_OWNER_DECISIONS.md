@@ -19,7 +19,9 @@
 | P06 REMEDIATION | **NOT STARTED** |
 | P06 OVERALL | **OPEN** |
 
-P09 remains **blocked** until P06 PASS. Do not implement UI/copy/retention/analytics/email/App Check changes from this pack.
+P09 remains **blocked** until P06 PASS. Do not treat Slice 5C waitlist email collection as privacy-complete.
+
+**P06 review item (Slice 5C, local, not deployed):** `POST /api/pilot-waitlist` stores email, optional suburb, source, and server timestamp in `pilotWaitlist` via Admin SDK. Client Firestore access is denied. Consent is a UI gate only. This is a new personal-data flow and must be reviewed before any deploy. It does **not** change P06 from OPEN and does **not** unblock P09.
 
 This pack records **owner-confirmed working facts**, **lean validation working positions**, and **open professional questions**. It does **not** make Privacy Act conclusions, rewrite Terms or Privacy Policy, invent a company, or treat Pty Ltd incorporation or broad insurance spend as automatic launch blockers.
 

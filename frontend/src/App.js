@@ -45,6 +45,7 @@ const SupportPage = lazy(() => import('./components/SupportPage'));
 const DeletionConfirmPage = lazy(() => import('./components/DeletionConfirmPage'));
 const E2ECriticalFlowsPage = lazy(() => import('./pages/E2ECriticalFlowsPage'));
 const ExpertReviewsPage = lazy(() => import('./components/ExpertReviewsPage'));
+const WaitlistPage = lazy(() => import('./pages/WaitlistPage'));
 
 const ProtectedRoute = ({ children }) => {
   const [user, loading] = useAuthState(auth);
@@ -69,6 +70,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<Login adminMode />} />
           <Route path="/get-started" element={<GetStartedPage />} />
+          <Route path="/waitlist" element={<WaitlistPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/tradie/signup" element={<ExpertSignUpRoute />} />

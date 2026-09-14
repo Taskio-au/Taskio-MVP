@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-14 Admin Slice 5C operational state wired to homeowner posting (GREEN local):** Persisted CLOSED / OPEN / PAUSED now controls new homeowner job creation. Backend `POST /api/jobs` is the hard gate. Public `GET /api/pilot-status` is fail-closed. CLOSED/PAUSED use the waitlist path; existing jobs continue. Still **not deployed**. No staging/production `system/pilotSettings`. P06 **OPEN** (waitlist email collection is a review item). P09 blocked. Production untouched.
+
 **2026-09-14 Admin Slice 5B persisted operational state foundation (GREEN local):** `system/pilotSettings` stores CLOSED / OPEN / PAUSED. Admin-only GET/PUT. OPEN requires live Slice 5A READY TO OPEN. CLOSED/PAUSED remain available as fail-safe shutdown. Append-only history. Client Firestore writes denied. Homeowner posting still **not wired**. Still **not** implemented: Slice 5C posting/waitlist wire-up, WATCH auto-pause. P06 **OPEN**. P09 blocked. Production untouched.
 
 **2026-09-14 Admin Slice 5A read-only Pilot Status engine (GREEN local):** Reviewed `shared/launchReadinessManifest.js` plus `GET /api/admin/pilot-launch-readiness`. Overall states: NOT READY / READY TO OPEN / DATA INCOMPLETE / DATA UNAVAILABLE. P11 is not required for READY TO OPEN. Homeowner posting remains CLOSED with no activate control. Still **not** implemented: persisted OPEN/CLOSED/PAUSED, owner activation, waitlist, homeowner open posting. P06 **OPEN**. P09 blocked. Production untouched.
@@ -422,7 +424,7 @@ Platform payment ≠ Connect transfer ≠ connected balance ≠ bank payout. P01
 | ID | Objective |
 |---|---|
 | N01 | Paid variations hosted proof |
-| N02 | Public waitlist (only if useful after GREEN) |
+| N02 | Public waitlist (local MVP in Slice 5C; not deployed; P06 review item) |
 | N03 | Full automated dispute system |
 
 **Exact next pickup:** **P06** focused AU solicitor (Stage 1 + Stage 2) + focused insurance broker (minimum pilot cover) + accountant marketplace/GST (`docs/P06_OWNER_DECISIONS.md`, `docs/P06_SOLICITOR_BRIEF.md`). Do **not** treat Pty Ltd or broad insurance as automatic blockers. Do **not** mark P06 PASS or start P09 UI/copy. Production remains frozen.

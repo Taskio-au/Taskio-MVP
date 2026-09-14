@@ -5,11 +5,15 @@ import ConfirmDialog from '../../../design/components/ConfirmDialog';
 import { LAUNCH_STATUS, resolveLaunchView } from './launchReadinessDisplay';
 import './PilotSettingsSection.css';
 
-export const FOUNDATION_WARNING =
-  'Operational state foundation only. Homeowner posting remains controlled by the existing CLOSED behaviour until posting controls are wired.';
+export const OPERATIONAL_GUIDANCE =
+  'Operational state controls new homeowner posting. Existing jobs continue to operate when posting is paused or closed.';
 
 const OPEN_CONFIRM =
-  'This sets the operational control state only. Homeowner posting is NOT yet wired in this slice. Actual public posting behaviour remains unchanged until Slice 5C.';
+  'Opening the pilot allows supported homeowners in the approved pilot area to submit new jobs. Existing category, geography, authentication and validation rules still apply.';
+const PAUSE_CONFIRM =
+  'Pause new homeowner job posts. Existing jobs and Expert workflows continue. Homeowners will be directed to the waitlist.';
+const CLOSE_CONFIRM =
+  'Close the pilot to new homeowner job posts. Existing jobs continue. This is a closed state, not a deletion or shutdown.';
 
 function toneForOperational(state) {
   if (state === 'OPEN') return 'ok';
@@ -70,6 +74,7 @@ export default function PilotSettingsSection({
   }
 
   const operational = settings.effectiveState || 'CLOSED';
+  const posting = operational;
   const launchStatus = launchView.status;
   const ready = launchStatus === LAUNCH_STATUS.READY_TO_OPEN;
   const blockers = Array.isArray(launch?.blockers) ? launch.blockers : [];
@@ -98,11 +103,11 @@ export default function PilotSettingsSection({
     <section className="ad-pilot-settings" aria-labelledby="ad-pilot-settings-heading">
       <h2 id="ad-pilot-settings-heading" className="ad-pilot-settings__eyebrow">Pilot settings</h2>
       <p className="ad-pilot-settings__helper">
-        Persisted operational control. This is separate from derived launch readiness
-        and does not change public homeowner posting.
+        Persisted operational control. This is separate from derived launch readiness.
+        New homeowner posting follows the effective operational state.
       </p>
 
-      <Banner tone="info" title="Foundation only" message={FOUNDATION_WARNING} />
+      <Banner tone="info" title="Posting control" message={OPERATIONAL_GUIDANCE} />
 
       <div className="ad-pilot-settings__grid">
         <article className="ad-pilot-settings__card">
@@ -119,8 +124,16 @@ export default function PilotSettingsSection({
         </article>
         <article className="ad-pilot-settings__card">
           <h3 className="ad-pilot-settings__label">Homeowner posting</h3>
-          <p className="ad-pilot-settings__value ad-pilot-settings__value--alert">NOT YET WIRED</p>
-          <p className="ad-pilot-settings__note">Product behaviour remains CLOSED</p>
+          <p className={`ad-pilot-settings__value ad-pilot-settings__value--${toneForOperational(posting)}`}>
+            {posting}
+          </p>
+          <p className="ad-pilot-settings__note">
+            {posting === 'OPEN'
+              ? 'Supported homeowners can submit new jobs.'
+              : posting === 'PAUSED'
+                ? 'New posting blocked. Existing jobs continue.'
+                : 'New posting blocked / waitlist path.'}
+          </p>
         </article>
       </div>
 
@@ -176,14 +189,14 @@ export default function PilotSettingsSection({
             <Button
               variant="secondary"
               disabled={busy}
-              onClick={() => requestChange('PAUSED', 'Pause Pilot?', 'Pause the operational control state. Homeowner posting stays unwired and CLOSED.', 'Pause Pilot')}
+              onClick={() => requestChange('PAUSED', 'Pause Pilot?', PAUSE_CONFIRM, 'Pause Pilot')}
             >
               Pause Pilot
             </Button>
             <Button
               variant="danger"
               disabled={busy}
-              onClick={() => requestChange('CLOSED', 'Close Pilot?', 'Close the operational control state. Homeowner posting stays unwired and CLOSED.', 'Close Pilot', true)}
+              onClick={() => requestChange('CLOSED', 'Close Pilot?', CLOSE_CONFIRM, 'Close Pilot', true)}
             >
               Close Pilot
             </Button>
@@ -201,7 +214,7 @@ export default function PilotSettingsSection({
             <Button
               variant="danger"
               disabled={busy}
-              onClick={() => requestChange('CLOSED', 'Close Pilot?', 'Close the operational control state. Homeowner posting stays unwired and CLOSED.', 'Close Pilot', true)}
+              onClick={() => requestChange('CLOSED', 'Close Pilot?', CLOSE_CONFIRM, 'Close Pilot', true)}
             >
               Close Pilot
             </Button>

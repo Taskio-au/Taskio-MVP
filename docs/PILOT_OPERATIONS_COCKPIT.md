@@ -66,14 +66,23 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. This Admin w
 - `GET /api/admin/pilot-settings` and `PUT /api/admin/pilot-settings/state` (admin-only)
 - OPEN allowed only when live Slice 5A readiness is **READY TO OPEN**. CLOSED/PAUSED always allowed
 - Append-only `system/pilotSettings/history/{eventId}`. Client Firestore writes denied
-- Admin Pilot Settings panel with confirmation. Does **not** wire homeowner posting
+- Admin Pilot Settings panel with confirmation
+
+**IMPLEMENTED (Slice 5C — posting wire-up, local, not deployed)**
+
+- Authoritative create gate: `POST /api/jobs` rejects unless effective operational state is OPEN
+- Public fail-closed `GET /api/pilot-status` (`homeownerPosting`, `canPost`, `waitlistAvailable`)
+- Minimal waitlist: `POST /api/pilot-waitlist` → `pilotWaitlist` (Admin SDK only; client reads/writes denied)
+- Landing, dashboard, `/post-job`, and header CTAs follow public status. Backend remains authority
+- OPEN does not bypass auth, Phase 1 categories, or approved Inner Melbourne geography
+- CLOSED/PAUSED block **new** homeowner jobs only. Existing jobs continue
+- Admin homeowner-posting card now shows OPEN / CLOSED / PAUSED
 
 **NOT YET IMPLEMENTED**
 
-- Slice 5C: wire operational state to homeowner posting / waitlist / public CTA
+- Deploy / create `system/pilotSettings` in staging or production
 - Persisted WATCH auto-pause
-- Waitlist product UX
-- Homeowner open posting
+- P06/P09 legal completion for waitlist or public launch copy
 
 ---
 
@@ -494,7 +503,7 @@ Demote `/admin/monitoring` and `/admin/daily-checklist` to links under Overview 
 | True service-area coverage | **B** | Field implemented | `serviceAreas[]` allowlisted multi-select. Do **not** default-copy `serviceLocation` | Data yes |
 | Accepting jobs | **B** | Field implemented | `acceptingJobs` boolean (no calendar) | Data yes |
 | Posting CLOSED/OPEN/PAUSED | **C** | No config | Audited config doc + confirm UI | Yes before OPEN |
-| Waitlist records | **C/D** | No collection | Minimal interest emails or existing waitlist if added later | Pre-activation UX; can be manual at first |
+| Waitlist records | **C** | Local collection `pilotWaitlist` (email + optional suburb + source). Not deployed | Admin SDK write via `POST /api/pilot-waitlist`. Client access denied | Pre-activation UX. P06 review item |
 | Attention 60m / 3h / invite count | **B** | Thresholds differ from 6h/24h | Extend `adminOps` + quote/invite meta | Yes |
 | ≥1 / ≥2 / zero-quote % | **B** | — | Same quote meta, bounded | Yes |
 | Funnel | **B** then **C** if slow | Client aggregation on full job list | Server summary if > few hundred jobs | Yes (simple) |
@@ -564,11 +573,13 @@ Tablet: stack KPI rows; keep queue as the first scroll target.
 
 **Job-specific supply:** category and geography totals are indicators only. They do not prove every category × service-area combination is covered. Later matching / attention should count launch-ready Experts for the job’s actual category + service area. No category-by-suburb matrix and no GIS in this slice.
 
-**Still later (not Slice 5B):**
+**Done in Slice 5C (local, not deployed):** Operational state is wired to real homeowner posting. OPEN allows supported new jobs. CLOSED/PAUSED block new posts and send homeowners to the waitlist. Existing jobs continue. Public status is fail-closed. No staging/production settings document.
 
-1. Slice 5C — wire persisted operational state to homeowner posting / waitlist / public CTA.
+**Still later (not Slice 5C):**
+
+1. Deploy / create `system/pilotSettings` only with a separate approval.
 2. WATCH / auto-pause when readiness degrades while OPEN.
-3. Waitlist product UX after P06/P09 allow public copy.
+3. P06 solicitor review of waitlist email collection before treating it as privacy-complete.
 
 ---
 

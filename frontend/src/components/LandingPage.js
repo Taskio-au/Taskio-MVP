@@ -4,6 +4,8 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { ArrowRight } from 'lucide-react';
 import { auth } from '../firebase';
 import { isPublicAcquisitionEnabled } from '../config/publicAcquisitionConfig';
+import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
+import { publicPilotPostingCopy } from '../constants/pilotPostingCopy';
 import { ANALYTICS_EVENTS, trackEvent, trackEventOnce } from '../config/analytics';
 import { Button } from '../design/components';
 import '../styles/publicPageHeader.css';
@@ -41,6 +43,7 @@ function LandingPage() {
   const user = authState[0] || null;
   const homeHref = user ? '/dashboard' : '/';
   const publicAcquisition = isPublicAcquisitionEnabled();
+  const { loadState: postingLoadState, status: postingStatus } = usePublicPilotStatus();
   const expertEntry = publicAcquisition ? '/tradie/signup' : '/get-started';
   trackEventOnce(ANALYTICS_EVENTS.LANDING_VIEWED, 'session', { surface: 'landing' });
 
@@ -49,11 +52,23 @@ function LandingPage() {
     navigate('/login');
   };
 
-  // Public signup is closed during private launch, so unauthenticated visitors are
-  // routed to login and every landing CTA says so rather than implying open posting.
-  const canPostDirectly = publicAcquisition || Boolean(user);
+  const postingOpen = postingLoadState === 'ok' && postingStatus.canPost === true;
+  const canPostDirectly = postingOpen && (publicAcquisition || Boolean(user));
+  const showWaitlist = !postingOpen && postingLoadState !== 'loading';
+  const homeownerCtaLabel = postingLoadState === 'loading'
+    ? 'Checking availability…'
+    : showWaitlist
+      ? 'Join waitlist'
+      : canPostDirectly
+        ? 'Post a task'
+        : 'Log in if invited';
 
-  const goPostOrLogin = (surface) => {
+  const goHomeownerCta = (surface) => {
+    if (postingLoadState === 'loading') return;
+    if (showWaitlist) {
+      navigate('/waitlist');
+      return;
+    }
     if (canPostDirectly) {
       navigate('/post-job');
       return;
@@ -110,28 +125,22 @@ function LandingPage() {
               <p className="landing-hero-copy">
                 Post once. Compare quotes from verified Experts. Pay securely through Taskio when you
                 approve the completed job.
-                {publicAcquisition ? '' : ' Access is invite-only while Taskio is in private early access.'}
+                {postingOpen
+                  ? (publicAcquisition ? '' : ' Access is invite-only while Taskio is in private early access.')
+                  : ` ${publicPilotPostingCopy(postingStatus.homeownerPosting, postingLoadState)}`}
               </p>
               <div className="landing-hero-actions">
-                {publicAcquisition ? (
-                  <Button
-                    size="lg"
-                    variant="accent"
-                    style={ACCENT_CTA_TEXT}
-                    onClick={() => navigate('/post-job')}
-                  >
-                    Post your task for free
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    variant="accent"
-                    style={ACCENT_CTA_TEXT}
-                    onClick={() => goLogin('hero')}
-                  >
-                    Log in if invited
-                  </Button>
-                )}
+                <Button
+                  size="lg"
+                  variant="accent"
+                  style={ACCENT_CTA_TEXT}
+                  disabled={postingLoadState === 'loading'}
+                  onClick={() => goHomeownerCta('hero')}
+                >
+                  {homeownerCtaLabel === 'Post a task' && publicAcquisition
+                    ? 'Post your task for free'
+                    : homeownerCtaLabel}
+                </Button>
                 <a className="landing-btn-ghost" href="#how-taskio-works">
                   How Taskio works
                 </a>
@@ -184,11 +193,13 @@ function LandingPage() {
                 key={service.name}
                 type="button"
                 className="landing-service"
-                onClick={() => goPostOrLogin('category')}
+                onClick={() => goHomeownerCta('category')}
                 aria-label={
-                  canPostDirectly
-                    ? `Post a task: ${service.name}`
-                    : `Log in to post a ${service.name} task`
+                  showWaitlist
+                    ? `Join waitlist for ${service.name}`
+                    : canPostDirectly
+                      ? `Post a task: ${service.name}`
+                      : `Log in to post a ${service.name} task`
                 }
               >
                 <img
@@ -205,7 +216,7 @@ function LandingPage() {
                   <span className="landing-service-name">{service.name}</span>
                   <span className="landing-service-desc">{service.description}</span>
                   <span className="landing-service-cta">
-                    {canPostDirectly ? 'Post task' : 'Log in to post'}
+                    {showWaitlist ? 'Join waitlist' : canPostDirectly ? 'Post task' : 'Log in to post'}
                     <ArrowRight size={15} strokeWidth={2.5} aria-hidden />
                   </span>
                 </span>
@@ -310,12 +321,14 @@ function LandingPage() {
           <div className="landing-close-grid">
             <div>
               <p className="landing-eyebrow landing-eyebrow--dark">
-                {publicAcquisition ? 'Get quotes' : 'Invite-only'}
+                {postingOpen ? (publicAcquisition ? 'Get quotes' : 'Invite-only') : 'Melbourne pilot'}
               </p>
               <h2 className="landing-close-title" id="landing-close-title">
-                {publicAcquisition
-                  ? 'Post a task. Hear from verified Experts.'
-                  : 'Got an invitation? Your next small job starts here.'}
+                {postingOpen
+                  ? (publicAcquisition
+                    ? 'Post a task. Hear from verified Experts.'
+                    : 'Got an invitation? Your next small job starts here.')
+                  : 'Join the waitlist for homeowner posting'}
               </h2>
               <p className="landing-close-copy">
                 Brief, quotes, messages and payment stay in one place for small indoor jobs.
@@ -327,9 +340,9 @@ function LandingPage() {
                 size="lg"
                 variant="accent"
                 style={ACCENT_CTA_TEXT}
-                onClick={() => goPostOrLogin('cta')}
+                onClick={() => goHomeownerCta('cta')}
               >
-                {publicAcquisition ? 'Post a task' : 'Log in'}
+                {homeownerCtaLabel === 'Log in if invited' ? 'Log in' : homeownerCtaLabel}
               </Button>
               {publicAcquisition ? (
                 <Link className="landing-close-link" to="/tradie/signup">
@@ -356,7 +369,8 @@ function LandingPage() {
             </div>
             <nav className="landing-footer-nav" aria-label="Footer">
               <div className="landing-footer-links">
-                {publicAcquisition ? <Link to="/post-job">Post a task</Link> : null}
+                {postingOpen && publicAcquisition ? <Link to="/post-job">Post a task</Link> : null}
+                {showWaitlist ? <Link to="/waitlist">Join waitlist</Link> : null}
                 <Link to="/login">Log in</Link>
                 <Link to={expertEntry} className="landing-footer-expert-link">
                   {publicAcquisition ? 'Become an Expert' : 'Expert access'}

@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 14 September 2026 (Admin Slice 5B persisted operational state foundation)
+**Last updated:** 14 September 2026 (Admin Slice 5C local — operational state wired to homeowner posting)
 
 ## Active scope
 
@@ -51,7 +51,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
-| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Posting **CLOSED** until ~15 launch-ready (technical eligibility + `acceptingJobs=true` + ≥1 enabled `serviceAreas[]`) + category coverage (**minimum 4 / target 5** per **enabled category**, not per suburb) + one-zone Inner Melbourne **service** coverage + other real-user gates + explicit owner activation. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1–5B Admin data/cockpit/attention/marketplace metrics/read-only Pilot Status/persisted operational state foundation implemented locally (`SUPPLY READY` is not `READY TO OPEN`; persisted OPEN does not open posting). Slice 5C posting wire-up not built. Incomplete scans must not prove supply-ready or “all clear”. | — |
+| P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Posting follows persisted operational state locally: **OPEN** allows supported homeowner jobs; **CLOSED** / **PAUSED** block new posts and use the waitlist path. Existing jobs continue in all three states. Still **not deployed**. Activation still requires ~15 launch-ready + category/geo coverage + other real-user gates + explicit owner OPEN. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. Slice 1–5C Admin data/cockpit/attention/marketplace metrics/Pilot Status/operational state + posting wire-up implemented locally. P06 **OPEN**. P09 blocked. Incomplete scans must not prove supply-ready or “all clear”. | — |
 
 Mandatory remaining before controlled launch: P06, P07, P08, P09, P10, plus P03/P04/P05 **production** PASS.
 

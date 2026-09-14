@@ -111,8 +111,8 @@ function serializePilotSettings(normalized, raw = null) {
     pausedAt: serializeTimestamp(data.pausedAt),
     closedAt: serializeTimestamp(data.closedAt),
     version: asInt(data.version, 0),
-    postingWired: false,
-    postingBehaviour: OPERATIONAL_STATES.CLOSED,
+    postingWired: true,
+    postingBehaviour: normalized.effectiveState,
   };
 }
 

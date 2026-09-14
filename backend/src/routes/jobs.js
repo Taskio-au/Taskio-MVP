@@ -44,6 +44,7 @@ const {
   allocateCheckoutGeneration,
 } = require('../services/stripeIdempotency');
 const { toHostedCheckoutPayload, isHostedCheckoutUrlError } = require('../utils/stripeHostedCheckoutUrl');
+const { assertPilotPostingOpen } = require('../services/pilotPostingAccess');
 
 const router = express.Router();
 
@@ -376,6 +377,11 @@ router.post('/api/jobs', requireAuth, requireEnrolledProfile({
   requireQuoteAccess: true,
 }), requireRole('homeowner'), async (req, res) => {
   try {
+    const posting = await assertPilotPostingOpen(db);
+    if (!posting.ok) {
+      return res.status(403).send(posting.error);
+    }
+
     const {
       jobType, primaryCategory, items, title, description, location, timeline,
       budget, estimatedDuration, siteAccess, details,

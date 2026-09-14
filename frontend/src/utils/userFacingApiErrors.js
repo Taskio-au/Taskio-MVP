@@ -71,8 +71,24 @@ function wrongRoleHint(status, rawLower) {
  */
 export function getPostJobFlowErrorPresentation(err) {
     const status = err?.response?.status;
+    const data = err?.response?.data;
     const raw = collectRawMessages(err);
     const rawLower = raw.toLowerCase();
+
+    if (data?.code === 'PILOT_POSTING_CLOSED') {
+        const paused = data.state === 'PAUSED';
+        const body = typeof data.message === 'string' && data.message.trim() && !looksLikeInternalApiLeak(data.message)
+            ? data.message.trim()
+            : (paused
+                ? 'Taskio is temporarily pausing new job posts while we manage current demand.'
+                : 'Taskio is not accepting new jobs right now.');
+        return {
+            kind: 'blocked_generic',
+            title: GENERIC_POST_JOB_TITLE,
+            body,
+            liveRegion: `${GENERIC_POST_JOB_TITLE}. ${body}`,
+        };
+    }
 
     if (isPermissionOrAccountContext(status, rawLower)) {
         const body = wrongRoleHint(status, rawLower)

@@ -12,9 +12,9 @@ import { groupClientDashboardJobs, selectVisibleClientNeedsActionJobs } from '..
 import { useDashboardAttentionLimit } from '../hooks/useDashboardAttentionLimit';
 import { ErrorStateCard } from './ui/AsyncPageStates';
 import PageMain from './ui/PageMain';
-
+import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
+import { resolveHomeownerPosting } from '../utils/homeownerPostingEntry';
 const api = createApiClient();
-
 const SKELETON_CARDS_PER_SECTION = 3;
 
 function DashboardTaskCardSkeleton() {
@@ -62,7 +62,7 @@ function ClientDashboard() {
     const navigate = useNavigate();
     const [user] = useAuthState(auth);
     const { unreadByJobId } = useChatThreads(user, 100);
-
+    const posting = resolveHomeownerPosting(usePublicPilotStatus(api));
     const [searchParams] = useSearchParams();
     const showAllPriority = searchParams.get('priority') === 'all';
     const attentionLimit = useDashboardAttentionLimit();
@@ -421,14 +421,14 @@ function ClientDashboard() {
                                 <SquarePen size={40} strokeWidth={1.8} color="#14C5C5" />
                             </div>
                             <h3 style={styles.emptyTitle}>No tasks yet</h3>
-                            <p style={styles.emptyText}>Post a task to get started</p>
+                            <p style={styles.emptyText}>{posting.emptyText}</p>
                             <button
                                 type="button"
-                                onClick={() => navigate('/post-job')}
+                                onClick={() => navigate(posting.path)}
                                 style={{ ...styles.ctaButtonBase, ...styles.ctaPost, padding: '16px 32px', fontSize: '16px' }}
                                 className="homeowner-post-btn"
                             >
-                                Post a task
+                                {posting.label}
                             </button>
                         </div>
                     ) : (
@@ -499,8 +499,8 @@ function ClientDashboard() {
                                 'default',
                                 {
                                     emptyMessage: 'No active jobs right now',
-                                    emptyCtaLabel: 'Post a task',
-                                    onEmptyCta: () => navigate('/post-job'),
+                                    emptyCtaLabel: posting.label,
+                                    onEmptyCta: () => navigate(posting.path),
                                 }
                             )}
                             {renderSection(

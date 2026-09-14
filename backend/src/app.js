@@ -21,6 +21,7 @@ const internalStripeVerifiedEventRoutes = require('./routes/internalStripeVerifi
 const { STRIPE_INTERNAL_INGEST_PATH } = require('./config/stripeInternalPath');
 const reviewRoutes = require('./routes/reviews');
 const authRoutes = require('./routes/auth');
+const publicPilotStatusRoutes = require('./routes/publicPilotStatus');
 
 function parseAllowedOrigins() {
   const allowedOrigins = (process.env.CORS_ORIGINS || '')
@@ -110,6 +111,7 @@ function createApp() {
   app.use(meRoutes);
   app.use(reviewRoutes);
   app.use(authRoutes);
+  app.use(publicPilotStatusRoutes);
 
   /* ------------------------------------------------------------------------ */
   /* Error Handling                                                           */

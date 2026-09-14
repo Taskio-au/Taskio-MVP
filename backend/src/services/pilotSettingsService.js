@@ -2,7 +2,7 @@
 
 /**
  * Admin SDK read/write for persisted Pilot operational state.
- * Does not wire homeowner posting. OPEN requires a live READY TO OPEN check.
+ * Homeowner posting reads effectiveState only. OPEN requires a live READY TO OPEN check.
  */
 
 const { admin } = require('../firebaseAdmin');

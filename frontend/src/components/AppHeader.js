@@ -9,6 +9,8 @@ import { collection, limit, onSnapshot, query, where } from 'firebase/firestore'
 import BrandLogo from '../design/components/BrandLogo';
 import { getRoleDisplayLabel } from '../utils/roleLabels';
 import { useChatThreads, useNotificationUnreadCount } from '../hooks/useMessagingSummary';
+import usePublicPilotStatus from '../hooks/usePublicPilotStatus';
+import { getAppHeaderNavItems, resolveHomeownerPosting } from '../utils/homeownerPostingEntry';
 
 function AppHeader({ userRole = 'homeowner', userName = '', userEmail = '' }) {
   const navigate = useNavigate();
@@ -21,6 +23,7 @@ function AppHeader({ userRole = 'homeowner', userName = '', userEmail = '' }) {
     support: 0,
     profileChanges: 0,
   });
+  const posting = resolveHomeownerPosting(usePublicPilotStatus());
   const messagingUser = userRole === 'admin' ? null : user;
   const { unreadCount: unreadMessageCount } = useChatThreads(messagingUser, 100);
   const unreadNotificationCount = useNotificationUnreadCount(messagingUser, 100);
@@ -51,30 +54,7 @@ function AppHeader({ userRole = 'homeowner', userName = '', userEmail = '' }) {
     }
   };
 
-  const getNavItems = () => {
-    if (userRole === 'tradie') {
-      return [
-        { label: 'Dashboard', path: '/tradie/dashboard' },
-        { label: 'Tasks', path: '/tradie/jobs' },
-        { label: 'Messages', path: '/messages', badgeKey: 'messages' },
-      ];
-    } else if (userRole === 'homeowner') {
-      return [
-        { label: 'Dashboard', path: '/dashboard' },
-        { label: 'Post a Task', path: '/post-job' },
-        { label: 'Messages', path: '/messages', badgeKey: 'messages' },
-      ];
-    } else if (userRole === 'admin') {
-      return [
-        { label: 'Dashboard', path: '/admin/dashboard' },
-        { label: 'Daily checklist', path: '/admin/daily-checklist' },
-        { label: 'Monitoring', path: '/admin/monitoring', badgeKey: 'monitoring' },
-        { label: 'Profile changes', path: '/admin/profile-change-requests', badgeKey: 'profileChanges' },
-        { label: 'Support tickets', path: '/admin/support', badgeKey: 'support' },
-      ];
-    }
-    return [];
-  };
+  const getNavItems = () => getAppHeaderNavItems(userRole, posting);
 
   const getMenuItems = () => {
     if (userRole === 'admin') {

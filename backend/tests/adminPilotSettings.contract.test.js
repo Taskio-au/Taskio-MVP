@@ -101,7 +101,8 @@ describe('admin pilot settings contract', () => {
     expect(res.status).toBe(200);
     expect(res.body.effectiveState).toBe('CLOSED');
     expect(res.body.documentExists).toBe(false);
-    expect(res.body.postingWired).toBe(false);
+    expect(res.body.postingWired).toBe(true);
+    expect(res.body.postingBehaviour).toBe('CLOSED');
   });
 
   it('rejects OPEN while launch readiness is NOT READY', async () => {

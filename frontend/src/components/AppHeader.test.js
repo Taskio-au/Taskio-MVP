@@ -38,6 +38,15 @@ jest.mock('../hooks/useMessagingSummary', () => ({
   useNotificationUnreadCount: () => 2,
 }));
 
+jest.mock('../hooks/usePublicPilotStatus', () => ({
+  __esModule: true,
+  default: () => ({
+    loadState: 'ok',
+    status: { homeownerPosting: 'OPEN', canPost: true, waitlistAvailable: false },
+    refresh: jest.fn(),
+  }),
+}));
+
 const AppHeader = require('./AppHeader').default;
 
 describe('AppHeader', () => {

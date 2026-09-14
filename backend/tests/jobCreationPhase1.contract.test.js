@@ -110,6 +110,10 @@ describe('job creation Phase 1 contract', () => {
       status: 'active',
       quoteAccessVerified: true,
     });
+    mockGetCollectionStore('system').set('pilotSettings', {
+      id: 'pilotSettings',
+      state: 'OPEN',
+    });
     app = buildApp();
   });
 
@@ -543,5 +547,116 @@ describe('job creation Phase 1 contract', () => {
       id: 'homeowner-1',
       phone: '+61400000001',
     });
+  });
+
+  const validCreatePayload = {
+    jobType: 'mounting_shelves',
+    description: 'I need two small floating shelves installed in the living room wall.',
+    location: {
+      suburb: 'Richmond',
+      state: 'VIC',
+      postcode: '3121',
+      country: 'AU',
+      coordinates: { latitude: -37.8182, longitude: 144.9985 },
+    },
+    estimatedDuration: 'under_1_hour',
+    timeline: 'Within 2 days',
+    budget: '150_to_300',
+    siteAccess: {
+      propertyType: 'apartment_unit',
+      liftAvailable: 'yes',
+      stairs: 'none',
+      parking: 'easy',
+    },
+    details: { mirrorSize: '' },
+  };
+
+  it('rejects a new homeowner job when pilot settings are missing', async () => {
+    mockGetCollectionStore('system').delete('pilotSettings');
+    const res = await request(app).post('/api/jobs').send(validCreatePayload);
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({
+      code: 'PILOT_POSTING_CLOSED',
+      state: 'CLOSED',
+      message: 'Taskio is not accepting new jobs right now.',
+    });
+    expect(readDocs('jobs')).toHaveLength(0);
+  });
+
+  it('rejects a new homeowner job when stored operational state is invalid', async () => {
+    mockGetCollectionStore('system').set('pilotSettings', { id: 'pilotSettings', state: 'WATCH' });
+    const res = await request(app).post('/api/jobs').send(validCreatePayload);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('PILOT_POSTING_CLOSED');
+    expect(res.body.state).toBe('CLOSED');
+    expect(readDocs('jobs')).toHaveLength(0);
+  });
+
+  it('rejects a new homeowner job when operational state is CLOSED', async () => {
+    mockGetCollectionStore('system').set('pilotSettings', { id: 'pilotSettings', state: 'CLOSED' });
+    const res = await request(app).post('/api/jobs').send(validCreatePayload);
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ code: 'PILOT_POSTING_CLOSED', state: 'CLOSED' });
+    expect(JSON.stringify(res.body)).not.toMatch(/P06|blocker|expert/i);
+    expect(readDocs('jobs')).toHaveLength(0);
+  });
+
+  it('rejects a new homeowner job when operational state is PAUSED', async () => {
+    mockGetCollectionStore('system').set('pilotSettings', { id: 'pilotSettings', state: 'PAUSED' });
+    const res = await request(app).post('/api/jobs').send(validCreatePayload);
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({
+      code: 'PILOT_POSTING_CLOSED',
+      state: 'PAUSED',
+    });
+    expect(readDocs('jobs')).toHaveLength(0);
+  });
+
+  it('still rejects unsupported geography when operational state is OPEN', async () => {
+    const res = await request(app).post('/api/jobs').send({
+      ...validCreatePayload,
+      location: { suburb: 'Geelong', state: 'VIC', postcode: '3220' },
+    });
+    expect(res.status).toBe(400);
+    expect(readDocs('jobs')).toHaveLength(0);
+  });
+
+  it('allows reading an existing job when posting is CLOSED', async () => {
+    mockGetCollectionStore('system').set('pilotSettings', { id: 'pilotSettings', state: 'CLOSED' });
+    mockGetCollectionStore('jobs').set('job-existing', {
+      id: 'job-existing',
+      homeownerUid: 'homeowner-1',
+      title: 'Existing shelves',
+      status: 'OPEN',
+    });
+    const res = await request(app).get('/api/jobs/job-existing');
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe('Existing shelves');
+  });
+
+  it('allows posting photos on an existing job when operational state is PAUSED', async () => {
+    mockGetCollectionStore('system').set('pilotSettings', { id: 'pilotSettings', state: 'PAUSED' });
+    mockGetCollectionStore('jobs').set('job-existing', {
+      id: 'job-existing',
+      homeownerUid: 'homeowner-1',
+      postingPhotoRequired: true,
+      postingReady: false,
+      postingPhotos: [],
+    });
+    const res = await request(app)
+      .post('/api/jobs/job-existing/photos')
+      .send({
+        photos: [
+          {
+            fileName: 'wall-damage.jpg',
+            fileSize: 120400,
+            mimeType: 'image/jpeg',
+            storagePath: 'job-posting-attachments/job-existing/wall-damage.jpg',
+            downloadUrl: 'https://example.com/wall-damage.jpg',
+          },
+        ],
+      });
+    expect(res.status).toBe(200);
+    expect(readDocs('jobs')[0].postingReady).toBe(true);
   });
 });
