@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 jest.mock('react-router-dom', () => ({
   __esModule: true,
@@ -249,5 +249,31 @@ describe('JobPostingForm', () => {
     fireEvent.click(screen.getByLabelText(/large or heavy mirror/i));
     expect(screen.getByText(/please upload at least 1 photo so experts can quote this job/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /next/i })).toBeDisabled();
+  });
+
+  it('keeps guest tidy-description on step 1 and does not rewrite when the provider is off', async () => {
+    mockApiPost.mockResolvedValue({
+      data: { fallback: true, description: 'Need two frames hung straight in the hallway.' },
+    });
+    renderForm();
+    fillStepOne({
+      category: 'Hanging',
+      jobType: 'Picture frames',
+      description: 'Need two frames hung straight in the hallway.',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /tidy description/i }));
+
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledTimes(1));
+    expect(mockApiPost).toHaveBeenCalledWith('/api/generate-description', {
+      jobType: 'hanging_picture_frames',
+      jobTypeLabel: 'Picture frames',
+      description: 'Need two frames hung straight in the hallway.',
+      mode: 'clarify',
+    });
+    expect(screen.getByRole('textbox', { name: /^description \*/i })).toHaveValue(
+      'Need two frames hung straight in the hallway.'
+    );
+    expect(screen.queryByLabelText(/phone number/i)).not.toBeInTheDocument();
   });
 });

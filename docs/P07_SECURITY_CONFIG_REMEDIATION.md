@@ -478,9 +478,13 @@ Current UI (`ProfilePage`, `useHomeownerAccountState`) uses **2MB** on `profileP
 
 ### Hosting headers
 
-Added: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy` (camera/microphone/geolocation/payment/usb), `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
+Added: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy` (camera/microphone/geolocation/payment/usb), `Strict-Transport-Security: max-age=31536000` without `includeSubDomains` or `preload`. `includeSubDomains` is deferred until a complete custom-domain inventory proves every browser-served subdomain is HTTPS-capable.
 
 **Deferred (AMBER):** Content-Security-Policy. Current app depends on Firebase Auth + phone reCAPTCHA, Google Fonts, Firebase/Storage, API `fetch`/XHR, Stripe **hosted** checkout (redirect, not Elements), optional App Check reCAPTCHA, future GA4. An enforcing CSP needs hosted browser validation.
+
+`payment=()` is acceptable: Taskio does not use Payment Request, Express Checkout, or Apple/Google Pay browser wallets. Checkout is a full-page redirect to `checkout.stripe.com`.
+
+`includeSubDomains` is **not** set. Repo evidence shows HTTPS on `taskio.com.au`, `www`, and `app.taskio.com.au`, plus Microsoft 365 / autodiscover / mail DNS that was never inventoried as browser-HTTPS. Current live maintenance already sent HSTS without `includeSubDomains`. Staging cache guards now inspect `Cache-Control` only so HSTS `max-age` is not mistaken for a long-cache asset header.
 
 Unit test asserts `firebase.json` / staging Hosting contain the baseline. Hosted enforcement is **not** proven.
 

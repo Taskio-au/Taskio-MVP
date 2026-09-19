@@ -12,7 +12,7 @@ const REQUIRED_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'X-Frame-Options': 'DENY',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Strict-Transport-Security': 'max-age=31536000',
 };
 
 function loadHostingHeaders(filename) {
@@ -30,5 +30,7 @@ for (const filename of ['firebase.json', 'firebase.staging.hosting.json']) {
     }
     assert.equal(headers['Content-Security-Policy'], undefined);
     assert.equal(headers['Content-Security-Policy-Report-Only'], undefined);
+    assert.equal(headers['Strict-Transport-Security'].includes('includeSubDomains'), false);
+    assert.equal(headers['Strict-Transport-Security'].includes('preload'), false);
   });
 }

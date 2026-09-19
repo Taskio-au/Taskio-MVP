@@ -707,9 +707,14 @@ function loadStagingHostingConfig(fileName) {
 }
 
 function assertNoImmutableCache(config) {
-  const serialized = JSON.stringify(config);
-  if (/immutable/i.test(serialized) || /max-age=31536000/i.test(serialized)) {
-    throw new Error('Staging Hosting must not set immutable long-cache headers.');
+  for (const rule of config.hosting?.headers || []) {
+    for (const header of rule.headers || []) {
+      if (String(header.key || '').toLowerCase() !== 'cache-control') continue;
+      const value = String(header.value || '');
+      if (/immutable/i.test(value) || /max-age=31536000/i.test(value)) {
+        throw new Error('Staging Hosting must not set immutable long-cache headers.');
+      }
+    }
   }
 }
 
