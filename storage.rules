@@ -62,6 +62,11 @@ service firebase.storage {
           'image/heif'
         ];
     }
+
+    function maxProfileImageBytes() {
+      // Canonical profile-image bound for current and leftover paths.
+      return 2 * 1024 * 1024;
+    }
     
     function chatEnabled(jobId) {
       // Chat is enabled after escrow is funded (FUNDED, IN_PROGRESS, COMPLETED, PAID, DISPUTED)
@@ -125,7 +130,10 @@ service firebase.storage {
     /* -------------------------------------------------------------------- */
     match /job-posting-attachments/{jobId}/{fileName} {
       allow read: if canViewPostingAssets(jobId) || isAdmin();
-      allow write: if isSignedIn()
+      // Create-only. Object identity is unique per upload; existing photos
+      // cannot be silently replaced. Replacement is not a product feature.
+      allow create: if isSignedIn()
+        && resource == null
         && jobDoc(jobId).homeownerUid == request.auth.uid
         && request.resource.contentType.matches('image/.*')
         && request.resource.size <= 10 * 1024 * 1024;
@@ -137,10 +145,11 @@ service firebase.storage {
     /* -------------------------------------------------------------------- */
     match /profile-photos/{uid}/{fileName} {
       allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
-      allow write: if isSignedIn()
+      allow create: if isSignedIn()
         && request.auth.uid == uid
+        && resource == null
         && request.resource.contentType.matches('image/.*')
-        && request.resource.size <= 5 * 1024 * 1024;
+        && request.resource.size <= maxProfileImageBytes();
     }
 
     /* -------------------------------------------------------------------- */
@@ -154,17 +163,16 @@ service firebase.storage {
           && (fileName == request.auth.uid + '.jpg'
             || fileName == request.auth.uid + '.png'));
       
-      // Only owner can write their own profile image
+      // Deterministic avatar path: owner replacement is an explicit product
+      // feature. Size matches the canonical 2MB profile bound.
       allow write: if isSignedIn()
         && (
           fileName == request.auth.uid + '.jpg'
           || fileName == request.auth.uid + '.png'
         )
-        // Only allow jpeg and png
         && (request.resource.contentType == 'image/jpeg' 
           || request.resource.contentType == 'image/png')
-        // Max 3MB
-        && request.resource.size <= 3 * 1024 * 1024;
+        && request.resource.size <= maxProfileImageBytes();
     }
 
     /* -------------------------------------------------------------------- */
@@ -175,12 +183,13 @@ service firebase.storage {
     match /profilePhotos/{uid}/{fileName} {
       allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
 
-      allow write: if isSignedIn()
+      allow create: if isSignedIn()
         && request.auth.uid == uid
+        && resource == null
         && (request.resource.contentType == 'image/jpeg'
           || request.resource.contentType == 'image/png'
           || request.resource.contentType == 'image/webp')
-        && request.resource.size <= 2 * 1024 * 1024;
+        && request.resource.size <= maxProfileImageBytes();
     }
 
     /* -------------------------------------------------------------------- */

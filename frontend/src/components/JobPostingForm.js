@@ -730,7 +730,10 @@ function JobPostingForm() {
         const uploadedPhotos = [];
         for (const photo of photos) {
             const extension = String(photo.file?.name || 'jpg').split('.').pop()?.toLowerCase() || 'jpg';
-            const path = `job-posting-attachments/${jobId}/${Date.now()}-${photo.id}.${extension}`;
+            const uniqueId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+                ? crypto.randomUUID()
+                : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            const path = `job-posting-attachments/${jobId}/${uniqueId}.${extension}`;
             const photoRef = storageRef(storage, path);
             const task = uploadBytesResumable(photoRef, photo.file, { contentType: photo.file?.type || undefined });
             await new Promise((resolve, reject) => {

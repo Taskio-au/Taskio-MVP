@@ -7,7 +7,7 @@
  */
 
 const MANIFEST_VERSION = 1;
-const MANIFEST_UPDATED_AT = '2026-09-14';
+const MANIFEST_UPDATED_AT = '2026-09-19';
 
 const GATE_STATUS = Object.freeze({
   PASS: 'PASS',
@@ -116,8 +116,8 @@ const launchReadinessManifest = Object.freeze({
       requiredForReadyToOpen: true,
       requiredResult: REQUIRED_RESULT.PASS,
       status: GATE_STATUS.OPEN,
-      evidenceSummary: 'P07A audit complete / remediation pending. Not PASS. Auth signup still disabled. See docs/P07_SECURITY_CONFIG_REMEDIATION.md.',
-      lastUpdated: '2026-09-14',
+      evidenceSummary: 'P07A audit complete. P07B local hardening in repo. Not PASS. Auth signup still disabled. See docs/P07_SECURITY_CONFIG_REMEDIATION.md.',
+      lastUpdated: '2026-09-19',
     }),
     Object.freeze({
       id: 'P08',

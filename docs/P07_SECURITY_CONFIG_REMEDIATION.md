@@ -1,8 +1,8 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 14 September 2026  
-**Repo HEAD:** `7bb27886464b67f51fce740bfd17930efea91309` (`develop` = `origin/develop`)  
-**Status:** **P07A AUDIT COMPLETE / REMEDIATION PENDING** — not P07 PASS. READY TO OPEN remains impossible.
+**Date:** 19 September 2026 (P07B local hardening)
+**P07A audit date:** 14 September 2026
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A audit complete; P07B local GREEN hardening applied in repo. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**. No cloud mutation, deploy, or push in P07B.
 
 This is a **read-only** audit plus approval planning. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, deploy, or push.
 
@@ -144,7 +144,7 @@ Public status must not (and contract tests assert it does not) expose launch blo
 
 **Helmet:** default `helmet()` on main API and webhook app; `x-powered-by` disabled.
 
-**Hosting:** production `firebase.json` has **no** CSP/HSTS/frame-ancestors/referrer-policy. Staging Hosting sets noindex + no-store. Tracker notes CDN HSTS on live placeholder — **cloud confirm**.
+**Hosting:** `firebase.json` now has a conservative baseline (nosniff, referrer-policy, `X-Frame-Options: DENY`, Permissions-Policy, HSTS). Staging Hosting keeps noindex + no-store and the same baseline. **CSP is deferred (AMBER)** — Firebase Auth, Stripe hosted checkout, reCAPTCHA/App Check, Google Fonts, and future GA4 need live/staging browser validation before enforcement. Hosted header enforcement is **not proven** until a Hosting deploy is tested.
 
 ---
 
@@ -154,7 +154,7 @@ Public status must not (and contract tests assert it does not) expose launch blo
 
 **Storage:** job photos (homeowner, image, 10MB); chat attachments (participants, 10MB, chat gates); profile images (owner, type/size); support attachments (owner path).
 
-**Gaps (not deployed here):** job-posting object overwrite (no `resource == null`); legacy `profile-photos/` 5MB vs canonical 2MB.
+**P07B local rule fix (not deployed):** job-posting photos are **create-only** (`resource == null`); timestamped profile paths are create-only; leftover `profile-photos/` and `profile-images/` share the canonical **2MB** bound. Deterministic `profile-images/{uid}.{ext}` still allows explicit owner replacement.
 
 No production rule deploy in this task.
 
@@ -218,7 +218,9 @@ P04 **STAGING PASS / PRODUCTION PENDING**. Production analytics **OFF** (`REACT_
 
 ## 14. AI / Gemini
 
-Missing/disabled `GEMINI_API_KEY` returns local **fallback** (does not crash core product). Release plan: do not mount Gemini on first production Cloud Run. Quote assistant requires Expert auth; **description tidy does not**. Keep AI off at launch.
+**P07B:** Provider use is fail-closed. `AI_DESCRIPTION_ENABLED` must be exact `true` **and** a Gemini key must be present before any network call. A key alone cannot trigger Gemini. Missing/disabled config returns local **fallback**. Production default remains OFF. Do not mount Gemini at launch.
+
+`POST /api/generate-description` stays **unauthenticated** because `/post-job` uses tidy **before** phone OTP / Firebase session. Guest use is retained with: dedicated 30/15m limiter, strict body schema, 5000-char description bound, unknown-field reject, no prompt-injection fields, generic errors, and the kill switch. Quote assistant remains Expert-auth and is gated by the same switch. App Check is **not** involved. P06 remains OPEN — this is not an AI privacy review.
 
 ---
 
@@ -235,6 +237,8 @@ Winston logger redacts authorization, password, tokens, Stripe signature/secret 
 
 No secret values printed during this audit.
 
+**P07B focused leak search:** request logs record method/path/status/uid, not Authorization, ID tokens, OTP, passwords, Stripe client secrets, payment-method details, service-account JSON, or raw bodies. Winston already redacts auth/token/Stripe/email/phone keys. `generate-description` / quote-assistant no longer `console.error` provider `details`. **No additional local logging repair required.**
+
 ---
 
 ## 16. Dependency / package security (local, no upgrades)
@@ -247,7 +251,9 @@ Run 14 September 2026 (no lockfile changes):
 | functions production | `npm --prefix functions audit --omit=dev` | **5 high / 3 critical** (incl. `websocket-driver`) — Functions lockfile **behind** backend A03 overrides |
 | frontend production | `npm --prefix frontend audit --omit=dev` | **Noisy CRA/webpack tree** (reported 34 high / 3 critical) — do **not** auto-upgrade |
 
-**P07B:** classify frontend findings as build-time vs runtime; consider Functions scoped overrides **GREEN** later. Do not churn dependencies in this audit.
+**P07B Functions:** applied safe lockfile overrides (`websocket-driver@0.7.5`, `protobufjs@7.6.5`, `@grpc/grpc-js@1.14.4`, `form-data@2.5.6`, `path-to-regexp@0.1.13`, `fast-xml-parser@4.5.5`). Post-override `npm audit --omit=dev`: **2 high / 0 critical** (was 5 high / 3 critical). **Remaining blocker:** direct `nodemailer@8.0.5` high advisories require **major** `10.x` — not applied. `node-forge` 1.3.3 high remains (1.4.0 not forced). `firebase-admin` 14.x major also not applied. `fast-xml-parser` 5.7 moderate remains.
+
+**P07B frontend:** CRA `--omit=dev` remains noisy (34 high / 3 critical). Criticals (`protobufjs`, `shell-quote`, `websocket-driver`) sit in CRA/webpack/Firebase Admin-adjacent **toolchain** trees, not as first-party product modules. `axios` and `react-router` high findings are real dependencies but have no safe targeted production-only patch without CRA/router churn. **No frontend package change.** No CRA migration.
 
 ---
 
@@ -268,7 +274,7 @@ Webhook smoke asserts logs do not contain `Bearer `, `whsec_`, `sk_live_`, `sk_t
 | `TASKIO_PUBLIC_SIGNUP_ENABLED` | Production missing → **disabled** |
 | Identity Toolkit `disabledUserSignup` | **true** (cloud; blocks new users) |
 | `STRIPE_ENABLED` | Only `"true"` enables |
-| Gemini | Unmounted → fallback |
+| Gemini | `AI_DESCRIPTION_ENABLED` not `true` → fallback (key alone is insufficient) |
 | Analytics | Production off unless explicit enable |
 | App Check | Production off |
 | Email | `EMAIL_ENABLED` default false |
@@ -325,12 +331,12 @@ Do **not** run `firebase use` or `gcloud config set project`. Prefer `--project=
 | P07-08 | Production GA4 | OFF | P04 / analyticsConfig | MEDIUM (privacy) | Enable only after P06 disclosure | PRODUCTION | **RED** | Coupled P04/P06 | Console receipt | NOT STARTED |
 | P07-09 | Production Stripe live | Disabled | validateEnv / tracker | CRITICAL money | Separate live Stripe batch | PRODUCTION | **RED** | Before live money | Webhook + TEST-to-LIVE checklist | NOT STARTED |
 | P07-10 | CORS / TRUST_PROXY | Code fail-closed | validateEnv, app.js | HIGH if mis-set | Confirm prod env allowlist = Taskio origin only | PRODUCTION | **RED** (verify) | **Yes** | C2 redact | PENDING CONFIRM |
-| P07-11 | Unauth `/api/generate-description` | No Firebase auth | `backend/src/routes/ai.js` | MEDIUM cost if API public | Auth or keep API private + AI off | LOCAL then deploy | **GREEN** code / **RED** deploy | No if API private + no Gemini | Tests | REPORTED not fixed |
+| P07-11 | Unauth `/api/generate-description` | Guest pre-auth tidy is required; kill switch + schema + limiter | `backend/src/routes/ai.js`, `aiEnabled.js` | MEDIUM cost if API public **and** AI enabled | Keep guest + fail-closed AI; do not requireAuth | LOCAL HARDENING COMPLETE; cloud/provider enablement still OFF | **GREEN** code / **RED** enable | No while AI off + API private | AI route tests | LOCAL HARDENING COMPLETE |
 | P07-12 | `/health/ready` metadata | Booleans | health.js | MEDIUM recon | Keep Cloud Run private | PRODUCTION | **RED** (verify IAM) | If public | C3 | PENDING CONFIRM |
-| P07-13 | Hosting security headers | Missing in `firebase.json` | firebase.json | MEDIUM XSS/clickjack | Add headers in repo then Hosting deploy | LOCAL then PRODUCTION | **GREEN** then **RED** | No for P07 PASS if CDN HSTS proven | Header scan | OPEN |
-| P07-14 | Functions npm audit | 5 high / 3 critical | local audit | HIGH supply-chain | Scoped overrides like backend A03 | LOCAL | **GREEN** | No (classify) | Re-audit | OPEN |
-| P07-15 | Frontend CRA audit noise | 34 high / 3 critical reported | local audit | LOW–HIGH unknown | Classify runtime vs toolchain; no auto `audit fix` | LOCAL | **GREEN** | No until classified | Manual review | OPEN |
-| P07-16 | Storage overwrite gap | job-posting write | storage.rules | LOW | Optional `resource==null` | LOCAL | **GREEN** | No | Rules tests | OPEN |
+| P07-13 | Hosting security headers | Conservative baseline in `firebase.json`; CSP deferred | firebase.json | MEDIUM XSS/clickjack | Hosting deploy + browser scan later | LOCAL CONFIG COMPLETE; hosted verification pending | **GREEN** local / **AMBER** CSP / **RED** deploy | No for P07 PASS if CDN HSTS proven | Header unit test; later hosted scan | LOCAL CONFIG COMPLETE |
+| P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No (classify) | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer REMAINING BLOCKER |
+| P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
+| P07-16 | Storage overwrite / profile size | Create-only posting photos; 2MB canonical profile bound | storage.rules | LOW | Deploy Storage rules later | LOCAL RULE/CODE FIX COMPLETE; production deploy pending | **GREEN** local / **RED** deploy | No | Rules emulator tests | LOCAL RULE/CODE FIX COMPLETE |
 | P07-17 | Legacy Expert data | Mixed requested/approved | product model | HIGH wrong supply | Read-only pre-OPEN review | PRODUCTION (read) | **RED** (access) | Pre-activation | Checklist §19 | NOT STARTED |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
 | P07-19 | CI deploy guard | Push does not deploy | ci.yml | LOW | Keep | LOCAL | **GREEN** | No | CI | OK |
@@ -422,17 +428,82 @@ Do **not** run `firebase use` or `gcloud config set project`. Prefer `--project=
 
 - Review whether still required for local/staging; prefer ADC; rotate if copies exist.
 
-### GREEN-A (optional code, not this commit)
+### GREEN-A (P07B local, this commit)
 
-- Auth-gate `/api/generate-description`; Hosting headers; Functions audit overrides; storage overwrite guard.
+- Fail-closed `AI_DESCRIPTION_ENABLED` (guest tidy retained; no `requireAuth`).
+- Hosting conservative headers; CSP deferred.
+- Functions scoped overrides (nodemailer major not forced).
+- Storage create-only posting photos + 2MB profile bound.
 
 ---
 
 ## 24. Launch-manifest status
 
-- P07 **PASS:** **no**  
-- P07A: **AUDIT COMPLETE / REMEDIATION PENDING**  
-- P03/P04/P05 production: **unchanged** (pending)  
-- P06: **OPEN** (unchanged)  
-- P09: **BLOCKED BY P06** (unchanged)  
+- P07 **PASS:** **no**
+- P07: **OPEN / REMEDIATION IN PROGRESS**
+- P07A: **AUDIT COMPLETE**
+- P07B: **LOCAL HARDENING COMPLETE** (this document). Cloud C1–C8, Auth, IAM, App Check, email, GA4, Stripe LIVE remain out of scope.
+- P03/P04/P05 production: **unchanged** (pending)
+- P06: **OPEN** (unchanged)
+- P09: **BLOCKED BY P06** (unchanged)
 - READY TO OPEN: **impossible**
+
+---
+
+## 25. P07B local hardening record (19 September 2026)
+
+### AI description — pre-change behaviour
+
+`POST /api/generate-description` was unauthenticated. `JobPostingForm` on public `/post-job` calls it during step 1, **before** phone OTP and before a Firebase ID token exists. Adding `requireAuth` would break the supported guest posting UX.
+
+It called Gemini whenever `GEMINI_API_KEY` was set. Body check was `mode === 'clarify'` only. Extra fields (`prompt`, `systemInstruction`, unused `jobType`) were ignored, not rejected. Route limiter 30/15m. App JSON limit 1mb. No App Check. Missing key or provider error → local tidy fallback. Quote assistant already required Expert auth but used the same “key present ⇒ call Gemini” rule.
+
+Request body is `description` + `jobTypeLabel` (and unused `jobType`). It can contain **homeowner-typed** phone/email if the user puts it in the draft (the form warns). It does **not** send address, account phone/email fields, or photo bytes. P06 remains OPEN. This is not an AI privacy review.
+
+### AI — final protection
+
+Guest access retained. `AI_DESCRIPTION_ENABLED=true` **and** a non-empty Gemini key are both required before any provider call. Production default OFF. Strict allowlist (`mode`, `description`, `jobTypeLabel`, discarded `jobType`). Description ≤ 5000 chars (same as job create). Unknown/injection fields 400. Generic errors. No provider/secret details in responses. Same kill switch on quote assistant.
+
+### Storage overwrite — root cause
+
+`job-posting-attachments/{jobId}/{fileName}` used `allow write` (create+update+delete). The homeowner who owns the job could replace an existing object at a known path (silent overwrite / bait-and-switch after quotes). Client path was unique-ish (`Date.now()` + photo id) but still client-chosen and overwriteable. Chat/support already used `resource == null`. Photo replacement after post is **not** a product feature.
+
+### Storage fix
+
+Create-only posting photos. Client now uses `crypto.randomUUID()` object names under the job prefix (original filename stays in job metadata only). Timestamped `profilePhotos/` and leftover `profile-photos/` are create-only. Deterministic `profile-images/{uid}.jpg|.png` overwrite remains **explicit owner avatar replacement**.
+
+### Profile size
+
+Current UI (`ProfilePage`, `useHomeownerAccountState`) uses **2MB** on `profilePhotos/`. Leftover `profile-photos/` was 5MB and `profile-images/` was 3MB. Canonical bound is now **2MB** on all three. This closes a leftover permissiveness gap; it does not raise any limit.
+
+### Hosting headers
+
+Added: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy` (camera/microphone/geolocation/payment/usb), `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
+
+**Deferred (AMBER):** Content-Security-Policy. Current app depends on Firebase Auth + phone reCAPTCHA, Google Fonts, Firebase/Storage, API `fetch`/XHR, Stripe **hosted** checkout (redirect, not Elements), optional App Check reCAPTCHA, future GA4. An enforcing CSP needs hosted browser validation.
+
+Unit test asserts `firebase.json` / staging Hosting contain the baseline. Hosted enforcement is **not** proven.
+
+### Functions advisories (high/critical, `--omit=dev`, 19 Sep 2026)
+
+| Package | Direct? | Installed | Advisory (examples) | Runtime? | Fix | Action |
+|---|---|---|---|---|---|---|
+| `websocket-driver` | transitive | 0.7.4 | GHSA-mp7j-qc5w-4988 / GHSA-xv26-6w52-cph6 critical | faye-websocket / firebase tooling, not email send path | 0.7.5 patch | **Applied** |
+| `protobufjs` | transitive | 7.5.4 | GHSA-xq3m-2v4x-88gg critical ACE | firebase-admin / grpc optional | 7.6.5 | **Applied** |
+| `@grpc/grpc-js` | transitive optional | 1.14.3 | GHSA-5375-pq7m-f5r2 / GHSA-99f4-grh7-6pcq high crash | optional gRPC | 1.14.4 patch | **Applied** |
+| `form-data` | transitive optional | 2.5.5 | GHSA-hmw2-7cc7-3qxx high CRLF | request/gaxios optional | 2.5.6 patch | **Applied** |
+| `path-to-regexp` | transitive | 0.1.12 | GHSA-37ch-88jc-xwx2 high ReDoS | express (functions) | 0.1.13 patch | **Applied** |
+| `fast-xml-parser` | transitive optional | 4.5.3 | GHSA-m7jm-9gc2-mpf2 critical XXE-class | `@google-cloud/storage` optional | 4.5.5 patch; 5.7 major left | **4.5.5 applied** |
+| `nodemailer` | **direct** | 8.0.5 | several high/moderate; fix `10.0.10` major | **yes** — SMTP send | major | **REMAINING BLOCKER** |
+| `node-forge` | transitive | 1.3.3 | several high (cert/signature) | firebase-admin JWT | 1.4.0 minor, not forced | remaining |
+| `firebase-admin` | direct | 13.x | moderate via firestore; fix 14.4.0 major | yes | major | **not applied** |
+
+Functions do not use websocket clients in product email code. Nodemailer is used; recipients/subjects are sanitised; raw/jsonTransport options are not exposed. Major nodemailer upgrade is a later approved slice.
+
+### Frontend CRA
+
+`--omit=dev` still reports 34 high / 3 critical. Criticals are CRA/webpack toolchain (`shell-quote`, `protobufjs`, `websocket-driver`). Production browser bundle is CRA-built React + Firebase + axios + react-router. No safe targeted critical remediation without CRA churn. **No frontend package change.**
+
+### Logging
+
+No concrete Authorization / ID-token / OTP / password / Stripe client-secret / payment-method / service-account / raw-body leak found on sensitive routes. AI provider `details` no longer dumped to console. No new logging framework.

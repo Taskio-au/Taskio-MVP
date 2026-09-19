@@ -418,6 +418,123 @@ describe('Storage authorization', () => {
     ));
   });
 
+  test('allows the job owner to upload a posting photo and denies strangers, bad jobs, types, and oversize', async () => {
+    await assertSucceeds(uploadBytes(
+      ref(storageFor('homeowner-1'), 'job-posting-attachments/job-pending/photo-1.png'),
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'image/png' },
+    ));
+    await assertFails(uploadBytes(
+      ref(storageFor('stranger-1'), 'job-posting-attachments/job-pending/photo-stranger.png'),
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'image/png' },
+    ));
+    await assertFails(uploadBytes(
+      ref(storageFor('homeowner-1'), 'job-posting-attachments/job-missing/photo-1.png'),
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'image/png' },
+    ));
+    await assertFails(uploadBytes(
+      ref(storageFor('homeowner-1'), 'job-posting-attachments/job-pending/script.js'),
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'application/javascript' },
+    ));
+    await assertFails(uploadBytes(
+      ref(storageFor('homeowner-1'), 'job-posting-attachments/job-pending/large.png'),
+      new Uint8Array((10 * 1024 * 1024) + 1),
+      { contentType: 'image/png' },
+    ));
+  });
+
+  test('denies silent overwrite of an existing job-posting photo and allows a unique second upload', async () => {
+    const first = ref(
+      storageFor('homeowner-1'),
+      'job-posting-attachments/job-pending/unique-1.png',
+    );
+    await assertSucceeds(uploadBytes(
+      first,
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'image/png' },
+    ));
+    await assertFails(uploadBytes(
+      first,
+      new Uint8Array([4, 5, 6]),
+      { contentType: 'image/png' },
+    ));
+    await assertSucceeds(uploadBytes(
+      ref(storageFor('homeowner-1'), 'job-posting-attachments/job-pending/unique-2.png'),
+      new Uint8Array([7, 8, 9]),
+      { contentType: 'image/png' },
+    ));
+  });
+
+  test('enforces a single 2MB profile-image bound on current and leftover paths', async () => {
+    const twoMb = new Uint8Array(2 * 1024 * 1024);
+    const oversize = new Uint8Array((2 * 1024 * 1024) + 1);
+
+    await assertSucceeds(uploadBytes(
+      ref(storageFor('homeowner-1'), 'profilePhotos/homeowner-1/ok.webp'),
+      twoMb,
+      { contentType: 'image/webp' },
+    ));
+    await assertFails(uploadBytes(
+      ref(storageFor('homeowner-1'), 'profilePhotos/homeowner-1/over.webp'),
+      oversize,
+      { contentType: 'image/webp' },
+    ));
+
+    await assertSucceeds(uploadBytes(
+      ref(storageFor('homeowner-1'), 'profile-photos/homeowner-1/legacy-ok.png'),
+      twoMb,
+      { contentType: 'image/png' },
+    ));
+    await assertFails(uploadBytes(
+      ref(storageFor('homeowner-1'), 'profile-photos/homeowner-1/legacy-over.png'),
+      oversize,
+      { contentType: 'image/png' },
+    ));
+
+    await assertSucceeds(uploadBytes(
+      ref(storageFor('homeowner-1'), 'profile-images/homeowner-1.png'),
+      twoMb,
+      { contentType: 'image/png' },
+    ));
+    await assertFails(uploadBytes(
+      ref(storageFor('homeowner-1'), 'profile-images/homeowner-1.png'),
+      oversize,
+      { contentType: 'image/png' },
+    ));
+  });
+
+  test('denies overwrite on timestamped profile photos and allows explicit deterministic avatar replacement', async () => {
+    const timestamped = ref(
+      storageFor('homeowner-1'),
+      'profilePhotos/homeowner-1/123.webp',
+    );
+    await assertSucceeds(uploadBytes(
+      timestamped,
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'image/webp' },
+    ));
+    await assertFails(uploadBytes(
+      timestamped,
+      new Uint8Array([4, 5, 6]),
+      { contentType: 'image/webp' },
+    ));
+
+    const avatar = ref(storageFor('homeowner-1'), 'profile-images/homeowner-1.jpg');
+    await assertSucceeds(uploadBytes(
+      avatar,
+      new Uint8Array([1, 2, 3]),
+      { contentType: 'image/jpeg' },
+    ));
+    await assertSucceeds(uploadBytes(
+      avatar,
+      new Uint8Array([4, 5, 6]),
+      { contentType: 'image/jpeg' },
+    ));
+  });
+
   test('enforces profile-image ownership, type, and extension', async () => {
     await assertSucceeds(uploadBytes(
       ref(storageFor('homeowner-1'), 'profile-images/homeowner-1.png'),

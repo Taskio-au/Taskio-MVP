@@ -66,7 +66,8 @@ function validateEnv() {
     }
   }
 
-  // Gemini endpoints already fail with 500 if GEMINI_API_KEY missing; keep as soft requirement.
+  // Gemini is fail-closed: AI_DESCRIPTION_ENABLED must be exact "true" AND GEMINI_API_KEY
+  // must be present before any provider call. Missing/disabled config uses local fallback.
 
   // Firebase Admin:
   // - In many deploys you rely on default credentials (e.g. GCP). So we do NOT hard-require

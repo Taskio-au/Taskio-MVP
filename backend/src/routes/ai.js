@@ -6,6 +6,8 @@ const rateLimit = require('express-rate-limit');
 const { extractJsonObject, generateContent } = require('../services/gemini');
 const { db } = require('../firebaseAdmin');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { canCallGeminiProvider } = require('../config/aiEnabled');
+const { logger } = require('../observability/logger');
 
 const router = express.Router();
 
@@ -14,7 +16,19 @@ const aiLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again shortly.' },
 });
+
+const GENERATE_DESCRIPTION_ALLOWED_FIELDS = new Set([
+  'mode',
+  'description',
+  'jobTypeLabel',
+  'jobType',
+]);
+const MAX_DESCRIPTION_CHARS = 5000;
+const MAX_JOB_TYPE_LABEL_CHARS = 120;
+const QUOTE_ASSISTANT_ALLOWED_FIELDS = new Set(['jobId']);
+const MAX_JOB_ID_CHARS = 128;
 
 // ---------------------------------------------------------------------------
 // Description tidy helper
@@ -30,12 +44,59 @@ function fallbackDescription({ description, jobTypeLabel }) {
   return `I need help with ${cleanType}.`;
 }
 
-router.post('/api/generate-description', aiLimiter, async (req, res) => {
-  const { description, mode, jobTypeLabel } = req.body;
-  if (mode !== 'clarify') return res.status(400).json({ error: 'Invalid mode specified.' });
+function parseGenerateDescriptionBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: 'Invalid request.' };
+  }
+  if (Object.keys(body).some((key) => !GENERATE_DESCRIPTION_ALLOWED_FIELDS.has(key))) {
+    return { error: 'Invalid request.' };
+  }
+  if (body.mode !== 'clarify') return { error: 'Invalid mode specified.' };
+  if (body.description != null && typeof body.description !== 'string') {
+    return { error: 'Invalid request.' };
+  }
+  if (body.jobTypeLabel != null && typeof body.jobTypeLabel !== 'string') {
+    return { error: 'Invalid request.' };
+  }
+  if (body.jobType != null && typeof body.jobType !== 'string') {
+    return { error: 'Invalid request.' };
+  }
+  const description = String(body.description || '');
+  const jobTypeLabel = String(body.jobTypeLabel || '');
+  if (description.length > MAX_DESCRIPTION_CHARS || jobTypeLabel.length > MAX_JOB_TYPE_LABEL_CHARS) {
+    return { error: 'Invalid request.' };
+  }
+  return { description, jobTypeLabel };
+}
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.json({ description: fallbackDescription({ description, jobTypeLabel }), fallback: true });
+function parseQuoteAssistantBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: 'Invalid request.' };
+  }
+  if (Object.keys(body).some((key) => !QUOTE_ASSISTANT_ALLOWED_FIELDS.has(key))) {
+    return { error: 'Invalid request.' };
+  }
+  if (!body.jobId || typeof body.jobId !== 'string') return { error: 'jobId is required.' };
+  const jobId = body.jobId.trim();
+  if (!jobId || jobId.length > MAX_JOB_ID_CHARS) return { error: 'jobId is required.' };
+  return { jobId };
+}
+
+function logAiRouteError(routeName, error) {
+  logger.error('ai_route_failed', {
+    route: routeName,
+    message: error && error.message ? String(error.message) : 'unknown',
+  });
+}
+
+router.post('/api/generate-description', aiLimiter, async (req, res) => {
+  const parsed = parseGenerateDescriptionBody(req.body);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { description, jobTypeLabel } = parsed;
+
+  if (!canCallGeminiProvider()) {
+    return res.json({ description: fallbackDescription({ description, jobTypeLabel }), fallback: true });
+  }
 
   const prompt = `You are an AI assistant helping a homeowner tidy their draft task description so it reads clearer.
 
@@ -58,13 +119,16 @@ IMPORTANT RULES:
 Output ONLY the rewritten paragraph (no extra commentary).`;
 
   try {
-    const generatedText = await generateContent({ apiKey, prompt, timeoutMs: 15000 });
+    const generatedText = await generateContent({
+      apiKey: process.env.GEMINI_API_KEY,
+      prompt,
+      timeoutMs: 15000,
+    });
     if (!generatedText) throw new Error('Invalid response structure from API.');
     const cleanedText = String(generatedText).replace(/(\*\*|##|#|\*|-)/g, '').trim();
     return res.json({ description: cleanedText });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error in /api/generate-description:', error.details || (error.response ? error.response.data : error.message));
+    logAiRouteError('generate-description', error);
     return res.json({ description: fallbackDescription({ description, jobTypeLabel }), fallback: true });
   }
 });
@@ -226,8 +290,9 @@ function sanitiseAiQuoteMessage(rawMessage, jobDescription) {
  */
 router.post('/api/quote-assistant', aiLimiter, requireAuth, requireRole('tradie'), async (req, res) => {
   try {
-    const { jobId } = req.body || {};
-    if (!jobId || typeof jobId !== 'string') return res.status(400).json({ error: 'jobId is required.' });
+    const parsed = parseQuoteAssistantBody(req.body);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    const { jobId } = parsed;
 
     const expertUid = req.user.uid;
 
@@ -245,8 +310,9 @@ router.post('/api/quote-assistant', aiLimiter, requireAuth, requireRole('tradie'
 
     const expert = expertDoc.exists ? (expertDoc.data() || {}) : {};
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.json({ ...fallbackQuoteSuggestion({ job }), fallback: true });
+    if (!canCallGeminiProvider()) {
+      return res.json({ ...fallbackQuoteSuggestion({ job }), fallback: true });
+    }
 
     // -----------------------------------------------------------------------
     // Prompt: explicitly forbids prices, inspection requests, and tradie wording
@@ -297,13 +363,16 @@ Return ONLY valid JSON. No extra text, no markdown outside the JSON.
   "assumptions": string[]
 }`;
 
-    const textResponse = await generateContent({ apiKey, prompt, timeoutMs: 20000 });
-    const parsed = extractJsonObject(textResponse);
+    const textResponse = await generateContent({
+      apiKey: process.env.GEMINI_API_KEY,
+      prompt,
+      timeoutMs: 20000,
+    });
+    const generated = extractJsonObject(textResponse);
 
-    const messageRaw = typeof parsed.message === 'string' ? parsed.message.trim() : '';
+    const messageRaw = typeof generated.message === 'string' ? generated.message.trim() : '';
     if (!messageRaw) {
-      // eslint-disable-next-line no-console
-      console.warn('[quote-assistant] Empty message from AI, using fallback');
+      logger.warn('ai_quote_assistant_empty');
       return res.json({ ...fallbackQuoteSuggestion({ job }), fallback: true });
     }
 
@@ -311,21 +380,19 @@ Return ONLY valid JSON. No extra text, no markdown outside the JSON.
     const { message: sanitised, sanitised: wasSanitised } = sanitiseAiQuoteMessage(messageRaw, job.description);
 
     if (wasSanitised) {
-      // eslint-disable-next-line no-console
-      console.warn('[quote-assistant] Sanitiser removed prohibited content from AI output');
+      logger.warn('ai_quote_assistant_sanitised');
     }
 
     // If sanitisation removed all substantive content, use fallback.
     // "Substantive" = at least one non-blank, non-separator line with 5+ chars.
     const hasContent = sanitised.split('\n').some(l => l.trim().length >= 5 && l.trim() !== '\u2014');
     if (!hasContent) {
-      // eslint-disable-next-line no-console
-      console.warn('[quote-assistant] Sanitised message has no substantive content, using fallback');
+      logger.warn('ai_quote_assistant_empty_after_sanitise');
       return res.json({ ...fallbackQuoteSuggestion({ job }), fallback: true });
     }
 
-    const assumptions = Array.isArray(parsed.assumptions)
-      ? parsed.assumptions
+    const assumptions = Array.isArray(generated.assumptions)
+      ? generated.assumptions
           .map(a => String(a || '').trim().replace(TRADIE_PATTERN, 'Expert'))
           .filter(a => !PRICE_LINE_PATTERNS.some(re => re.test(a)))
           .slice(0, 4)
@@ -336,8 +403,7 @@ Return ONLY valid JSON. No extra text, no markdown outside the JSON.
 
     return res.json({ message, assumptions });
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[quote-assistant] Error:', error.details || (error.response ? error.response.data : error.message));
+    logAiRouteError('quote-assistant', error);
     const job = {};
     return res.json({ ...fallbackQuoteSuggestion({ job }), assumptions: ['Fallback quote assistant used.'], fallback: true });
   }
