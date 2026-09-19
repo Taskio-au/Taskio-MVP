@@ -116,7 +116,7 @@ const launchReadinessManifest = Object.freeze({
       requiredForReadyToOpen: true,
       requiredResult: REQUIRED_RESULT.PASS,
       status: GATE_STATUS.OPEN,
-      evidenceSummary: 'P07A audit complete. P07B local hardening in repo. Not PASS. Auth signup still disabled. See docs/P07_SECURITY_CONFIG_REMEDIATION.md.',
+      evidenceSummary: 'P07A audit complete. P07B local hardening in repo. P07C read-only production verification complete. Not PASS. Auth signup still disabled. See docs/P07_SECURITY_CONFIG_REMEDIATION.md.',
       lastUpdated: '2026-09-19',
     }),
     Object.freeze({

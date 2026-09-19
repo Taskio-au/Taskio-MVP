@@ -1,10 +1,11 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 19 September 2026 (P07B local hardening)
+**Date:** 19 September 2026 (P07C read-only production verification)
 **P07A audit date:** 14 September 2026
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A audit complete; P07B local GREEN hardening applied in repo. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**. No cloud mutation, deploy, or push in P07B.
+**P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A audit complete; P07B local GREEN hardening in repo; P07C read-only `taskio-v2` verification complete. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**. P07C did **not** mutate cloud, deploy, rotate, or enable anything.
 
-This is a **read-only** audit plus approval planning. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, deploy, or push.
+This document is a **read-only** audit plus approval planning. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, deploy, or push.
 
 **Companion:** `docs/LAUNCH_READINESS.md` (P07 gate), `docs/SECRETS_AND_KEY_ROTATION.md`, `docs/TASKIO_RELEASE_PLAN.md` (A04 / production commands **NOT EXECUTED**), `docs/APP_CHECK.md`, `docs/ANALYTICS.md`, `docs/TRANSACTIONAL_EMAIL.md`.
 
@@ -34,7 +35,7 @@ This is a **read-only** audit plus approval planning. It does **not** rotate cre
 | Documented fingerprint | last-4 **`3cac`** (`docs/TASKIO_TRACKER.md` A04) |
 | Documented A04 outcome | Key **permanently deleted**; **0** user-managed keys on Firebase Admin SDK account; Cloud Run must use ADC on `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` |
 | Staging key | last-4 **`f04d`** — **outside A04**; separate review |
-| P07 position | A04 is **documented complete**. P07 still requires **independent read-only confirmation** that production user-managed keys remain **0** and that the runtime is ADC-only. Do **not** recreate a JSON key. |
+| P07 position | A04 is **documented complete**. **P07C independently confirmed** production Admin SDK and `taskio-api-runtime` have **0** user-managed keys; historical last-4 `3cac` is absent. Do **not** recreate a JSON key. |
 
 `backend/setAdmin.js` still `require("./serviceAccountKey.json")` but is **gitignored** and non-functional without that file. Do not commit it.
 
@@ -42,7 +43,7 @@ This is a **read-only** audit plus approval planning. It does **not** rotate cre
 
 | SYSTEM | STAGING | PRODUCTION | HOW LOADED | WHERE REFERENCED | CURRENT KNOWN STATUS | ROTATION NEEDED? | OWNER ACTION? | P07 BLOCKER? |
 |---|---|---|---|---|---|---|---|---|
-| Firebase Admin / GCP SA | ADC or local GAC | ADC `taskio-api-runtime@…` | Env path / ADC | `backend/src/firebaseAdmin.js`, `validateEnv.js` | Prod A04 deleted JSON key; P07 confirm remaining | Confirm 0 user-managed keys | Read-only IAM/key list | **Yes** (independent confirm) |
+| Firebase Admin / GCP SA | ADC or local GAC | ADC `taskio-api-runtime@…` | Env path / ADC | `backend/src/firebaseAdmin.js`, `validateEnv.js` | **P07C:** 0 user-managed keys; `3cac` absent | None now | Never recreate JSON | No (verified) |
 | Stripe TEST secret | Secret Manager / env | N/A | Env | `STRIPE_SECRET_KEY` + `validateEnv` prefix `sk_test_` | Staging TEST configured | Quarterly / on exposure | None now | No |
 | Stripe LIVE secret | Forbidden | When `STRIPE_ENABLED=true` | Secret Manager | `validateEnv.js` requires `sk_live_` in production deployment env | Prod Stripe **off** (`STRIPE_ENABLED=false` documented) | Before live enable | RED mount live key | **Yes** before live money |
 | Stripe webhook HMAC | Webhook runtime | Webhook runtime | Env on webhook **only** | `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECT_WEBHOOK_SECRET` | Staging configured; main API must not hold HMAC | After exposure | Verify split | **Yes** (prod audit) |
@@ -75,7 +76,7 @@ Do not change config in this task.
 
 ## 3. Firebase Auth (intended vs cloud)
 
-**Current documented cloud fact:** Identity Toolkit `disabledUserSignup=true` on staging and production. Brand-new Firebase users cannot be created. **Not changed here.**
+**Current verified cloud fact (P07C):** Identity Toolkit `client.permissions.disabledUserSignup=true` on production `taskio-v2`. Brand-new Firebase users cannot be created. Email/password and phone providers are enabled. MFA is DISABLED. **Not changed here.** Staging Auth signup was not re-toggled; do not infer staging from production.
 
 **Intended launch (code):**
 
@@ -302,18 +303,18 @@ Do **not** mutate users in P07A. P07/P10 pre-activation item.
 
 ## 20. Read-only cloud verification plan
 
-Do **not** run `firebase use` or `gcloud config set project`. Prefer `--project=taskio-v2` / `--project=taskio-v2-staging` on a later approved session. Current task **did not execute** these.
+Do **not** run `firebase use` or `gcloud config set project`. Every command used explicit `--project=taskio-v2` or `--project=taskio-v2-staging`. P07C executed the list/get/describe commands below. **No mutation.**
 
-| ID | COMMAND (future) | PROJECT | READ-ONLY? | PROVES | RISK |
+| ID | COMMAND USED | PROJECT | READ-ONLY? | PROVES | RISK / ADJUSTMENT |
 |---|---|---|---|---|---|
-| C1 | `gcloud iam service-accounts keys list --iam-account=<firebase-adminsdk-SA> --project=taskio-v2` | taskio-v2 | Yes | User-managed key count (expect 0) | Lists key IDs, not private material |
-| C2 | `gcloud run services describe taskio-api --project=taskio-v2 --region=australia-southeast1 --format=json` (redact env) | taskio-v2 | Yes | Runtime SA, invokers, `STRIPE_ENABLED`, secret mounts | Metadata only if redacted |
-| C3 | `gcloud run services get-iam-policy taskio-api --project=taskio-v2 --region=australia-southeast1` | taskio-v2 | Yes | allUsers / invoker | None if read-only |
-| C4 | Identity Toolkit / Auth settings inspection (Console or `gcloud identity` equivalent) | taskio-v2 | Yes | `disabledUserSignup` | Do not toggle |
-| C5 | Firebase App Check Console enforcement flags | taskio-v2 | Yes | Firestore/Storage/Auth enforcement OFF | Do not enable |
-| C6 | Secret Manager versions list (names/versions only) | taskio-v2 | Yes | OTP_SALT exists; Stripe/SMTP **not** mounted prematurely | Do not print values |
-| C7 | Hosting release / GA4 property status | taskio-v2 | Yes | Analytics off; maintenance Hosting | None |
-| C8 | Repeat C2–C3 for staging | taskio-v2-staging | Yes | Staging isolation | Use staging project flag |
+| C1 | `gcloud iam service-accounts keys list --iam-account=firebase-adminsdk-fbsvc@taskio-v2.iam.gserviceaccount.com --project=taskio-v2` (also runtime/compute/appspot) | taskio-v2 | Yes | User-managed key count | Placeholder SA resolved to `firebase-adminsdk-fbsvc`. Last-4 only recorded. |
+| C2 | `gcloud run services describe taskio-api --project=taskio-v2 --region=australia-southeast1` (env values redacted except known flags) | taskio-v2 | Yes | Runtime SA, `STRIPE_ENABLED`, secret **names** | Did not print secret values. |
+| C3 | `gcloud run services get-iam-policy taskio-api --project=taskio-v2 --region=australia-southeast1` | taskio-v2 | Yes | allUsers / invoker | Empty bindings = IAM-private. |
+| C4 | `GET https://identitytoolkit.googleapis.com/admin/v2/projects/taskio-v2/config` with `x-goog-user-project: taskio-v2` | taskio-v2 | Yes | `disabledUserSignup` | `gcloud alpha identity` not used (would install components). Hash/test-OTP material **not recorded**. |
+| C5 | `GET https://firebaseappcheck.googleapis.com/v1/projects/taskio-v2/services` with user-project header | taskio-v2 | Yes | Firestore/Storage/Auth enforcement | Console not required. |
+| C6 | `gcloud secrets list --project=taskio-v2` + `gcloud secrets versions list` (names/state only) | taskio-v2 | Yes | OTP_SALT exists; Stripe/SMTP absent | No payload access. |
+| C7 | `firebase hosting:channel:list --project taskio-v2 --json` + public HEAD of custom domains | taskio-v2 | Yes | Maintenance Hosting; analytics off | Version `cffca9d87ce03901`. |
+| C8 | Repeat C2–C3 for `taskio-api-staging` / `taskio-stripe-webhook-staging` with `--project=taskio-v2-staging` | taskio-v2-staging | Yes | Staging isolation | Staging API invoker = webhook runtime only; webhook `allUsers` intentional. |
 
 ---
 
@@ -321,42 +322,43 @@ Do **not** run `firebase use` or `gcloud config set project`. Prefer `--project=
 
 | ID | AREA | CURRENT STATE | EVIDENCE | RISK | REQUIRED ACTION | LOCAL / STAGING / PRODUCTION | GREEN / AMBER / RED | BLOCKS P07? | VALIDATION REQUIRED | STATUS |
 |---|---|---|---|---|---|---|---|---|---|---|
-| P07-01 | Historical prod SA JSON | A04 deleted key `3cac`; 0 keys documented | Tracker A04; gitignore | CRITICAL if key still valid | Independent key-list confirm; never recreate JSON | PRODUCTION | **RED** (read-only first) | **Yes** | C1 | PENDING CONFIRM |
-| P07-02 | Staging SA JSON `f04d` | Outside A04 | Tracker | HIGH if laptop/copy persists | Owner review/rotate staging key if still used as JSON | STAGING | **AMBER** | No (prod P07) | Owner | OPEN |
-| P07-03 | Auth `disabledUserSignup=true` | Blocks all new Firebase users | Docs / known cloud fact | Blocks intended OPEN | Approved Identity Toolkit change for homeowner path only | PRODUCTION (+ staging when testing) | **RED** | **Yes** | C4 + P10 | NOT STARTED |
-| P07-04 | IAM / Cloud Run invoker | Documented private API | Tracker; not re-verified now | CRITICAL if allUsers on API | Read-only IAM describe | PRODUCTION | **RED** (verify) | **Yes** | C2 C3 | PENDING CONFIRM |
-| P07-05 | Runtime secrets | OTP_SALT documented; Stripe live off; Gemini unmounted | Release plan | HIGH if wrong mounts | Confirm mounts; do not add Gemini/live Stripe yet | PRODUCTION | **RED** | **Yes** | C6 | PENDING CONFIRM |
-| P07-06 | Production App Check | OFF | APP_CHECK.md | HIGH bots/abuse at public launch | P05 production sequence | PRODUCTION | **RED** | **Yes** (with P05) | Token + enforcement proofs | NOT STARTED |
-| P07-07 | Production email | Not configured | P03 tracker | HIGH ops | P03 production config + proof | PRODUCTION | **RED** | Coupled P03 | Authentic send | NOT STARTED |
-| P07-08 | Production GA4 | OFF | P04 / analyticsConfig | MEDIUM (privacy) | Enable only after P06 disclosure | PRODUCTION | **RED** | Coupled P04/P06 | Console receipt | NOT STARTED |
-| P07-09 | Production Stripe live | Disabled | validateEnv / tracker | CRITICAL money | Separate live Stripe batch | PRODUCTION | **RED** | Before live money | Webhook + TEST-to-LIVE checklist | NOT STARTED |
-| P07-10 | CORS / TRUST_PROXY | Code fail-closed | validateEnv, app.js | HIGH if mis-set | Confirm prod env allowlist = Taskio origin only | PRODUCTION | **RED** (verify) | **Yes** | C2 redact | PENDING CONFIRM |
+| P07-01 | Historical prod SA JSON | **P07C:** 0 user-managed keys on Admin SDK + runtime; `3cac` absent | C1 19 Sep 2026 | None now (deleted) | Never recreate JSON | PRODUCTION | **GREEN** verified | No | C1 | **VERIFIED** |
+| P07-02 | Staging SA JSON `f04d` | **P07C:** still present USER_MANAGED on staging Admin SDK (created 2026-08-15) | C1 staging | HIGH if laptop/copy persists | Owner review/rotate staging key if still used as JSON | STAGING | **AMBER** | No (prod P07) | Owner | **CONFIRMED PRESENT** |
+| P07-03 | Auth `disabledUserSignup=true` | **P07C confirmed** on production | C4 | Blocks intended OPEN | Approved Identity Toolkit change for homeowner path only | PRODUCTION (+ staging when testing) | **RED** | **Yes** | C4 + P10 | **VERIFIED; enable NOT STARTED** |
+| P07-04 | IAM / Cloud Run invoker | **P07C:** main API invoker policy empty (no allUsers). Runtime SA matches. | C2 C3 | None for public invoke | Keep private until a named public-HTTP decision | PRODUCTION | **GREEN** verified | No | C2 C3 | **VERIFIED** |
+| P07-05 | Runtime secrets | **P07C:** `OTP_SALT:1` + `ABN_LOOKUP_GUID:1` mounted; no Stripe/Gemini/SMTP; `STRIPE_ENABLED=false` | C2 C6 | LOW (ABN optional) | Do not add Gemini/live Stripe yet | PRODUCTION | **GREEN** verified | No | C6 | **VERIFIED** |
+| P07-06 | Production App Check | **P07C:** Firestore/Storage/Auth `UNENFORCED` | C5 | HIGH bots/abuse at public launch | P05 production sequence | PRODUCTION | **RED** | **Yes** (with P05) | Token + enforcement proofs | **VERIFIED OFF; enable NOT STARTED** |
+| P07-07 | Production email | **P07C:** no SMTP/Postmark secrets in prod SM; Functions still April 2026 (no P03 bind) | C6 + Functions list | HIGH ops | P03 production config + proof | PRODUCTION | **RED** | Coupled P03 | Authentic send | **VERIFIED ABSENT; config NOT STARTED** |
+| P07-08 | Production GA4 | **P07C:** maintenance HTML; no gtag / measurement ID | C7 + public GET | MEDIUM (privacy) | Enable only after P06 disclosure | PRODUCTION | **RED** | Coupled P04/P06 | Console receipt | **VERIFIED OFF; enable NOT STARTED** |
+| P07-09 | Production Stripe live | **P07C:** `STRIPE_ENABLED=false`; no Stripe secret names in prod SM; no prod webhook service | C2 C6 | CRITICAL money | Separate live Stripe batch | PRODUCTION | **RED** | Before live money | Webhook + TEST-to-LIVE checklist | **VERIFIED OFF; live NOT STARTED** |
+| P07-10 | CORS / TRUST_PROXY | **P07C:** `CORS_ORIGINS=https://taskio.com.au`; `TRUST_PROXY=true` | C2 | None observed | Keep allowlist = Taskio origin only | PRODUCTION | **GREEN** verified | No | C2 redact | **VERIFIED** |
 | P07-11 | Unauth `/api/generate-description` | Guest pre-auth tidy is required; kill switch + schema + limiter | `backend/src/routes/ai.js`, `aiEnabled.js` | MEDIUM cost if API public **and** AI enabled | Keep guest + fail-closed AI; do not requireAuth | LOCAL HARDENING COMPLETE; cloud/provider enablement still OFF | **GREEN** code / **RED** enable | No while AI off + API private | AI route tests | LOCAL HARDENING COMPLETE |
-| P07-12 | `/health/ready` metadata | Booleans | health.js | MEDIUM recon | Keep Cloud Run private | PRODUCTION | **RED** (verify IAM) | If public | C3 | PENDING CONFIRM |
-| P07-13 | Hosting security headers | Conservative baseline in `firebase.json`; CSP deferred | firebase.json | MEDIUM XSS/clickjack | Hosting deploy + browser scan later | LOCAL CONFIG COMPLETE; hosted verification pending | **GREEN** local / **AMBER** CSP / **RED** deploy | No for P07 PASS if CDN HSTS proven | Header unit test; later hosted scan | LOCAL CONFIG COMPLETE |
+| P07-12 | `/health/ready` metadata | **P07C:** API invoker policy empty; ingress all + IAM-private | C3 | LOW while private | Keep Cloud Run private | PRODUCTION | **GREEN** verified | No | C3 | **VERIFIED** |
+| P07-13 | Hosting security headers | **P07C:** live `cffca9d87ce03901` has noindex/no-store only. P07B headers **not** deployed. Custom-domain HSTS `max-age=31556926` without includeSubDomains/preload. | C7 + HEAD | MEDIUM XSS/clickjack | Hosting deploy + browser scan later | LOCAL CONFIG COMPLETE; hosted verification pending | **GREEN** local / **AMBER** CSP / **RED** deploy | No for P07 PASS if CDN HSTS proven | Header unit test; later hosted scan | **LIVE OLDER THAN P07B** |
 | P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No (classify) | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer REMAINING BLOCKER |
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
-| P07-16 | Storage overwrite / profile size | Create-only posting photos; 2MB canonical profile bound | storage.rules | LOW | Deploy Storage rules later | LOCAL RULE/CODE FIX COMPLETE; production deploy pending | **GREEN** local / **RED** deploy | No | Rules emulator tests | LOCAL RULE/CODE FIX COMPLETE |
-| P07-17 | Legacy Expert data | Mixed requested/approved | product model | HIGH wrong supply | Read-only pre-OPEN review | PRODUCTION (read) | **RED** (access) | Pre-activation | Checklist §19 | NOT STARTED |
+| P07-16 | Storage overwrite / profile size | **P07C:** prod Storage ruleset `932c4f1b…` (2025-12-24) has `allow write`, no `job-posting-attachments` create-only. **PRODUCTION OLDER.** | C7-equivalent rules GET | MEDIUM overwrite until deploy | Deploy Storage rules later | LOCAL RULE/CODE FIX COMPLETE; production deploy pending | **GREEN** local / **RED** deploy | No | Rules emulator tests | **PRODUCTION OLDER** |
+| P07-17 | Legacy Expert data | **P07C:** 18 `role=tradie` users; 38 `users` total. No PII dumped. Detailed readiness review **not** started. | Count aggregation | HIGH wrong supply | Read-only pre-OPEN review | PRODUCTION (read) | **RED** (review) | Pre-activation | Checklist §19 | **COUNTS ONLY; REVIEW NOT STARTED** |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
 | P07-19 | CI deploy guard | Push does not deploy | ci.yml | LOW | Keep | LOCAL | **GREEN** | No | CI | OK |
-| P07-20 | Pilot settings cloud doc | Must not exist yet | cockpit docs | HIGH if created early | Do not create until approved | PRODUCTION | **RED** (must not) | Process | Confirm absence | OK if absent |
+| P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
+| P07-21 | Leftover `helloTaskio` | ACTIVE GEN_2 HTTP; Cloud Run `allUsers` invoker; not in current repo | Functions describe | LOW recon | Later delete/disable after named approval | PRODUCTION | **AMBER** leftover | No | Function list | **CONFIRMED; cleanup NOT STARTED** |
 
 ---
 
 ## 22. Recommended P07B execution order
 
-1. **Read-only confirm** historical prod SA keys = 0; runtime ADC; Cloud Run IAM private (C1–C3).  
-2. **Staging key `f04d`** owner decision (rotate/stop JSON use).  
-3. Confirm production runtime env: CORS, TRUST_PROXY, OTP_SALT, `STRIPE_ENABLED=false`, no Gemini mount, `TASKIO_PUBLIC_SIGNUP_ENABLED` not true.  
-4. **Do not** enable Auth signup until homeowner OPEN is actually intended and P10 is scheduled; when enabling, keep Expert kill switch + WAITLIST/OPEN independent.  
-5. Production App Check (P05) — Hosting first, then Firestore, then Storage; Auth off.  
-6. Production email (P03) — after sender/domain ready.  
-7. Production analytics (P04) — **after P06 disclosure approval**.  
-8. Live Stripe — separate RED; not required to “start” P07 audit close but required before real money.  
-9. Optional GREEN: Functions audit overrides, Hosting headers, AI route auth, storage overwrite guard.  
-10. Security scans + evidence.  
-11. Legacy Expert read-only review.  
+1. **Read-only confirm** historical prod SA keys = 0; runtime ADC; Cloud Run IAM private (C1–C3).
+2. **Staging key `f04d`** owner decision (rotate/stop JSON use).
+3. Confirm production runtime env: CORS, TRUST_PROXY, OTP_SALT, `STRIPE_ENABLED=false`, no Gemini mount, `TASKIO_PUBLIC_SIGNUP_ENABLED` not true.
+4. **Do not** enable Auth signup until homeowner OPEN is actually intended and P10 is scheduled; when enabling, keep Expert kill switch + WAITLIST/OPEN independent.
+5. Production App Check (P05) — Hosting first, then Firestore, then Storage; Auth off.
+6. Production email (P03) — after sender/domain ready.
+7. Production analytics (P04) — **after P06 disclosure approval**.
+8. Live Stripe — separate RED; not required to “start” P07 audit close but required before real money.
+9. Optional GREEN: Functions audit overrides, Hosting headers, AI route auth, storage overwrite guard.
+10. Security scans + evidence.
+11. Legacy Expert read-only review.
 12. Update `shared/launchReadinessManifest.js` to **P07 PASS** **only after proof**.
 
 ---
@@ -365,68 +367,111 @@ Do **not** run `firebase use` or `gcloud config set project`. Prefer `--project=
 
 ### RED-A — Confirm production Admin SDK user-managed keys
 
-- **Action:** list keys on Firebase Admin SDK SA; expect **0**.  
-- **Env:** `taskio-v2`.  
-- **Command:** C1.  
-- **Effect:** evidence only.  
-- **Rollback:** N/A.  
-- **Verify:** count = 0.  
-- **Risk:** none if list-only.  
+- **Action:** list keys on Firebase Admin SDK SA; expect **0**.
+- **Status:** **DONE (P07C).** 0 user-managed keys. Historical `3cac` absent.
+- **Env:** `taskio-v2`.
+- **Command:** C1.
+- **Effect:** evidence only.
+- **Rollback:** N/A.
+- **Verify:** count = 0.
+- **Risk:** none if list-only.
 - **Deps:** owner GCP access.
 
 ### RED-B — Confirm Cloud Run IAM / runtime
 
-- **Action:** describe service + IAM policy; redact env.  
-- **Env:** `taskio-v2` `australia-southeast1`.  
-- **Command:** C2, C3.  
-- **Effect:** evidence.  
-- **Rollback:** N/A.  
-- **Verify:** no allUsers on main API; runtime SA = `taskio-api-runtime`; Stripe disabled.  
-- **Risk:** metadata exposure if pasted unredacted — redact.  
+- **Action:** describe service + IAM policy; redact env.
+- **Status:** **DONE (P07C).** Invoker policy empty; SA `taskio-api-runtime`; `STRIPE_ENABLED=false`.
+- **Env:** `taskio-v2` `australia-southeast1`.
+- **Command:** C2, C3.
+- **Effect:** evidence.
+- **Rollback:** N/A.
+- **Verify:** no allUsers on main API; runtime SA = `taskio-api-runtime`; Stripe disabled.
+- **Risk:** metadata exposure if pasted unredacted — redact.
 - **Deps:** none.
 
 ### RED-C — Identity Toolkit allow homeowner signup
 
-- **Action:** set `disabledUserSignup` to permit approved path.  
-- **Env:** staging first, then production.  
-- **Change:** Auth console / Identity Toolkit.  
-- **Effect:** brand-new Firebase users can be created.  
-- **Rollback:** set `disabledUserSignup=true` again.  
-- **Verify:** new homeowner OTP/signup works; Expert still `verified=false` without Admin Verify; `TASKIO_PUBLIC_SIGNUP_ENABLED` still controls Expert register.  
-- **Risk:** HIGH — opens account creation.  
+- **Action:** set `disabledUserSignup` to permit approved path.
+- **Env:** staging first, then production.
+- **Change:** Auth console / Identity Toolkit.
+- **Effect:** brand-new Firebase users can be created.
+- **Rollback:** set `disabledUserSignup=true` again.
+- **Verify:** new homeowner OTP/signup works; Expert still `verified=false` without Admin Verify; `TASKIO_PUBLIC_SIGNUP_ENABLED` still controls Expert register.
+- **Risk:** HIGH — opens account creation.
 - **Deps:** P07 IAM confirm; do **not** OPEN posting until P10 plan exists.
 
 ### RED-D — Production App Check
 
-- **Action:** register key, Hosting with App Check, then enforce Firestore then Storage.  
-- **Rollback:** disable enforcement **before** Hosting rollback (`docs/APP_CHECK.md`).  
-- **Deps:** P05 production batch; frontend site key.  
+- **Action:** register key, Hosting with App Check, then enforce Firestore then Storage.
+- **Rollback:** disable enforcement **before** Hosting rollback (`docs/APP_CHECK.md`).
+- **Deps:** P05 production batch; frontend site key.
 - **Risk:** locking out old bundles.
 
 ### RED-E — Production Postmark
 
-- **Action:** production SMTP secrets + Functions bind + authentic E01.  
-- **Rollback:** `EMAIL_ENABLED=false` / unbind.  
-- **Deps:** domain auth.  
+- **Action:** production SMTP secrets + Functions bind + authentic E01.
+- **Rollback:** `EMAIL_ENABLED=false` / unbind.
+- **Deps:** domain auth.
 - **Risk:** mail to real users if mis-aimed — use production sender only after freeze lift.
 
 ### RED-F — Production GA4
 
-- **Action:** production measurement ID + privacy settings; Hosting rebuild.  
-- **Rollback:** `REACT_APP_ANALYTICS_ENABLED` not true.  
-- **Deps:** **P06 disclosure**.  
+- **Action:** production measurement ID + privacy settings; Hosting rebuild.
+- **Rollback:** `REACT_APP_ANALYTICS_ENABLED` not true.
+- **Deps:** **P06 disclosure**.
 - **Risk:** unlawful/undisclosed tracking.
 
 ### RED-G — Live Stripe
 
-- **Action:** mount `sk_live_`, live webhook secrets, `STRIPE_ENABLED=true`, `STRIPE_EXPECTED_LIVEMODE=true`.  
-- **Rollback:** `STRIPE_ENABLED=false`.  
-- **Deps:** P07 IAM; P10.  
+- **Action:** mount `sk_live_`, live webhook secrets, `STRIPE_ENABLED=true`, `STRIPE_EXPECTED_LIVEMODE=true`.
+- **Why:** real money requires live keys and webhooks.
+- **Current verified state:** `STRIPE_ENABLED=false`; no Stripe secret names in `taskio-v2` Secret Manager; no production webhook Cloud Run service.
+- **Env:** `taskio-v2`.
+- **Proposed change:** named later batch only.
+- **Expected effect:** live charges possible.
+- **Rollback:** `STRIPE_ENABLED=false`.
+- **Validation:** webhook signature + livemode guards.
+- **Deps:** P07 IAM; P10.
 - **Risk:** real charges.
+
+### RED-H — Deploy P07B Storage rules
+
+- **Action:** deploy current `storage.rules` (create-only posting photos; 2MB profile bound) to `taskio-v2`.
+- **Why:** live ruleset `932c4f1b…` (2025-12-24) still uses `allow write` and has no P07B posting-attachment path.
+- **Current verified state:** **PRODUCTION OLDER**.
+- **Env:** `taskio-v2` Storage.
+- **Proposed command:** later named `firebase deploy --project taskio-v2 --only storage` (do not run now).
+- **Expected effect:** homeowners cannot overwrite existing posting objects.
+- **Rollback:** restore ruleset `932c4f1b-cb8d-46b3-bf14-b53a971bb4f4`.
+- **Validation:** emulator tests already PASS; then a named hosted upload proof.
+- **Risk:** MEDIUM if a leftover client still expects overwrite.
+
+### RED-I — Deploy P07B Hosting headers
+
+- **Action:** deploy Hosting with conservative headers from `firebase.json`.
+- **Why:** live version `cffca9d87ce03901` only has noindex/no-store. P07B nosniff / referrer / frame / Permissions-Policy / HSTS `max-age=31536000` are repo-only.
+- **Current verified state:** custom domain HSTS `max-age=31556926` without includeSubDomains/preload; no P07B headers.
+- **Env:** `taskio-v2` site `taskio-v2` / `taskio.com.au`.
+- **Proposed command:** later named Hosting-only deploy. Do **not** add `includeSubDomains` or `preload`. Do **not** add CSP.
+- **Expected effect:** browsers receive the P07B baseline on the custom domain.
+- **Rollback:** `taskio-v2@cffca9d87ce03901`.
+- **Validation:** HEAD `https://taskio.com.au` after deploy.
+- **Risk:** MEDIUM if a future embed requires framing (none today).
 
 ### AMBER-A — Staging JSON key `f04d`
 
-- Review whether still required for local/staging; prefer ADC; rotate if copies exist.
+- **P07C:** still present as USER_MANAGED on `firebase-adminsdk-fbsvc@taskio-v2-staging` (created 2026-08-15).
+- Review whether still required for local/staging; prefer ADC; rotate if copies exist. Do not revoke in this task.
+
+### AMBER-B — Personal Gmail `roles/editor` on production
+
+- One human `user:` Editor is a `gmail.com` account (not the Taskio operator). Default Compute / App Engine / Cloud Services Editors are expected Google agents.
+- Later IAM review only. Do not remove bindings in this task.
+
+### AMBER-C — Leftover `helloTaskio`
+
+- ACTIVE HTTP Function with `allUsers` invoker. Not in current repo.
+- Later disable/delete after named approval. Not a P07 PASS blocker.
 
 ### GREEN-A (P07B local, this commit)
 
@@ -442,7 +487,8 @@ Do **not** run `firebase use` or `gcloud config set project`. Prefer `--project=
 - P07 **PASS:** **no**
 - P07: **OPEN / REMEDIATION IN PROGRESS**
 - P07A: **AUDIT COMPLETE**
-- P07B: **LOCAL HARDENING COMPLETE** (this document). Cloud C1–C8, Auth, IAM, App Check, email, GA4, Stripe LIVE remain out of scope.
+- P07B: **LOCAL HARDENING COMPLETE**
+- P07C: **READ-ONLY PRODUCTION VERIFICATION COMPLETE** (this document). Remaining work is named RED/AMBER packages — not executed.
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -511,3 +557,57 @@ Functions do not use websocket clients in product email code. Nodemailer is used
 ### Logging
 
 No concrete Authorization / ID-token / OTP / password / Stripe client-secret / payment-method / service-account / raw-body leak found on sensitive routes. AI provider `details` no longer dumped to console. No new logging framework.
+
+---
+
+## 26. P07C read-only production verification (19 September 2026)
+
+**Operator:** `admin@taskio.com.au` (gcloud + Firebase CLI).
+**gcloud:** 580.0.0. **Firebase CLI:** 15.1.0.
+**Configured default gcloud project:** `taskio-v2` (recorded only; **not** changed).
+**Commands:** explicit `--project=taskio-v2` / `--project=taskio-v2-staging`. No `firebase use`, no `gcloud config set project`, no deploy/update/create/delete/enable/disable/rotate.
+
+### Repo vs live
+
+| AREA | REPO EXPECTATION | LIVE OBSERVED | MATCH? | RISK | ACTION NEEDED |
+|---|---|---|---|---|---|
+| Project | `taskio-v2` | `taskio-v2` | YES | — | None |
+| Runtime identity | `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` | Same on `taskio-api` | YES | — | None |
+| API revision | Documented later ABN-hardened image | `taskio-api-00006-puf` 100% (`abn-hardened`); image `…/taskio-api@sha256:f2de76fd…671c4bf6`; ingress all; maxScale 20; concurrency 80 | INFO | — | None now |
+| IAM keys | 0 user-managed on Admin SDK / runtime | Admin SDK 0 USER_MANAGED (2 SYSTEM); runtime 0 USER_MANAGED; `3cac` absent | YES | — | Never recreate JSON |
+| Staging key `f04d` | Outside A04; review | USER_MANAGED last-4 `f04d` still on staging Admin SDK (2026-08-15) | YES present | HIGH if copies | AMBER owner review |
+| Project IAM | Owner = Taskio operator; runtime least privilege | Owner = Taskio operator; runtime has datastore + custom Auth role + secret accessor (resource). Default Compute/App Engine/Cloud Services have `roles/editor` (Google default). One personal Gmail has `roles/editor`. | QUESTIONABLE (Gmail Editor) | MEDIUM | AMBER-B later |
+| API invoker | Private / controlled | Empty Cloud Run IAM (no `allUsers`) | YES | — | Keep private |
+| Functions | Email + Firestore triggers | GEN_2 ACTIVE `australia-southeast1` / nodejs24 / default Compute SA: `notifyHomeownerOnQuoteSubmitted`, `notifyTradieOnEscrowFunded`, `flagRiskyJobMessages` (Firestore). `helloTaskio` HTTP `allUsers`. Missing prod `notifyHomeownerOnQuoteSubmittedUpdate`. Last update **2026-04-11**. | PARTIAL | LOW leftover hello; email not P03-bound | AMBER-C; P03 RED-E |
+| Functions exposure | Event functions private; webhooks may be public | Event function Cloud Run IAM empty. `helloTaskio` PUBLIC. No prod Stripe webhook service. | MATCH for events; leftover hello | LOW | AMBER-C |
+| Secret Manager | OTP_SALT; Stripe/SMTP not mounted | Names: `OTP_SALT` v1 enabled; `ABN_LOOKUP_GUID` v1 enabled; `ALERT_WEBHOOK_URL` **no versions**. No Stripe/SMTP/Gemini/OTP extras. | YES (ABN extra is optional) | LOW | Do not mount live Stripe/Gemini |
+| Auth signup | `disabledUserSignup=true` | **true** | YES | Blocks OPEN | RED-C later + P10 |
+| Auth providers | Phone + email as product | Email/password enabled; phone enabled; MFA DISABLED; authorised domains include `taskio.com.au` / `www` / `app` / Firebase hosts / localhost | YES | — | Do not toggle |
+| App Check | Production enforcement OFF | Firestore, Storage, Auth `UNENFORCED` | YES | HIGH at public launch | RED-D / P05 |
+| Storage rules | P07B create-only in repo | Live ruleset `932c4f1b…` **2025-12-24**; `allow write`; no posting create-only | **PRODUCTION OLDER** | MEDIUM overwrite | RED-H |
+| Firestore rules | Not changed in P07B | Live ruleset `7d46b484…` last update **2026-04-26** | INFO / possibly older than later local Firestore work | LOW for this slice | Separate if needed |
+| Hosting | P07B headers in repo | Live `cffca9d87ce03901` 2026-08-19; 7 files; title “Taskio is almost ready”; headers noindex + no-store only | **PRODUCTION OLDER** | MEDIUM | RED-I |
+| Email | Production pending | No SMTP/Postmark secret names in prod SM; Functions not rebound since April 2026 | YES pending | HIGH ops | RED-E / P03 |
+| Analytics | Production OFF | Maintenance HTML; no gtag / `G-` | YES | — | RED-F after P06 |
+| Stripe | Production off | `STRIPE_ENABLED=false`; no Stripe secret names; no prod webhook service | YES | — | RED-G later |
+| AI | Fail-closed OFF | `AI_DESCRIPTION_ENABLED` **absent** (not `true`). `GEMINI_MODEL` set; **no** Gemini secret. Provider **not** eligible. | YES | — | Do not enable |
+| Public Expert signup flag | Fail-closed in production if unset | `TASKIO_PUBLIC_SIGNUP_ENABLED` **absent** + `NODE_ENV=production` ⇒ disabled | YES | — | Keep |
+| CORS | Taskio origin only | `CORS_ORIGINS=https://taskio.com.au`; `TRUST_PROXY=true` | YES | — | Keep |
+| Pilot settings | Must not exist | `system/pilotSettings` **404** ⇒ Homeowner CLOSED / Expert WAITLIST | YES | — | Do not create |
+| Legacy Experts | Review before OPEN | Count-only: **18** `role=tradie`; **38** users. No PII exported. | INFO | HIGH if opened blindly | P07-17 review later |
+
+### Classification
+
+| Finding | Class |
+|---|---|
+| 0 prod user-managed JSON keys; runtime ADC | GREEN LOCAL / verified |
+| API IAM-private; Stripe off; AI off; analytics off; pilotSettings absent | GREEN LOCAL / verified |
+| Staging `f04d` still present | AMBER |
+| Personal Gmail Editor | AMBER |
+| `helloTaskio` public leftover | AMBER |
+| CSP still deferred | AMBER |
+| Auth signup still disabled (correct today; required later for OPEN) | RED (enable later) |
+| App Check / email / GA4 / live Stripe still off | RED (enable later, with deps) |
+| Storage rules + Hosting headers not deployed | RED (deploy later) |
+
+**Production mutation in P07C:** none.

@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 19 September 2026 (P07B local security hardening)
+**Last updated:** 19 September 2026 (P07C read-only production verification)
 
 ## Active scope
 
@@ -47,7 +47,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`); lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07A audit complete; P07B local hardening in repo (`docs/P07_SECURITY_CONFIG_REMEDIATION.md`). Not PASS. Includes production Auth for the approved homeowner signup path. Current cloud `disabledUserSignup=true` blocks brand-new Firebase users. P07 cannot PASS public OPEN while that remains. | **Yes** |
+| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07A audit complete; P07B local hardening in repo; P07C read-only `taskio-v2` verification complete (`docs/P07_SECURITY_CONFIG_REMEDIATION.md`). Not PASS. Independently confirmed `disabledUserSignup=true`. P07 cannot PASS public OPEN while that remains. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** — must prove a brand-new homeowner can authenticate and post. Existing invited/synthetic users are not enough for public OPEN. | **Yes** |
@@ -60,11 +60,11 @@ Explicitly post-launch unless later required: native apps, Expert LIMITED-mode r
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** **OPEN** (owner facts complete; P06A reconciliation prepared; lean sole-trader pilot subject to solicitor confirmation; Pty Ltd not an automatic blocker; focused insurance review pending; not PASS); **P07** **OPEN / REMEDIATION IN PROGRESS** (P07A audit complete; P07B local hardening; not PASS); **P08 / P10** **NOT STARTED**; **P09** blocked on P06; **P11** **BLOCKED**.
+- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** **OPEN** (owner facts complete; P06A reconciliation prepared; lean sole-trader pilot subject to solicitor confirmation; Pty Ltd not an automatic blocker; focused insurance review pending; not PASS); **P07** **OPEN / REMEDIATION IN PROGRESS** (P07A/P07B complete; P07C read-only verification complete; not PASS); **P08 / P10** **NOT STARTED**; **P09** blocked on P06; **P11** **BLOCKED**.
 - Legal Terms/Privacy remain drafts. P06 pack: `docs/P06_OWNER_DECISIONS.md`. Solicitor brief: `docs/P06_SOLICITOR_BRIEF.md`. Claim/processor/remediation inventory: `docs/P06_REMEDIATION_MATRIX.md`. Do not describe Taskio as a company or Pty Ltd during the sole-trader pilot. Do not treat Pty Ltd or broad insurance as automatic launch blockers. P09 stays blocked until P06 PASS.
 
 **Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Keep Auth unenforced, security rules unchanged, and production untouched. See `docs/APP_CHECK.md`.
 
 ## Next release decision
 
-P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07 is **OPEN / REMEDIATION IN PROGRESS** (P07A audit complete; P07B local hardening in repo; not PASS). P08/P10 are not started. P09 remains blocked on P06. Do not infer production launch, production analytics, production App Check, or production email. Do not start P11. Production SMTP remains **NOT CONFIGURED**. Production analytics remain **OFF**. Next pickups remain **P06** solicitor pack and remaining **P07** cloud confirmation / RED items (`docs/P07_SECURITY_CONFIG_REMEDIATION.md`).
+P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07 is **OPEN / REMEDIATION IN PROGRESS** (P07A/P07B complete; P07C read-only production verification complete; not PASS). P08/P10 are not started. P09 remains blocked on P06. Do not infer production launch, production analytics, production App Check, or production email. Do not start P11. Production SMTP remains **NOT CONFIGURED**. Production analytics remain **OFF**. Next pickups remain **P06** solicitor pack and remaining **P07** RED packages (`docs/P07_SECURITY_CONFIG_REMEDIATION.md`).
