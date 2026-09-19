@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 19 September 2026 (P07D2A local ADC migration **STOPPED** — owner ADC login required)
+**Date:** 19 September 2026 (P07D2A local ADC migration **PROVEN**)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A/P07B/P07C complete; P07D1 prepared; P07D2A **stopped before ADC proof** because Application Default Credentials are **ABSENT**. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**. f04d was **not** deleted.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A/P07B/P07C complete; P07D1 prepared; P07D2A local operator workflow now uses ADC with explicit `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`. f04d remains present but has **no active Taskio workflow dependency**. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**. f04d was **not** deleted.
 
 This document is a **read-only** audit plus approval planning. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, deploy, or push.
 
@@ -323,7 +323,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | ID | AREA | CURRENT STATE | EVIDENCE | RISK | REQUIRED ACTION | LOCAL / STAGING / PRODUCTION | GREEN / AMBER / RED | BLOCKS P07? | VALIDATION REQUIRED | STATUS |
 |---|---|---|---|---|---|---|---|---|---|---|
 | P07-01 | Historical prod SA JSON | **P07C:** 0 user-managed keys on Admin SDK + runtime; `3cac` absent | C1 19 Sep 2026 | None now (deleted) | Never recreate JSON | PRODUCTION | **GREEN** verified | No | C1 | **VERIFIED** |
-| P07-02 | Staging SA JSON `f04d` | **P07D2A:** USER_MANAGED still present. Local GAC still active (basename `taskio-v2-staging-admin.json`). ADC well-known file **ABSENT**. Local `.env` now also has explicit `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`. Classification remains **B LIKELY REQUIRED**. | P07D2A | HIGH if revoked while GAC still set | Owner ADC login, then prove Admin without GAC, then separate AMBER delete | STAGING | **AMBER** | No (prod P07) | Local ADC + backend init | **DEPENDENCY FOUND (LOCAL GAC); ADC ABSENT** |
+| P07-02 | Staging SA JSON `f04d` | **P07D2A proven:** USER_MANAGED still present. Local GAC commented. Admin now initialises as `ApplicationDefaultCredential` with `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`. No active Taskio workflow dependency. Historical cloud use **UNKNOWN**. | P07D2A | HIGH only if an unidentified copy still exists | Separate AMBER-D1B delete after key-id re-check | STAGING | **AMBER** prepared | No (prod P07) | ADC Admin + `/health/ready` | **NO ACTIVE DEPENDENCY FOUND — READY FOR SEPARATE AMBER REVOCATION** |
 | P07-03 | Auth `disabledUserSignup=true` | **P07C confirmed** on production | C4 | Blocks intended OPEN | Approved Identity Toolkit change for homeowner path only | PRODUCTION (+ staging when testing) | **RED** | **Yes** | C4 + P10 | **VERIFIED; enable NOT STARTED** |
 | P07-04 | IAM / Cloud Run invoker | **P07C:** main API invoker policy empty (no allUsers). Runtime SA matches. | C2 C3 | None for public invoke | Keep private until a named public-HTTP decision | PRODUCTION | **GREEN** verified | No | C2 C3 | **VERIFIED** |
 | P07-05 | Runtime secrets | **P07C:** `OTP_SALT:1` + `ABN_LOOKUP_GUID:1` mounted; no Stripe/Gemini/SMTP; `STRIPE_ENABLED=false` | C2 C6 | LOW (ABN optional) | Do not add Gemini/live Stripe yet | PRODUCTION | **GREEN** verified | No | C6 | **VERIFIED** |
@@ -622,7 +622,7 @@ No concrete Authorization / ID-token / OTP / password / Stripe client-secret / p
 |---|---|
 | 0 prod user-managed JSON keys; runtime ADC | GREEN LOCAL / verified |
 | API IAM-private; Stripe off; AI off; analytics off; pilotSettings absent | GREEN LOCAL / verified |
-| Staging `f04d` still present | AMBER — **B LIKELY REQUIRED** (local GAC). See AMBER-D1. Do not revoke yet. |
+| Staging `f04d` still present | AMBER — **NO ACTIVE DEPENDENCY FOUND — READY FOR SEPARATE AMBER REVOCATION**. Historical cloud use **UNKNOWN**. See AMBER-D1B. Do not revoke in this task. |
 | Staging CSP / hosted browser validation | AMBER — Report-Only first. See AMBER-D2. |
 | Personal Gmail Editor finding | QUESTIONABLE / REVIEW REQUIRED; **any IAM change is RED** |
 | `helloTaskio` leftover finding | QUESTIONABLE / REVIEW REQUIRED; **any Function/IAM change is RED** |
@@ -773,7 +773,7 @@ Stop if any mutation would be required (OTP, job create, Stripe charge, new user
 
 - **ACTION:** (1) Point local operator backend off this JSON (ADC / `gcloud auth application-default login` scoped to staging, or a new dedicated local identity). Prove `npm` backend against staging still works **without** `GOOGLE_APPLICATION_CREDENTIALS`. (2) Only then delete USER_MANAGED key last-4 `f04d`.
 - **ENVIRONMENT:** `taskio-v2-staging` + operator laptop. Not production.
-- **CURRENT STATE:** Key present; local GAC still uses it; Cloud Run/Functions do not.
+- **CURRENT STATE:** **Step 1 proven in P07D2A.** Key still present. Local GAC commented. Cloud Run/Functions do not use it. Step 2 is **AMBER-D1B** and is **not executed**.
 - **WHY:** shrink stolen-JSON risk after the local path no longer needs it.
 - **EXACT CHANGE (step 2 only, after step 1 PASS):** `gcloud iam service-accounts keys delete <FULL_KEY_ID> --iam-account=firebase-adminsdk-fbsvc@taskio-v2-staging.iam.gserviceaccount.com --project=taskio-v2-staging` where `<FULL_KEY_ID>` is resolved at execution time from last-4 `f04d`.
 - **EXPECTED EFFECT:** that private key stops working. Local GAC file becomes useless.
@@ -883,5 +883,97 @@ Then resume P07D2A. Do not comment GAC, do not query Firestore on ADC, and do no
 ### f04d classification
 
 Remains **B LIKELY REQUIRED** for the current local operator GAC workflow. Cloud Run/Functions still use attached identities. Cloud historical use remains **UNKNOWN**. AMBER-D1B deletion package is **not eligible**.
+
+P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN remains impossible.
+
+---
+
+## 29. P07D2A local ADC migration — PROVEN (19 September 2026)
+
+No staging mutation. No production mutation. f04d **not** deleted, disabled, revoked, or rotated. Local f04d JSON file **not** deleted. No product-code change. Local `.env` remains untracked.
+
+**Operator:** `admin@taskio.com.au`. Default gcloud project remains `taskio-v2` (unchanged). ADC quota project class **STAGING**. ADC type `authorized_user`.
+
+### ADC model now in use
+
+Owner completed `gcloud auth application-default login admin@taskio.com.au --project=taskio-v2-staging`. Well-known ADC file exists outside the repo. Identity check (userinfo, no token printed) returned `admin@taskio.com.au`.
+
+Local untracked `backend/.env`:
+
+- `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`
+- `TASKIO_DEPLOYMENT_ENV=staging`
+- `GOOGLE_APPLICATION_CREDENTIALS` **commented** (`# P07D2A ADC:`)
+- `FIREBASE_SERVICE_ACCOUNT_JSON` unset
+- `GCLOUD_PROJECT` unset
+
+`backend/src/firebaseAdmin.js` therefore takes the no-options `initializeApp()` path and loads `ApplicationDefaultCredential`. The GAC/`cert()` branch is no longer used by the local operator workflow.
+
+### Explicit project guard / production fail-fast
+
+Before any Firestore/Admin data access:
+
+- GAC absent
+- `GOOGLE_CLOUD_PROJECT` exactly `taskio-v2-staging`
+- `GCLOUD_PROJECT` unset
+- `GoogleAuth.getProjectId()` exactly `taskio-v2-staging`
+
+Mismatch would abort before reads. Result: **STAGING**. gcloud default `taskio-v2` was not used.
+
+### Read-only proof
+
+| Check | Result |
+|---|---|
+| Admin credential class | `ApplicationDefaultCredential` (not `ServiceAccountCredential`) |
+| Resolved project after init | `taskio-v2-staging` |
+| `system/pilotSettings` GET | succeeded; document **absent**; no write |
+| `validateEnv()` | passed (expected warn: no explicit GAC) |
+| `GET /health/live` | 200 |
+| `GET /health/ready` | 200; Firestore check ok (`_health` read-only) |
+
+No jobs, users, OTP, email, Stripe, Gemini, or pilot-settings writes.
+
+### Remaining JSON-key references
+
+| Finding | Class |
+|---|---|
+| Local `backend/.env` GAC line | **LEGACY** (commented; not active) |
+| Out-of-repo `taskio-v2-staging-admin.json` / f04d | **LEGACY** file retained; not loaded |
+| Cloud USER_MANAGED key last-4 `f04d` | **PRESENT**; no active Taskio workflow uses it |
+| `backend/src/firebaseAdmin.js` GAC/`cert()` branch | **LEGACY** fallback; unused while GAC is unset |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | unused locally |
+| `backend/setAdmin.js` `require("./serviceAccountKey.json")` | **IGNORED LOCAL FILE** / LEGACY; production JSON **absent** |
+| `backend/debug.js` inspects `serviceAccountKey.json` | **IGNORED LOCAL FILE** |
+| `scripts/bootstrapAdmin.js` `initializeApp()` | **IGNORED LOCAL FILE**; now ADC if run |
+| `backend/env.example` GAC comments | **DOC ONLY** |
+| `frontend/scripts/stagingHostingLib.cjs` strips GAC | **TEST / defensive** |
+| `frontend/scripts/stagingHosting.test.cjs` | **TEST FIXTURE** |
+| CI image `serviceAccountKey.json` absence checks | **TEST FIXTURE** |
+| `validateEnv.js` missing-GAC warning | **LEGACY** warning only |
+
+Current Taskio workflows no longer require f04d based on repo, runtime and local ADC validation. Cloud historical use remains **UNKNOWN**. Empty earlier key-name audit rows do not prove unused.
+
+### Secret / git hygiene
+
+`backend/.env` gitignored and untracked. ADC file is outside the repo. Production JSON filenames absent. f04d JSON file left on disk. No credential staged or committed.
+
+### f04d classification
+
+**NO ACTIVE DEPENDENCY FOUND — READY FOR SEPARATE AMBER REVOCATION**
+
+This does **not** mean deleted. This does **not** mean cloud historical use is proven absent.
+
+### AMBER-D1B — delete USER_MANAGED staging key f04d (do not execute)
+
+- **ACTION:** delete the USER_MANAGED staging key ending `f04d`
+- **PROJECT:** `taskio-v2-staging`
+- **SERVICE ACCOUNT:** `firebase-adminsdk-fbsvc@taskio-v2-staging.iam.gserviceaccount.com`
+- **PRECONDITIONS:** ADC proof passed; local GAC dependency removed; deployed runtimes use attached identities; key ID verified immediately before deletion
+- **EXPECTED EFFECT:** long-lived downloaded staging credential becomes invalid
+- **ROLLBACK:** the same private key cannot be restored; if genuinely necessary, create a **NEW** credential only after diagnosis and explicit approval
+- **VALIDATION:** local ADC read proof; backend local init; staging deployed services remain healthy; no unexpected auth failures
+- **STOP CONDITIONS:** ADC failure; project mismatch; unidentified key dependency; unexpected staging service identity
+- **EXACT CHANGE (later only):** `gcloud iam service-accounts keys delete <FULL_KEY_ID> --iam-account=firebase-adminsdk-fbsvc@taskio-v2-staging.iam.gserviceaccount.com --project=taskio-v2-staging` where `<FULL_KEY_ID>` is resolved at execution time from last-4 `f04d`
+
+Do **not** execute AMBER-D1B in P07D2A.
 
 P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN remains impossible.
