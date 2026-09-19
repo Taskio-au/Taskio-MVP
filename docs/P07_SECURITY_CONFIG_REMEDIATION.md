@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 19 September 2026 (P07D1 staging security cleanup preparation)
+**Date:** 19 September 2026 (P07D2A local ADC migration **STOPPED** — owner ADC login required)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A audit complete; P07B local GREEN hardening in repo; P07C read-only `taskio-v2` verification complete. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**. P07C did **not** mutate cloud, deploy, rotate, or enable anything.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A/P07B/P07C complete; P07D1 prepared; P07D2A **stopped before ADC proof** because Application Default Credentials are **ABSENT**. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**. f04d was **not** deleted.
 
 This document is a **read-only** audit plus approval planning. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, deploy, or push.
 
@@ -323,7 +323,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | ID | AREA | CURRENT STATE | EVIDENCE | RISK | REQUIRED ACTION | LOCAL / STAGING / PRODUCTION | GREEN / AMBER / RED | BLOCKS P07? | VALIDATION REQUIRED | STATUS |
 |---|---|---|---|---|---|---|---|---|---|---|
 | P07-01 | Historical prod SA JSON | **P07C:** 0 user-managed keys on Admin SDK + runtime; `3cac` absent | C1 19 Sep 2026 | None now (deleted) | Never recreate JSON | PRODUCTION | **GREEN** verified | No | C1 | **VERIFIED** |
-| P07-02 | Staging SA JSON `f04d` | **P07D1:** USER_MANAGED still present. Local operator `GOOGLE_APPLICATION_CREDENTIALS` still points at this key (basename only). Cloud Run/Functions use attached SAs. Classification **B LIKELY REQUIRED** until local GAC is retired. | P07D1 | HIGH if revoked while GAC still set | Two-step AMBER-D1: stop local JSON use, then revoke | STAGING | **AMBER** | No (prod P07) | Local backend + staging health | **DEPENDENCY FOUND (LOCAL GAC)** |
+| P07-02 | Staging SA JSON `f04d` | **P07D2A:** USER_MANAGED still present. Local GAC still active (basename `taskio-v2-staging-admin.json`). ADC well-known file **ABSENT**. Local `.env` now also has explicit `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`. Classification remains **B LIKELY REQUIRED**. | P07D2A | HIGH if revoked while GAC still set | Owner ADC login, then prove Admin without GAC, then separate AMBER delete | STAGING | **AMBER** | No (prod P07) | Local ADC + backend init | **DEPENDENCY FOUND (LOCAL GAC); ADC ABSENT** |
 | P07-03 | Auth `disabledUserSignup=true` | **P07C confirmed** on production | C4 | Blocks intended OPEN | Approved Identity Toolkit change for homeowner path only | PRODUCTION (+ staging when testing) | **RED** | **Yes** | C4 + P10 | **VERIFIED; enable NOT STARTED** |
 | P07-04 | IAM / Cloud Run invoker | **P07C:** main API invoker policy empty (no allUsers). Runtime SA matches. | C2 C3 | None for public invoke | Keep private until a named public-HTTP decision | PRODUCTION | **GREEN** verified | No | C2 C3 | **VERIFIED** |
 | P07-05 | Runtime secrets | **P07C:** `OTP_SALT:1` + `ABN_LOOKUP_GUID:1` mounted; no Stripe/Gemini/SMTP; `STRIPE_ENABLED=false` | C2 C6 | LOW (ABN optional) | Do not add Gemini/live Stripe yet | PRODUCTION | **GREEN** verified | No | C6 | **VERIFIED** |
@@ -794,5 +794,94 @@ Stop if any mutation would be required (OTP, job create, Stripe charge, new user
 - **VALIDATION:** matrix above; Firestore/Storage App Check still ENFORCED and usable; no OTP/Stripe mutation.
 - **RISK:** MEDIUM if an origin was missed — Report-Only should not break the app.
 - **STOP CONDITIONS:** production project; enforcing CSP in the first slice; adding `js.stripe.com` without a product change; disabling App Check to “make CSP pass”.
+
+P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN remains impossible.
+
+---
+
+## 28. P07D2A local ADC migration — STOPPED pending owner login (19 September 2026)
+
+No staging mutation. No production mutation. f04d **not** deleted, disabled, revoked, or rotated. No product-code change. Local `.env` remains untracked.
+
+**Operator:** `admin@taskio.com.au`. Default gcloud project remains `taskio-v2` (unchanged). Firebase CLI logged in as `admin@taskio.com.au`. gcloud `580.0.0`.
+
+### Old local credential model
+
+Tracked `backend/src/firebaseAdmin.js` does **not** call `applicationDefault()` by name. Order:
+
+1. If `GOOGLE_APPLICATION_CREDENTIALS` is set: Taskio **manually** `require()`s that JSON and calls `admin.credential.cert(...)` with `projectId` from the file `project_id`. Google’s ADC chain is **not** used on this path.
+2. Else if `FIREBASE_SERVICE_ACCOUNT_JSON` is set: parse + `cert()` + file `project_id`.
+3. Else: `admin.initializeApp()` with no options → firebase-admin loads ADC and (if `FIREBASE_CONFIG` is unset) leaves `projectId` unset so later `GoogleAuth.getProjectId()` decides the project.
+
+No tracked `serviceAccountKey.json` path. Local `backend/.env` still has an active GAC line whose basename is `taskio-v2-staging-admin.json` and whose `private_key_id` last-4 is `f04d` (staging project class). `FIREBASE_SERVICE_ACCOUNT_JSON` is unset.
+
+### Explicit staging project guard
+
+Canonical Taskio variable is existing `GOOGLE_CLOUD_PROJECT` (`backend/env.staging.example`, `deploymentEnvironment.js`). Companion `TASKIO_DEPLOYMENT_ENV=staging` is required if that project id is ever validated.
+
+Local `.env` previously had **neither**. google-auth-library `getProjectId()` precedence is:
+
+1. `GCLOUD_PROJECT` then `GOOGLE_CLOUD_PROJECT`
+2. GAC JSON `project_id` if GAC is set
+3. `gcloud config config-helper` (local default is production `taskio-v2`)
+
+Dry-run (no Firestore, no tokens printed):
+
+| Condition | Resolved project class |
+|---|---|
+| No GAC, no explicit project env | **PRODUCTION** (`taskio-v2` via gcloud default) |
+| No GAC, `GOOGLE_CLOUD_PROJECT=taskio-v2-staging` | **STAGING** |
+| No GAC, both `GOOGLE_CLOUD_PROJECT=taskio-v2-staging` and `GCLOUD_PROJECT=taskio-v2` | **PRODUCTION** (`GCLOUD_PROJECT` wins) |
+
+Therefore ADC migration **must not** rely on the gcloud default. Local untracked `.env` now sets `GOOGLE_CLOUD_PROJECT=taskio-v2-staging` and `TASKIO_DEPLOYMENT_ENV=staging`. `GCLOUD_PROJECT` remains unset. GAC line was **not** commented.
+
+This proves the intended Admin/ADC project after GAC removal, **if** dotenv loads `backend/.env` (start from `backend/`). It does **not** prove ADC credentials exist.
+
+### ADC state
+
+**ADC ABSENT.** Well-known `application_default_credentials.json` is not present. `GoogleAuth.getClient()` without GAC: `Could not load the default credentials`. No ADC file was created or overwritten. Interactive `gcloud auth application-default login` was **not** run.
+
+### Required owner action (local ADC store only)
+
+Run, signed in as `admin@taskio.com.au`:
+
+```
+gcloud auth application-default login admin@taskio.com.au --project=taskio-v2-staging
+```
+
+`--project` applies to **this invocation only** so the quota project written into ADC is `taskio-v2-staging`. It must **not** be replaced with `gcloud config set project`. Default gcloud project must stay `taskio-v2`.
+
+This command changes the **local ADC credential store only**. It does **not** create a service-account key, change IAM, change the stored gcloud project, or change Firebase settings. Do not use production as the ADC quota project merely because it is the CLI default.
+
+If login writes the wrong quota project, follow with:
+
+```
+gcloud auth application-default set-quota-project taskio-v2-staging
+```
+
+Then resume P07D2A. Do not comment GAC, do not query Firestore on ADC, and do not delete f04d until that resume proves ADC.
+
+### Remaining JSON-key references
+
+| Finding | Class |
+|---|---|
+| Local `backend/.env` GAC → `taskio-v2-staging-admin.json` / f04d | **REQUIRED** (current operator backend) |
+| `backend/src/firebaseAdmin.js` GAC/`cert()` branch | **REQUIRED** while GAC is set; ADC fallback already exists |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | unused locally |
+| `backend/setAdmin.js` `require("./serviceAccountKey.json")` | **IGNORED LOCAL FILE** / LEGACY; production JSON **absent** |
+| `backend/debug.js` inspects `serviceAccountKey.json` | **IGNORED LOCAL FILE** |
+| `scripts/bootstrapAdmin.js` `initializeApp()` | **IGNORED LOCAL FILE**; would use GAC or ADC |
+| `backend/env.example` GAC comments | **DOC ONLY** |
+| `frontend/scripts/stagingHostingLib.cjs` strips GAC from child env | **TEST / defensive** |
+| `frontend/scripts/stagingHosting.test.cjs` | **TEST FIXTURE** |
+| CI image `serviceAccountKey.json` absence checks | **TEST FIXTURE** |
+
+### Secret / git hygiene
+
+`backend/.env` is gitignored and untracked. `**/serviceAccountKey.json` ignored. Production JSON filenames absent. No ADC file inside the repo. No credential committed. f04d JSON file left untouched.
+
+### f04d classification
+
+Remains **B LIKELY REQUIRED** for the current local operator GAC workflow. Cloud Run/Functions still use attached identities. Cloud historical use remains **UNKNOWN**. AMBER-D1B deletion package is **not eligible**.
 
 P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN remains impossible.
