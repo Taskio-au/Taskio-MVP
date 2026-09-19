@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-20 P07D2 AMBER-D2 (STAGING Hosting headers only):** Content-preserving Hosting deploy of hash-verified `211fb288dcaff973` SPA (`main.70b28def.js`). Final version **`e97a303dcf995e37`**. `Content-Security-Policy-Report-Only` + P07B headers live. No enforced CSP. One iteration added `manifest-src 'self'`. App Check Firestore+Storage still ENFORCED / Auth UNENFORCED. Guest tidy/synthetic login **NOT EXECUTED** (invite-only hosted gate; no session tooling used). AMBER-D2 **COMPLETE**. P07 **OPEN** — **not PASS**. No production mutation.
+
 **2026-09-19 P07D2B AMBER-D1B (STAGING credential mutation):** Deleted USER_MANAGED staging Admin SDK key last-4 `f04d`. Post-list: 0 USER_MANAGED / 1 SYSTEM_MANAGED. Local `taskio-v2-staging-admin.json` deleted after last-4/project check. ADC + deployed `/health/live` and `/health/ready` 200. Identities unchanged. Historical cloud use **UNKNOWN**. AMBER-D1B **COMPLETE**. P07 **OPEN** — **not PASS**. No production mutation.
 
 **2026-09-19 P07D2A local ADC migration (GREEN local):** Operator ADC `authorized_user` for `admin@taskio.com.au` with quota project `taskio-v2-staging`. Local GAC commented. Firebase Admin initialises as `ApplicationDefaultCredential` against `taskio-v2-staging`. Read-only `system/pilotSettings` + `/health/ready` passed. f04d JSON file retained. Classification **NO ACTIVE DEPENDENCY FOUND — READY FOR SEPARATE AMBER REVOCATION**. Historical cloud use **UNKNOWN**. AMBER-D1B **prepared only**. P07 **OPEN** — **not PASS**. No staging or production mutation.
@@ -149,7 +151,7 @@
 
 - `https://taskio-v2-staging.web.app/`
 - `https://taskio-v2-staging.firebaseapp.com/`
-- Live SPA version: `211fb288dcaff973` (P05 App Check + P04 GA4; bundle `main.70b28def.js`; source `6945c0a` plus build-time App Check env)
+- Live SPA version: `e97a303dcf995e37` (P07D2 Report-Only headers; byte-identical to `211fb288dcaff973`; bundle `main.70b28def.js`; source `6945c0a` plus build-time App Check env)
 - Immediate previous known-good SPA (rollback for this P05 frontend while enforcement is OFF): `c2b8f742e73fed84` → `taskio-v2-staging@c2b8f742e73fed84` to `taskio-v2-staging:live` if a later approved restore is required. Do not roll back to a non-App-Check frontend while Firestore or Storage enforcement is ON.
 - Earlier P04 SPA: `c2b8f742e73fed84` (bundle `main.9647f8fc.js`)
 - Earlier landing redesign SPA rollback: `548438126950e209` → `taskio-v2-staging@548438126950e209` to `taskio-v2-staging:live` if a later approved restore is required

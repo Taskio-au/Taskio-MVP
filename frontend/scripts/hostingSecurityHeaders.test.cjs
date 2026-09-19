@@ -22,15 +22,36 @@ function loadHostingHeaders(filename) {
   return Object.fromEntries((global.headers || []).map((item) => [item.key, item.value]));
 }
 
-for (const filename of ['firebase.json', 'firebase.staging.hosting.json']) {
-  test(`${filename} declares the conservative Hosting security header baseline`, () => {
-    const headers = loadHostingHeaders(filename);
-    for (const [key, value] of Object.entries(REQUIRED_HEADERS)) {
-      assert.equal(headers[key], value, `${filename} missing ${key}`);
-    }
-    assert.equal(headers['Content-Security-Policy'], undefined);
-    assert.equal(headers['Content-Security-Policy-Report-Only'], undefined);
-    assert.equal(headers['Strict-Transport-Security'].includes('includeSubDomains'), false);
-    assert.equal(headers['Strict-Transport-Security'].includes('preload'), false);
-  });
+function assertBaselineHeaders(filename, headers) {
+  for (const [key, value] of Object.entries(REQUIRED_HEADERS)) {
+    assert.equal(headers[key], value, `${filename} missing ${key}`);
+  }
+  assert.equal(headers['Content-Security-Policy'], undefined);
+  assert.equal(headers['Strict-Transport-Security'].includes('includeSubDomains'), false);
+  assert.equal(headers['Strict-Transport-Security'].includes('preload'), false);
 }
+
+test('firebase.json declares the conservative Hosting security header baseline without CSP', () => {
+  const headers = loadHostingHeaders('firebase.json');
+  assertBaselineHeaders('firebase.json', headers);
+  assert.equal(headers['Content-Security-Policy-Report-Only'], undefined);
+});
+
+test('firebase.staging.hosting.json keeps P07B headers and Report-Only CSP only', () => {
+  const headers = loadHostingHeaders('firebase.staging.hosting.json');
+  assertBaselineHeaders('firebase.staging.hosting.json', headers);
+  const reportOnly = headers['Content-Security-Policy-Report-Only'];
+  assert.equal(typeof reportOnly, 'string');
+  assert.match(reportOnly, /default-src 'none'/);
+  assert.match(reportOnly, /manifest-src 'self'/);
+  assert.match(reportOnly, /object-src 'none'/);
+  assert.match(reportOnly, /base-uri 'self'/);
+  assert.match(reportOnly, /frame-ancestors 'none'/);
+  assert.match(reportOnly, /style-src[^;]*'unsafe-inline'/);
+  assert.match(reportOnly, /content-firebaseappcheck\.googleapis\.com/);
+  assert.match(reportOnly, /firebaseappcheck\.googleapis\.com/);
+  assert.match(reportOnly, /taskio-api-staging-d6mdcsrwea-ts\.a\.run\.app/);
+  assert.equal(reportOnly.includes('*'), false);
+  assert.equal(reportOnly.includes('unsafe-eval'), false);
+  assert.equal(reportOnly.includes('js.stripe.com'), false);
+});

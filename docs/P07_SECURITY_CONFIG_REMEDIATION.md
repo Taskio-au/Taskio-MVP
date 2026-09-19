@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 19 September 2026 (P07D2B AMBER-D1B **COMPLETE** — staging key f04d deleted)
+**Date:** 20 September 2026 (P07D2 AMBER-D2 **COMPLETE** — staging CSP Report-Only; no enforcement)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A/P07B/P07C complete; P07D1 prepared; P07D2A ADC proven; P07D2B deleted the staging USER_MANAGED key last-4 `f04d`. Local operator uses ADC with `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A/P07B/P07C complete; P07D1 prepared; P07D2A ADC proven; P07D2B deleted the staging USER_MANAGED key last-4 `f04d`; P07D2 AMBER-D2 live on Hosting `e97a303dcf995e37` as Report-Only only. Local operator uses ADC with `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
 This document is a **read-only** audit plus approval planning. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, deploy, or push.
 
@@ -344,6 +344,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
 | P07-21 | Leftover `helloTaskio` | ACTIVE GEN_2 HTTP; Cloud Run `allUsers` invoker; not in current repo. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Functions describe | LOW recon | Owner must first prove nothing depends on it. Any delete / disable / redeploy / invoker change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Function list + dependency review | **CONFIRMED; cleanup NOT STARTED** |
 | P07-22 | Personal Gmail `roles/editor` | One `gmail.com` user has production Editor. Identity not recorded. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Project IAM | MEDIUM if unexpected | Owner must identify purpose and required least-privilege role. Do **not** assume removal. Any IAM binding change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Owner identity review | **CONFIRMED; IAM CHANGE NOT STARTED** |
+| P07-23 | Staging CSP Report-Only | **P07D2 / AMBER-D2 COMPLETE.** Live Hosting `e97a303dcf995e37` preserves SPA `main.70b28def.js` (same hashes as `211fb288dcaff973`). Report-Only only; no enforced CSP. P07B headers live. One header iteration added `manifest-src 'self'`. | Hosting files API + Chrome CDP | LOW while Report-Only | Separate decision to enforce; first prove authenticated Firestore/Storage/Auth iframe + guest tidy if posting reopens | STAGING | **AMBER COMPLETE** (Report-Only) | No | Hosted browser matrix | **REPORT-ONLY LIVE; ENFORCE NOT STARTED** |
 
 ---
 
@@ -623,7 +624,7 @@ No concrete Authorization / ID-token / OTP / password / Stripe client-secret / p
 | 0 prod user-managed JSON keys; runtime ADC | GREEN LOCAL / verified |
 | API IAM-private; Stripe off; AI off; analytics off; pilotSettings absent | GREEN LOCAL / verified |
 | Staging `f04d` | **DELETED / REVOKED FROM STAGING** (P07D2B / AMBER-D1B COMPLETE). Historical cloud use **UNKNOWN**. |
-| Staging CSP / hosted browser validation | AMBER — Report-Only first. See AMBER-D2. |
+| Staging CSP / hosted browser validation | **AMBER-D2 COMPLETE** (Report-Only live on `e97a303dcf995e37`). Enforcement not started. |
 | Personal Gmail Editor finding | QUESTIONABLE / REVIEW REQUIRED; **any IAM change is RED** |
 | `helloTaskio` leftover finding | QUESTIONABLE / REVIEW REQUIRED; **any Function/IAM change is RED** |
 | Auth signup enablement | RED |
@@ -782,18 +783,18 @@ Stop if any mutation would be required (OTP, job create, Stripe charge, new user
 - **RISK:** HIGH if step 2 runs while GAC still set — local Admin SDK fails immediately.
 - **STOP CONDITIONS:** any production project flag; Cloud Run still showing a JSON env; operator has not completed step 1.
 
-### AMBER-D2 — staging CSP Report-Only + browser validation (do not execute)
+### AMBER-D2 — staging CSP Report-Only + browser validation
 
-- **ACTION:** Hosting-only staging deploy adding `Content-Security-Policy-Report-Only` (draft above) plus already-local P07B headers if that deploy is also approved. Observe console. Do **not** enforce in the first deploy.
+- **ACTION:** Hosting-only staging deploy adding `Content-Security-Policy-Report-Only` plus already-local P07B headers. Observe console. Do **not** enforce.
 - **ENVIRONMENT:** `taskio-v2-staging` site `taskio-v2-staging` only.
-- **CURRENT STATE:** live `211fb288dcaff973` has no CSP and no P07B security headers.
+- **CURRENT STATE:** **COMPLETE.** Final Hosting `e97a303dcf995e37` (2026-09-19T14:29:17Z). Pre-D2 `211fb288dcaff973` file hashes unchanged. SPA still `main.70b28def.js`. See §31.
 - **WHY:** learn real violations before enforcement; protect App Check/Auth.
-- **EXACT CHANGE:** later named Hosting wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json`.
-- **EXPECTED EFFECT:** browsers report violations; app should still function.
-- **ROLLBACK:** `taskio-v2-staging@211fb288dcaff973` (or the pre-D2 version recorded at execute time).
-- **VALIDATION:** matrix above; Firestore/Storage App Check still ENFORCED and usable; no OTP/Stripe mutation.
+- **EXACT CHANGE:** wrapper `node frontend/scripts/deploy-staging-hosting.js --project taskio-v2-staging --config firebase.staging.hosting.json --execute` with a hash-verified snapshot of `211fb288dcaff973` in `frontend/build` (owner local build restored after each deploy).
+- **EXPECTED EFFECT:** browsers report violations; app still functions.
+- **ROLLBACK:** revert only `firebase.staging.hosting.json` headers/CSP and redeploy the **same** hash-verified SPA. Do **not** Hosting-rollback to `211fb288dcaff973` while Firestore/Storage App Check remain ENFORCED.
+- **VALIDATION:** matrix in §31; Firestore/Storage App Check still ENFORCED; no OTP/Stripe mutation.
 - **RISK:** MEDIUM if an origin was missed — Report-Only should not break the app.
-- **STOP CONDITIONS:** production project; enforcing CSP in the first slice; adding `js.stripe.com` without a product change; disabling App Check to “make CSP pass”.
+- **STOP CONDITIONS:** production project; enforcing CSP in this slice; adding `js.stripe.com` without a product change; disabling App Check to “make CSP pass”.
 
 P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN remains impossible.
 
@@ -1053,4 +1054,74 @@ No ACTIVE Taskio dependency on the revoked JSON credential.
 - historical/cloud key-use: **UNKNOWN**
 - deployed runtime identities: **unchanged**
 
-P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Remaining: staging CSP (AMBER-D2), production Auth/App Check/email/analytics/Stripe/Storage rules/Hosting, Functions remaining highs, legacy Expert review, other documented RED/AMBER items. P06 OPEN. P09 BLOCKED BY P06. READY TO OPEN remains impossible.
+P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Remaining: CSP **enforcement** (separate decision after authenticated-path proof), production Auth/App Check/email/analytics/Stripe/Storage rules/Hosting, Functions remaining highs, legacy Expert review, other documented RED/AMBER items. P06 OPEN. P09 BLOCKED BY P06. READY TO OPEN remains impossible.
+
+---
+
+## 31. P07D2 AMBER-D2 staging CSP Report-Only (20 September 2026 AEST)
+
+Staging Hosting mutation only. No product SPA rebuild. No production mutation. No App Check / Auth / rules / IAM / secret change. No OTP, job, Stripe, Gemini, or email send.
+
+**Operator:** `admin@taskio.com.au`. Default gcloud project remains `taskio-v2` (unchanged). Firebase CLI `admin@taskio.com.au`.
+
+### Content-preserving deploy proof
+
+Local `frontend/build` at execute time was a **different** SPA (`main.e5458aef.js`). Current HEAD rebuild would have uploaded new product code and was **not** used.
+
+Official Hosting files API for pre-D2 version `211fb288dcaff973`: 85 user files (plus Firebase `/__/` injects). Each file was downloaded from `https://taskio-v2-staging.web.app` and matched official gzip SHA-256 (level 9). Snapshot used as the deploy public directory. Wrapper reported **85 files**. After both deploys, Hosting file hashes were **identical** to `211fb288dcaff973` (`changedCount=0`). Live index still references `/static/js/main.70b28def.js` and `/static/css/main.5e46c8ad.css`.
+
+### Releases
+
+| Stage | Version | Time (UTC) |
+|---|---|---|
+| Pre-D2 | `211fb288dcaff973` | 2026-09-06T08:41:21Z |
+| D2 initial Report-Only + P07B headers | `aba6556e0164b46a` | 2026-09-19T14:23:57Z |
+| D2 iteration 1 (`manifest-src 'self'`) | `e97a303dcf995e37` | 2026-09-19T14:29:17Z |
+
+### Final Report-Only policy (live)
+
+```
+default-src 'none'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com https://www.recaptcha.net https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: https://www.gstatic.com https://www.google.com https://firebasestorage.googleapis.com https://taskio-v2-staging.firebasestorage.app; connect-src 'self' https://taskio-api-staging-d6mdcsrwea-ts.a.run.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://firebaseinstallations.googleapis.com https://content-firebaseappcheck.googleapis.com https://firebaseappcheck.googleapis.com https://www.googleapis.com https://www.google.com https://www.gstatic.com https://www.recaptcha.net https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://apis.google.com https://taskio-v2-staging.firebaseapp.com; frame-src https://www.google.com https://www.recaptcha.net https://taskio-v2-staging.firebaseapp.com
+```
+
+Reconciled from §27 draft before first deploy using hosted bundle literals: `firebaseappcheck.googleapis.com`, `apis.google.com`, `taskio-v2-staging.firebaseapp.com`. Iteration 1 added `manifest-src 'self'` after Chrome `securitypolicyviolation` on `/manifest.json` (`default-src 'none'` fallback). No `*`. No `unsafe-eval`. No `js.stripe.com`. No enforced `Content-Security-Policy`.
+
+Live P07B headers: nosniff, referrer-policy, `X-Frame-Options: DENY`, Permissions-Policy, no-store, noindex. Taskio HSTS config remains `max-age=31536000` without includeSubDomains/preload. Observed response HSTS is Firebase platform `max-age=31556926; includeSubDomains; preload` (same class as pre-D2).
+
+### Browser matrix (Chrome headless CDP against hosted staging)
+
+| Surface | Result |
+|---|---|
+| Landing 1440 / 390 | PASS — fonts, images, GA4 collect 204, App Check exchange 200, recaptcha enterprise script/iframe 200 |
+| Login 1440 / 390 | PASS — UI; `#taskio-login-recaptcha` present; enterprise recaptcha iframe; **no OTP** |
+| `/post-job` 1440 / 390 | PASS as hosted — invite-only gate (“Log in to post a task”; guest signup closed). **Not** a CSP failure |
+| Guest tidy / photo preview | **NOT EXECUTED** — hosted SPA has no guest form |
+| Phone RecaptchaVerifier send | **NOT EXECUTED** — would send OTP |
+| Synthetic homeowner/Expert/admin | **NOT EXECUTED** — no safe session tooling used |
+| Authenticated Firestore/Storage reads | **NOT EXECUTED** — public paths only |
+| Stripe | Code + network: no `js.stripe.com`. Hosted Checkout remains top-level redirect |
+| GA4 `G-SZ7RZDKTJY` | OPTIONAL — `www.google-analytics.com/g/collect` 204; no Report-Only violation after final policy |
+
+After iteration 1: **zero** required Report-Only violations on landing and login. App Check console errors: none. Page errors: none. Failed required network: none.
+
+### CSP violations
+
+| Directive | Blocked origin | Page | Feature | Required? | Action |
+|---|---|---|---|---|---|
+| manifest-src (via default-src) | `https://taskio-v2-staging.web.app/manifest.json` | all public pages | PWA manifest | YES | Iteration 1: `manifest-src 'self'` |
+
+No browser-extension origins were allowlisted.
+
+### App Check
+
+Staging remains Firestore **ENFORCED**, Storage **ENFORCED**, Auth **UNENFORCED**. Landing minted App Check via `content-firebaseappcheck.googleapis.com` **200**. No CSP-related App Check failure.
+
+### Iterations
+
+1 of 2 allowed header-only redeploys used.
+
+### Enforcement recommendation
+
+**Do not enforce CSP yet.** Public Report-Only is clean after `manifest-src`. Authenticated Auth iframe (`taskio-v2-staging.firebaseapp.com`), Firestore, Storage, phone `RecaptchaVerifier`, and guest tidy/photo were not exercised on this hosted invite-only SPA. Enforcement is a separate owner decision after those paths are proven.
+
+P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
