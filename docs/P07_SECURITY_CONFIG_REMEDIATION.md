@@ -1,6 +1,6 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 19 September 2026 (P07C read-only production verification)
+**Date:** 19 September 2026 (P07D1 staging security cleanup preparation)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
 **Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A audit complete; P07B local GREEN hardening in repo; P07C read-only `taskio-v2` verification complete. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**. P07C did **not** mutate cloud, deploy, rotate, or enable anything.
@@ -323,7 +323,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | ID | AREA | CURRENT STATE | EVIDENCE | RISK | REQUIRED ACTION | LOCAL / STAGING / PRODUCTION | GREEN / AMBER / RED | BLOCKS P07? | VALIDATION REQUIRED | STATUS |
 |---|---|---|---|---|---|---|---|---|---|---|
 | P07-01 | Historical prod SA JSON | **P07C:** 0 user-managed keys on Admin SDK + runtime; `3cac` absent | C1 19 Sep 2026 | None now (deleted) | Never recreate JSON | PRODUCTION | **GREEN** verified | No | C1 | **VERIFIED** |
-| P07-02 | Staging SA JSON `f04d` | **P07C:** still present USER_MANAGED on staging Admin SDK (created 2026-08-15) | C1 staging | HIGH if laptop/copy persists | Owner review/rotate staging key if still used as JSON | STAGING | **AMBER** | No (prod P07) | Owner | **CONFIRMED PRESENT** |
+| P07-02 | Staging SA JSON `f04d` | **P07D1:** USER_MANAGED still present. Local operator `GOOGLE_APPLICATION_CREDENTIALS` still points at this key (basename only). Cloud Run/Functions use attached SAs. Classification **B LIKELY REQUIRED** until local GAC is retired. | P07D1 | HIGH if revoked while GAC still set | Two-step AMBER-D1: stop local JSON use, then revoke | STAGING | **AMBER** | No (prod P07) | Local backend + staging health | **DEPENDENCY FOUND (LOCAL GAC)** |
 | P07-03 | Auth `disabledUserSignup=true` | **P07C confirmed** on production | C4 | Blocks intended OPEN | Approved Identity Toolkit change for homeowner path only | PRODUCTION (+ staging when testing) | **RED** | **Yes** | C4 + P10 | **VERIFIED; enable NOT STARTED** |
 | P07-04 | IAM / Cloud Run invoker | **P07C:** main API invoker policy empty (no allUsers). Runtime SA matches. | C2 C3 | None for public invoke | Keep private until a named public-HTTP decision | PRODUCTION | **GREEN** verified | No | C2 C3 | **VERIFIED** |
 | P07-05 | Runtime secrets | **P07C:** `OTP_SALT:1` + `ABN_LOOKUP_GUID:1` mounted; no Stripe/Gemini/SMTP; `STRIPE_ENABLED=false` | C2 C6 | LOW (ABN optional) | Do not add Gemini/live Stripe yet | PRODUCTION | **GREEN** verified | No | C6 | **VERIFIED** |
@@ -488,11 +488,9 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - **Risk:** breaking an undocumented caller.
 - **Not a P07 PASS blocker by itself.**
 
-### AMBER-A — Staging JSON key `f04d`
+### AMBER-A — Staging JSON key `f04d` (superseded by AMBER-D1)
 
-- **P07C:** still present as USER_MANAGED on `firebase-adminsdk-fbsvc@taskio-v2-staging` (created 2026-08-15).
-- Review whether still required for local/staging; prefer ADC; rotate if copies exist. Do not revoke in this task.
-- Staging-only. Not reclassified RED.
+- **P07C/P07D1:** still present. Local GAC still uses last-4 `f04d`. See **AMBER-D1**. Do not revoke in this task.
 
 ### GREEN-A (P07B local, this commit)
 
@@ -509,7 +507,8 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07: **OPEN / REMEDIATION IN PROGRESS**
 - P07A: **AUDIT COMPLETE**
 - P07B: **LOCAL HARDENING COMPLETE**
-- P07C: **READ-ONLY PRODUCTION VERIFICATION COMPLETE** (this document). Remaining work is named RED/AMBER packages — not executed.
+- P07C: **READ-ONLY PRODUCTION VERIFICATION COMPLETE**
+- P07D1: **STAGING CLEANUP PREPARED** (this document). AMBER-D1/D2 not executed.
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -623,8 +622,8 @@ No concrete Authorization / ID-token / OTP / password / Stripe client-secret / p
 |---|---|
 | 0 prod user-managed JSON keys; runtime ADC | GREEN LOCAL / verified |
 | API IAM-private; Stripe off; AI off; analytics off; pilotSettings absent | GREEN LOCAL / verified |
-| Staging `f04d` still present | AMBER (staging-only) |
-| Staging CSP / hosted browser validation | AMBER |
+| Staging `f04d` still present | AMBER — **B LIKELY REQUIRED** (local GAC). See AMBER-D1. Do not revoke yet. |
+| Staging CSP / hosted browser validation | AMBER — Report-Only first. See AMBER-D2. |
 | Personal Gmail Editor finding | QUESTIONABLE / REVIEW REQUIRED; **any IAM change is RED** |
 | `helloTaskio` leftover finding | QUESTIONABLE / REVIEW REQUIRED; **any Function/IAM change is RED** |
 | Auth signup enablement | RED |
@@ -636,3 +635,164 @@ No concrete Authorization / ID-token / OTP / password / Stripe client-secret / p
 IAM-private `taskio-api` (no public invoker) is acceptable while production is frozen/maintenance-only. Before public production acceptance, **P10** must prove the actual supported browser/API path end to end. Do not change Cloud Run IAM now. Do not assume `allUsers` must be added.
 
 **Production mutation in P07C:** none.
+
+---
+
+## 27. P07D1 staging security cleanup preparation (19 September 2026)
+
+Read-only. Explicit `--project=taskio-v2-staging`. No `firebase use`. No `gcloud config set project`. No revoke/deploy/IAM/Auth/App Check/secret change. Production `taskio-v2` not mutated.
+
+**Operator:** `admin@taskio.com.au`. Default gcloud project remains `taskio-v2` (unchanged).
+
+### f04d metadata
+
+| Field | Value |
+|---|---|
+| Service account | `firebase-adminsdk-fbsvc@taskio-v2-staging.iam.gserviceaccount.com` |
+| Key type | USER_MANAGED (plus 1 SYSTEM_MANAGED) |
+| Created | 2026-08-15T12:02:07Z |
+| Last-4 | `f04d` |
+| Disabled | no |
+| Private material | not retrieved |
+
+### Repo / local dependency
+
+Tracked code never ships this JSON. CI image tests forbid `serviceAccountKey.json`. Cloud Run must use ADC (`K_SERVICE`). Staging Hosting wrapper strips `GOOGLE_APPLICATION_CREDENTIALS` from child env.
+
+**Local operator still depends on it:** gitignored `backend/.env` sets `GOOGLE_APPLICATION_CREDENTIALS` to an out-of-repo file whose `private_key_id` last-4 is `f04d` and `client_email` is the staging Admin SDK SA. Filename basename only: `taskio-v2-staging-admin.json`. Production JSON filenames remain absent. Ignored `setAdmin.js` / `debug.js` / `bootstrapAdmin.js` exist as files and are not required by CI.
+
+### Cloud-use evidence
+
+Admin SDK key-name audit query for last-4 `f04d` over 90 days returned **no rows**. A follow-up IAM Create/Delete key log query did not finish in time. Data-access logs that would attribute each API call to a user-managed key ID are **not proven enabled**. Therefore cloud key-use attribution is **UNKNOWN**. Empty logs do not prove unused.
+
+### Staging runtime identities (attached SA, not downloaded JSON)
+
+| Workload | Identity |
+|---|---|
+| `taskio-api-staging` (`taskio-api-staging-54aed8b`) | `taskio-api-staging-runtime@taskio-v2-staging.iam.gserviceaccount.com` |
+| `taskio-stripe-webhook-staging` | `taskio-webhook-staging-runtime@taskio-v2-staging.iam.gserviceaccount.com` |
+| Functions `notifyHomeownerOnQuoteSubmitted` / `Update` | default Compute `1077378545256-compute@developer.gserviceaccount.com` |
+
+These do not need `f04d`.
+
+### f04d classification
+
+**B. LIKELY REQUIRED** — required today for the operator local backend GAC path. Not required for deployed staging Cloud Run/Functions. **Not C.** Do not revoke while that GAC still points at the JSON.
+
+### Staging Hosting baseline
+
+| Field | Value |
+|---|---|
+| Site | `taskio-v2-staging` |
+| URL | `https://taskio-v2-staging.web.app` |
+| Version | `211fb288dcaff973` (2026-09-06) |
+| Files | 87 / ~87.8 MB (full SPA, not maintenance) |
+| Deployed headers | `Cache-Control: no-store, max-age=0, must-revalidate`; `X-Robots-Tag: noindex, nofollow, noarchive` |
+| Repo P07B headers | **not** on this live release (nosniff / referrer / DENY / Permissions-Policy / HSTS `max-age=31536000`) |
+| Browser HSTS on `*.web.app` | Firebase default `max-age=31556926; includeSubDomains; preload` (not our `firebase.json`) |
+| Title | Taskio \| Trusted Home Service Marketplace |
+| Bundle | `/static/js/main.70b28def.js`, `/static/css/main.5e46c8ad.css` |
+
+### Browser / network inventory (GET only)
+
+Safe GET of `/`, `/login`, `/post-job` (SPA shell only). No OTP, no user create, no job submit, no Stripe charge.
+
+Documented HTML origins: `'self'`, `fonts.googleapis.com`, `fonts.gstatic.com`.
+
+Hosted JS host literals (ignore comment/string false positives such as github.com / react.dev / instagram): API `taskio-api-staging-d6mdcsrwea-ts.a.run.app`; `www.googletagmanager.com` + measurement `G-SZ7RZDKTJY`; `content-firebaseappcheck.googleapis.com`; `www.google.com`; `apis.google.com`; `securetoken.google.com`; identitytoolkit / firestore / firebasestorage / recaptcha strings present. `checkout.stripe.com` / `js.stripe.com` **not** in the bundle (Checkout URL comes from the API at runtime).
+
+### CSP origin inventory
+
+| Directive | Origins | Why | Feature | Staging/prod | Self-only? | Remove? | Evidence |
+|---|---|---|---|---|---|---|---|
+| default-src | `'none'` | fail closed | baseline | both | n/a | no | policy design |
+| script-src | `'self'` `https://www.google.com` `https://www.gstatic.com` `https://www.recaptcha.net` `https://www.googletagmanager.com` `https://www.google.com/recaptcha/` | Auth phone reCAPTCHA + App Check + GA4 | Auth, P05, P04 | staging now; prod later | no | no | HTML/JS + code |
+| style-src | `'self'` `'unsafe-inline'` `https://fonts.googleapis.com` | Google Fonts + many React inline styles | UI | both | no | unsafe-inline not removable without a style rewrite | `index.html`; component style props |
+| font-src | `'self'` `https://fonts.gstatic.com` | Inter/Poppins | UI | both | no | fonts could later be self-hosted | `index.html` |
+| img-src | `'self'` `blob:` `https://www.gstatic.com` `https://www.google.com` `https://firebasestorage.googleapis.com` `https://taskio-v2-staging.firebasestorage.app` | favicons, recaptcha assets, Storage photos, job preview `createObjectURL` | posting/profile | staging bucket now | no | `blob:` required for preview | JobPostingForm; Storage |
+| connect-src | `'self'` `https://taskio-api-staging-d6mdcsrwea-ts.a.run.app` `https://identitytoolkit.googleapis.com` `https://securetoken.googleapis.com` `https://firestore.googleapis.com` `https://firebasestorage.googleapis.com` `https://firebaseinstallations.googleapis.com` `https://content-firebaseappcheck.googleapis.com` `https://www.googleapis.com` `https://www.google.com` `https://www.gstatic.com` `https://www.recaptcha.net` `https://www.google-analytics.com` `https://analytics.google.com` `https://www.googletagmanager.com` | API, Auth, Firestore, Storage, App Check, recaptcha, GA4 | core | staging hosts | no | drop GA4 only if analytics rebuilt off | JS + P04/P05 |
+| frame-src | `https://www.google.com` `https://www.recaptcha.net` | invisible reCAPTCHA iframe | phone Auth / App Check | both | no | no | Firebase Auth |
+| frame-ancestors | `'none'` | no product embed | clickjack | both | yes | no | X-Frame-Options DENY intent |
+| form-action | `'self'` | no third-party forms | UX | both | yes | Stripe is top-level navigation, not a form post | PaymentPage redirect |
+| base-uri | `'self'` | lock base | XSS | both | yes | no | baseline |
+| object-src | `'none'` | no plugins | XSS | both | n/a | no | baseline |
+
+Do **not** allow `*`, `https:`, github.com, react.dev, instagram, localhost, or `taskio.invalid` (bundle string false positives). Avoid `data:` unless a later Report-Only violation proves a real image/font data URI. No `upgrade-insecure-requests` (HTTPS already; mixed-content not a staging goal). No `unsafe-eval` unless Report-Only proves it.
+
+### Firebase / App Check CSP
+
+Staging App Check: Firestore **ENFORCED**, Storage **ENFORCED**, Auth **UNENFORCED** (unchanged). A CSP that blocks `www.google.com` / `www.gstatic.com` / `www.recaptcha.net` / `content-firebaseappcheck.googleapis.com` will break token minting and then Storage/Firestore. That is the main interaction risk.
+
+Phone Auth `RecaptchaVerifier` also needs those script/frame/connect origins. Do not send OTP during the future validation; rendering the verifier is enough for CSP smoke.
+
+### Stripe CSP
+
+Current live path is **full-page HTTPS navigation** to `checkout.stripe.com` `/pay` only (`stripeHostedCheckoutUrl.js`). Expert dashboard/onboarding may navigate to `connect.stripe.com`. Neither requires `js.stripe.com` / Elements / Payment Request in the current bundle. Do **not** widen script-src for unused Elements. Future P10 embedded checkout would need a new CSP review.
+
+### Proposed strategy
+
+**B. Content-Security-Policy-Report-Only first** on staging, observe console/report violations during the matrix, then enforce. CRA inline styles + Firebase reCAPTCHA + App Check + GA4 are too many moving parts for a first enforcing deploy. No third-party report-uri required for MVP; browser console during controlled tests is enough.
+
+### Proposed Report-Only policy (staging draft — not deployed)
+
+```
+default-src 'none';
+base-uri 'self';
+object-src 'none';
+frame-ancestors 'none';
+form-action 'self';
+script-src 'self' https://www.google.com https://www.gstatic.com https://www.recaptcha.net https://www.googletagmanager.com;
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src 'self' https://fonts.gstatic.com;
+img-src 'self' blob: https://www.gstatic.com https://www.google.com https://firebasestorage.googleapis.com https://taskio-v2-staging.firebasestorage.app;
+connect-src 'self' https://taskio-api-staging-d6mdcsrwea-ts.a.run.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://firebaseinstallations.googleapis.com https://content-firebaseappcheck.googleapis.com https://www.googleapis.com https://www.google.com https://www.gstatic.com https://www.recaptcha.net https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com;
+frame-src https://www.google.com https://www.recaptcha.net;
+```
+
+`'unsafe-inline'` on **style-src** is evidenced by current React inline styles. Do not add `'unsafe-inline'` or `'unsafe-eval'` to script-src unless Report-Only proves it. Do not add this header to production in AMBER-D2.
+
+### Staging browser validation matrix (future AMBER-D2)
+
+| Surface | Action | PASS | FAIL |
+|---|---|---|---|
+| Landing | GET `/` desktop + 390px | shell + fonts; no CSP block | blank/font fail; script blocked |
+| Login | open `/login`; recaptcha container mounts; **do not send OTP** | UI + no console CSP error | recaptcha/script blocked |
+| `/post-job` | guest step 1; tidy with AI off | fallback description; no CSP error | generate-description blocked |
+| Phone UI | recaptcha node present; **no OTP** | verifier constructs | recaptcha-container / script fail |
+| Expert/Admin | login UI only if existing synthetic session; else stop at login | no new users | creating accounts |
+| Images | existing public/self assets + preview blob | images load | Storage/App Check 401 from CSP |
+| API | authenticated or public status GET only | connect-src allows API | API blocked |
+| App Check | Storage/Firestore still work for an already-authorised synthetic if available | no token/CSP errors | enforcement errors after CSP |
+| Stripe | inspect Payment page code path; **do not create Checkout Session** | no need for js.stripe.com | charge created (stop) |
+| Console | zero unexpected Report-Only violations on required origins | PASS | unknown blocked origin |
+| Mobile | 390 viewport landing + login | same as desktop | layout/CSP only on mobile |
+
+Stop if any mutation would be required (OTP, job create, Stripe charge, new user).
+
+### AMBER-D1 — staging f04d remediation (do not execute)
+
+- **ACTION:** (1) Point local operator backend off this JSON (ADC / `gcloud auth application-default login` scoped to staging, or a new dedicated local identity). Prove `npm` backend against staging still works **without** `GOOGLE_APPLICATION_CREDENTIALS`. (2) Only then delete USER_MANAGED key last-4 `f04d`.
+- **ENVIRONMENT:** `taskio-v2-staging` + operator laptop. Not production.
+- **CURRENT STATE:** Key present; local GAC still uses it; Cloud Run/Functions do not.
+- **WHY:** shrink stolen-JSON risk after the local path no longer needs it.
+- **EXACT CHANGE (step 2 only, after step 1 PASS):** `gcloud iam service-accounts keys delete <FULL_KEY_ID> --iam-account=firebase-adminsdk-fbsvc@taskio-v2-staging.iam.gserviceaccount.com --project=taskio-v2-staging` where `<FULL_KEY_ID>` is resolved at execution time from last-4 `f04d`.
+- **EXPECTED EFFECT:** that private key stops working. Local GAC file becomes useless.
+- **ROLLBACK:** the same private key **cannot** be restored. Recovery is a **new** USER_MANAGED key only if a JSON path is still genuinely required (prefer not).
+- **VALIDATION:** key list shows 0 USER_MANAGED; staging API revision unchanged; Functions ACTIVE; local backend without GAC uses ADC.
+- **RISK:** HIGH if step 2 runs while GAC still set — local Admin SDK fails immediately.
+- **STOP CONDITIONS:** any production project flag; Cloud Run still showing a JSON env; operator has not completed step 1.
+
+### AMBER-D2 — staging CSP Report-Only + browser validation (do not execute)
+
+- **ACTION:** Hosting-only staging deploy adding `Content-Security-Policy-Report-Only` (draft above) plus already-local P07B headers if that deploy is also approved. Observe console. Do **not** enforce in the first deploy.
+- **ENVIRONMENT:** `taskio-v2-staging` site `taskio-v2-staging` only.
+- **CURRENT STATE:** live `211fb288dcaff973` has no CSP and no P07B security headers.
+- **WHY:** learn real violations before enforcement; protect App Check/Auth.
+- **EXACT CHANGE:** later named Hosting wrapper `--project taskio-v2-staging --config firebase.staging.hosting.json`.
+- **EXPECTED EFFECT:** browsers report violations; app should still function.
+- **ROLLBACK:** `taskio-v2-staging@211fb288dcaff973` (or the pre-D2 version recorded at execute time).
+- **VALIDATION:** matrix above; Firestore/Storage App Check still ENFORCED and usable; no OTP/Stripe mutation.
+- **RISK:** MEDIUM if an origin was missed — Report-Only should not break the app.
+- **STOP CONDITIONS:** production project; enforcing CSP in the first slice; adding `js.stripe.com` without a product change; disabling App Check to “make CSP pass”.
+
+P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN remains impossible.

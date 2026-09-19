@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 19 September 2026 (P07C classification correction)
+**Last updated:** 19 September 2026 (P07D1 staging cleanup preparation)
 
 ## Active scope
 
@@ -47,7 +47,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`); lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07A audit complete; P07B local hardening in repo; P07C read-only `taskio-v2` verification complete (`docs/P07_SECURITY_CONFIG_REMEDIATION.md`). Not PASS. Independently confirmed `disabledUserSignup=true`. P07 cannot PASS public OPEN while that remains. | **Yes** |
+| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07A/P07B/P07C complete; P07D1 staging cleanup **prepared** (f04d still locally required; CSP Report-Only draft). Not PASS. Independently confirmed `disabledUserSignup=true`. P07 cannot PASS public OPEN while that remains. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** — must prove a brand-new homeowner can authenticate and post. Existing invited/synthetic users are not enough for public OPEN. | **Yes** |

@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-19 P07D1 staging security cleanup preparation (GREEN local docs):** f04d classified **B LIKELY REQUIRED** (local operator GAC still uses last-4 `f04d`; Cloud Run/Functions use attached SAs). Staging CSP inventory + Report-Only draft prepared. AMBER-D1/D2 **not executed**. Staging Hosting still `211fb288dcaff973`. App Check Firestore+Storage ENFORCED / Auth UNENFORCED. P07 **OPEN** — **not PASS**. No staging or production mutation.
+
 **2026-09-19 P07C classification correction (GREEN local docs):** Production remediations for the Gmail Editor IAM finding and leftover `helloTaskio` are **RED**, not AMBER. Findings remain QUESTIONABLE / REVIEW REQUIRED. Staging `f04d` and staging CSP stay AMBER. IAM-private `taskio-api` is acceptable while frozen; P10 must prove the real browser/API path. P07 **OPEN** — **not PASS**. No cloud mutation.
 
 **2026-09-19 P07C read-only production verification (GREEN local docs):** Independent C1–C8-style list/get/describe on `taskio-v2` / `taskio-v2-staging`. Confirmed 0 prod user-managed JSON keys; API IAM-private on `taskio-api-runtime`; `disabledUserSignup=true`; App Check UNENFORCED; Hosting still `cffca9d87ce03901` without P07B headers; Storage rules **PRODUCTION OLDER**; no prod Stripe/SMTP/Gemini secrets; `system/pilotSettings` absent; 18 Experts / 38 users (counts only). Staging key `f04d` still present. P07 **OPEN** — **not PASS**. No cloud mutation. No deploy. Production frozen.
