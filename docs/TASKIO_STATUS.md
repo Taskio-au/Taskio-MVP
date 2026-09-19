@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 19 September 2026 (P07C read-only production verification)
+**Last updated:** 19 September 2026 (P07C classification correction)
 
 ## Active scope
 

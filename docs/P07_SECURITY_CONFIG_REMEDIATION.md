@@ -333,7 +333,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-09 | Production Stripe live | **P07C:** `STRIPE_ENABLED=false`; no Stripe secret names in prod SM; no prod webhook service | C2 C6 | CRITICAL money | Separate live Stripe batch | PRODUCTION | **RED** | Before live money | Webhook + TEST-to-LIVE checklist | **VERIFIED OFF; live NOT STARTED** |
 | P07-10 | CORS / TRUST_PROXY | **P07C:** `CORS_ORIGINS=https://taskio.com.au`; `TRUST_PROXY=true` | C2 | None observed | Keep allowlist = Taskio origin only | PRODUCTION | **GREEN** verified | No | C2 redact | **VERIFIED** |
 | P07-11 | Unauth `/api/generate-description` | Guest pre-auth tidy is required; kill switch + schema + limiter | `backend/src/routes/ai.js`, `aiEnabled.js` | MEDIUM cost if API public **and** AI enabled | Keep guest + fail-closed AI; do not requireAuth | LOCAL HARDENING COMPLETE; cloud/provider enablement still OFF | **GREEN** code / **RED** enable | No while AI off + API private | AI route tests | LOCAL HARDENING COMPLETE |
-| P07-12 | `/health/ready` metadata | **P07C:** API invoker policy empty; ingress all + IAM-private | C3 | LOW while private | Keep Cloud Run private | PRODUCTION | **GREEN** verified | No | C3 | **VERIFIED** |
+| P07-12 | `/health/ready` metadata | **P07C:** API invoker policy empty; ingress all + IAM-private | C3 | LOW while frozen/maintenance | Keep private now. P10 must prove the real browser/API path before public acceptance. Do **not** add `allUsers` by assumption. | PRODUCTION | **GREEN** verified (current freeze) | No | C3 + later P10 | **VERIFIED; P10 PATH NOT PROVEN** |
 | P07-13 | Hosting security headers | **P07C:** live `cffca9d87ce03901` has noindex/no-store only. P07B headers **not** deployed. Custom-domain HSTS `max-age=31556926` without includeSubDomains/preload. | C7 + HEAD | MEDIUM XSS/clickjack | Hosting deploy + browser scan later | LOCAL CONFIG COMPLETE; hosted verification pending | **GREEN** local / **AMBER** CSP / **RED** deploy | No for P07 PASS if CDN HSTS proven | Header unit test; later hosted scan | **LIVE OLDER THAN P07B** |
 | P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No (classify) | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer REMAINING BLOCKER |
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
@@ -342,7 +342,8 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
 | P07-19 | CI deploy guard | Push does not deploy | ci.yml | LOW | Keep | LOCAL | **GREEN** | No | CI | OK |
 | P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
-| P07-21 | Leftover `helloTaskio` | ACTIVE GEN_2 HTTP; Cloud Run `allUsers` invoker; not in current repo | Functions describe | LOW recon | Later delete/disable after named approval | PRODUCTION | **AMBER** leftover | No | Function list | **CONFIRMED; cleanup NOT STARTED** |
+| P07-21 | Leftover `helloTaskio` | ACTIVE GEN_2 HTTP; Cloud Run `allUsers` invoker; not in current repo. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Functions describe | LOW recon | Owner must first prove nothing depends on it. Any delete / disable / redeploy / invoker change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Function list + dependency review | **CONFIRMED; cleanup NOT STARTED** |
+| P07-22 | Personal Gmail `roles/editor` | One `gmail.com` user has production Editor. Identity not recorded. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Project IAM | MEDIUM if unexpected | Owner must identify purpose and required least-privilege role. Do **not** assume removal. Any IAM binding change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Owner identity review | **CONFIRMED; IAM CHANGE NOT STARTED** |
 
 ---
 
@@ -458,20 +459,40 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - **Validation:** HEAD `https://taskio.com.au` after deploy.
 - **Risk:** MEDIUM if a future embed requires framing (none today).
 
+### RED-J — Production Gmail Editor IAM (only if a change is required)
+
+- **Finding (unchanged):** one personal `gmail.com` principal has `roles/editor` on `taskio-v2`. Identity was not recorded. **QUESTIONABLE / REVIEW REQUIRED.**
+- **Do not assume** the role should be removed.
+- **Owner decision first:** identify whether this is an expected Taskio operator/admin identity; determine the required least-privilege role.
+- **Action if an IAM change is later approved:** remove, replace, or narrow the binding under an explicit RED package.
+- **Why RED:** any production IAM mutation.
+- **Env:** `taskio-v2`.
+- **Proposed command:** none now. Later named `gcloud projects remove-iam-policy-binding` / equivalent only after owner identification.
+- **Expected effect:** only if approved — least-privilege alignment.
+- **Rollback:** restore the prior binding.
+- **Validation:** project IAM get after any future change.
+- **Risk:** locking out a still-needed operator if removed blindly.
+- **No IAM mutation now.**
+
+### RED-K — Production `helloTaskio` (only if removal is confirmed safe)
+
+- **Finding (unchanged):** ACTIVE HTTP Function with `allUsers` invoker; not in current repo. **QUESTIONABLE / REVIEW REQUIRED.**
+- **Do not delete or modify it now.** First establish whether anything still depends on it.
+- **Action if later confirmed unused:** dedicated RED package to delete, disable, or change invokers, with rollback/evidence.
+- **Why RED:** any production Function / Cloud Run / invoker mutation.
+- **Env:** `taskio-v2` `australia-southeast1`.
+- **Proposed command:** none now. Later named Functions/Cloud Run change only after dependency review.
+- **Expected effect:** only if approved — leftover endpoint removed or locked down.
+- **Rollback:** restore the prior Function revision/IAM.
+- **Validation:** Functions list + invoker policy + a named smoke that intended email/Firestore functions still fire.
+- **Risk:** breaking an undocumented caller.
+- **Not a P07 PASS blocker by itself.**
+
 ### AMBER-A — Staging JSON key `f04d`
 
 - **P07C:** still present as USER_MANAGED on `firebase-adminsdk-fbsvc@taskio-v2-staging` (created 2026-08-15).
 - Review whether still required for local/staging; prefer ADC; rotate if copies exist. Do not revoke in this task.
-
-### AMBER-B — Personal Gmail `roles/editor` on production
-
-- One human `user:` Editor is a `gmail.com` account (not the Taskio operator). Default Compute / App Engine / Cloud Services Editors are expected Google agents.
-- Later IAM review only. Do not remove bindings in this task.
-
-### AMBER-C — Leftover `helloTaskio`
-
-- ACTIVE HTTP Function with `allUsers` invoker. Not in current repo.
-- Later disable/delete after named approval. Not a P07 PASS blocker.
+- Staging-only. Not reclassified RED.
 
 ### GREEN-A (P07B local, this commit)
 
@@ -576,10 +597,10 @@ No concrete Authorization / ID-token / OTP / password / Stripe client-secret / p
 | API revision | Documented later ABN-hardened image | `taskio-api-00006-puf` 100% (`abn-hardened`); image `…/taskio-api@sha256:f2de76fd…671c4bf6`; ingress all; maxScale 20; concurrency 80 | INFO | — | None now |
 | IAM keys | 0 user-managed on Admin SDK / runtime | Admin SDK 0 USER_MANAGED (2 SYSTEM); runtime 0 USER_MANAGED; `3cac` absent | YES | — | Never recreate JSON |
 | Staging key `f04d` | Outside A04; review | USER_MANAGED last-4 `f04d` still on staging Admin SDK (2026-08-15) | YES present | HIGH if copies | AMBER owner review |
-| Project IAM | Owner = Taskio operator; runtime least privilege | Owner = Taskio operator; runtime has datastore + custom Auth role + secret accessor (resource). Default Compute/App Engine/Cloud Services have `roles/editor` (Google default). One personal Gmail has `roles/editor`. | QUESTIONABLE (Gmail Editor) | MEDIUM | AMBER-B later |
-| API invoker | Private / controlled | Empty Cloud Run IAM (no `allUsers`) | YES | — | Keep private |
-| Functions | Email + Firestore triggers | GEN_2 ACTIVE `australia-southeast1` / nodejs24 / default Compute SA: `notifyHomeownerOnQuoteSubmitted`, `notifyTradieOnEscrowFunded`, `flagRiskyJobMessages` (Firestore). `helloTaskio` HTTP `allUsers`. Missing prod `notifyHomeownerOnQuoteSubmittedUpdate`. Last update **2026-04-11**. | PARTIAL | LOW leftover hello; email not P03-bound | AMBER-C; P03 RED-E |
-| Functions exposure | Event functions private; webhooks may be public | Event function Cloud Run IAM empty. `helloTaskio` PUBLIC. No prod Stripe webhook service. | MATCH for events; leftover hello | LOW | AMBER-C |
+| Project IAM | Owner = Taskio operator; runtime least privilege | Owner = Taskio operator; runtime has datastore + custom Auth role + secret accessor (resource). Default Compute/App Engine/Cloud Services have `roles/editor` (Google default). One personal Gmail has `roles/editor`. | QUESTIONABLE / REVIEW REQUIRED | MEDIUM | Owner identify first; any IAM change is RED-J |
+| API invoker | Private / controlled | Empty Cloud Run IAM (no `allUsers`) | YES for current freeze | — | Keep private now. P10 must prove the real browser/API path. Do **not** add `allUsers` by assumption. |
+| Functions | Email + Firestore triggers | GEN_2 ACTIVE `australia-southeast1` / nodejs24 / default Compute SA: `notifyHomeownerOnQuoteSubmitted`, `notifyTradieOnEscrowFunded`, `flagRiskyJobMessages` (Firestore). `helloTaskio` HTTP `allUsers`. Missing prod `notifyHomeownerOnQuoteSubmittedUpdate`. Last update **2026-04-11**. | PARTIAL | LOW leftover hello; email not P03-bound | Dependency review then RED-K if unused; P03 RED-E |
+| Functions exposure | Event functions private; webhooks may be public | Event function Cloud Run IAM empty. `helloTaskio` PUBLIC. No prod Stripe webhook service. | MATCH for events; leftover hello QUESTIONABLE | LOW | RED-K if a production change is approved |
 | Secret Manager | OTP_SALT; Stripe/SMTP not mounted | Names: `OTP_SALT` v1 enabled; `ABN_LOOKUP_GUID` v1 enabled; `ALERT_WEBHOOK_URL` **no versions**. No Stripe/SMTP/Gemini/OTP extras. | YES (ABN extra is optional) | LOW | Do not mount live Stripe/Gemini |
 | Auth signup | `disabledUserSignup=true` | **true** | YES | Blocks OPEN | RED-C later + P10 |
 | Auth providers | Phone + email as product | Email/password enabled; phone enabled; MFA DISABLED; authorised domains include `taskio.com.au` / `www` / `app` / Firebase hosts / localhost | YES | — | Do not toggle |
@@ -602,12 +623,16 @@ No concrete Authorization / ID-token / OTP / password / Stripe client-secret / p
 |---|---|
 | 0 prod user-managed JSON keys; runtime ADC | GREEN LOCAL / verified |
 | API IAM-private; Stripe off; AI off; analytics off; pilotSettings absent | GREEN LOCAL / verified |
-| Staging `f04d` still present | AMBER |
-| Personal Gmail Editor | AMBER |
-| `helloTaskio` public leftover | AMBER |
-| CSP still deferred | AMBER |
-| Auth signup still disabled (correct today; required later for OPEN) | RED (enable later) |
-| App Check / email / GA4 / live Stripe still off | RED (enable later, with deps) |
-| Storage rules + Hosting headers not deployed | RED (deploy later) |
+| Staging `f04d` still present | AMBER (staging-only) |
+| Staging CSP / hosted browser validation | AMBER |
+| Personal Gmail Editor finding | QUESTIONABLE / REVIEW REQUIRED; **any IAM change is RED** |
+| `helloTaskio` leftover finding | QUESTIONABLE / REVIEW REQUIRED; **any Function/IAM change is RED** |
+| Auth signup enablement | RED |
+| App Check / email / GA4 / live Stripe enablement | RED |
+| Production Storage rules deploy | RED |
+| Production Hosting deploy | RED |
+| Production IAM / Function removal or invoker change | RED |
+
+IAM-private `taskio-api` (no public invoker) is acceptable while production is frozen/maintenance-only. Before public production acceptance, **P10** must prove the actual supported browser/API path end to end. Do not change Cloud Run IAM now. Do not assume `allUsers` must be added.
 
 **Production mutation in P07C:** none.
