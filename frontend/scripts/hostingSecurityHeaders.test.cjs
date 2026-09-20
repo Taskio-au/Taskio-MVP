@@ -22,36 +22,34 @@ function loadHostingHeaders(filename) {
   return Object.fromEntries((global.headers || []).map((item) => [item.key, item.value]));
 }
 
+const PROVEN_STAGING_CSP = "default-src 'none'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com https://www.recaptcha.net https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: https://www.gstatic.com https://www.google.com https://firebasestorage.googleapis.com https://taskio-v2-staging.firebasestorage.app; connect-src 'self' https://taskio-api-staging-d6mdcsrwea-ts.a.run.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://firebaseinstallations.googleapis.com https://content-firebaseappcheck.googleapis.com https://firebaseappcheck.googleapis.com https://www.googleapis.com https://www.google.com https://www.gstatic.com https://www.recaptcha.net https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://apis.google.com https://taskio-v2-staging.firebaseapp.com; frame-src https://www.google.com https://www.recaptcha.net https://taskio-v2-staging.firebaseapp.com";
+
 function assertBaselineHeaders(filename, headers) {
   for (const [key, value] of Object.entries(REQUIRED_HEADERS)) {
     assert.equal(headers[key], value, `${filename} missing ${key}`);
   }
-  assert.equal(headers['Content-Security-Policy'], undefined);
   assert.equal(headers['Strict-Transport-Security'].includes('includeSubDomains'), false);
   assert.equal(headers['Strict-Transport-Security'].includes('preload'), false);
+}
+
+function assertProvenStagingCsp(policy) {
+  assert.equal(typeof policy, 'string');
+  assert.equal(policy, PROVEN_STAGING_CSP);
+  assert.equal(policy.includes('*'), false);
+  assert.equal(policy.includes('unsafe-eval'), false);
+  assert.equal(policy.includes('js.stripe.com'), false);
 }
 
 test('firebase.json declares the conservative Hosting security header baseline without CSP', () => {
   const headers = loadHostingHeaders('firebase.json');
   assertBaselineHeaders('firebase.json', headers);
+  assert.equal(headers['Content-Security-Policy'], undefined);
   assert.equal(headers['Content-Security-Policy-Report-Only'], undefined);
 });
 
-test('firebase.staging.hosting.json keeps P07B headers and Report-Only CSP only', () => {
+test('firebase.staging.hosting.json keeps P07B headers and enforced CSP only', () => {
   const headers = loadHostingHeaders('firebase.staging.hosting.json');
   assertBaselineHeaders('firebase.staging.hosting.json', headers);
-  const reportOnly = headers['Content-Security-Policy-Report-Only'];
-  assert.equal(typeof reportOnly, 'string');
-  assert.match(reportOnly, /default-src 'none'/);
-  assert.match(reportOnly, /manifest-src 'self'/);
-  assert.match(reportOnly, /object-src 'none'/);
-  assert.match(reportOnly, /base-uri 'self'/);
-  assert.match(reportOnly, /frame-ancestors 'none'/);
-  assert.match(reportOnly, /style-src[^;]*'unsafe-inline'/);
-  assert.match(reportOnly, /content-firebaseappcheck\.googleapis\.com/);
-  assert.match(reportOnly, /firebaseappcheck\.googleapis\.com/);
-  assert.match(reportOnly, /taskio-api-staging-d6mdcsrwea-ts\.a\.run\.app/);
-  assert.equal(reportOnly.includes('*'), false);
-  assert.equal(reportOnly.includes('unsafe-eval'), false);
-  assert.equal(reportOnly.includes('js.stripe.com'), false);
+  assert.equal(headers['Content-Security-Policy-Report-Only'], undefined);
+  assertProvenStagingCsp(headers['Content-Security-Policy']);
 });

@@ -543,10 +543,10 @@ test('staging Hosting configs pin no-store on /, rewritten SPA routes and static
     const headers = headersForHostingRequest(spa, requestPath);
     assert.equal(headers['Cache-Control'], NO_STORE_CACHE, requestPath);
     assert.equal(headers['X-Robots-Tag'], ROBOTS_HEADER, requestPath);
-    assert.equal(headers['Content-Security-Policy'], undefined, requestPath);
-    assert.match(String(headers['Content-Security-Policy-Report-Only'] || ''), /default-src 'none'/, requestPath);
-    assert.equal(String(headers['Content-Security-Policy-Report-Only'] || '').includes('unsafe-eval'), false, requestPath);
-    assert.equal(String(headers['Content-Security-Policy-Report-Only'] || '').includes('js.stripe.com'), false, requestPath);
+    assert.equal(headers['Content-Security-Policy-Report-Only'], undefined, requestPath);
+    assert.match(String(headers['Content-Security-Policy'] || ''), /default-src 'none'/, requestPath);
+    assert.equal(String(headers['Content-Security-Policy'] || '').includes('unsafe-eval'), false, requestPath);
+    assert.equal(String(headers['Content-Security-Policy'] || '').includes('js.stripe.com'), false, requestPath);
   }
 
   for (const requestPath of ['/', '/index.html', '/placeholder.css']) {

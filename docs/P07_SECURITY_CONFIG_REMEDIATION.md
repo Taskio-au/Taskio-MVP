@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07E2C **AMBER-E2C COMPLETE** — staging Hosting current HEAD)
+**Date:** 20 September 2026 (P07D3 **AMBER-D3 COMPLETE** — staging CSP enforced)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C COMPLETE**. Staging rules, API, and Hosting are current HEAD. CSP remains Report-Only. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. Staging rules, API, and Hosting are current HEAD. **Staging CSP ENFORCED.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -344,8 +344,8 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
 | P07-21 | Leftover `helloTaskio` | ACTIVE GEN_2 HTTP; Cloud Run `allUsers` invoker; not in current repo. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Functions describe | LOW recon | Owner must first prove nothing depends on it. Any delete / disable / redeploy / invoker change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Function list + dependency review | **CONFIRMED; cleanup NOT STARTED** |
 | P07-22 | Personal Gmail `roles/editor` | One `gmail.com` user has production Editor. Identity not recorded. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Project IAM | MEDIUM if unexpected | Owner must identify purpose and required least-privilege role. Do **not** assume removal. Any IAM binding change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Owner identity review | **CONFIRMED; IAM CHANGE NOT STARTED** |
-| P07-23 | Staging CSP Report-Only | **P07D2 + E2C.** Live Hosting `fdc32b272f51d9e0` / `main.068025df.js`. Report-Only only; no enforced CSP. P07B headers retained. E2C collected **zero** Report-Only `securitypolicyviolation` events and no console CSP refusals on exercised public/auth flows. No header iteration required. | Hosting files API + Chrome CDP | LOW while Report-Only | Separate decision to enforce | STAGING | **AMBER COMPLETE** (Report-Only) | No | Hosted browser matrix | **REPORT-ONLY LIVE; ENFORCE NOT STARTED** |
-| P07-24 | Current-stack staging promotion | **E2A+E2B+E2C COMPLETE.** Rules HEAD; API `00070-dur` 100%; Hosting `fdc32b272f51d9e0` / `main.068025df.js`. See §32–§35. | E2C Hosting + browser | Remaining P07 RED/prod items | Do not OPEN or enable Auth signup | STAGING | **AMBER COMPLETE** | No for P07 PASS | Hosted matrix | **RULES / API / HOSTING CURRENT** |
+| P07-23 | Staging CSP | **P07D3 / AMBER-D3 COMPLETE.** Live Hosting `b963ae61de25da7e` / `main.068025df.js`. Enforced `Content-Security-Policy` only (same policy as D2/E2C Report-Only). Report-Only header **removed**. P07B headers retained. Zero `securitypolicyviolation` events on exercised public/auth flows. Rollback `fdc32b272f51d9e0` retained. | Hosting files API + Chrome CDP | LOW now that enforced | Re-validate when OPEN/Storage/Stripe/AI/new Expert are enabled | STAGING | **AMBER COMPLETE** (enforced) | No for P07 PASS | Hosted browser matrix | **ENFORCED LIVE** |
+| P07-24 | Current-stack staging promotion | **E2A+E2B+E2C+D3 COMPLETE.** Rules HEAD; API `00070-dur` 100%; Hosting `b963ae61de25da7e` / `main.068025df.js` (bytes identical to E2C). See §32–§36. | D3 Hosting headers + browser | Remaining P07 RED/prod items | Do not OPEN or enable Auth signup | STAGING | **AMBER COMPLETE** | No for P07 PASS | Hosted matrix | **RULES / API / HOSTING CURRENT; CSP ENFORCED** |
 
 ---
 
@@ -1486,3 +1486,82 @@ Project enforcement unchanged. Exercised dashboards are API-backed; no App Check
 `pilotSettings` still absent. Waitlist collections still empty. Job/quote/user counts unchanged. No OTP/email/Stripe/Gemini mutation observed.
 
 **AMBER-E2C = COMPLETE.** Staging now: rules **CURRENT**, API **CURRENT**, Hosting **CURRENT**. Functions partial/optional. Webhook unchanged. Auth signup disabled. Homeowner **CLOSED**. Expert **WAITLIST**. Keep `54aed8b` at 0%. P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. P06 OPEN. P09 BLOCKED BY P06. READY TO OPEN impossible.
+
+---
+
+## 36. P07D3 AMBER-D3 staging CSP enforcement (20 September 2026)
+
+Approved staging Hosting header-only mutation. Policy converted from `Content-Security-Policy-Report-Only` to `Content-Security-Policy` with **no directive change**. No API/rules/Functions/webhook/Auth/App Check/IAM/secret/`pilotSettings`/OPEN/AI/Stripe mutation. Production `taskio-v2` not mutated. Default gcloud project left `taskio-v2`.
+
+**Source commit for SPA rebuild:** `aa06d8b3a701bffc1a78b49ceb5c713b08aa80b2` (docs-only since product build `5cc5cac` / E2C).
+
+### Pre-D3 baseline (rollback target — not used)
+
+| Field | Value |
+|---|---|
+| Version | `fdc32b272f51d9e0` |
+| SPA | `main.068025df.js` / `main.5e46c8ad.css` |
+| CSP | Report-Only only |
+| Compatible with | current E2A rules + E2B API + App Check ENFORCED |
+| Rollback used | **No** |
+
+Live Report-Only header **matched** `firebase.staging.hosting.json` exactly before conversion.
+
+### Enforced policy (identical to proven Report-Only)
+
+```
+default-src 'none'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; script-src 'self' https://www.google.com https://www.gstatic.com https://www.recaptcha.net https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: https://www.gstatic.com https://www.google.com https://firebasestorage.googleapis.com https://taskio-v2-staging.firebasestorage.app; connect-src 'self' https://taskio-api-staging-d6mdcsrwea-ts.a.run.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://firebaseinstallations.googleapis.com https://content-firebaseappcheck.googleapis.com https://firebaseappcheck.googleapis.com https://www.googleapis.com https://www.google.com https://www.gstatic.com https://www.recaptcha.net https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://apis.google.com https://taskio-v2-staging.firebaseapp.com; frame-src https://www.google.com https://www.recaptcha.net https://taskio-v2-staging.firebaseapp.com
+```
+
+No `*`, no `unsafe-eval`, no `js.stripe.com`, no added hosts.
+
+### Byte identity
+
+Clean worktree `npm run build:staging` reproduced `main.068025df.js` / `main.5e46c8ad.css`, 88 files, 0 maps. SHA-256 of JS and CSS **matched** the live E2C assets (`A97E7C22…` / `A09DFCD9…`). Product asset change count: **0**.
+
+### Deploy
+
+`node frontend/scripts/deploy-staging-hosting.js --project taskio-v2-staging --config firebase.staging.hosting.json --execute` from the clean worktree (config copied in: header name only).
+
+| Field | Value |
+|---|---|
+| New version | `b963ae61de25da7e` |
+| Release | `…/channels/live/releases/1789884964606000` |
+| Time | 2026-09-20T06:16:04.606Z |
+| Live index | `main.068025df.js` / `main.5e46c8ad.css` |
+| CSP | `Content-Security-Policy` **PRESENT** (same policy); Report-Only **ABSENT** |
+| Other headers | no-store, noindex, nosniff, Referrer-Policy, X-Frame-Options DENY, Permissions-Policy, HSTS retained |
+
+### Unchanged after D3
+
+API `00070-dur` 100%; `54aed8b` 0%; webhook `00007-8tx` 100%; Functions quote-email pair (2026-09-04); Firestore `28c69372-2f82-4171-a7ad-379b0335b5a5`; Storage `a0736ecb-e3bb-4573-8608-c1bced82fab8`; App Check Firestore+Storage ENFORCED / Auth UNENFORCED; `disabledUserSignup=true`; `pilotSettings` 404; pilot-status CLOSED / WAITLIST.
+
+### Browser matrix (enforced)
+
+Chrome CDP, extensions disabled. **Zero** `securitypolicyviolation` events and **zero** console CSP refusals. Fonts, recaptcha, GA4, staging API, Auth network present. No `js.stripe.com`. No production API.
+
+| Surface | Result |
+|---|---|
+| `/` desktop+390 | Landing renders; CLOSED/waitlist CTAs |
+| `/post-job` | CLOSED gate; no job form |
+| `/waitlist` | Form; invalid email not posted |
+| `/expert-waitlist` | WAITLIST form; invalid email not posted |
+| `/tradie/signup` | Redirect `/expert-waitlist` |
+| `/login` | Renders; recaptcha loads; no OTP |
+| Homeowner | Login → `/dashboard`; existing jobs; `/post-job` still CLOSED |
+| Expert | Login → `/tradie/dashboard`; counts/fee copy |
+| Admin | Login → `/admin/dashboard` (no CSP/fatal error). `/admin/monitoring` flagged queue rendered. First dashboard snapshot still showed loading copy; no CSP block |
+| App Check | No exercised console regression. Storage WRITE **NOT EXECUTED** |
+| Waitlists after | `pilotWaitlist=0` `expertWaitlist=0`; jobs=5 quotes=6 users=4 |
+| AI | **NOT EXECUTED — CLOSED STATE** |
+| Stripe | **NOT EXECUTED** under CLOSED/read-only matrix |
+
+### CSP blocked resources
+
+**None** on exercised flows.
+
+### Remaining future-path CSP gaps (must re-validate when enabled)
+
+OPEN homeowner posting · Firebase Storage upload/write · AI tidy UI under OPEN · Stripe Checkout/payment · new Expert account creation.
+
+**AMBER-D3 = COMPLETE.** Staging CSP **ENFORCED**. Keep Hosting rollback `fdc32b272f51d9e0` and API rollback `54aed8b`. P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
