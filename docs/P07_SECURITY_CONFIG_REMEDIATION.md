@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07F4 **PRODUCTION READ-ONLY AUDIT COMPLETE** — production Expert compatibility)
+**Date:** 20 September 2026 (P07F5B **OWNER DECISION COMPLETE — OPTION B** — Prod-Expert-08)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1 AUDIT COMPLETE.** **P07F2 REMEDIATION COMPLETE.** **P07F3 STAGING DEPLOYMENT COMPLETE.** **P07F4 PRODUCTION READ-ONLY AUDIT COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** Production compatibility: **1 Expert would lose technical eligibility** under the fixed backend (approved-only; not launch-ready). **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1 AUDIT COMPLETE.** **P07F2 REMEDIATION COMPLETE.** **P07F3 STAGING DEPLOYMENT COMPLETE.** **P07F4 PRODUCTION READ-ONLY AUDIT COMPLETE.** **P07F5A OWNER REVIEW DOSSIER COMPLETE.** **P07F5B OWNER DECISION COMPLETE — OPTION B.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** Legacy Expert compatibility blocker **RESOLVED** (owner accepts known eligibility change; leave fail-closed; no backfill). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE.** This is **not** a production deploy approval. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -338,7 +338,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No (classify) | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer REMAINING BLOCKER |
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
 | P07-16 | Storage overwrite / profile size | **P07C:** prod Storage ruleset `932c4f1b…` (2025-12-24) has `allow write`, no `job-posting-attachments` create-only. **PRODUCTION OLDER.** | C7-equivalent rules GET | MEDIUM overwrite until deploy | Deploy Storage rules later | LOCAL RULE/CODE FIX COMPLETE; production deploy pending | **GREEN** local / **RED** deploy | No | Rules emulator tests | **PRODUCTION OLDER** |
-| P07-17 | Legacy Expert data | **P07F4:** 18 `role=tradie` / 38 `users`. Fixed effective expertise **0**. Launch-ready **0**. **1** Expert would lose technical eligibility (approved-only). Owner/Admin review **required** before production API deploy of the fail-closed backend. See §40. | Firestore projection + local HEAD helpers | HIGH wrong supply if deployed without review | Owner/Admin judgment; do not auto-approve | PRODUCTION (read) | **GREEN** audit / **RED** if mutated | Pre-activation | Checklist §19 / §40 | **READ-ONLY AUDIT COMPLETE** |
+| P07-17 | Legacy Expert data | **P07F4:** 18 `role=tradie` / 38 `users`. Fixed effective **0**. Launch-ready **0**. **1** Expert (`Prod-Expert-08`) would lose technical eligibility. **P07F5A:** dossier complete. **P07F5B:** **OPTION B** — genuine legacy Expert, requested intent unknown; leave fail-closed; no backfill; owner accepts eligibility change. Compatibility blocker **RESOLVED**. Data mutation **NONE**. See §40–§42. | Firestore projection + local HEAD helpers | HIGH if auto-backfilled | Leave fail-closed; future Expert reconfirmation | PRODUCTION (read) | **GREEN** decision / **RED** if mutated | Pre-activation | Checklist §19 / §40–§42 | **OWNER DECISION COMPLETE — OPTION B** |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
 | P07-19 | CI deploy guard | Push does not deploy | ci.yml | LOW | Keep | LOCAL | **GREEN** | No | CI | OK |
 | P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
@@ -515,6 +515,8 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07F2: **REMEDIATION COMPLETE** (see §38)
 - P07F3: **STAGING DEPLOYMENT COMPLETE** (see §39)
 - P07F4: **PRODUCTION READ-ONLY AUDIT COMPLETE** (see §40)
+- P07F5A: **OWNER REVIEW DOSSIER COMPLETE** (see §41)
+- P07F5B: **OWNER DECISION COMPLETE — OPTION B** (see §42). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE.** Not a deploy approval.
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -1844,9 +1846,9 @@ PRODUCTION DATA REMEDIATION REQUIRED: **OWNER REVIEW REQUIRED**. Do **not** auto
 
 ### Production deployment compatibility
 
-**FIXED PRODUCTION API DEPLOYMENT: DO NOT PROCEED YET.**
+**FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE** (P07F5B **OPTION B**). Owner accepts the known eligibility change. This is **not** a production deploy approval.
 
-**B. known Experts to lose technical eligibility.** Deploying the fixed API to production would make `Prod-Expert-08` fail `hasApprovedMarketplaceExpertise` (quote/invite/assign). That Expert is not launch-ready today (`NOT_ACCEPTING_JOBS`, `NO_SERVICE_AREA`). 17 others unchanged ineligible. No broadening. No schema crash expected from these shapes. Owner/Admin review of that one record is required first (optional review of the other four approved-only records, who are already ineligible for other V11 reasons). This is **not** a reason to restore the old fail-open expertise gate.
+**B. known Experts to lose technical eligibility.** Deploying the fixed API to production would make `Prod-Expert-08` fail `hasApprovedMarketplaceExpertise` (quote/invite/assign). That Expert is not launch-ready today (`NOT_ACCEPTING_JOBS`, `NO_SERVICE_AREA`). 17 others unchanged ineligible. No broadening. No schema crash expected from these shapes. Old grandfather eligibility is **not** preserved. This is **not** a reason to restore the old fail-open expertise gate.
 
 ### Fail-closed / read-side
 
@@ -1857,3 +1859,104 @@ Local HEAD proof: verified + active + `acceptingJobs=true` + canonical area + co
 Targeted backend Jest **7 suites / 105 tests PASS**. `git diff --check` on intended docs. PRODUCTION WRITES **0**. STAGING WRITES **0**. DEPLOYS **0**. TRAFFIC CHANGES **0**. MIGRATIONS **0**. AUTH/APP CHECK/IAM/SECRET CHANGES **0**. STRIPE API CALLS **0**.
 
 **P07F4 = PRODUCTION READ-ONLY AUDIT COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN **impossible**.
+
+## 41. P07F5A Prod-Expert-08 owner-review dossier (20 September 2026)
+
+Read-only `taskio-v2`. No Expert update, Verify, approval, migration, `acceptingJobs`/`serviceAreas` change, API deploy, or production config change. No names, emails, phones, UIDs, or addresses recorded here. Owner-local identifier was shown in the operator session only.
+
+**P07F5A = OWNER REVIEW DOSSIER COMPLETE.** Decision recorded in §42.
+
+### Bound record
+
+P07F4 label `Prod-Expert-08` is the unique eligibility-change Expert (requested missing, 5 canonical `expertiseApproved`, verified, stored `profileCompleted=true`, invites **13** / accepted **10** / quotes **11**). Current uid-sort slot 08 is a **different** Expert; this dossier does not switch labels.
+
+### Stored approved expertise (unchanged)
+
+| Canonical key | Human-readable task | Top-level Phase-1 category |
+|---|---|---|
+| `mounting_tv` | TV mounting | Mounting |
+| `mounting_shelves` | Shelves | Mounting |
+| `hanging_artwork` | Artwork | Hanging |
+| `minor_repairs_handle_replacement` | Handle replacement | Minor Repairs |
+| `furniture_assembly_flat_pack` | Flat-pack furniture | Furniture Assembly |
+
+Requested `expertise`: **MISSING**. No legacy `categories` / `skills` / `services` / `tradeType` fields on the user document.
+
+### Synthetic / test marker
+
+**NO EXPLICIT SYNTHETIC MARKER FOUND.** Does not match the documented production ABR test Expert. No explicit test/synthetic/seed flag.
+
+### Provenance
+
+Verification: `verified=true` with Admin Verify audit action `ADMIN_VERIFY_USER` and `audit.verifiedAt` **2026-04**. That is **known Admin Verify event/state**, not seed-fixture proof.
+
+Approval of the five keys: **LEGACY FIELD WITH UNKNOWN PROVENANCE**. The Admin Verify audit `after.expertiseApproved` is empty. Current five keys are therefore **not** proven as an explicit category-approval under today's model. Presence of `expertiseApproved` is not current owner intent.
+
+### Historical activity (SUPPORTING CONTEXT ONLY)
+
+Invites **13**, accepted **10**, quote documents **11** (unique quoted jobs **10**). Last job month **2026-05**; last quote month **2026-04**. Account created **2026-04**. Recency does not prove authenticity.
+
+Stored job `primaryCategory` counts (job-level; not proof of self-selection):
+
+| Relationship | Mounting | Hanging | Curtains & Blinds | Furniture Assembly | Wall Patch & Touch-up | Silicone Sealing | Minor Repairs |
+|---|---|---|---|---|---|---|---|
+| Invites | 5 | 2 | 2 | 2 | 1 | 1 | 0 |
+| Accepted | 3 | 2 | 1 | 2 | 1 | 1 | 0 |
+
+No historical jobs in **Minor Repairs** despite that approved key. Jobs exist in Wall Patch / Curtains / Silicone / additional Hanging+Mounting keys that are **not** in the five approved keys. Participation is **not** automatic proof of requested intent.
+
+### Old vs fixed / operational risk
+
+OLD: requested missing, five canonical approved, approved-only grandfather → technically eligible. FIXED: intersection `[]` → `EXPERTISE_NOT_APPROVED` → technically ineligible. Deploying fixed code does **not** delete category data.
+
+Launch-ready today: **NO** (`acceptingJobs` missing, canonical `serviceAreas` 0). The eligibility change does **not** remove a currently launch-ready Expert. Historical marketplace activity remains meaningful.
+
+### Owner options (as presented in P07F5A)
+
+A genuine + five categories still intended — future controlled requested-state only if still intended; do not copy approved→requested automatically.
+B genuine, current intent unknown — leave fail-closed; reconfirm with the Expert.
+C test/obsolete — leave fail-closed; no compatibility backfill.
+D unsure — leave fail-closed; fixed production API stays blocked until the owner decides whether the eligibility change is acceptable.
+
+### Other owner-review records
+
+**6** additional P07F4 owner-review records remain. They are already technically ineligible under **both** old and fixed logic and do **not** block the fixed API deployment on compatibility grounds the way `Prod-Expert-08` does.
+
+PRODUCTION WRITES **0**. MIGRATION EXECUTED **NO**. PII COMMITTED **NO**.
+
+**P07F5A = OWNER REVIEW DOSSIER COMPLETE.**
+
+## 42. P07F5B owner decision — OPTION B (20 September 2026)
+
+Owner selected **OPTION B**.
+
+`Prod-Expert-08` is treated as a **genuine legacy Expert** whose **current requested expertise is unknown**.
+
+Taskio will:
+
+- leave the record fail-closed
+- **not** copy `expertiseApproved` → `expertise`
+- **not** auto-approve or backfill categories
+- **not** run migration
+- require explicit future Expert reconfirmation of requested categories before marketplace eligibility is restored
+
+Owner **accepts** that deploying the fixed production API may make this Expert technically ineligible until that reconfirmation. Old grandfather eligibility does **not** need to be preserved.
+
+**FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE.** This specific legacy Expert compatibility blocker is **RESOLVED**. This is **not** approval to deploy the production API. Remaining P07 / production-readiness gates still apply.
+
+### Data mutation (authorised: none)
+
+| Item | State |
+|---|---|
+| Prod-Expert-08 data mutation | **NONE** |
+| expertise backfill | **NONE** |
+| expertise approval | **NONE** |
+| migration | **NOT EXECUTED** |
+| `acceptingJobs` | **UNCHANGED** |
+| `serviceAreas` | **UNCHANGED** |
+
+No production Expert data remediation is authorised. Not required for this deployment-compatibility decision.
+
+**6** additional owner-review records remain already ineligible under both old and fixed logic. They do not block fixed-API compatibility. Cleanup/reconfirmation before real launch remains applicable.
+
+**P07F5B = OWNER DECISION COMPLETE — OPTION B.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Production **FROZEN**.
