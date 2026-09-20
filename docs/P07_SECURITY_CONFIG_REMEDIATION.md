@@ -1,6 +1,6 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07D3 **AMBER-D3 COMPLETE** — staging CSP enforced)
+**Date:** 20 September 2026 (P07F1 **AUDIT COMPLETE** — staging legacy Expert eligibility; CSP still **ENFORCED**)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
 **Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. Staging rules, API, and Hosting are current HEAD. **Staging CSP ENFORCED.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
@@ -511,6 +511,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07B: **LOCAL HARDENING COMPLETE**
 - P07C: **READ-ONLY PRODUCTION VERIFICATION COMPLETE**
 - P07D1: **STAGING CLEANUP PREPARED** (this document). AMBER-D1/D2 not executed.
+- P07F1: **AUDIT COMPLETE** (staging Expert eligibility; see §37)
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -1565,3 +1566,91 @@ Chrome CDP, extensions disabled. **Zero** `securitypolicyviolation` events and *
 OPEN homeowner posting · Firebase Storage upload/write · AI tidy UI under OPEN · Stripe Checkout/payment · new Expert account creation.
 
 **AMBER-D3 = COMPLETE.** Staging CSP **ENFORCED**. Keep Hosting rollback `fdc32b272f51d9e0` and API rollback `54aed8b`. P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
+
+---
+
+## 37. P07F1 staging legacy Expert eligibility / readiness audit (20 September 2026)
+
+Read-only. Staging `taskio-v2-staging` only. No user/Auth/`pilotSettings`/rules/API/Hosting writes. Default gcloud project left `taskio-v2`. Production not queried. HEAD `329bb4013e7cd306ffaaaaecc801898dd4d7e0ac` = `origin/develop` (0/0). Live stack unchanged from D3: Hosting `b963ae61de25da7e` / `main.068025df.js`, CSP **ENFORCED**, API `00070-dur` 100%, Firestore rules `28c69372-2f82-4171-a7ad-379b0335b5a5`, Storage rules `a0736ecb-e3bb-4573-8608-c1bced82fab8`, App Check Firestore+Storage ENFORCED / Auth UNENFORCED, Auth signup disabled, `system/pilotSettings` **absent** (404).
+
+### Code semantics (HEAD, not docs-only)
+
+| Field | Meaning | Read / fail-closed |
+|---|---|---|
+| `expertise` | Requested / self-selected Phase 1 keys | Non-array → not a requested list |
+| `expertiseApproved` | Taskio-approved subset | Non-array → empty approved list after normalize |
+| Effective expertise | Intersection when `expertise` is an array; otherwise approved list as-is | `effectiveApprovedExpertise` |
+| `verified` | Admin Verify | Must be `=== true` |
+| `status` | Account status | Missing → treated as **active** |
+| `acceptingJobs` | Pilot availability | Missing / non-boolean / `"true"` → **false** |
+| `serviceAreas` | Coverage | Missing/non-array → `[]`. Unknown values dropped. Case-insensitive match to canonical names. **Not** inferred from `serviceLocation` |
+| Launch-ready | Derived; no stored `launchReady` | V11 eligibility **and** `acceptingJobs===true` **and** ≥1 canonical area |
+
+V11 eligibility (`computeEligibility`): `role==='tradie'`, status active, email verified (`users.emailVerified` when no token), `verified===true`, phone verified, ABN when required, Stripe onboarding when `STRIPE_ENABLED==='true'` (live staging API **is** `true`), profile complete, `hasApprovedMarketplaceExpertise`, valid `serviceLocation`, business type, 18+.
+
+Signup writes `verified:false` and `expertiseApproved:[]`. Tests prove **self-selected `expertise` with `expertiseApproved:[]` is not eligible and not launch-ready**.
+
+**HIGH code contradiction (not patched in P07F1):** `hasApprovedMarketplaceExpertise` returns **true** when **neither** field is an array (`backend/src/utils/expertExpertise.js`). That treats missing/legacy non-array category fields as marketplace-approved. Intended current semantics: missing approval must not auto-approve. Tests do not fail-close this shape. Separate persist-on-read path: `planExpertiseFieldSync` copies requested → approved for **already verified** Experts missing `expertiseApproved` on `GET /api/me` and tradie profile/expertise routes. P07F1 did **not** call those routes (would write).
+
+Admin migrate `POST /api/admin/migrate/expertise` can copy `expertise` → `expertiseApproved` without `verified` (not invoked).
+
+### Canonical Phase 1 keys
+
+From `shared/expertiseCatalog.js`. Exact key after `trim`. **Case-sensitive. No aliases.** Labels and unknown strings are dropped.
+
+`mounting_tv`, `mounting_shelves`, `mounting_mirrors`, `hanging_picture_frames`, `hanging_artwork`, `curtains_blinds_curtain_rods`, `curtains_blinds_install`, `curtains_blinds_minor_fixes`, `furniture_assembly_flat_pack`, `furniture_assembly_bed_desk_wardrobe`, `minor_repairs_door_hinge`, `minor_repairs_cabinet_alignment`, `minor_repairs_handle_replacement`, `minor_repairs_small_fixture`, `wall_patch_touchup_small_holes`, `wall_patch_touchup_cosmetic`, `silicone_sealing_cosmetic`, `silicone_sealing_touchups`, `apartment_make_good`.
+
+Coverage categories: Mounting, Hanging, Curtains & Blinds, Furniture Assembly, Minor Repairs, Wall Patch & Touch-up, Silicone Sealing, Apartment Make-Good.
+
+### Canonical pilot geography
+
+`shared/auLocations.js` `melbournePilotSuburbNames` (same set `pilotOperationalFields` uses). `pilotSettings` absent → all eight treated as enabled; no settings document created.
+
+Melbourne, Southbank, Docklands, South Yarra, Prahran, St Kilda, Richmond, Carlton.
+
+### Staging records audited
+
+Firestore REST list of `users` on **taskio-v2-staging** only. 4 user documents. Roles: homeowner 3, tradie 1. Expert-like (`tradie` / expert-named roles): **1**. No other expert-like roles.
+
+| ID | Class | Role / status | verified | Requested / approved / effective | acceptingJobs | serviceAreas | Eligible | Launch-ready | Reasons |
+|---|---|---|---|---|---|---|---|---|---|
+| Expert-01 (suffix `c2n1`) | **C** | tradie / active | true | `hanging_picture_frames` / same / same | missing → false | missing → `[]` | **yes** | **no** | `NOT_ACCEPTING_JOBS`, `NO_SERVICE_AREA` |
+
+Stripe onboarding derived **complete** (no account IDs recorded). Email/phone verified stored true. No unknown keys, duplicates, approved-not-in-requested, or unverified-with-approved. Classification **C** = technically eligible under current code, not launch-ready.
+
+Counts: A 0 · B 0 · C 1 · D 0 · E 0. Launch-ready **0**.
+
+### Coverage (compatibility only — not real launch supply)
+
+Launch-ready Experts: **0** in every Phase 1 category and every canonical area.
+
+All-Expert (n=1) requested/effective: Hanging 1 / 1; all other categories 0. Admin-style `aggregatePilotSupply`: experts **1**, technicallyEligible **1**, launchReady **0**.
+
+### Admin cockpit
+
+Code/unit-test comparison: **MATCH** (same `computeLaunchReadiness` / supply aggregation). Live `GET /api/admin/pilot-supply` and browser: **NOT EXECUTED** (synthetic admin email not in this session environment; password unused; no login).
+
+### False-positive (legacy launch-ready via missing approval)
+
+**Staging data:** none. Expert-01 has both arrays populated and matching; missing availability/areas fail closed. Not launch-ready.
+
+**Code:** HIGH. A verified record with **both** category fields missing/non-array would pass the expertise gate; with `acceptingJobs===true` and a canonical area it would count launch-ready. No such staging document exists. Verified + requested array + missing `expertiseApproved` is **not** eligible on compute (covered by tests) but **would be persisted as approved** on next profile GET.
+
+### False-negative
+
+None on staging. No case/alias near-misses on keys or areas. Missing `acceptingJobs` / `serviceAreas` correctly exclude launch-ready (not a false negative).
+
+### Remediation
+
+| Kind | Result |
+|---|---|
+| Staging **data** | **NO DATA REMEDIATION REQUIRED.** Expert-01 is current-schema; not-ready only because operational fields are unset (expected). |
+| **Code** | **CODE REMEDIATION REQUIRED** (not patched here). Fail-close `hasApprovedMarketplaceExpertise` when both fields are absent; add tests; review verified requested-only sync. Future AMBER package only — **not opened**. |
+| Issue type | **CODE ONLY** for staging. Staging documents do not currently exploit the hole. |
+| Production | **PRODUCTION LEGACY EXPERT AUDIT: PENDING — SEPARATE READ-ONLY APPROVAL/SCOPE.** Do not infer production is clean. |
+
+### Validation
+
+`backend` Jest (not root): expertExpertise, v11TradieEligibility, pilotLaunchReadiness, pilotOperationalFields, pilotSupplyService, adminPilotSupply, adminPilotLaunchStatus, meProfilePilotFields, adminJobAttention, adminMarketplaceMetrics, tradieExpertiseProfileCompleted, pilotLaunchStatusDerive — **12 suites / 90 tests PASS** (after clearing a leaked local `STRIPE_ENABLED`; first run of meProfilePilotFields failed for that reason only). `git diff --check` on staged docs: clean.
+
+**P07F1 = AUDIT COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. No staging mutation. No production mutation.
