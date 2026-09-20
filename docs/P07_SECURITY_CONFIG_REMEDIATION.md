@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07D2 AMBER-D2 **COMPLETE** — staging CSP Report-Only; no enforcement)
+**Date:** 20 September 2026 (P07E1 **AUDIT COMPLETE / PROMOTION PENDING** — current develop → staging)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A/P07B/P07C complete; P07D1 prepared; P07D2A ADC proven; P07D2B deleted the staging USER_MANAGED key last-4 `f04d`; P07D2 AMBER-D2 live on Hosting `e97a303dcf995e37` as Report-Only only. Local operator uses ADC with `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A–P07D2 complete; P07E1 recorded the current-stack staging gap. Hosting `e97a303dcf995e37` still serves the older SPA `main.70b28def.js`. Promotion is **not executed**. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
 This document is a **read-only** audit plus approval planning. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, deploy, or push.
 
@@ -345,6 +345,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-21 | Leftover `helloTaskio` | ACTIVE GEN_2 HTTP; Cloud Run `allUsers` invoker; not in current repo. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Functions describe | LOW recon | Owner must first prove nothing depends on it. Any delete / disable / redeploy / invoker change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Function list + dependency review | **CONFIRMED; cleanup NOT STARTED** |
 | P07-22 | Personal Gmail `roles/editor` | One `gmail.com` user has production Editor. Identity not recorded. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Project IAM | MEDIUM if unexpected | Owner must identify purpose and required least-privilege role. Do **not** assume removal. Any IAM binding change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Owner identity review | **CONFIRMED; IAM CHANGE NOT STARTED** |
 | P07-23 | Staging CSP Report-Only | **P07D2 / AMBER-D2 COMPLETE.** Live Hosting `e97a303dcf995e37` preserves SPA `main.70b28def.js` (same hashes as `211fb288dcaff973`). Report-Only only; no enforced CSP. P07B headers live. One header iteration added `manifest-src 'self'`. | Hosting files API + Chrome CDP | LOW while Report-Only | Separate decision to enforce; first prove authenticated Firestore/Storage/Auth iframe + guest tidy if posting reopens | STAGING | **AMBER COMPLETE** (Report-Only) | No | Hosted browser matrix | **REPORT-ONLY LIVE; ENFORCE NOT STARTED** |
+| P07-24 | Current-stack staging promotion | **P07E1:** develop `3f4bbab` is not live on staging API/SPA/rules. See §32. | P07E1 read-only | HIGH product drift | AMBER-E2A/B/C (rules → API → Hosting). Do not OPEN or enable Auth signup in that package | STAGING | **AMBER** | No for P07 PASS | Hosted matrix after promotion | **AUDIT COMPLETE / PROMOTION PENDING** |
 
 ---
 
@@ -1125,3 +1126,122 @@ Staging remains Firestore **ENFORCED**, Storage **ENFORCED**, Auth **UNENFORCED*
 **Do not enforce CSP yet.** Public Report-Only is clean after `manifest-src`. Authenticated Auth iframe (`taskio-v2-staging.firebaseapp.com`), Firestore, Storage, phone `RecaptchaVerifier`, and guest tidy/photo were not exercised on this hosted invite-only SPA. Enforcement is a separate owner decision after those paths are proven.
 
 P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
+
+---
+
+## 32. P07E1 current develop → staging promotion audit (20 September 2026)
+
+Read-only. No Hosting/API/Functions/rules/Auth/App Check/IAM/secret/Stripe/Gemini mutation. No `pilotSettings` create. No push. Production `taskio-v2` not queried or mutated.
+
+**Anchor:** `develop` / `3f4bbab53638aca616c84e0650c5083b6aad4ce3` = `origin/develop` (0/0). CI `35477480003` SUCCESS.
+
+**Operator leftovers preserved:** unstaged `frontend/src/shared/jobPostingSemantics.generated.js`; untracked `frontend/landing-final-review/`.
+
+### Deployed staging baseline
+
+| Surface | Live state |
+|---|---|
+| Hosting site | `taskio-v2-staging` / `https://taskio-v2-staging.web.app` |
+| Hosting version | `e97a303dcf995e37` (2026-09-19T14:29:17Z) |
+| SPA | `main.70b28def.js` / `main.5e46c8ad.css` (P05-era content; headers-only refresh) |
+| Headers | no-store, noindex, nosniff, Referrer-Policy, `X-Frame-Options: DENY`, Permissions-Policy |
+| CSP | Report-Only only (`manifest-src 'self'`). No enforced CSP |
+| Observed HSTS | Firebase platform `max-age=31556926; includeSubDomains; preload` |
+| API | `taskio-api-staging` 100% `taskio-api-staging-54aed8b`; image `taskio-api@sha256:3d207e01…`; SA `taskio-api-staging-runtime@…` |
+| API env (safe) | `NODE_ENV=production`, `TASKIO_DEPLOYMENT_ENV=staging`, `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`, `STRIPE_ENABLED=true`, `STRIPE_EXPECTED_LIVEMODE=false`, `TRUST_PROXY=true`, `TASKIO_PUBLIC_SIGNUP_ENABLED=false`, `ENABLE_SET_ADMIN_ENDPOINT=false`, `TASKIO_SHOW_DEV_OTP=false`, `FRONTEND_URL=https://taskio-v2-staging.web.app`, CORS includes staging Hosting + localhost:3000. `AI_DESCRIPTION_ENABLED` **absent**. Secrets: `OTP_SALT`, `STRIPE_SECRET_KEY` (refs only) |
+| Webhook | `taskio-stripe-webhook-staging-00007-8tx` 100%; SA `taskio-webhook-staging-runtime@…`; invoker `allUsers` |
+| Functions | **Only** `notifyHomeownerOnQuoteSubmitted` + `notifyHomeownerOnQuoteSubmittedUpdate` ACTIVE GEN_2 nodejs24 (updated 2026-09-04). Compute default SA. **Not deployed:** `notifyTradieOnEscrowFunded`, `flagRiskyJobMessages` |
+| Firestore rules | Release `b8b8e7f2-50fb-4e79-a5ce-e947178158c6` (2026-08-28). **No** `pilotWaitlist` / `expertWaitlist` / `system/**` deny |
+| Storage rules | Release `64c5b44b-a20a-4118-8b03-ffba6ac7f5c1` (2026-08-15). Posting + `profile-photos` still **`allow write`** (overwrite; posting 10MB; profile-photos 5MB) |
+| App Check | Firestore **ENFORCED**, Storage **ENFORCED**, Auth **UNENFORCED** |
+| Auth | `disabledUserSignup=true`; email/password + phone enabled |
+| `system/pilotSettings` | Expected **absent** (not created in this audit) |
+
+### Clean HEAD frontend build (not deployed)
+
+Temporary worktree at `3f4bbab`. `npm ci` → `npm run verify` (Jest 598/598; stagingHosting 26; hostedBuildGuard 11; hostingSecurityHeaders 2) → `npm run build:staging` using public config extracted from the live staging bundle (values not copied here).
+
+| Result | Value |
+|---|---|
+| Bundle | `main.068025df.js` |
+| CSS | `main.5e46c8ad.css` |
+| Files | 88 (0 source maps) |
+| Target | `taskio-v2-staging` + `taskio-api-staging-d6mdcsrwea-ts.a.run.app` |
+| App Check | enabled / recaptcha-enterprise / public site key present / debug empty |
+| GA4 | `G-SZ7RZDKTJY` |
+| Safety | No `api.taskio.com.au`, no `taskio-v2.firebaseapp.com` / `.firebasestorage.app`, no `pk_live_` / `sk_live_`, no service-account JSON |
+| `localhost` | Firebase Auth SDK `continueUri` placeholder only — **EXPECTED PUBLIC CONFIG** |
+| New surface strings | `/api/pilot-status`, waitlists, `generate-description`, `job-posting-attachments` |
+
+### Frontend delta (live SPA vs HEAD)
+
+| Area | Class |
+|---|---|
+| Landing / `/post-job` driven by `GET /api/pilot-status` | **EXPECTED CURRENT PRODUCT** / live is **STALE STAGING BEHAVIOUR** (invite-only gate, no hook) |
+| Homeowner CLOSED / OPEN / PAUSED + waitlist | **EXPECTED CURRENT PRODUCT** + **LEGAL-COPY SENSITIVE** |
+| Expert OPEN / WAITLIST + expert waitlist | **EXPECTED CURRENT PRODUCT** + **LEGAL-COPY SENSITIVE** |
+| `expertise` vs `expertiseApproved` | **EXPECTED CURRENT PRODUCT** |
+| Admin Pilot Operations / attention / marketplace / launch readiness | **EXPECTED CURRENT PRODUCT** |
+| AI tidy fail-closed UX | **SECURITY FIX** + product |
+| Storage UUID create-only paths | **SECURITY FIX** |
+| Hosting headers + Report-Only | **SECURITY FIX** already **LIVE** on current version |
+| Enabling Auth signup or auto-OPEN | **NOT YET READY FOR STAGING** in E2 |
+
+### API / env / rules / functions / webhook
+
+HEAD API since `54aed8b` adds pilot-status, waitlists, posting gate, expert onboarding mode, expertise approval, admin pilot endpoints, and AI fail-closed `generate-description`. **API deploy required** for a representative SPA. No data migration required. `TASKIO_PUBLIC_SIGNUP_ENABLED` stays **false**. Do not add `AI_DESCRIPTION_ENABLED=true`.
+
+Webhook source unchanged `54aed8b..HEAD` — **do not redeploy** for this package.
+
+Functions HEAD has four exports; staging has two. Redeploy is **optional product/email parity**, not required for waitlist/admin/pilot UI.
+
+Firestore HEAD deny-all on waitlist + `system/**` is **defense-in-depth** (Admin SDK writes). Deploy **before** exposing those collections.
+
+Storage HEAD create-only + 2MB profile bound is **required before** the new UUID frontend. Deploying HEAD frontend onto current overwrite rules would work but re-opens silent replace. Deploying HEAD Storage first is compatible with unique-timestamp old uploads.
+
+### Auth / settings interaction
+
+Keep `disabledUserSignup=true`. Existing synthetic login remains the only account path. New phone/email signup cannot complete. After API+frontend with `pilotSettings` absent: Homeowner **CLOSED**, Expert **WAITLIST**, no auto-create, no auto-OPEN. Waitlist POSTs work (API). OPEN posting, new Expert apply, and brand-new Auth users stay **untestable** until later explicit approvals.
+
+### Compatibility
+
+Frontend-only promotion is **not safe** for the intended product: `/api/pilot-status` 404 fail-closes; waitlist POST 404; admin cockpit 404.
+
+Minimum unit: **Firestore rules + Storage rules + API + Hosting**.
+
+### P07B live / not live
+
+| Change | Staging |
+|---|---|
+| Hosting conservative headers + CSP Report-Only | **LIVE** |
+| AI fail-closed + generate-description hardening | **NOT LIVE** (API old; AI env absent anyway) |
+| Storage create-only + 2MB profile bound | **NOT LIVE** |
+| Functions dependency patches / extra triggers | **NOT LIVE** / **PARTIAL** (two quote-email functions only) |
+
+### CSP impact of new SPA
+
+Same Google Fonts / recaptcha enterprise / GTM / App Check / staging API hosts. No `js.stripe.com`. After promotion, re-validate authenticated `taskio-v2-staging.firebaseapp.com` iframe, Firestore, Storage, phone verifier, and guest tidy. **Do not enforce CSP** in E2.
+
+### AMBER packages (not executed)
+
+**AMBER-E2A — rules.** `firebase deploy --project=taskio-v2-staging --only firestore,storage`. Precondition: record current ruleset IDs above. Expected: waitlist/`system` deny; posting/`profile-photos` create-only. Rollback: previous rulesets only if the new SPA is not yet live. Stop: any `taskio-v2` project flag.
+
+**AMBER-E2B — API.** Build root `Dockerfile`; deploy `taskio-api-staging` in `australia-southeast1` as a **new** revision; keep `54aed8b` at 0% until smoke. Preserve current env names/booleans; do not enable signup or Gemini. Rollback: route 100% to `taskio-api-staging-54aed8b` if the new SPA is not live, or keep API+SPA coupled.
+
+**AMBER-E2C — frontend.** `npm --prefix frontend run build:staging` then `node frontend/scripts/deploy-staging-hosting.js --project taskio-v2-staging --config firebase.staging.hosting.json --execute`. Keep Report-Only. Do not Hosting-rollback to `e97a303dcf995e37` while new Storage create-only + new API are live and App Check remains ENFORCED — prefer header-preserving redeploy of a known-good matching SPA.
+
+**AMBER-E2D — Functions (optional).** Only if escrow/chat email + `flagRiskyJobMessages` parity is required. Would **add** two currently missing functions. Separate approval.
+
+**Webhook:** out of E2.
+
+**Auth enablement / `pilotSettings` create / OPEN:** later separate AMBER/RED packages. Not E2.
+
+### Rollback coupling
+
+App Check Firestore+Storage stay **ENFORCED**. Do not roll Hosting to a pre-App-Check SPA. Do not roll Storage back to overwrite rules after the UUID client is live. API rollback to `54aed8b` after the new SPA is live breaks pilot-status/waitlist/admin.
+
+### Synthetic accounts
+
+Existing staging homeowner / Expert / admin identities are documented from B4/P05. **No in-repo credential tooling.** Post-promotion login is **owner/manual**. Do not create users.
+
+P07 remains **OPEN / REMEDIATION IN PROGRESS**. P07E1 = **AUDIT COMPLETE / PROMOTION PENDING**. CSP enforcement still **NOT APPROVED**. P03/P04/P05 production pending unchanged. P06 OPEN. P09 BLOCKED BY P06. READY TO OPEN remains impossible.

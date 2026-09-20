@@ -4,6 +4,8 @@
 
 ## Current checkpoint (supersedes the spreadsheet snapshot)
 
+**2026-09-20 P07E1 current-stack staging promotion audit (GREEN local docs):** Read-only. Live staging remains Hosting `e97a303dcf995e37` / `main.70b28def.js`, API `54aed8b`, Storage overwrite rules (2026-08-15), Firestore without waitlist/`system` deny (2026-08-28), Functions quote-email pair only, Auth `disabledUserSignup=true`, App Check Firestore+Storage ENFORCED. Clean HEAD build produced `main.068025df.js` (not deployed). Minimum promotion: rules → API → Hosting (AMBER-E2A/B/C). Functions optional; webhook unchanged. CSP enforcement **not** approved. P07 **OPEN** — **not PASS**. No cloud mutation.
+
 **2026-09-20 P07D2 AMBER-D2 (STAGING Hosting headers only):** Content-preserving Hosting deploy of hash-verified `211fb288dcaff973` SPA (`main.70b28def.js`). Final version **`e97a303dcf995e37`**. `Content-Security-Policy-Report-Only` + P07B headers live. No enforced CSP. One iteration added `manifest-src 'self'`. App Check Firestore+Storage still ENFORCED / Auth UNENFORCED. Guest tidy/synthetic login **NOT EXECUTED** (invite-only hosted gate; no session tooling used). AMBER-D2 **COMPLETE**. P07 **OPEN** — **not PASS**. No production mutation.
 
 **2026-09-19 P07D2B AMBER-D1B (STAGING credential mutation):** Deleted USER_MANAGED staging Admin SDK key last-4 `f04d`. Post-list: 0 USER_MANAGED / 1 SYSTEM_MANAGED. Local `taskio-v2-staging-admin.json` deleted after last-4/project check. ADC + deployed `/health/live` and `/health/ready` 200. Identities unchanged. Historical cloud use **UNKNOWN**. AMBER-D1B **COMPLETE**. P07 **OPEN** — **not PASS**. No production mutation.
