@@ -545,6 +545,21 @@ describe('admin founding expert enrolment', () => {
       'hanging_picture_frames',
     ]);
   });
+
+  it('does not invent approval for a category the Expert did not request', async () => {
+    seedTradie('approve-subset', {
+      verified: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
+    });
+    const res = await request(app)
+      .put('/api/admin/users/approve-subset/expertise/approve')
+      .set('x-test-admin', 'true')
+      .send({ keys: ['hanging_picture_frames'] });
+    expect(res.status).toBe(200);
+    expect(res.body.expertiseApproved).toEqual([]);
+    expect(readCollectionDoc('users', 'approve-subset').expertiseApproved).toEqual([]);
+  });
 });
 
 describe('getActiveFoundingExpertProgramId (isolateModules)', () => {

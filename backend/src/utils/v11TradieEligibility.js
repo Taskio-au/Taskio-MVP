@@ -10,7 +10,8 @@
  * - user.stripe.onboardingComplete === true when Stripe is enabled
  *   (this requirement is skipped while STRIPE_ENABLED is not exactly "true")
  * - user.profileCompleted === true (stored or derived; requested expertise may complete profile)
- * - at least one Taskio-approved Phase 1 category (`expertiseApproved`)
+ * - at least one Taskio-approved Phase 1 category (`effectiveApprovedExpertise`:
+ *   approved ∩ requested; missing/malformed fields are never treated as approved)
  * - auth email_verified === true (recommended; appears in the dashboard checklist)
  *
  * Frontend should treat these as UX hints only; backend enforces.

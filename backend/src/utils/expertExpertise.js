@@ -5,6 +5,10 @@
  * `expertise` = self-selected/requested Phase 1 keys.
  * `expertiseApproved` = Taskio-approved subset used for marketplace eligibility.
  * Canonical validation is not Taskio approval.
+ *
+ * Fail-closed: effective expertise is approved ∩ requested, and only when both
+ * fields are arrays. Missing, malformed, or empty either side => [].
+ * Verification, profile reads, and self-selection never grant approval.
  */
 
 const { phase1ExpertiseCatalog, phase1KeysSet } = require('../shared/expertiseCatalog');
@@ -22,27 +26,23 @@ function normalizePhase1Keys(input, max = 50) {
 }
 
 function readApprovedExpertise(userDoc) {
-  return normalizePhase1Keys(userDoc && userDoc.expertiseApproved);
+  if (!Array.isArray(userDoc && userDoc.expertiseApproved)) return [];
+  return normalizePhase1Keys(userDoc.expertiseApproved);
 }
 
 function readRequestedExpertise(userDoc) {
-  if (Array.isArray(userDoc && userDoc.expertise)) {
-    return normalizePhase1Keys(userDoc.expertise);
-  }
-  return readApprovedExpertise(userDoc);
+  if (!Array.isArray(userDoc && userDoc.expertise)) return [];
+  return normalizePhase1Keys(userDoc.expertise);
 }
 
 function effectiveApprovedExpertise(userDoc) {
-  const approved = readApprovedExpertise(userDoc);
-  if (!Array.isArray(userDoc && userDoc.expertise)) return approved;
-  const requested = new Set(normalizePhase1Keys(userDoc.expertise));
-  return approved.filter((key) => requested.has(key));
+  const requested = readRequestedExpertise(userDoc);
+  if (requested.length === 0) return [];
+  const requestedSet = new Set(requested);
+  return readApprovedExpertise(userDoc).filter((key) => requestedSet.has(key));
 }
 
 function hasApprovedMarketplaceExpertise(userDoc) {
-  const approvedPresent = Array.isArray(userDoc && userDoc.expertiseApproved);
-  const requestedPresent = Array.isArray(userDoc && userDoc.expertise);
-  if (!approvedPresent && !requestedPresent) return true;
   return effectiveApprovedExpertise(userDoc).length > 0;
 }
 
@@ -74,28 +74,65 @@ function keysNeedPrune(raw) {
   return cleaned.join('\u0000') !== normalizePhase1Keys(raw).join('\u0000');
 }
 
+/**
+ * Read-side / storage prune only. Never copies requested ↔ approved.
+ * Never treats verified as approval. Missing fields stay missing.
+ */
 function planExpertiseFieldSync(userDoc) {
   const requestedPresent = Array.isArray(userDoc && userDoc.expertise);
   const approvedPresent = Array.isArray(userDoc && userDoc.expertiseApproved);
-  let requested = requestedPresent ? normalizePhase1Keys(userDoc.expertise) : null;
-  let approved = approvedPresent ? normalizePhase1Keys(userDoc.expertiseApproved) : null;
+  const requested = requestedPresent ? normalizePhase1Keys(userDoc.expertise) : [];
+  const approved = approvedPresent ? normalizePhase1Keys(userDoc.expertiseApproved) : [];
   let changed = false;
-
-  if (!requestedPresent && approvedPresent) {
-    requested = approved.slice();
-    changed = true;
-  }
-  if (!approvedPresent && requestedPresent) {
-    approved = userDoc && userDoc.verified === true ? requested.slice() : [];
-    changed = true;
-  }
   if (requestedPresent && keysNeedPrune(userDoc.expertise)) changed = true;
   if (approvedPresent && keysNeedPrune(userDoc.expertiseApproved)) changed = true;
-
-  if (requested == null) requested = [];
-  if (approved == null) approved = [];
-
   return { requested, approved, changed };
+}
+
+/**
+ * Explicit Admin-only migration planner. Does not run itself.
+ * Creates expertiseApproved from a canonical requested array only when
+ * verified === true and expertiseApproved is missing (not []).
+ * Never parses non-array legacy strings into approval.
+ */
+function planAdminExpertiseMigration(userDoc) {
+  const verified = userDoc && userDoc.verified === true;
+  const requestedPresent = Array.isArray(userDoc && userDoc.expertise);
+  const approvedPresent = Array.isArray(userDoc && userDoc.expertiseApproved);
+  const requested = requestedPresent ? normalizePhase1Keys(userDoc.expertise) : [];
+  const approved = approvedPresent ? normalizePhase1Keys(userDoc.expertiseApproved) : [];
+  const logActions = [];
+  let migrated = false;
+  let prunedCount = 0;
+  let nextApproved = approved.slice();
+
+  const pruneNeeded = approvedPresent && keysNeedPrune(userDoc.expertiseApproved);
+  if (!approvedPresent) {
+    if (verified && requestedPresent && requested.length > 0) {
+      nextApproved = requested.slice();
+      migrated = true;
+      logActions.push({ action: 'migrate', category: 'legacy_expertise' });
+    }
+  } else if (pruneNeeded) {
+    const seen = new Set();
+    for (const item of userDoc.expertiseApproved) {
+      const key = String(item || '').trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      if (!phase1KeysSet.has(key)) {
+        prunedCount += 1;
+        logActions.push({ action: 'phase1_prune', category: key });
+      }
+    }
+  }
+
+  return {
+    approved: nextApproved,
+    changed: migrated || pruneNeeded,
+    migrated,
+    prunedCount,
+    logActions,
+  };
 }
 
 function jobCategoryKeys(job) {
@@ -142,6 +179,7 @@ module.exports = {
   approveRequestedExpertise,
   signupExpertiseFields,
   planExpertiseFieldSync,
+  planAdminExpertiseMigration,
   jobCategoryKeys,
   expertMatchesJobCategory,
 };

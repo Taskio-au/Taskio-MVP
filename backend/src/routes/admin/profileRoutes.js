@@ -6,9 +6,8 @@ const { admin, db } = require('../../firebaseAdmin');
 const { requireAuth, requireAdmin } = require('../../middleware/auth');
 const { safeToMillis } = require('../../utils/firestore');
 const { writeUserAuditLog } = require('../../utils/auditLogs');
-const { phase1KeysSet } = require('../../shared/expertiseCatalog');
+const { planAdminExpertiseMigration } = require('../../utils/expertExpertise');
 const { sanitizePlainText } = require('./shared/text');
-const { normalizeStringArray, pruneToAllowed } = require('./shared/collections');
 const { parseNameParts } = require('./shared/names');
 const { getExpertTrustSummary } = require('../../services/expertTrustService');
 const { sendIfAdminUserMissing } = require('../../utils/enrolledProfile');
@@ -159,11 +158,13 @@ router.get('/api/admin/profile-change-requests', requireAuth, requireAdmin, asyn
 
 /**
  * POST /api/admin/migrate/expertise
- * Phase 1 migration:
- * - If legacy users/{uid}.expertise exists and expertiseApproved missing: copy -> expertiseApproved, log 'migrate'
- * - Prune any non-Phase-1 keys from expertiseApproved, log 'phase1_prune' for each removed key
- *
- * IMPORTANT: Tier 2 categories must not remain in expertiseApproved after this runs.
+ * Explicit Admin-only Phase 1 migration:
+ * - Create expertiseApproved from a canonical requested array only when
+ *   verified === true and expertiseApproved is missing.
+ * - Never copy non-array legacy strings into approval.
+ * - Never pre-approve unverified Experts.
+ * - Prune non-Phase-1 keys from an existing expertiseApproved array.
+ * Does not infer approval from GET/read or from verification alone without this call.
  */
 router.post('/api/admin/migrate/expertise', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -172,56 +173,33 @@ router.post('/api/admin/migrate/expertise', requireAuth, requireAdmin, async (re
     const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 2000) : 500;
 
     const snap = await db.collection('users').where('role', '==', 'tradie').limit(limit).get();
-    // NOTE: Firestore does not allow FieldValue.serverTimestamp() inside arrays.
     const now = admin.firestore.Timestamp.now();
 
     let touched = 0;
     let migrated = 0;
     let pruned = 0;
 
-    // Firestore batch max 500 ops; keep a conservative limit (users count) here.
     const batch = db.batch();
 
     for (const d of snap.docs) {
       const uid = d.id;
       const u = d.data() || {};
-      const hasApproved = Array.isArray(u.expertiseApproved);
-      const legacy = u.expertise;
+      const planned = planAdminExpertiseMigration(u);
+      if (!planned.changed) continue;
 
-      let nextApproved = hasApproved ? normalizeStringArray(u.expertiseApproved) : null;
       const log = Array.isArray(u.expertiseChangeLog) ? u.expertiseChangeLog.slice(0, 50) : [];
-      let didChange = false;
-
-      if (!nextApproved && legacy) {
-        nextApproved = Array.isArray(legacy)
-          ? legacy
-          : String(legacy || '')
-            .split(',')
-            .map((s) => s.trim())
-            .filter(Boolean);
-        log.push({ action: 'migrate', category: 'legacy_expertise', by: 'admin', at: now });
-        migrated += 1;
-        didChange = true;
+      for (const action of planned.logActions) {
+        log.push({ action: action.action, category: action.category, by: 'admin', at: now });
       }
-
-      nextApproved = normalizeStringArray(nextApproved || []);
-      const { kept, removed } = pruneToAllowed(nextApproved, phase1KeysSet);
-      if (removed.length > 0) {
-        for (const r of removed) log.push({ action: 'phase1_prune', category: r, by: 'admin', at: now });
-        nextApproved = kept;
-        pruned += removed.length;
-        didChange = true;
-      } else {
-        nextApproved = kept;
-      }
-
-      if (!didChange) continue;
 
       touched += 1;
+      if (planned.migrated) migrated += 1;
+      pruned += planned.prunedCount;
+
       batch.update(
         db.collection('users').doc(uid),
         {
-          expertiseApproved: nextApproved,
+          expertiseApproved: planned.approved,
           expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
           expertiseChangeLog: log.slice(-50),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -232,8 +210,8 @@ router.post('/api/admin/migrate/expertise', requireAuth, requireAdmin, async (re
         uid,
         actorUid: adminUid,
         action: 'ADMIN_MIGRATE_EXPERTISE_PHASE1',
-        before: { hasApproved: !!hasApproved },
-        after: { migrated: !hasApproved && !!legacy, removedCount: removed.length },
+        before: { hasApproved: Array.isArray(u.expertiseApproved), verified: u.verified === true },
+        after: { migrated: planned.migrated === true, removedCount: planned.prunedCount },
         req,
       });
     }

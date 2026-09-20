@@ -17,7 +17,6 @@ const { phase1KeysSet } = require('../shared/expertiseCatalog');
 const { computeProfileCompleted } = require('../utils/v11TradieEligibility');
 const {
   applySelfSelectedExpertise,
-  planExpertiseFieldSync,
   readRequestedExpertise,
 } = require('../utils/expertExpertise');
 const { getShortJobRef } = require('../../../shared/taskReference');
@@ -201,22 +200,9 @@ function validatePhase1Keys(keys) {
   }
 }
 
-async function syncExpertiseFields({ userRef, userDoc }) {
-  const planned = planExpertiseFieldSync(userDoc);
-  if (!planned.changed) return userDoc;
-  await userRef.update({
-    expertise: planned.requested,
-    expertiseApproved: planned.approved,
-    expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-  const fresh = await userRef.get();
-  return fresh.data() || userDoc;
-}
-
 /**
  * GET /api/tradie/profile
- * Phase 1: returns ONLY expertiseApproved (Tier 1 keys).
+ * Phase 1: returns requested and Taskio-approved expertise. Does not persist.
  */
 router.get('/api/tradie/profile', requireAuth, requireRole('tradie'), async (req, res) => {
   try {
@@ -225,14 +211,13 @@ router.get('/api/tradie/profile', requireAuth, requireRole('tradie'), async (req
     const snap = await userRef.get();
     if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
     const raw = snap.data() || {};
-    const data = await syncExpertiseFields({ userRef, userDoc: raw });
 
     return res.status(200).send({
       uid,
       role: 'tradie',
-      expertise: Array.isArray(data.expertise) ? data.expertise : [],
-      expertiseApproved: Array.isArray(data.expertiseApproved) ? data.expertiseApproved : [],
-      expertiseUpdatedAt: data.expertiseUpdatedAt || null,
+      expertise: Array.isArray(raw.expertise) ? raw.expertise : [],
+      expertiseApproved: Array.isArray(raw.expertiseApproved) ? raw.expertiseApproved : [],
+      expertiseUpdatedAt: raw.expertiseUpdatedAt || null,
     });
   } catch (e) {
     if (isMissingDocumentError(e)) return res.status(404).send({ message: 'User not found.' });
@@ -302,14 +287,13 @@ router.put('/api/tradie/expertise', requireAuth, requireRole('tradie'), async (r
     const snap = await userRef.get();
     if (!snap.exists) return res.status(404).send({ message: 'User not found.' });
     const raw = snap.data() || {};
-    const data = await syncExpertiseFields({ userRef, userDoc: raw });
 
-    const before = readRequestedExpertise(data);
+    const before = readRequestedExpertise(raw);
     const next = before.slice();
 
     // NOTE: Firestore does not allow FieldValue.serverTimestamp() inside arrays.
     const now = admin.firestore.Timestamp.now();
-    const log = Array.isArray(data.expertiseChangeLog) ? data.expertiseChangeLog.slice(0, 50) : [];
+    const log = Array.isArray(raw.expertiseChangeLog) ? raw.expertiseChangeLog.slice(0, 50) : [];
 
     for (const k of add) {
       if (!next.includes(k)) {
@@ -325,9 +309,9 @@ router.put('/api/tradie/expertise', requireAuth, requireRole('tradie'), async (r
       }
     }
 
-    const applied = applySelfSelectedExpertise(data, next.filter((k) => phase1KeysSet.has(k)));
+    const applied = applySelfSelectedExpertise(raw, next.filter((k) => phase1KeysSet.has(k)));
     const mergedForCompletion = {
-      ...(data || {}),
+      ...(raw || {}),
       expertise: applied.requested,
       expertiseApproved: applied.approved,
     };

@@ -1,6 +1,6 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07F1 **AUDIT COMPLETE** — staging legacy Expert eligibility; CSP still **ENFORCED**)
+**Date:** 20 September 2026 (P07F2 **LOCAL REMEDIATION COMPLETE / DEPLOYMENT PENDING** — Expert expertise fail-closed)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
 **Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. Staging rules, API, and Hosting are current HEAD. **Staging CSP ENFORCED.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
@@ -512,6 +512,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07C: **READ-ONLY PRODUCTION VERIFICATION COMPLETE**
 - P07D1: **STAGING CLEANUP PREPARED** (this document). AMBER-D1/D2 not executed.
 - P07F1: **AUDIT COMPLETE** (staging Expert eligibility; see §37)
+- P07F2: **LOCAL REMEDIATION COMPLETE / DEPLOYMENT PENDING** (see §38)
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -1654,3 +1655,53 @@ None on staging. No case/alias near-misses on keys or areas. Missing `acceptingJ
 `backend` Jest (not root): expertExpertise, v11TradieEligibility, pilotLaunchReadiness, pilotOperationalFields, pilotSupplyService, adminPilotSupply, adminPilotLaunchStatus, meProfilePilotFields, adminJobAttention, adminMarketplaceMetrics, tradieExpertiseProfileCompleted, pilotLaunchStatusDerive — **12 suites / 90 tests PASS** (after clearing a leaked local `STRIPE_ENABLED`; first run of meProfilePilotFields failed for that reason only). `git diff --check` on staged docs: clean.
 
 **P07F1 = AUDIT COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. No staging mutation. No production mutation.
+
+---
+
+## 38. P07F2 Expert expertise fail-closed remediation (20 September 2026)
+
+Local code + tests only. **Not deployed.** No staging user/migration/API/Hosting/rules mutation. Production not queried.
+
+### HIGH legacy fail-open — FIXED LOCALLY
+
+`hasApprovedMarketplaceExpertise` now returns true **only** when `effectiveApprovedExpertise(doc).length > 0`.
+
+Effective expertise = canonical `expertiseApproved` ∩ canonical `expertise`, and **only when both fields are arrays**. Missing, string, object, empty, or disjoint values => `[]`. `verified=true` is not a substitute.
+
+### Read-side auto-approval — FIXED LOCALLY
+
+`GET /api/me` and `GET /api/tradie/profile` no longer persist expertise fields. `planExpertiseFieldSync` no longer copies requested ↔ approved and no longer auto-approves verified requested-only records. A verified Expert with `expertise=[valid]` and missing `expertiseApproved` stays ineligible after GET.
+
+### Requested-update semantics
+
+`PUT /api/tradie/expertise` uses `applySelfSelectedExpertise`: newly added keys stay unapproved; removed keys are dropped from `expertiseApproved` immediately; later self-re-add does **not** restore historical approval.
+
+### Admin Verify
+
+Unchanged owner path: current canonical requested keys become `expertiseApproved`. Requested-only is not effective until this (or later approve / explicit verified migration).
+
+### Admin later approval
+
+`PUT /api/admin/users/:uid/expertise/approve` still approves only the requested-subset of supplied keys (empty body = all currently requested). Cannot invent a category the Expert did not request.
+
+### Migration endpoint
+
+`POST /api/admin/migrate/expertise` remains Admin-only, explicit, **not run** in F2.
+
+Creates `expertiseApproved` from a canonical requested **array** only when `verified === true` and `expertiseApproved` is **missing** (not `[]`). Does not parse non-array strings. Does not pre-approve unverified Experts. Prunes unknown keys from an existing approved array. Idempotent for already-canonical approved arrays.
+
+### Unreliable job category
+
+Reliable when: `items[].type` is a Phase 1 key, or `primaryCategory`/`jobTypeCategory` matches a catalog category name, or `jobType` is a Phase 1 key. Otherwise unreliable (empty jobs, unknown labels). Current-schema jobs with Phase 1 items are reliable. Unreliable jobs keep legacy compatibility **only** for Experts who already have effective approved expertise. Zero effective approved expertise cannot quote or be invited/assigned through that ambiguity.
+
+### Other gates
+
+Stored `profileCompleted=true` cannot restore marketplace eligibility without effective approval. Missing `status` still defaults to active, but still cannot become eligible/launch-ready without effective approval.
+
+### Staging / production
+
+Staging data remediation: **still NOT REQUIRED**. Current staging Expert shape (requested=approved valid key) remains technically eligible in code; still not launch-ready without `acceptingJobs` and `serviceAreas`. Production legacy audit: **still PENDING**. Deployment: **NOT YET DONE**.
+
+Backend Jest **1058/1058 PASS** (was 1018). `git diff --check` clean on intended files.
+
+**P07F2 = LOCAL REMEDIATION COMPLETE / DEPLOYMENT PENDING.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.

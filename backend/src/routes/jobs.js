@@ -679,7 +679,7 @@ router.get('/api/jobs/:jobId/quotes', requireAuth, requireEnrolledProfile({
 /* Quotes (Tradie submits)                                                     */
 /* -------------------------------------------------------------------------- */
 const { computeEligibility, computeStripeOnboardingComplete } = require('../utils/v11TradieEligibility');
-const { expertMatchesJobCategory } = require('../utils/expertExpertise');
+const { expertMatchesJobCategory, hasApprovedMarketplaceExpertise } = require('../utils/expertExpertise');
 
 /** Try to reconcile a paid Stripe Checkout / PI with Firestore before minting another Checkout Session. */
 async function reconcileBaseQuoteStripeBeforeNewCheckout(jobRef) {
@@ -838,6 +838,13 @@ router.post(
         message: 'Task expert is not eligible to quote yet.',
         code: 'TRADIE_NOT_ELIGIBLE',
         reasons: v11.reasons,
+      });
+    }
+    if (!hasApprovedMarketplaceExpertise(tradieData)) {
+      return res.status(403).send({
+        message: 'Task expert is not eligible to quote yet.',
+        code: 'TRADIE_NOT_ELIGIBLE',
+        reasons: ['EXPERTISE_NOT_APPROVED'],
       });
     }
     const categoryMatch = expertMatchesJobCategory(tradieData, jobData);

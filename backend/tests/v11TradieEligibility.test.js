@@ -22,6 +22,7 @@ function baseTradie(overrides = {}) {
     profileCompleted: true,
     serviceLocation: { postcode: '2000', suburb: 'Sydney', state: 'NSW' },
     dob: { day: 1, month: 1, year: 1990 },
+    expertise: ['mounting_tv'],
     expertiseApproved: ['mounting_tv'],
     ...overrides,
   };
@@ -121,6 +122,7 @@ describe('v11TradieEligibility regression rules', () => {
       businessType: 'individual',
       bio: 'x'.repeat(20),
       photoURL: 'https://example.com/photo.jpg',
+      expertise: ['mounting_tv'],
       expertiseApproved: ['mounting_tv'],
       displayName: '',
       firstName: 'Saeed',
@@ -135,6 +137,7 @@ describe('v11TradieEligibility regression rules', () => {
       businessType: 'individual',
       bio: 'x'.repeat(20),
       photoURL: 'https://example.com/photo.jpg',
+      expertise: ['mounting_tv'],
       expertiseApproved: ['mounting_tv'],
       displayName: '',
       firstName: '',
@@ -338,5 +341,46 @@ describe('v11TradieEligibility regression rules', () => {
     });
     expect(result.eligible).toBe(false);
     expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+  });
+
+  it('does not treat missing expertise fields as approved marketplace expertise', () => {
+    const userDoc = baseTradie();
+    delete userDoc.expertise;
+    delete userDoc.expertiseApproved;
+    const result = computeEligibility({
+      decodedToken: { email_verified: true },
+      userDoc,
+    });
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+  });
+
+  it('does not restore eligibility from stored profileCompleted without effective approval', () => {
+    const result = computeEligibility({
+      decodedToken: { email_verified: true },
+      userDoc: baseTradie({
+        profileCompleted: true,
+        expertise: ['mounting_tv'],
+        expertiseApproved: [],
+      }),
+    });
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+    expect(result.reasons).not.toContain('PROFILE_INCOMPLETE');
+  });
+
+  it('does not restore eligibility from missing status without effective approval', () => {
+    const userDoc = baseTradie({
+      expertise: ['mounting_tv'],
+      expertiseApproved: [],
+    });
+    delete userDoc.status;
+    const result = computeEligibility({
+      decodedToken: { email_verified: true },
+      userDoc,
+    });
+    expect(result.eligible).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+    expect(result.reasons).not.toContain('STATUS_NOT_ACTIVE');
   });
 });

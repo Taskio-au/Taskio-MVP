@@ -1749,6 +1749,26 @@ describe('admin job route contracts', () => {
     expect(readCollectionDoc('jobs', 'job-category-ok').invitedTradieUids).toContain('mounting-expert-ok');
   });
 
+  it('rejects inviting a verified Expert with missing expertise fields', async () => {
+    writeCollectionDoc('jobs', 'job-legacy-invite', {
+      status: 'OPEN',
+      invitedTradieUids: [],
+    });
+    writeCollectionDoc('users', 'legacy-expert', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+    });
+
+    const res = await request(app)
+      .post('/api/admin/jobs/job-legacy-invite/assign')
+      .send({ tradieUid: 'legacy-expert' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Task expert does not have Taskio-approved expertise.');
+    expect(readCollectionDoc('jobs', 'job-legacy-invite').invitedTradieUids || []).toEqual([]);
+  });
+
   it('PUT /status accepts canonical admin status values when transition is valid', async () => {
     writeCollectionDoc('jobs', 'job-11', {
       status: 'OPEN',

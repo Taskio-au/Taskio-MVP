@@ -981,6 +981,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Alex Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'pending',
@@ -1016,6 +1018,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Alex Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'pending',
@@ -1051,6 +1055,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Alex Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'pending',
@@ -1086,6 +1092,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Alex Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'pending',
@@ -1125,6 +1133,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Alex Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'pending',
@@ -1160,6 +1170,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Pending Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'completed',
@@ -1216,6 +1228,42 @@ describe('quote lifecycle contracts', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.reasons).toEqual(expect.arrayContaining(['EXPERTISE_NOT_APPROVED_FOR_JOB']));
+    expect(mockGetCollectionStore('quotes').size).toBe(0);
+  });
+
+  it('rejects quote submit when both expertise fields are missing even if the job category is unreliable', async () => {
+    mockState.currentUser = {
+      uid: 'tradie-1',
+      role: 'tradie',
+      email: 'expert@test.com',
+      email_verified: true,
+      phone_number: '+61400000001',
+    };
+    seedDoc('users', 'tradie-1', {
+      role: 'tradie',
+      status: 'active',
+      verified: true,
+      phoneVerified: true,
+      abnVerified: true,
+      businessType: 'individual',
+      displayName: 'Alex Expert',
+      profileCompleted: true,
+      serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
+      dob: { day: 1, month: 1, year: 1990 },
+      stripeOnboardingStatus: 'completed',
+    });
+    seedDoc('jobs', 'job-quote-unreliable', {
+      homeownerUid: 'homeowner-1',
+      status: 'OPEN',
+      invitedTradieUids: ['tradie-1'],
+    });
+
+    const res = await request(app)
+      .post('/api/jobs/job-quote-unreliable/quotes')
+      .send({ amount: 250, message: 'Happy to complete this task for you.' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.reasons).toEqual(expect.arrayContaining(['EXPERTISE_NOT_APPROVED']));
     expect(mockGetCollectionStore('quotes').size).toBe(0);
   });
 
@@ -1335,6 +1383,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Alex Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'pending',
@@ -1388,6 +1438,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Alex Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'pending',
@@ -1427,6 +1479,8 @@ describe('quote lifecycle contracts', () => {
       businessType: 'individual',
       displayName: 'Alex Expert',
       profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: ['mounting_tv'],
       serviceLocation: { postcode: '3000', suburb: 'Melbourne', state: 'VIC' },
       dob: { day: 1, month: 1, year: 1990 },
       stripeOnboardingStatus: 'pending',

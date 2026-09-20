@@ -54,6 +54,7 @@ const mockExperts = [
       lastName: 'Expert',
       bio: 'x'.repeat(20),
       photoURL: 'https://example.com/photo.jpg',
+      expertise: ['mounting_tv'],
       expertiseApproved: ['mounting_tv'],
       serviceLocation: { suburb: 'Melbourne', state: 'VIC', postcode: '3000' },
       dob: { day: 1, month: 1, year: 1990 },

@@ -20,6 +20,7 @@ function eligibleExpert(overrides = {}) {
     displayName: 'Alex Expert',
     bio: 'x'.repeat(20),
     photoURL: 'https://example.com/photo.jpg',
+    expertise: ['mounting_tv'],
     expertiseApproved: ['mounting_tv'],
     serviceLocation: { suburb: 'Melbourne', state: 'VIC', postcode: '3000' },
     dob: { day: 1, month: 1, year: 1990 },
@@ -45,6 +46,23 @@ describe('aggregatePilotSupply', () => {
     expect(mounting.minimum).toBe(4);
     expect(mounting.target).toBe(5);
     expect(mounting.status).toBe('UNDER-COVERED');
+  });
+
+  it('does not count missing-field legacy Experts as eligible, launch-ready, or coverage', () => {
+    const snapshot = aggregatePilotSupply([
+      {
+        uid: 'legacy-missing',
+        data: eligibleExpert({
+          expertise: undefined,
+          expertiseApproved: undefined,
+        }),
+      },
+    ]);
+    expect(snapshot.totals.experts).toBe(1);
+    expect(snapshot.totals.technicallyEligible).toBe(0);
+    expect(snapshot.totals.launchReady).toBe(0);
+    expect(snapshot.categoryCoverage.every((row) => row.launchReadyCount === 0)).toBe(true);
+    expect(snapshot.geographyCoverage.every((row) => row.launchReadyCount === 0)).toBe(true);
   });
 
   it('does not count pending or unapproved self-selected categories toward coverage', () => {
@@ -75,7 +93,7 @@ describe('aggregatePilotSupply', () => {
   it('marks category coverage HEALTHY at 5, ADEQUATE at 4, UNDER-COVERED below 4', () => {
     const make = (count, categoryKey = 'mounting_tv') => Array.from({ length: count }, (_, i) => ({
       uid: `n-${i}`,
-      data: eligibleExpert({ expertiseApproved: [categoryKey] }),
+      data: eligibleExpert({ expertise: [categoryKey], expertiseApproved: [categoryKey] }),
     }));
     const healthy = aggregatePilotSupply(make(5)).categoryCoverage.find((row) => row.category === 'Mounting');
     const adequate = aggregatePilotSupply(make(4)).categoryCoverage.find((row) => row.category === 'Mounting');

@@ -22,7 +22,6 @@ const {
 } = require('../utils/enrolledProfile');
 const { isValidAbn, cleanAbn } = require('../utils/abn');
 const { lookupAbnDetails, isAbnCurrentlyActive, summarizeAbnLookupError } = require('../services/abnLookup');
-const { planExpertiseFieldSync } = require('../utils/expertExpertise');
 const {
   computeEligibility,
   computeProfileCompleted,
@@ -318,19 +317,6 @@ async function loadValidProfileOrSend(uid, res) {
   return classified;
 }
 
-async function syncExpertiseFields({ userRef, userDoc }) {
-  const planned = planExpertiseFieldSync(userDoc);
-  if (!planned.changed) return userDoc;
-  await userRef.update({
-    expertise: planned.requested,
-    expertiseApproved: planned.approved,
-    expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-  const fresh = await userRef.get();
-  return fresh.data() || userDoc;
-}
-
 /**
  * GET /api/me
  * Returns current user profile + V11 quote eligibility (reasons + checklist)
@@ -342,8 +328,7 @@ router.get('/api/me', requireAuth, async (req, res) => {
     if (!classified) return undefined;
     const mirrored = await mirrorAuthContactFields(classified, req.user);
     const ref = mirrored.ref;
-    const raw = mirrored.data;
-    const data = raw?.role === 'tradie' ? await syncExpertiseFields({ userRef: ref, userDoc: raw }) : raw;
+    const data = mirrored.data;
     const isHomeowner = data?.role === 'homeowner';
 
     // Auto-heal: if a tradie already has private details saved, mark them as locked so locks persist after relogin.

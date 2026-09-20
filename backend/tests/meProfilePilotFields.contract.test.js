@@ -127,6 +127,7 @@ function seedExpert(overrides = {}) {
     displayName: 'Alex Expert',
     bio: 'Experienced indoor handyperson.',
     photoURL: 'https://example.com/photo.jpg',
+    expertise: ['mounting_tv'],
     expertiseApproved: ['mounting_tv'],
     dob: { day: 1, month: 1, year: 1990 },
     serviceLocation: { suburb: 'Melbourne', state: 'VIC', postcode: '3000' },
@@ -252,5 +253,24 @@ describe('Expert pilot operational profile fields', () => {
     expect(mine.status).toBe('active');
     expect(mine.launchReady).toBeUndefined();
     expect(readDoc('users', 'tradie-2').acceptingJobs).toBe(false);
+  });
+
+  it('does not persist expertiseApproved on GET /api/me for a verified requested-only Expert', async () => {
+    seedExpert({
+      privateDetailsLocked: true,
+      verified: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: undefined,
+    });
+    const before = readDoc('users', 'tradie-1');
+    delete before.expertiseApproved;
+    writeDoc('users', 'tradie-1', before);
+
+    const res = await request(app).get('/api/me');
+    expect(res.status).toBe(200);
+    expect(res.body.eligibility.canQuote).toBe(false);
+    expect(res.body.eligibility.reasons).toContain('EXPERTISE_NOT_APPROVED');
+    expect(res.body.eligibility.launchReady).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(readDoc('users', 'tradie-1'), 'expertiseApproved')).toBe(false);
   });
 });

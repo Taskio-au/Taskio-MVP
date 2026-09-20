@@ -18,6 +18,7 @@ function eligibleExpert(overrides = {}) {
     displayName: 'Alex Expert',
     bio: 'x'.repeat(20),
     photoURL: 'https://example.com/photo.jpg',
+    expertise: ['mounting_tv'],
     expertiseApproved: ['mounting_tv'],
     serviceLocation: { suburb: 'Melbourne', state: 'VIC', postcode: '3000' },
     dob: { day: 1, month: 1, year: 1990 },
@@ -137,5 +138,67 @@ describe('computeLaunchReadiness', () => {
     expect(result.launchReady).toBe(false);
     expect(result.technicallyEligible).toBe(false);
     expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+  });
+
+  it('does not treat missing expertise fields as launch-ready even when otherwise complete', () => {
+    const userDoc = eligibleExpert();
+    delete userDoc.expertise;
+    delete userDoc.expertiseApproved;
+    const result = computeLaunchReadiness({ decodedToken: token, userDoc });
+    expect(result.technicallyEligible).toBe(false);
+    expect(result.launchReady).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+  });
+
+  it('does not treat malformed non-array expertise fields as launch-ready', () => {
+    const result = computeLaunchReadiness({
+      decodedToken: token,
+      userDoc: eligibleExpert({
+        expertise: 'mounting_tv',
+        expertiseApproved: 'mounting_tv',
+      }),
+    });
+    expect(result.technicallyEligible).toBe(false);
+    expect(result.launchReady).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+  });
+
+  it('does not become launch-ready from stored profileCompleted without effective approval', () => {
+    const userDoc = eligibleExpert({
+      profileCompleted: true,
+      expertise: ['mounting_tv'],
+      expertiseApproved: [],
+    });
+    const result = computeLaunchReadiness({ decodedToken: token, userDoc });
+    expect(result.technicallyEligible).toBe(false);
+    expect(result.launchReady).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+  });
+
+  it('does not become launch-ready from missing status without effective approval', () => {
+    const userDoc = eligibleExpert({
+      expertise: ['mounting_tv'],
+      expertiseApproved: [],
+    });
+    delete userDoc.status;
+    const result = computeLaunchReadiness({ decodedToken: token, userDoc });
+    expect(result.technicallyEligible).toBe(false);
+    expect(result.launchReady).toBe(false);
+    expect(result.reasons).toContain('EXPERTISE_NOT_APPROVED');
+  });
+
+  it('keeps the current-schema staging Expert shape technically eligible but not launch-ready without operational fields', () => {
+    const result = computeLaunchReadiness({
+      decodedToken: token,
+      userDoc: eligibleExpert({
+        expertise: ['hanging_picture_frames'],
+        expertiseApproved: ['hanging_picture_frames'],
+        acceptingJobs: undefined,
+        serviceAreas: undefined,
+      }),
+    });
+    expect(result.technicallyEligible).toBe(true);
+    expect(result.launchReady).toBe(false);
+    expect(result.reasons).toEqual(expect.arrayContaining(['NOT_ACCEPTING_JOBS', 'NO_SERVICE_AREA']));
   });
 });
