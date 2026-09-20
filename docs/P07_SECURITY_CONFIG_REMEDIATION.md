@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07F5B **OWNER DECISION COMPLETE — OPTION B** — Prod-Expert-08)
+**Date:** 20 September 2026 (P07G1 **REMAINING-BLOCKER RECONCILE COMPLETE**)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1 AUDIT COMPLETE.** **P07F2 REMEDIATION COMPLETE.** **P07F3 STAGING DEPLOYMENT COMPLETE.** **P07F4 PRODUCTION READ-ONLY AUDIT COMPLETE.** **P07F5A OWNER REVIEW DOSSIER COMPLETE.** **P07F5B OWNER DECISION COMPLETE — OPTION B.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** Legacy Expert compatibility blocker **RESOLVED** (owner accepts known eligibility change; leave fail-closed; no backfill). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE.** This is **not** a production deploy approval. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1 REMAINING-BLOCKER RECONCILE COMPLETE** (see §43). Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** Legacy Expert compatibility **REVIEW COMPLETE** (OPTION B; leave fail-closed). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE** — production still serves `taskio-api-00006-puf`; fail-closed code is **not** live in production. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -335,10 +335,11 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-11 | Unauth `/api/generate-description` | Guest pre-auth tidy is required; kill switch + schema + limiter | `backend/src/routes/ai.js`, `aiEnabled.js` | MEDIUM cost if API public **and** AI enabled | Keep guest + fail-closed AI; do not requireAuth | LOCAL HARDENING COMPLETE; cloud/provider enablement still OFF | **GREEN** code / **RED** enable | No while AI off + API private | AI route tests | LOCAL HARDENING COMPLETE |
 | P07-12 | `/health/ready` metadata | **P07C:** API invoker policy empty; ingress all + IAM-private | C3 | LOW while frozen/maintenance | Keep private now. P10 must prove the real browser/API path before public acceptance. Do **not** add `allUsers` by assumption. | PRODUCTION | **GREEN** verified (current freeze) | No | C3 + later P10 | **VERIFIED; P10 PATH NOT PROVEN** |
 | P07-13 | Hosting security headers | **P07C:** live `cffca9d87ce03901` has noindex/no-store only. P07B headers **not** deployed. Custom-domain HSTS `max-age=31556926` without includeSubDomains/preload. | C7 + HEAD | MEDIUM XSS/clickjack | Hosting deploy + browser scan later | LOCAL CONFIG COMPLETE; hosted verification pending | **GREEN** local / **AMBER** CSP / **RED** deploy | No for P07 PASS if CDN HSTS proven | Header unit test; later hosted scan | **LIVE OLDER THAN P07B** |
-| P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No (classify) | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer REMAINING BLOCKER |
+| P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer remaining — **not a P07 PASS blocker** |
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
-| P07-16 | Storage overwrite / profile size | **P07C:** prod Storage ruleset `932c4f1b…` (2025-12-24) has `allow write`, no `job-posting-attachments` create-only. **PRODUCTION OLDER.** | C7-equivalent rules GET | MEDIUM overwrite until deploy | Deploy Storage rules later | LOCAL RULE/CODE FIX COMPLETE; production deploy pending | **GREEN** local / **RED** deploy | No | Rules emulator tests | **PRODUCTION OLDER** |
-| P07-17 | Legacy Expert data | **P07F4:** 18 `role=tradie` / 38 `users`. Fixed effective **0**. Launch-ready **0**. **1** Expert (`Prod-Expert-08`) would lose technical eligibility. **P07F5A:** dossier complete. **P07F5B:** **OPTION B** — genuine legacy Expert, requested intent unknown; leave fail-closed; no backfill; owner accepts eligibility change. Compatibility blocker **RESOLVED**. Data mutation **NONE**. See §40–§42. | Firestore projection + local HEAD helpers | HIGH if auto-backfilled | Leave fail-closed; future Expert reconfirmation | PRODUCTION (read) | **GREEN** decision / **RED** if mutated | Pre-activation | Checklist §19 / §40–§42 | **OWNER DECISION COMPLETE — OPTION B** |
+| P07-16 | Production Firestore/Storage rules | **Staging E2A current.** **Production older:** Storage `932c4f1b…` (2025-12-24) `allow write`; Firestore `7d46b484…` (2026-04-26) predates waitlist/`system` deny. | P07C + E2A | MEDIUM overwrite / client waitlist | Deploy HEAD rules before public client writes | PRODUCTION | **RED** deploy | **Yes** before public writes | Emulator + staging proven | **PRODUCTION OLDER** |
+| P07-17 | Legacy Expert data | **P07F5B OPTION B.** Compatibility blocker **RESOLVED**. Fail-closed; no backfill. Future Expert reconfirmation is a **pre-launch supply** item, not an API-compatibility blocker. See §40–§42. | §40–§42 | HIGH if auto-backfilled | Leave fail-closed until reconfirmation | PRODUCTION (read) | **GREEN** decision | No for API deploy | §43 | **COMPATIBILITY REVIEW COMPLETE** |
+| P07-25 | Production fail-closed API | Compatibility review **COMPLETE**. Live production still `taskio-api-00006-puf` (`STRIPE_ENABLED=false`). Fail-closed expertise is staging-proven on `00072-vur` from `57505d0`. | P07C / F3 / F5B | HIGH if public API stays fail-open | Plan then RED tagged deploy | PRODUCTION | **GREEN** plan / **RED** deploy | **Yes** before serving HEAD API | Tagged 0% then shift; keep `00006-puf` | **UNBLOCKED; NOT DEPLOYED** |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
 | P07-19 | CI deploy guard | Push does not deploy | ci.yml | LOW | Keep | LOCAL | **GREEN** | No | CI | OK |
 | P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
@@ -517,6 +518,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07F4: **PRODUCTION READ-ONLY AUDIT COMPLETE** (see §40)
 - P07F5A: **OWNER REVIEW DOSSIER COMPLETE** (see §41)
 - P07F5B: **OWNER DECISION COMPLETE — OPTION B** (see §42). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE.** Not a deploy approval.
+- P07G1: **REMAINING-BLOCKER RECONCILE COMPLETE** (see §43)
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -1960,3 +1962,93 @@ No production Expert data remediation is authorised. Not required for this deplo
 **6** additional owner-review records remain already ineligible under both old and fixed logic. They do not block fixed-API compatibility. Cleanup/reconfirmation before real launch remains applicable.
 
 **P07F5B = OWNER DECISION COMPLETE — OPTION B.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Production **FROZEN**.
+
+## 43. P07G1 remaining-blocker reconcile (20 September 2026)
+
+Local/docs only. No production query. No staging query. No deploy. Sources: current repo code/tests, tracker/status, this file, `docs/LAUNCH_READINESS.md`, recorded P07C–F5B evidence, owner decisions.
+
+### Closed / no longer active P07 blockers
+
+| Item | Now |
+|---|---|
+| Expertise fail-open | **FIXED + STAGING PROVEN** (`00072-vur` / `57505d0`) |
+| Staging Expert data remediation | **NOT REQUIRED** |
+| Production legacy compatibility uncertainty | **COMPATIBILITY REVIEW COMPLETE** |
+| `Prod-Expert-08` API-compatibility blocker | **RESOLVED** (OPTION B; leave fail-closed; no backfill) |
+| P07-01, P07-02, P07-04, P07-05, P07-10, P07-11, P07-15, P07-18, P07-19, P07-23, P07-24 | **CLOSED / STAGING COMPLETE** as previously recorded |
+
+Future Expert reconfirmation of requested categories remains a **pre-launch supply/cleanup** item. It is **not** the old API compatibility blocker.
+
+### Signup / onboarding state machine (code vs cloud)
+
+`system/pilotSettings` **absent** ⇒ Homeowner **CLOSED**, Expert **WAITLIST** (fail-safe). Application gates remain authoritative for posting/apply. `TASKIO_PUBLIC_SIGNUP_ENABLED` remains the Expert-enrollment kill switch. Identity Toolkit `disabledUserSignup=true` still blocks **brand-new Firebase users** even if code is OPEN.
+
+| Phase | Homeowner | Expert | Firebase Auth |
+|---|---|---|---|
+| Pre-activation (current intended) | Interest/waitlist only; posting CLOSED/PAUSED | WAITLIST (or OPEN applications pending Admin Verify, if configured) | Signup disabled in cloud today |
+| Post-activation | Supported public posting when OPEN + auth | Onboarding per `expertOnboardingMode` | Auth must permit the approved homeowner path; Expert still application-gated |
+
+Enabling Auth signup does **not** by itself OPEN posting or approve Experts. Code work for gates is complete; remaining Auth work is **cloud config** (P07) plus **P10 journey proof**.
+
+### Functions (repo vs recorded live)
+
+Repo exports: `notifyHomeownerOnQuoteSubmitted`, `notifyHomeownerOnQuoteSubmittedUpdate`, `notifyTradieOnEscrowFunded`, `flagRiskyJobMessages`. Staging live: quote-email **pair only**. Production recorded: quote-submitted + escrow-funded + flagRisky + leftover `helloTaskio`; **missing** quote-submitted-update. Extra Functions are **optional product/email parity** (AMBER-E2D), not waitlist/pilot-UI blockers. `nodemailer` major remains a **deferred** supply-chain item (does **not** block P07 PASS).
+
+### Canonical remaining P07 table
+
+| ID | Item | Current state | Launch blocker? | Owner/code/config/deploy/ops | Dependency | Next action | Approval | Order |
+|---|---|---|---|---|---|---|---|---|
+| P07-25 | Production fail-closed API | Compatibility review complete; live still `00006-puf` | **Yes** before serving HEAD API | deploy | F5B | GREEN plan, then RED tagged deploy | GREEN then **RED** | 1 |
+| P07-16 | Production Firestore + Storage rules | Staging current; production older | **Yes** before public client writes | deploy | E2A | RED deploy HEAD rules | **RED** | 2 |
+| P07-13 | Production Hosting / CSP | Staging CSP ENFORCED; production maintenance `cffca9d87ce03901` | SPA restore needed for real users; P07 PASS does **not** require SPA if CDN HSTS holds | deploy | P09 copy / P10 | RED with App Check frontend | **RED** | with P05 |
+| P07-03 | Production Auth signup | `disabledUserSignup=true` | **Yes** for public OPEN and P07 PASS | config | App gates stay | RED enable when OPEN intended; P10 proves journey | **RED** | late |
+| P07-06 | Production App Check | Firestore/Storage/Auth UNENFORCED; Auth enforcement **out of MVP scope** | **Yes** (P05) for public launch | config/deploy | Hosting with site key | RED P05 sequence (Hosting → Firestore → Storage) | **RED** | with Hosting |
+| P07-07 | Production email | No prod SMTP secrets; Functions not P03-bound | **Yes** — primarily **P03**; P07 tracks secrets/bind | config | P03 | RED Postmark bind + authentic send | **RED** | P03 |
+| P07-08 | Production GA4 | OFF; staging proven | **Yes** for FULL LAUNCH / P04; **not** a next P07 code task | config | **P06/P09** disclosure | Hold until wording; then RED P04 | **RED** | after P06 |
+| P07-09 | Production Stripe live | `STRIPE_ENABLED=false`; no live secrets/webhook | **Yes** before real money | config | P10 live proof | Separate RED live batch | **RED** | with P10 |
+| P07-17b | Legacy Expert reconfirmation | OPTION B; requested unknown | Pre-**launch** supply, **not** pre-API-deploy | ops | F5B | Explicit Expert reconfirm before eligibility restore | later RED data if any | before OPEN |
+| P07-20 | `system/pilotSettings` | ABSENT (correct fail-closed) | Process / P11 | ops | P11 | Do not create until approved OPEN | **RED** | P11 |
+| P07-14 | Functions `nodemailer` major | Remaining high advisories | **No** | code | — | Later approved slice | GREEN | defer |
+| P07-21 | `helloTaskio` leftover | QUESTIONABLE / REVIEW REQUIRED | **No** unless owner decides | owner | — | Identify dependency before any delete | **RED** if changed | defer |
+| P07-22 | Personal Gmail Editor | QUESTIONABLE / REVIEW REQUIRED | **No** unless owner decides | owner | — | Identify purpose | **RED** if changed | defer |
+| P07-Fn | Extra Functions (escrow email / chat flag) | Implemented/tested in repo; staging not fully live | **No** for waitlist/pilot UI | deploy | P03 optional | AMBER-E2D only if product wants parity | AMBER | defer |
+
+### P06 / P09 dependencies (do not duplicate into P07)
+
+Production GA4, public verification/payment/waitlist wording, Gemini (intended **OFF** at launch), processor naming. P09 implements copy **after P06 PASS**.
+
+### P08 / P10 (keep out of P07)
+
+P08: monitoring, runbooks, backup, support ops. P10: brand-new homeowner authenticate-and-post, live money-loop, production refund re-proof, browser/API public path (`allUsers` is **not** assumed). P07 validates **configuration**; P10 proves the **journey**.
+
+### Recommended P07 execution order
+
+1. **P07G1** (this) — docs remainder. No cloud. Closes stale blocker lists.
+2. **P07G2** — GREEN local **plan** for production fail-closed API promotion (tagged 0%, smoke, then 100%; keep `00006-puf`). Why now: F5B unblocked compatibility; no remaining local expertise defect. Cloud mutation: **not in G2**.
+3. **P06** in parallel — solicitor/insurance/accounting. Unblocks P09 and P07-08.
+4. Grouped later **RED** production batches (avoid gold-plating / extra deploys): rules (P07-16) with or immediately after fail-closed API; Hosting+App Check frontend together (P07-13/P07-06); email bind (P07-07/P03); Auth signup last when OPEN is intended (P07-03); Stripe live with P10 (P07-09); GA4 after P06 (P07-08).
+
+### Immediate next task (do not execute)
+
+**P07G2** — Prepare production fail-closed API promotion (local plan only). **GREEN.** Highest-value unblocked P07 technical item. Not a production mutation.
+
+### P07 PASS definition
+
+**P07 = PASS** when production security/configuration is independently validated and no critical/high **P07** launch blocker remains, including:
+
+1. Secrets/runtime isolation already evidenced (P07C); do not recreate JSON keys.
+2. Production API serving the fail-closed expertise backend (P07-25).
+3. Production Firestore + Storage rules matching current HEAD (P07-16).
+4. Production Auth permits the **approved homeowner** signup path (P07-03). Application CLOSED/WAITLIST/OPEN gates remain authoritative. Expert enrollment stays kill-switched. **P10** still proves a brand-new user can authenticate and post.
+5. Production App Check Firestore + Storage **ENFORCED** (P07-06 / P05). Auth App Check remains out of MVP scope.
+6. Production transactional email configured and proven (P07-07 / **P03 production PASS**).
+7. Production analytics: **P04 production PASS** after P06/P09 disclosure — **or** an explicit later owner decision to keep GA4 OFF. Current launch-readiness docs require P04 production for FULL LAUNCH READY.
+8. Production Stripe live configuration when serving real money (P07-09). Live charge proof is **P10**.
+
+P07 **consumes** P03/P04/P05 **production** proof. P07 does **not** include P06 legal PASS, P08 ops, P09 copy implementation, or P10 acceptance, except where those explicitly gate a P07 enablement (GA4 wording, public SPA copy).
+
+Hosting may remain maintenance for P07 PASS **if** CDN HSTS holds; restoring the SPA is required for real users and belongs with P09/P10/P11.
+
+`helloTaskio`, Gmail Editor, `nodemailer` major, and extra Functions are **not** automatic P07 PASS blockers.
+
+**P07G1 = REMAINING-BLOCKER RECONCILE COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
