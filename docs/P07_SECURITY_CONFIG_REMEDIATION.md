@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07F2 **LOCAL REMEDIATION COMPLETE / DEPLOYMENT PENDING** — Expert expertise fail-closed)
+**Date:** 20 September 2026 (P07F3 **STAGING DEPLOYMENT COMPLETE** — Expert expertise fail-closed live on staging API)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. Staging rules, API, and Hosting are current HEAD. **Staging CSP ENFORCED.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1 AUDIT COMPLETE.** **P07F2 REMEDIATION COMPLETE.** **P07F3 STAGING DEPLOYMENT COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -345,7 +345,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-21 | Leftover `helloTaskio` | ACTIVE GEN_2 HTTP; Cloud Run `allUsers` invoker; not in current repo. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Functions describe | LOW recon | Owner must first prove nothing depends on it. Any delete / disable / redeploy / invoker change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Function list + dependency review | **CONFIRMED; cleanup NOT STARTED** |
 | P07-22 | Personal Gmail `roles/editor` | One `gmail.com` user has production Editor. Identity not recorded. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Project IAM | MEDIUM if unexpected | Owner must identify purpose and required least-privilege role. Do **not** assume removal. Any IAM binding change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Owner identity review | **CONFIRMED; IAM CHANGE NOT STARTED** |
 | P07-23 | Staging CSP | **P07D3 / AMBER-D3 COMPLETE.** Live Hosting `b963ae61de25da7e` / `main.068025df.js`. Enforced `Content-Security-Policy` only (same policy as D2/E2C Report-Only). Report-Only header **removed**. P07B headers retained. Zero `securitypolicyviolation` events on exercised public/auth flows. Rollback `fdc32b272f51d9e0` retained. | Hosting files API + Chrome CDP | LOW now that enforced | Re-validate when OPEN/Storage/Stripe/AI/new Expert are enabled | STAGING | **AMBER COMPLETE** (enforced) | No for P07 PASS | Hosted browser matrix | **ENFORCED LIVE** |
-| P07-24 | Current-stack staging promotion | **E2A+E2B+E2C+D3 COMPLETE.** Rules HEAD; API `00070-dur` 100%; Hosting `b963ae61de25da7e` / `main.068025df.js` (bytes identical to E2C). See §32–§36. | D3 Hosting headers + browser | Remaining P07 RED/prod items | Do not OPEN or enable Auth signup | STAGING | **AMBER COMPLETE** | No for P07 PASS | Hosted matrix | **RULES / API / HOSTING CURRENT; CSP ENFORCED** |
+| P07-24 | Current-stack staging promotion | **E2A+E2B+E2C+D3 COMPLETE.** **P07F3 API** `00072-vur` 100% (HEAD `57505d0`); previous `00070-dur` retained at 0%. Hosting `b963ae61de25da7e` / `main.068025df.js` (unchanged F3). See §32–§36 and §39. | D3 Hosting + F3 tagged/post-shift API | Remaining P07 RED/prod items | Do not OPEN or enable Auth signup | STAGING | **AMBER COMPLETE** | No for P07 PASS | Hosted matrix | **RULES / API / HOSTING CURRENT; CSP ENFORCED** |
 
 ---
 
@@ -512,7 +512,8 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07C: **READ-ONLY PRODUCTION VERIFICATION COMPLETE**
 - P07D1: **STAGING CLEANUP PREPARED** (this document). AMBER-D1/D2 not executed.
 - P07F1: **AUDIT COMPLETE** (staging Expert eligibility; see §37)
-- P07F2: **LOCAL REMEDIATION COMPLETE / DEPLOYMENT PENDING** (see §38)
+- P07F2: **REMEDIATION COMPLETE** (see §38)
+- P07F3: **STAGING DEPLOYMENT COMPLETE** (see §39)
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -1704,4 +1705,70 @@ Staging data remediation: **still NOT REQUIRED**. Current staging Expert shape (
 
 Backend Jest **1058/1058 PASS** (was 1018). `git diff --check` clean on intended files.
 
-**P07F2 = LOCAL REMEDIATION COMPLETE / DEPLOYMENT PENDING.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
+**P07F2 = REMEDIATION COMPLETE** (deployed in P07F3; see §39). P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
+
+---
+
+## 39. P07F3 AMBER-P07F3 staging API expertise fail-closed (20 September 2026)
+
+Approved staging API only. No Hosting/Functions/webhook/Auth/App Check/rules/IAM/secret/`pilotSettings`/OPEN/AI/Stripe object/expertise-migration/Expert-data mutation. Production `taskio-v2` not queried or mutated. Default gcloud project left `taskio-v2`.
+
+**Source commit:** `57505d0ac8deaaba918ff978f7c4b84c34b02895` (`origin/develop`, 0/0). CI `35499362955` SUCCESS.
+
+### Rollback baseline retained
+
+| Field | Value |
+|---|---|
+| Primary rollback | `taskio-api-staging-00070-dur` (tag `e2b-04951a4`) |
+| Traffic before | 100% |
+| Image | `…/taskio-api@sha256:6c29aea98bc7e14aa8d3981646d22ad2776a1684d946372756cb5bf304f3f1ab` |
+| SA | `taskio-api-staging-runtime@taskio-v2-staging.iam.gserviceaccount.com` |
+| Invoker IAM | disabled (public Express) |
+| Secrets (names only) | `OTP_SALT:1`, `taskio-staging-stripe-secret-key:3` |
+| Safe env | `NODE_ENV=production`, `TASKIO_DEPLOYMENT_ENV=staging`, `GOOGLE_CLOUD_PROJECT=taskio-v2-staging`, `TRUST_PROXY=true`, `STRIPE_ENABLED=true`, `STRIPE_EXPECTED_LIVEMODE=false`, `TASKIO_PUBLIC_SIGNUP_ENABLED=false`, `ENABLE_SET_ADMIN_ENDPOINT=false`, `TASKIO_SHOW_DEV_OTP=false`, `FRONTEND_URL=https://taskio-v2-staging.web.app`, CORS staging Hosting + localhost, `AI_DESCRIPTION_ENABLED` absent |
+| Older retained | `taskio-api-staging-54aed8b` (tag `checkout-url`) and `00063-qak` (tag `stripe-key-rotate`) left at 0%. **Not deleted.** |
+
+### Image
+
+| Field | Value |
+|---|---|
+| Command | `gcloud builds submit . --project=taskio-v2-staging --region=australia-southeast1 --tag=…/taskio-api:57505d0 --timeout=1200s` |
+| Build ID | `24c0d8fd-37b4-4766-ac87-9dc3c33b7623` |
+| Digest | `sha256:ebfecf4848170c132604e704a50da8c21a9a278ac0b830abe4c4334118fc7c98` |
+| Registry | `australia-southeast1-docker.pkg.dev/taskio-v2-staging/taskio-staging/taskio-api` |
+
+Pre-build: backend Jest **1058/1058 PASS**. Isolated HEAD proofs A–E **PASS** (missing/malformed/approved-only/zero-effective fail closed; unreliable job still blocked). `git diff --check` clean aside from the known unstaged leftover warning. Build context used `.gcloudignore` / `.dockerignore` (no `.env`, no ADC JSON, no owner leftovers).
+
+### 0% revision then traffic
+
+| Field | Value |
+|---|---|
+| Deploy | `gcloud run deploy taskio-api-staging --image=…@sha256:ebfecf48… --no-traffic --tag=f3-57505d0 --project=taskio-v2-staging --region=australia-southeast1` |
+| New revision | `taskio-api-staging-00072-vur` |
+| Tagged URL | `https://f3-57505d0---taskio-api-staging-d6mdcsrwea-ts.a.run.app` |
+| After deploy | `00072-vur` Ready, **0%**; `00070-dur` still **100%** |
+| Config | SA/env/secret names/CORS/signup/AI-off/Stripe TEST preserved; no Gemini vars |
+| Traffic shift | `gcloud run services update-traffic taskio-api-staging --to-revisions=taskio-api-staging-00072-vur=100 --project=taskio-v2-staging --region=australia-southeast1` |
+| After shift | `00072-vur` **100%**; `00070-dur` **0%** retained (`e2b-04951a4`); `54aed8b` **0%** (`checkout-url`) |
+
+### Direct 0% + post-shift smoke
+
+| Check | Result |
+|---|---|
+| `/health/live` | 200 (tagged then normal URL) |
+| `/health/ready` | 200; Firestore ok; Stripe enabled `livemode=false` |
+| `/api/pilot-status` | 200 `homeownerPosting=CLOSED` `canPost=false` `expertOnboarding=WAITLIST` `canExpertApply=false` |
+| Expert-01 pre-read | requested=approved=`hanging_picture_frames`; `verified=true`; `acceptingJobs` missing; `serviceAreas` missing; `updateTime=2026-09-20T06:19:30.032083Z` |
+| GET `/api/me` | 200; `canQuote=true`; `launchReady=false`; `launchReasons=["NOT_ACCEPTING_JOBS","NO_SERVICE_AREA"]`; Firestore `updateTime` **unchanged**; expertise fields **unchanged** |
+| GET `/api/tradie/profile` | 200; same arrays; no approval write |
+| Malformed legacy | isolated HEAD proof: both-missing / string / approved-only ⇒ `hasApprovedMarketplaceExpertise=false`; not eligible; not launch-ready; quote/assign blocked including unreliable jobs |
+| Admin unauth | `GET /api/admin/pilot-supply` 401; `GET /api/admin/pilot-launch-readiness` 401; `PUT …/expertise/approve` 401; `POST /api/admin/migrate/expertise` 401. **Migration NOT EXECUTED.** |
+| CORS | staging Hosting origin allowed; `evil.example` 403 / no ACAO |
+| AI | `AI_DESCRIPTION_ENABLED` absent; `POST /api/generate-description` 200 `{ fallback: true }` |
+| `system/pilotSettings` | still 404 |
+| Counts after | users 4, jobs 5, quotes 6, reviews 0, waitlists 0 |
+| Hosting | still `b963ae61de25da7e` / `main.068025df.js`; CSP **ENFORCED**; `/` `/login` `/post-job` `/tradie/dashboard` `/admin/dashboard` `/admin/monitoring` 200 |
+
+**Rollback not used.** Keep `00070-dur` and `54aed8b` at 0%. Staging data remediation **still NOT REQUIRED**. Production legacy Expert audit **still PENDING**.
+
+**AMBER-P07F3 = STAGING DEPLOYMENT COMPLETE.** Expert expertise fail-open **FIXED + STAGING PROVEN**. Auth signup stays disabled. Homeowner CLOSED / Expert WAITLIST. P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN **impossible**.
