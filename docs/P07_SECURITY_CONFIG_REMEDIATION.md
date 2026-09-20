@@ -1,11 +1,11 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07E1 **AUDIT COMPLETE / PROMOTION PENDING** — current develop → staging)
+**Date:** 20 September 2026 (P07E2A **AMBER-E2A COMPLETE** — staging Firestore + Storage rules)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A–P07D2 complete; P07E1 recorded the current-stack staging gap. Hosting `e97a303dcf995e37` still serves the older SPA `main.70b28def.js`. Promotion is **not executed**. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — P07A–P07E1 complete; **AMBER-E2A COMPLETE**. Staging now serves HEAD Firestore + Storage rules. Hosting still `e97a303dcf995e37` / `main.70b28def.js`. API still `54aed8b`. **E2B API and E2C Hosting pending.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
-This document is a **read-only** audit plus approval planning. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, deploy, or push.
+This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
 **Companion:** `docs/LAUNCH_READINESS.md` (P07 gate), `docs/SECRETS_AND_KEY_ROTATION.md`, `docs/TASKIO_RELEASE_PLAN.md` (A04 / production commands **NOT EXECUTED**), `docs/APP_CHECK.md`, `docs/ANALYTICS.md`, `docs/TRANSACTIONAL_EMAIL.md`.
 
@@ -345,7 +345,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-21 | Leftover `helloTaskio` | ACTIVE GEN_2 HTTP; Cloud Run `allUsers` invoker; not in current repo. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Functions describe | LOW recon | Owner must first prove nothing depends on it. Any delete / disable / redeploy / invoker change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Function list + dependency review | **CONFIRMED; cleanup NOT STARTED** |
 | P07-22 | Personal Gmail `roles/editor` | One `gmail.com` user has production Editor. Identity not recorded. Finding: **QUESTIONABLE / REVIEW REQUIRED**. | Project IAM | MEDIUM if unexpected | Owner must identify purpose and required least-privilege role. Do **not** assume removal. Any IAM binding change is a **production mutation** | PRODUCTION | **RED** (if changed) | No | Owner identity review | **CONFIRMED; IAM CHANGE NOT STARTED** |
 | P07-23 | Staging CSP Report-Only | **P07D2 / AMBER-D2 COMPLETE.** Live Hosting `e97a303dcf995e37` preserves SPA `main.70b28def.js` (same hashes as `211fb288dcaff973`). Report-Only only; no enforced CSP. P07B headers live. One header iteration added `manifest-src 'self'`. | Hosting files API + Chrome CDP | LOW while Report-Only | Separate decision to enforce; first prove authenticated Firestore/Storage/Auth iframe + guest tidy if posting reopens | STAGING | **AMBER COMPLETE** (Report-Only) | No | Hosted browser matrix | **REPORT-ONLY LIVE; ENFORCE NOT STARTED** |
-| P07-24 | Current-stack staging promotion | **P07E1:** develop `3f4bbab` is not live on staging API/SPA/rules. See §32. | P07E1 read-only | HIGH product drift | AMBER-E2A/B/C (rules → API → Hosting). Do not OPEN or enable Auth signup in that package | STAGING | **AMBER** | No for P07 PASS | Hosted matrix after promotion | **AUDIT COMPLETE / PROMOTION PENDING** |
+| P07-24 | Current-stack staging promotion | **P07E2A COMPLETE.** Staging Firestore `28c69372…` + Storage `a0736ecb…` match HEAD. API/SPA still old. See §32–§33. | E2A deploy + smoke | Remaining product drift until E2B/E2C | AMBER-E2B API then E2C Hosting. Do not OPEN or enable Auth signup | STAGING | **AMBER** | No for P07 PASS | Hosted matrix after E2C | **RULES COMPLETE / API PENDING / HOSTING PENDING** |
 
 ---
 
@@ -1245,3 +1245,64 @@ App Check Firestore+Storage stay **ENFORCED**. Do not roll Hosting to a pre-App-
 Existing staging homeowner / Expert / admin identities are documented from B4/P05. **No in-repo credential tooling.** Post-promotion login is **owner/manual**. Do not create users.
 
 P07 remains **OPEN / REMEDIATION IN PROGRESS**. P07E1 = **AUDIT COMPLETE / PROMOTION PENDING**. CSP enforcement still **NOT APPROVED**. P03/P04/P05 production pending unchanged. P06 OPEN. P09 BLOCKED BY P06. READY TO OPEN remains impossible.
+
+---
+
+## 33. P07E2A AMBER-E2A staging Firestore + Storage rules (20 September 2026)
+
+Approved staging-only mutation. No Hosting/API/Functions/webhook/Auth/App Check/IAM/secret/Stripe/Gemini/`pilotSettings` change. Production `taskio-v2` not mutated. Default gcloud project left `taskio-v2`.
+
+**Anchor:** `develop` / `0b0c5ddbff885929840b10e21e715feae94d9beb` = `origin/develop` (0/0). CI `35481295427` SUCCESS.
+
+### Local sources (HEAD)
+
+| File | Git blob | SHA-256 |
+|---|---|---|
+| `firestore.rules` | `bdc6e2bd9dfb0e53bb23d22f49e4d48ac4995894` | `306E05BF06CFA79BEFBBBF296304F24600D8E9C40F61570F6327672301A7C150` |
+| `storage.rules` | `fddbc66fc46a86eaf481a7e4ff6f4b049e2b6509` | `2BED0B0B6B69FEEBE7A0A089246203F155FAEE2D6C28F0F83486301EFF6DCD5B` |
+
+Pre-deploy `npm run test:rules`: **26 / 26 PASS**.
+
+### E2A-FIRESTORE: COMPLETE
+
+| Field | Value |
+|---|---|
+| Command | `firebase deploy --project=taskio-v2-staging --only firestore:rules --non-interactive` |
+| Previous ruleset | `b8b8e7f2-50fb-4e79-a5ce-e947178158c6` (update 2026-08-28T11:00:48Z) — no `pilotWaitlist` / `expertWaitlist` / `system/**` deny |
+| New ruleset | `28c69372-2f82-4171-a7ad-379b0335b5a5` |
+| Release | `projects/taskio-v2-staging/releases/cloud.firestore` |
+| Active update | 2026-09-20T01:40:34.632889Z |
+| Source vs HEAD | UTF-8 normalized match |
+| Rollback | Restore previous ruleset `b8b8e7f2-50fb-4e79-a5ce-e947178158c6` only for a genuine availability/security incident. **Not used.** |
+
+Validation: emulator suite already denies client `system/**`, `pilotWaitlist`, `expertWaitlist` including admin claims. Unauthenticated Firestore REST GETs to those paths returned **403**. ADC/IAM GET of `system/pilotSettings` returned **404** (document still absent; Admin/IAM path still works). App Check Firestore remained **ENFORCED**. Auth `disabledUserSignup=true`. Storage still old at this step.
+
+Public smoke after Firestore: `/`, `/login`, `/post-job` 200; SPA still `main.70b28def.js`; CSP Report-Only only; Chrome CDP no App Check/Firestore console errors or page exceptions.
+
+### E2A-STORAGE: COMPLETE
+
+| Field | Value |
+|---|---|
+| Command | `firebase deploy --project=taskio-v2-staging --only storage --non-interactive` |
+| Previous ruleset | `64c5b44b-a20a-4118-8b03-ffba6ac7f5c1` (update 2026-08-15T11:24:59Z) — posting + `profile-photos` `allow write` |
+| New ruleset | `a0736ecb-e3bb-4573-8608-c1bced82fab8` |
+| Release | `projects/taskio-v2-staging/releases/firebase.storage/taskio-v2-staging.firebasestorage.app` |
+| Active update | 2026-09-20T01:43:58.283784Z |
+| Source vs HEAD | UTF-8 normalized match |
+| Rollback | Restore previous ruleset `64c5b44b-a20a-4118-8b03-ffba6ac7f5c1` only for a genuine incident. Do **not** roll back to overwrite rules merely because the old SPA cannot exercise UUID uploads. **Not used.** |
+
+Write semantics proven by emulator tests (create-only posting, unique second upload, 2MB profile bound, timestamped profile no-overwrite, deterministic `profile-images/{uid}.jpg|.png` replacement). No staging file uploaded.
+
+Public smoke after Storage: same three routes 200; JS/CSS assets 200; Report-Only CSP; no enforced CSP; Chrome CDP no App Check/Storage console errors.
+
+### Compatibility limitation
+
+The hosted SPA remains invite-only `main.70b28def.js`. It does **not** exercise HEAD waitlists, UUID posting uploads, or the Pilot Operations Cockpit. E2A does not include those business-write tests. Treat staging as controlled until E2B + E2C.
+
+### Unchanged after E2A
+
+Hosting `e97a303dcf995e37` / `main.70b28def.js`. API 100% `taskio-api-staging-54aed8b`. Webhook 100% `taskio-stripe-webhook-staging-00007-8tx`. Functions: quote-email pair only (2026-09-04). App Check Firestore+Storage **ENFORCED** / Auth **UNENFORCED**. Auth signup disabled. `system/pilotSettings` absent.
+
+**AMBER-E2A = COMPLETE.** Remaining: **E2B API** then **E2C Hosting**. Functions/webhook optional/out. No Auth enablement, no `pilotSettings`, no OPEN, no AI enablement.
+
+P07 remains **OPEN / REMEDIATION IN PROGRESS**. Not PASS.

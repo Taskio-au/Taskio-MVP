@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 20 September 2026 (P07E1 audit complete — current-stack staging promotion pending)
+**Last updated:** 20 September 2026 (P07E2A AMBER-E2A complete — staging rules promoted; API/Hosting pending)
 
 ## Active scope
 
@@ -47,7 +47,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`); lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07A–P07D2 complete; **P07E1 AUDIT COMPLETE / PROMOTION PENDING**. Live staging still API `54aed8b` + SPA `main.70b28def.js`. Current develop needs rules+API+Hosting to become representative. CSP Report-Only live; enforcement not approved. Not PASS. | **Yes** |
+| P07 | **OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A COMPLETE** (Firestore `28c69372…` + Storage `a0736ecb…` = HEAD). API still `54aed8b`; Hosting still `e97a303dcf995e37` / `main.70b28def.js`. E2B/E2C pending. CSP Report-Only live; enforcement not approved. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** — must prove a brand-new homeowner can authenticate and post. Existing invited/synthetic users are not enough for public OPEN. | **Yes** |
@@ -60,11 +60,11 @@ Explicitly post-launch unless later required: native apps, Expert LIMITED-mode r
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** **OPEN** (owner facts complete; P06A reconciliation prepared; lean sole-trader pilot subject to solicitor confirmation; Pty Ltd not an automatic blocker; focused insurance review pending; not PASS); **P07** **OPEN / REMEDIATION IN PROGRESS** (P07E1 audit complete / promotion pending; CSP Report-Only live; enforcement and production Auth/App Check/email/analytics/Stripe/Hosting/rules remain; not PASS); **P08 / P10** **NOT STARTED**; **P09** blocked on P06; **P11** **BLOCKED**.
+- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING** (authentic E01 delivered); **P04** **STAGING PASS / PRODUCTION PENDING** (owner-confirmed Realtime); **P05** **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth out of MVP scope); **P06** **OPEN** (owner facts complete; P06A reconciliation prepared; lean sole-trader pilot subject to solicitor confirmation; Pty Ltd not an automatic blocker; focused insurance review pending; not PASS); **P07** **OPEN / REMEDIATION IN PROGRESS** (AMBER-E2A staging rules complete; API/Hosting pending; CSP Report-Only live; enforcement and production Auth/App Check/email/analytics/Stripe/Hosting/rules remain; not PASS); **P08 / P10** **NOT STARTED**; **P09** blocked on P06; **P11** **BLOCKED**.
 - Legal Terms/Privacy remain drafts. P06 pack: `docs/P06_OWNER_DECISIONS.md`. Solicitor brief: `docs/P06_SOLICITOR_BRIEF.md`. Claim/processor/remediation inventory: `docs/P06_REMEDIATION_MATRIX.md`. Do not describe Taskio as a company or Pty Ltd during the sole-trader pilot. Do not treat Pty Ltd or broad insurance as automatic launch blockers. P09 stays blocked until P06 PASS.
 
 **Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Keep Auth unenforced, security rules unchanged, and production untouched. See `docs/APP_CHECK.md`.
 
 ## Next release decision
 
-P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07 is **OPEN / REMEDIATION IN PROGRESS** (P07E1 audit complete; AMBER-E2 promotion **not executed**; CSP not enforced; not PASS). P06 **OPEN**. P09 **BLOCKED BY P06**. P08/P10 are not started. Do not infer production launch. Do not start P11. Next pickups remain **P06** solicitor pack, **AMBER-E2** staging promotion if approved, and remaining **P07** RED packages.
+P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07 is **OPEN / REMEDIATION IN PROGRESS** (AMBER-E2A **COMPLETE**; E2B API and E2C Hosting pending; CSP not enforced; not PASS). P06 **OPEN**. P09 **BLOCKED BY P06**. P08/P10 are not started. Do not infer production launch. Do not start P11. Next pickups remain **P06** solicitor pack, **AMBER-E2B/E2C** if approved, and remaining **P07** RED packages.
