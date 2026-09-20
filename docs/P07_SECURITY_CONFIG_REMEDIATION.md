@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07F3 **STAGING DEPLOYMENT COMPLETE** — Expert expertise fail-closed live on staging API)
+**Date:** 20 September 2026 (P07F4 **PRODUCTION READ-ONLY AUDIT COMPLETE** — production Expert compatibility)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1 AUDIT COMPLETE.** **P07F2 REMEDIATION COMPLETE.** **P07F3 STAGING DEPLOYMENT COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1 AUDIT COMPLETE.** **P07F2 REMEDIATION COMPLETE.** **P07F3 STAGING DEPLOYMENT COMPLETE.** **P07F4 PRODUCTION READ-ONLY AUDIT COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** Production compatibility: **1 Expert would lose technical eligibility** under the fixed backend (approved-only; not launch-ready). **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -338,7 +338,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No (classify) | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer REMAINING BLOCKER |
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
 | P07-16 | Storage overwrite / profile size | **P07C:** prod Storage ruleset `932c4f1b…` (2025-12-24) has `allow write`, no `job-posting-attachments` create-only. **PRODUCTION OLDER.** | C7-equivalent rules GET | MEDIUM overwrite until deploy | Deploy Storage rules later | LOCAL RULE/CODE FIX COMPLETE; production deploy pending | **GREEN** local / **RED** deploy | No | Rules emulator tests | **PRODUCTION OLDER** |
-| P07-17 | Legacy Expert data | **P07C:** 18 `role=tradie` users; 38 `users` total. No PII dumped. Detailed readiness review **not** started. | Count aggregation | HIGH wrong supply | Read-only pre-OPEN review | PRODUCTION (read) | **RED** (review) | Pre-activation | Checklist §19 | **COUNTS ONLY; REVIEW NOT STARTED** |
+| P07-17 | Legacy Expert data | **P07F4:** 18 `role=tradie` / 38 `users`. Fixed effective expertise **0**. Launch-ready **0**. **1** Expert would lose technical eligibility (approved-only). Owner/Admin review **required** before production API deploy of the fail-closed backend. See §40. | Firestore projection + local HEAD helpers | HIGH wrong supply if deployed without review | Owner/Admin judgment; do not auto-approve | PRODUCTION (read) | **GREEN** audit / **RED** if mutated | Pre-activation | Checklist §19 / §40 | **READ-ONLY AUDIT COMPLETE** |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
 | P07-19 | CI deploy guard | Push does not deploy | ci.yml | LOW | Keep | LOCAL | **GREEN** | No | CI | OK |
 | P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
@@ -514,6 +514,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07F1: **AUDIT COMPLETE** (staging Expert eligibility; see §37)
 - P07F2: **REMEDIATION COMPLETE** (see §38)
 - P07F3: **STAGING DEPLOYMENT COMPLETE** (see §39)
+- P07F4: **PRODUCTION READ-ONLY AUDIT COMPLETE** (see §40)
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -1772,3 +1773,87 @@ Pre-build: backend Jest **1058/1058 PASS**. Isolated HEAD proofs A–E **PASS** 
 **Rollback not used.** Keep `00070-dur` and `54aed8b` at 0%. Staging data remediation **still NOT REQUIRED**. Production legacy Expert audit **still PENDING**.
 
 **AMBER-P07F3 = STAGING DEPLOYMENT COMPLETE.** Expert expertise fail-open **FIXED + STAGING PROVEN**. Auth signup stays disabled. Homeowner CLOSED / Expert WAITLIST. P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN **impossible**.
+
+---
+
+## 40. P07F4 production legacy Expert compatibility audit (20 September 2026)
+
+Read-only `taskio-v2`. No writes, deploys, traffic shifts, Auth/App Check/IAM/secret/`pilotSettings` changes, Stripe API calls, or production `/api/me` / Verify / migrate / approval calls. Default gcloud project left `taskio-v2`. Evaluation used HEAD helpers plus reconstructed pre-fix `5728ad6` expertise gate. Labels `Prod-Expert-01`…`18` only. No names, emails, phones, full UIDs, addresses, Stripe IDs, or unknown key strings recorded.
+
+### Production runtime (eligibility-relevant, safe flags)
+
+Live production API `taskio-api-00006-puf` **100%**. `STRIPE_ENABLED=false`. `STRIPE_EXPECTED_LIVEMODE` **ABSENT**. `TASKIO_DEPLOYMENT_ENV` **ABSENT**. `GOOGLE_CLOUD_PROJECT` **ABSENT**. `AI_DESCRIPTION_ENABLED` **ABSENT**. Distinct from intended launch (`STRIPE_ENABLED=true`, live mode). `system/pilotSettings` **ABSENT** (404). All eight canonical Inner Melbourne areas treated as enabled.
+
+### Semantics
+
+**Fixed (HEAD):** effective = canonical `expertiseApproved` ∩ canonical `expertise`; missing/malformed/empty/disjoint → `[]`; `hasApprovedMarketplaceExpertise` only if length > 0.
+
+**Pre-fix (`5728ad6`):** both fields non-array → expertise gate **true**; if `expertise` is not an array, effective = canonical approved (approved-only grandfather).
+
+Taxonomy from `shared/expertiseCatalog.js` `phase1ExpertiseCatalog` / `pilotSupplyService.enabledPhase1Categories()`: **8 top-level Phase-1 categories** containing **19 canonical expertise keys** (`item.category` grouping; not the 4 expert-facing `expertCategory` labels). Keys: trim, exact, case-sensitive, no aliases. Geography: Melbourne, Southbank, Docklands, South Yarra, Prahran, St Kilda, Richmond, Carlton. `serviceLocation` is not coverage.
+
+### Population
+
+38 user documents. Roles: homeowner 18, tradie **18**, missing role 2. Expert-like role used by current code: **`tradie` only**.
+
+### Schema-shape aggregate (18 Experts)
+
+Requested `expertise`: LEGACY_MISSING 11, NONCANONICAL 7, CURRENT_VALID **0**.
+
+Approved `expertiseApproved`: LEGACY_MISSING 7, CURRENT_EMPTY 3, NONCANONICAL 3, CURRENT_VALID 5.
+
+Non-array fields: **0**. Canonical Phase 1 requested count: **0** on every Expert. `acceptingJobs`: all **MISSING**. Canonical `serviceAreas`: all **0**. Status: active 17, disabled 1. Verified true: 9.
+
+### Old vs fixed technical eligibility (current prod Stripe **off**)
+
+| | Count |
+|---|---|
+| Eligible pre-fix | **1** |
+| Eligible fixed | **0** |
+| Launch-ready current config | **0** |
+| Launch-target ready (`STRIPE_ENABLED=true` simulation) | **0** |
+| WAS ELIGIBLE → NOW INELIGIBLE | **1** (`Prod-Expert-08`) |
+| WAS INELIGIBLE → NOW ELIGIBLE | **0** |
+
+`Prod-Expert-08`: verified, otherwise V11-complete under stored booleans, `expertise` missing, `expertiseApproved` 5 canonical keys. Pre-fix approved-only gate **true**. Fixed intersection **[]**. Still **not** launch-ready (`NOT_ACCEPTING_JOBS`, `NO_SERVICE_AREA`). Stored `profileCompleted=true` does not restore requested keys.
+
+### Grandfather-dependent records (expertise gate, not necessarily fully eligible)
+
+| Class | n | Meaning |
+|---|---|---|
+| A both fields missing | 4 | Old gate passed; fixed `[]`. None of these 4 is fully V11-eligible. |
+| B verified requested-only, approved missing | 2 | Requested arrays are non-canonical (0 Phase 1 keys). Migration planner does **not** match. |
+| C non-array | 0 | |
+| D stored `profileCompleted=true` with 0 canonical requested | 2 | Includes `Prod-Expert-08`. |
+| E missing status | 0 | |
+| F approved-only (requested missing, canonical approved present) | 5 | Includes the one full eligibility change. |
+
+### Coverage (fixed effective expertise)
+
+All **8 top-level Phase-1 categories** (covering the **19 canonical expertise keys**): requesting 0, effective 0, technically eligible 0, launch-ready 0. All 8 canonical Inner Melbourne areas: launch-ready 0.
+
+### Impacted-Expert dependency (the one eligibility change)
+
+Read-only jobs/quotes projection: jobs scanned 52, quotes scanned 23. Jobs with invite to that Expert **13**. Jobs with that Expert accepted **10**. Quotes referencing that Expert **11**. No job/quote/homeowner identities recorded.
+
+### Migration / remediation
+
+MIGRATION CANDIDATES: **0** (planner needs `verified===true`, `expertiseApproved` **missing**, canonical requested **array** with keys). MIGRATION EXECUTED: **NO**.
+
+PRODUCTION DATA REMEDIATION REQUIRED: **OWNER REVIEW REQUIRED**. Do **not** auto-approve or copy requested↔approved. Absence of requested is not proof of a prior self-selection. Possible future owner/Admin choices for `Prod-Expert-08` (not executed): populate requested to match already-stored canonical approved if still intended; or leave fail-closed. B-class records need catalog re-selection, not string migration.
+
+### Production deployment compatibility
+
+**FIXED PRODUCTION API DEPLOYMENT: DO NOT PROCEED YET.**
+
+**B. known Experts to lose technical eligibility.** Deploying the fixed API to production would make `Prod-Expert-08` fail `hasApprovedMarketplaceExpertise` (quote/invite/assign). That Expert is not launch-ready today (`NOT_ACCEPTING_JOBS`, `NO_SERVICE_AREA`). 17 others unchanged ineligible. No broadening. No schema crash expected from these shapes. Owner/Admin review of that one record is required first (optional review of the other four approved-only records, who are already ineligible for other V11 reasons). This is **not** a reason to restore the old fail-open expertise gate.
+
+### Fail-closed / read-side
+
+Local HEAD proof: verified + active + `acceptingJobs=true` + canonical area + complete other V11 fields, with missing both / string requested / approved-only → not technically eligible, not launch-ready. GET `/api/me` and GET `/api/tradie/profile` do not persist approval (local tests; **not** called in production).
+
+### Validation / mutation counts
+
+Targeted backend Jest **7 suites / 105 tests PASS**. `git diff --check` on intended docs. PRODUCTION WRITES **0**. STAGING WRITES **0**. DEPLOYS **0**. TRAFFIC CHANGES **0**. MIGRATIONS **0**. AUTH/APP CHECK/IAM/SECRET CHANGES **0**. STRIPE API CALLS **0**.
+
+**P07F4 = PRODUCTION READ-ONLY AUDIT COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. READY TO OPEN **impossible**.
