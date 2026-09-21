@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 21 September 2026 (P07G2 **PRODUCTION API PROMOTION PLAN COMPLETE**)
+**Date:** 21 September 2026 (P07G3 **PRODUCTION API PROMOTION COMPLETE**)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1 REMAINING-BLOCKER RECONCILE COMPLETE.** **P07G2 PRODUCTION API PROMOTION PLAN COMPLETE** (see §44). Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** Legacy Expert compatibility **REVIEW COMPLETE** (OPTION B; leave fail-closed). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE** — production still serves `taskio-api-00006-puf`; fail-closed code is **not** live in production. Future **P07G3** is **RED / OWNER APPROVAL REQUIRED**. **Not a deploy approval.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1–G3 COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** on `taskio-api-00008-zir` (source `57505d0`). Legacy Expert compatibility **REVIEW COMPLETE** (OPTION B). Production Hosting still maintenance. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN** (not open-demand).
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -339,7 +339,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
 | P07-16 | Production Firestore/Storage rules | **Staging E2A current.** **Production older:** Storage `932c4f1b…` (2025-12-24) `allow write`; Firestore `7d46b484…` (2026-04-26) predates waitlist/`system` deny. | P07C + E2A | MEDIUM overwrite / client waitlist | Deploy HEAD rules before public client writes | PRODUCTION | **RED** deploy | **Yes** before public writes | Emulator + staging proven | **PRODUCTION OLDER** |
 | P07-17 | Legacy Expert data | **P07F5B OPTION B.** Compatibility blocker **RESOLVED**. Fail-closed; no backfill. Future Expert reconfirmation is a **pre-launch supply** item, not an API-compatibility blocker. See §40–§42. | §40–§42 | HIGH if auto-backfilled | Leave fail-closed until reconfirmation | PRODUCTION (read) | **GREEN** decision | No for API deploy | §43 | **COMPATIBILITY REVIEW COMPLETE** |
-| P07-25 | Production fail-closed API | **P07G2 PLAN COMPLETE.** Compatibility review **COMPLETE**. Live production still `taskio-api-00006-puf` (`STRIPE_ENABLED=false`). Fail-closed expertise is staging-proven on `00072-vur` from `57505d0`. Future **P07G3** RED tagged deploy. See §44. | P07C / F3 / F5B / G2 | HIGH if public API stays fail-open | Owner-approved P07G3 only | PRODUCTION | **GREEN** plan complete / **RED** deploy | **Yes** before serving HEAD API | Tagged 0% then shift; keep `00006-puf` | **PLAN COMPLETE; NOT DEPLOYED** |
+| P07-25 | Production fail-closed API | **P07G3 COMPLETE.** Live `taskio-api-00008-zir` 100% from `57505d0` digest `sha256:712814b0…1a771014`. Rollback `taskio-api-00006-puf` retained 0%. `STRIPE_ENABLED=false`. See §45. | P07C / F3 / G3 | — | Next: other P07 RED items | PRODUCTION | **RED COMPLETE** | Closed for API code | Tagged 0% then 100%; keep `00006-puf` | **PRODUCTION LIVE** |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
 | P07-19 | CI deploy guard | Push does not deploy | ci.yml | LOW | Keep | LOCAL | **GREEN** | No | CI | OK |
 | P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
@@ -519,7 +519,8 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07F5A: **OWNER REVIEW DOSSIER COMPLETE** (see §41)
 - P07F5B: **OWNER DECISION COMPLETE — OPTION B** (see §42). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE.** Not a deploy approval.
 - P07G1: **REMAINING-BLOCKER RECONCILE COMPLETE** (see §43)
-- P07G2: **PRODUCTION API PROMOTION PLAN COMPLETE** (see §44). Future **P07G3** is **RED / OWNER APPROVAL REQUIRED**. Not a deploy approval.
+- P07G2: **PRODUCTION API PROMOTION PLAN COMPLETE** (see §44)
+- P07G3: **PRODUCTION API PROMOTION COMPLETE** (see §45). Fail-closed API live. **Not P07 PASS.**
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -1999,7 +2000,7 @@ Repo exports: `notifyHomeownerOnQuoteSubmitted`, `notifyHomeownerOnQuoteSubmitte
 
 | ID | Item | Current state | Launch blocker? | Owner/code/config/deploy/ops | Dependency | Next action | Approval | Order |
 |---|---|---|---|---|---|---|---|---|
-| P07-25 | Production fail-closed API | **P07G2 PLAN COMPLETE**; live still `00006-puf` | **Yes** before serving HEAD API | deploy | F5B / G2 | Future **P07G3** RED tagged deploy after owner approval | GREEN plan done; **RED** execute | 1 |
+| P07-25 | Production fail-closed API | **P07G3 COMPLETE**; live `00008-zir` from `57505d0` | Closed for API code | deploy done | G3 | Next P07: rules / Auth / App Check / P03–P05 prod | **RED COMPLETE** | 1 done |
 | P07-16 | Production Firestore + Storage rules | Staging current; production older | **Yes** before public client writes | deploy | E2A | RED deploy HEAD rules | **RED** | 2 |
 | P07-13 | Production Hosting / CSP | Staging CSP ENFORCED; production maintenance `cffca9d87ce03901` | SPA restore needed for real users; P07 PASS does **not** require SPA if CDN HSTS holds | deploy | P09 copy / P10 | RED with App Check frontend | **RED** | with P05 |
 | P07-03 | Production Auth signup | `disabledUserSignup=true` | **Yes** for public OPEN and P07 PASS | config | App gates stay | RED enable when OPEN intended; P10 proves journey | **RED** | late |
@@ -2354,3 +2355,76 @@ Excludes every other P07 blocker (rules, Hosting, Auth, App Check, email, GA4, S
 **EXPECTED USER IMPACT.** None for the public: Hosting remains maintenance; Auth signup remains disabled; posting remains CLOSED. Exception: known legacy Expert compatibility change already accepted under OPTION B, invisible while the product is frozen.
 
 **P07G2 = PRODUCTION API PROMOTION PLAN COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. No production mutation. Future **P07G3 = RED / OWNER APPROVAL REQUIRED**.
+
+---
+
+## 45. P07G3 production fail-closed API promotion (21 September 2026)
+
+Owner-approved RED. Project **`taskio-v2`** / region **`australia-southeast1`** explicit on every mutation. Operator `admin@taskio.com.au`. Default gcloud project left `taskio-v2`. No `gcloud config set project`. No `firebase use`. Staging not mutated. No rules/Hosting/Auth/App Check/Functions/webhook/IAM binding expansion/`allUsers`/secret create/Stripe enable/email/GA4/Gemini/`pilotSettings`/Expert/migration. `--no-allow-unauthenticated` caused an incidental IAM policy etag rewrite; **EFFECTIVE IAM ACCESS CHANGE: NONE** (see below).
+
+Source SHA **`57505d0ac8deaaba918ff978f7c4b84c34b02895`** via isolated worktree (develop HEAD left at `d4d54dc`). Backend Jest **1058/1058 PASS**. `git diff --check` clean on that tree.
+
+### Preflight (no drift vs G2)
+
+| Field | Observed |
+|---|---|
+| Service | `taskio-api` Ready |
+| Traffic | `taskio-api-00006-puf` **100%** (tag `abn-hardened`); `preflight` 0% |
+| Image | `…/taskio-api@sha256:f2de76fdfa00ac712446c001dbd46085b8d5e13dd2180f6d197ccc1c671c4bf6` |
+| SA | `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` |
+| IAM | empty bindings (no `allUsers`); invoker check on. Bare `/health/live` Cloud Run **403** |
+| Ingress | all |
+| CPU / memory | 1000m / 512Mi |
+| timeout | 300s |
+| min instances | unset (default 0) |
+| max / concurrency / port | 20 / 80 / 8080 |
+| Env | `NODE_ENV=production` `TRUST_PROXY=true` `CORS_ORIGINS=https://taskio.com.au` `FRONTEND_URL=https://taskio.com.au` `STRIPE_ENABLED=false` `GEMINI_API_VERSION=v1` `GEMINI_MODEL=gemini-3.6-flash` |
+| Absent (fail-closed) | `AI_DESCRIPTION_ENABLED` `TASKIO_PUBLIC_SIGNUP_ENABLED` `ENABLE_SET_ADMIN_ENDPOINT` `TASKIO_SHOW_DEV_OTP` Stripe secrets |
+| Secrets (names/versions) | `OTP_SALT:1` `ABN_LOOKUP_GUID:1`. SM names: those plus `ALERT_WEBHOOK_URL` (no versions; not mounted) |
+| Registry | `australia-southeast1-docker.pkg.dev/taskio-v2/taskio-api/taskio-api` |
+| `system/pilotSettings` | **ABSENT** (Firestore REST **404**) |
+
+Layer 1 proof on existing service: user identity token **without** `--audiences` in `X-Serverless-Authorization` → Express `/health/live` **200**. `--audiences` is invalid for user accounts (not used).
+
+### Image
+
+| Field | Value |
+|---|---|
+| Cloud Build | `6e5f5f31-66c7-4f58-9c0b-cafd9420e7c4` SUCCESS `australia-southeast1` |
+| Tag | `:57505d0` |
+| Digest | `sha256:712814b084d809370b5e0632fc2356bed4d0e16179bfeba1991894f21a771014` |
+| Context | worktree at `57505d0`; `.dockerignore` API-only; no `.env` / SA JSON |
+
+### 0% revision then traffic
+
+New revision **`taskio-api-00008-zir`** `--no-traffic --tag=g3-57505d0 --no-allow-unauthenticated`. Tagged URL `https://g3-57505d0---taskio-api-gp2whfgz5a-ts.a.run.app`. After deploy: Ready, **0%**; `00006-puf` still **100%**. SA/env/secret refs/CPU/memory/probes/ingress unchanged.
+
+**IAM nuance (not a material access-control change):** Cloud Run deployment caused an IAM policy rewrite/etag change through `--no-allow-unauthenticated`. Effective access did **not** change: bindings remained private with no `allUsers`/public invoker. No new principal. No authorised principal removed. Runtime SA unchanged. **EFFECTIVE IAM ACCESS CHANGE: NONE.** **IAM POLICY METADATA/ETAG WRITE: YES** — incidental to the private deployment command. Do not describe G3 as unqualified “IAM unchanged,” and do not describe it as a permission expansion.
+
+**GO** after tagged smoke. Traffic: `taskio-api-00008-zir=100`. After shift: `00008-zir` **100%** (`g3-57505d0`); `00006-puf` **0%** (`abn-hardened`); `preflight` **0%**. Rollback **not used**.
+
+### Smoke (Layer 1 `X-Serverless-Authorization`; no Firebase `Authorization`)
+
+| Check | Tagged 0% | Post-shift normal URL |
+|---|---|---|
+| A0 no Layer 1 `/health/live` | Cloud Run **403** | Cloud Run **403** |
+| `/health/live` | Express **200** | Express **200** |
+| `/health/ready` | **200** Firestore ok; Stripe `enabled=false` `ok` | same |
+| `/api/pilot-status` | CLOSED / `canPost=false` / WAITLIST / `canExpertApply=false` | same |
+| `/api/me` | **401** `Unauthorized: No token provided` | same |
+| `/api/admin/pilot-supply` | **401** same | same |
+| `POST /api/admin/migrate/expertise` | **401**; **NOT EXECUTED** | not repeated |
+| CORS `https://taskio.com.au` | ACAO allow | same |
+| CORS `https://evil.example` | Express **403** `CORS blocked`; no ACAO | same |
+| `POST /api/generate-description` | **200** `{ fallback: true }` | same |
+| `POST /api/users/register` | **503** `signup_disabled` | same |
+| `POST /api/jobs/g3-no-job/checkout` | **401** `requireAuth` | not required post-shift |
+| `pilotSettings` | 404 | 404 |
+
+Migration **NOT EXECUTED**. Expert mutation **NONE**. No jobs/quotes/OTP/email/Stripe/Gemini provider.
+
+### Impact
+
+No public launch. Hosting maintenance; Auth signup unchanged/disabled; API **effectively IAM-private** (see etag nuance above); Stripe off; AI fallback; posting CLOSED. Prod-Expert-08 grandfather loss remains OPTION B (no compensation). Excluded unchanged: Firestore/Storage rules, Hosting, Auth settings, App Check, Functions, webhook, secret versions/content, Stripe enablement, Postmark/email, GA4, Gemini enablement, `pilotSettings`, Expert records, SPA/open-demand.
+
+**P07G3 = PRODUCTION API PROMOTION COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Remaining: production Firestore+Storage rules; Auth signup path; App Check Firestore+Storage; P03 email; P04 GA4 after P06 or explicit OFF; Stripe live when serving money.
