@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 20 September 2026 (P07G1 remaining P07 blocker reconcile)
+**Last updated:** 21 September 2026 (P07G2 production fail-closed API promotion plan)
 
 ## Active scope
 
@@ -47,7 +47,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`); lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — **P07F1–F5B COMPLETE**. **P07G1 REMAINING-BLOCKER RECONCILE COMPLETE** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §43). Expertise fail-open **FIXED + STAGING PROVEN**. Compatibility **REVIEW COMPLETE** (OPTION B). Production fail-closed API **not deployed**. Remaining P07: fail-closed API, rules, Auth, App Check, email (P03), GA4 after P06, Stripe live with P10, Hosting with SPA restore. Staging CSP **ENFORCED**. Not PASS. | **Yes** |
+| P07 | **OPEN / REMEDIATION IN PROGRESS** — **P07F1–F5B COMPLETE**. **P07G1 REMAINING-BLOCKER RECONCILE COMPLETE**. **P07G2 PRODUCTION API PROMOTION PLAN COMPLETE** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §44). Expertise fail-open **FIXED + STAGING PROVEN**. Compatibility **REVIEW COMPLETE**. Production fail-closed API **not deployed**. Future **P07G3** is **RED / OWNER APPROVAL REQUIRED**. Remaining P07: fail-closed API deploy, rules, Auth, App Check, email (P03), GA4 after P06, Stripe live with P10, Hosting with SPA restore. Staging CSP **ENFORCED**. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** — must prove a brand-new homeowner can authenticate and post. Existing invited/synthetic users are not enough for public OPEN. | **Yes** |
@@ -60,11 +60,11 @@ Explicitly post-launch unless later required: native apps, Expert LIMITED-mode r
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING**; **P04** **STAGING PASS / PRODUCTION PENDING**; **P05** **STAGING PASS / PRODUCTION PENDING**; **P06** **OPEN**; **P07** **OPEN / REMEDIATION IN PROGRESS** (F1–F5B complete; G1 remainder in §43; CSP **ENFORCED**; not PASS); **P08 / P10** **NOT STARTED**; **P09** blocked on P06; **P11** **BLOCKED**.
+- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING**; **P04** **STAGING PASS / PRODUCTION PENDING**; **P05** **STAGING PASS / PRODUCTION PENDING**; **P06** **OPEN**; **P07** **OPEN / REMEDIATION IN PROGRESS** (F1–F5B complete; G1 remainder in §43; **G2 API promotion plan complete** in §44; CSP **ENFORCED**; not PASS); **P08 / P10** **NOT STARTED**; **P09** blocked on P06; **P11** **BLOCKED**.
 - Legal Terms/Privacy remain drafts. P06 pack: `docs/P06_OWNER_DECISIONS.md`. Solicitor brief: `docs/P06_SOLICITOR_BRIEF.md`. Claim/processor/remediation inventory: `docs/P06_REMEDIATION_MATRIX.md`. Do not describe Taskio as a company or Pty Ltd during the sole-trader pilot. Do not treat Pty Ltd or broad insurance as automatic launch blockers. P09 stays blocked until P06 PASS.
 
 **Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Keep Auth unenforced, security rules unchanged, and production untouched. See `docs/APP_CHECK.md`.
 
 ## Next release decision
 
-P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07 is **OPEN / REMEDIATION IN PROGRESS** (F1–F5B **COMPLETE**; **P07G1 REMAINING-BLOCKER RECONCILE COMPLETE**; staging CSP **ENFORCED**; not PASS). Next **P07** task: **P07G2** GREEN plan for production fail-closed API promotion — **not** a deploy. Overall legal pickup remains **P06**. P09 **BLOCKED BY P06**. P08/P10 are not started. READY TO OPEN remains **impossible**.
+P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07 is **OPEN / REMEDIATION IN PROGRESS** (F1–F5B **COMPLETE**; G1 **COMPLETE**; **P07G2 PRODUCTION API PROMOTION PLAN COMPLETE**; staging CSP **ENFORCED**; not PASS). Next **P07** task: **P07G3** RED fail-closed API promotion — **OWNER APPROVAL REQUIRED**, not executed. Overall legal pickup remains **P06**. P09 **BLOCKED BY P06**. P08/P10 are not started. READY TO OPEN remains **impossible**.

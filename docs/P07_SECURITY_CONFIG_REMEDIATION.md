@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 20 September 2026 (P07G1 **REMAINING-BLOCKER RECONCILE COMPLETE**)
+**Date:** 21 September 2026 (P07G2 **PRODUCTION API PROMOTION PLAN COMPLETE**)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1 REMAINING-BLOCKER RECONCILE COMPLETE** (see §43). Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** Legacy Expert compatibility **REVIEW COMPLETE** (OPTION B; leave fail-closed). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE** — production still serves `taskio-api-00006-puf`; fail-closed code is **not** live in production. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1 REMAINING-BLOCKER RECONCILE COMPLETE.** **P07G2 PRODUCTION API PROMOTION PLAN COMPLETE** (see §44). Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN.** Legacy Expert compatibility **REVIEW COMPLETE** (OPTION B; leave fail-closed). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE** — production still serves `taskio-api-00006-puf`; fail-closed code is **not** live in production. Future **P07G3** is **RED / OWNER APPROVAL REQUIRED**. **Not a deploy approval.** **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN**.
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -339,7 +339,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
 | P07-16 | Production Firestore/Storage rules | **Staging E2A current.** **Production older:** Storage `932c4f1b…` (2025-12-24) `allow write`; Firestore `7d46b484…` (2026-04-26) predates waitlist/`system` deny. | P07C + E2A | MEDIUM overwrite / client waitlist | Deploy HEAD rules before public client writes | PRODUCTION | **RED** deploy | **Yes** before public writes | Emulator + staging proven | **PRODUCTION OLDER** |
 | P07-17 | Legacy Expert data | **P07F5B OPTION B.** Compatibility blocker **RESOLVED**. Fail-closed; no backfill. Future Expert reconfirmation is a **pre-launch supply** item, not an API-compatibility blocker. See §40–§42. | §40–§42 | HIGH if auto-backfilled | Leave fail-closed until reconfirmation | PRODUCTION (read) | **GREEN** decision | No for API deploy | §43 | **COMPATIBILITY REVIEW COMPLETE** |
-| P07-25 | Production fail-closed API | Compatibility review **COMPLETE**. Live production still `taskio-api-00006-puf` (`STRIPE_ENABLED=false`). Fail-closed expertise is staging-proven on `00072-vur` from `57505d0`. | P07C / F3 / F5B | HIGH if public API stays fail-open | Plan then RED tagged deploy | PRODUCTION | **GREEN** plan / **RED** deploy | **Yes** before serving HEAD API | Tagged 0% then shift; keep `00006-puf` | **UNBLOCKED; NOT DEPLOYED** |
+| P07-25 | Production fail-closed API | **P07G2 PLAN COMPLETE.** Compatibility review **COMPLETE**. Live production still `taskio-api-00006-puf` (`STRIPE_ENABLED=false`). Fail-closed expertise is staging-proven on `00072-vur` from `57505d0`. Future **P07G3** RED tagged deploy. See §44. | P07C / F3 / F5B / G2 | HIGH if public API stays fail-open | Owner-approved P07G3 only | PRODUCTION | **GREEN** plan complete / **RED** deploy | **Yes** before serving HEAD API | Tagged 0% then shift; keep `00006-puf` | **PLAN COMPLETE; NOT DEPLOYED** |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
 | P07-19 | CI deploy guard | Push does not deploy | ci.yml | LOW | Keep | LOCAL | **GREEN** | No | CI | OK |
 | P07-20 | Pilot settings cloud doc | **P07C:** `system/pilotSettings` GET **404** | Firestore GET | None if absent | Do not create until approved | PRODUCTION | **GREEN** verified absent | Process | Confirm absence | **ABSENT** |
@@ -519,6 +519,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 - P07F5A: **OWNER REVIEW DOSSIER COMPLETE** (see §41)
 - P07F5B: **OWNER DECISION COMPLETE — OPTION B** (see §42). **FIXED PRODUCTION API: COMPATIBILITY REVIEW COMPLETE.** Not a deploy approval.
 - P07G1: **REMAINING-BLOCKER RECONCILE COMPLETE** (see §43)
+- P07G2: **PRODUCTION API PROMOTION PLAN COMPLETE** (see §44). Future **P07G3** is **RED / OWNER APPROVAL REQUIRED**. Not a deploy approval.
 - P03/P04/P05 production: **unchanged** (pending)
 - P06: **OPEN** (unchanged)
 - P09: **BLOCKED BY P06** (unchanged)
@@ -1998,7 +1999,7 @@ Repo exports: `notifyHomeownerOnQuoteSubmitted`, `notifyHomeownerOnQuoteSubmitte
 
 | ID | Item | Current state | Launch blocker? | Owner/code/config/deploy/ops | Dependency | Next action | Approval | Order |
 |---|---|---|---|---|---|---|---|---|
-| P07-25 | Production fail-closed API | Compatibility review complete; live still `00006-puf` | **Yes** before serving HEAD API | deploy | F5B | GREEN plan, then RED tagged deploy | GREEN then **RED** | 1 |
+| P07-25 | Production fail-closed API | **P07G2 PLAN COMPLETE**; live still `00006-puf` | **Yes** before serving HEAD API | deploy | F5B / G2 | Future **P07G3** RED tagged deploy after owner approval | GREEN plan done; **RED** execute | 1 |
 | P07-16 | Production Firestore + Storage rules | Staging current; production older | **Yes** before public client writes | deploy | E2A | RED deploy HEAD rules | **RED** | 2 |
 | P07-13 | Production Hosting / CSP | Staging CSP ENFORCED; production maintenance `cffca9d87ce03901` | SPA restore needed for real users; P07 PASS does **not** require SPA if CDN HSTS holds | deploy | P09 copy / P10 | RED with App Check frontend | **RED** | with P05 |
 | P07-03 | Production Auth signup | `disabledUserSignup=true` | **Yes** for public OPEN and P07 PASS | config | App gates stay | RED enable when OPEN intended; P10 proves journey | **RED** | late |
@@ -2023,14 +2024,15 @@ P08: monitoring, runbooks, backup, support ops. P10: brand-new homeowner authent
 
 ### Recommended P07 execution order
 
-1. **P07G1** (this) — docs remainder. No cloud. Closes stale blocker lists.
-2. **P07G2** — GREEN local **plan** for production fail-closed API promotion (tagged 0%, smoke, then 100%; keep `00006-puf`). Why now: F5B unblocked compatibility; no remaining local expertise defect. Cloud mutation: **not in G2**.
-3. **P06** in parallel — solicitor/insurance/accounting. Unblocks P09 and P07-08.
-4. Grouped later **RED** production batches (avoid gold-plating / extra deploys): rules (P07-16) with or immediately after fail-closed API; Hosting+App Check frontend together (P07-13/P07-06); email bind (P07-07/P03); Auth signup last when OPEN is intended (P07-03); Stripe live with P10 (P07-09); GA4 after P06 (P07-08).
+1. **P07G1** — docs remainder. **COMPLETE + PUSHED.**
+2. **P07G2** — GREEN local **plan** for production fail-closed API promotion. **COMPLETE** (this §44). Cloud mutation: **not in G2**.
+3. **P07G3** — future **RED** owner-approved production fail-closed API promotion (tagged 0%, smoke, then 100%; keep `00006-puf`). **NOT APPROVED. NOT EXECUTED.**
+4. **P06** in parallel — solicitor/insurance/accounting. Unblocks P09 and P07-08.
+5. Grouped later **RED** production batches (avoid gold-plating / extra deploys): rules (P07-16) after or in a later window than fail-closed API; Hosting+App Check frontend together (P07-13/P07-06); email bind (P07-07/P03); Auth signup last when OPEN is intended (P07-03); Stripe live with P10 (P07-09); GA4 after P06 (P07-08).
 
 ### Immediate next task (do not execute)
 
-**P07G2** — Prepare production fail-closed API promotion (local plan only). **GREEN.** Highest-value unblocked P07 technical item. Not a production mutation.
+**P07G3** — Promote fail-closed API to production. **RED / OWNER APPROVAL REQUIRED.** Planning is in §44. Not a G2 mutation.
 
 ### P07 PASS definition
 
@@ -2052,3 +2054,303 @@ Hosting may remain maintenance for P07 PASS **if** CDN HSTS holds; restoring the
 `helloTaskio`, Gmail Editor, `nodemailer` major, and extra Functions are **not** automatic P07 PASS blockers.
 
 **P07G1 = REMAINING-BLOCKER RECONCILE COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
+
+---
+
+## 44. P07G2 production fail-closed API promotion plan (21 September 2026)
+
+GREEN local planning only. **No production query. No staging query. No image build. No deploy. No traffic shift. No Auth/App Check/IAM/secret/rules/Hosting/Functions/`pilotSettings`/Stripe/email/analytics change.**
+
+Sources: current repo (`develop` HEAD `e17dad3c971ff235037bcc8d021ff80f7f52f2c1`), Dockerfile / `.dockerignore` / `.gcloudignore` / CI `api-image`, git history `57505d0..HEAD` (docs-only), this file §§26/39/43, tracker A03/`00006-puf` evidence, `docs/TASKIO_RELEASE_PLAN.md`, backend health/Stripe/AI/CORS/pilot-status code and tests.
+
+**P07G2 = PRODUCTION API PROMOTION PLAN COMPLETE.** This is **not** a production deploy approval. Future **P07G3** is **RED / OWNER APPROVAL REQUIRED**.
+
+Commands in this section are **FUTURE-RED-P07G3-ONLY** templates. Placeholders are intentional so they cannot be pasted as a live mutation during G2.
+
+### Scope boundary (narrow)
+
+Future P07G3 may change **only**:
+
+- `taskio-api` Cloud Run **image / new revision**
+- **API traffic split** after GO (new revision 100%; `taskio-api-00006-puf` retained at 0%)
+
+Must **not** bundle: Firestore rules, Storage rules, Hosting, CSP, Firebase Auth, App Check, Functions, webhook service, IAM bindings, secrets create/rotate/mount-add, email, GA4, Stripe enablement, `system/pilotSettings`, Expert data, migrations.
+
+### Recommended source SHA
+
+**`57505d0ac8deaaba918ff978f7c4b84c34b02895`**
+
+| Option | SHA | Why not / why |
+|---|---|---|
+| 1 HEAD | `e17dad3c971ff235037bcc8d021ff80f7f52f2c1` | Canonical docs HEAD. All commits after `57505d0` are **docs-only**. Dockerfile copies only `backend/src` + `shared`. Docs do **not** enter the image. Using HEAD as the **image tag** would blur provenance with the staging-proven fail-closed commit. |
+| **2 (chosen)** | **`57505d0`** | Exact fail-closed code SHA that staging proved on `taskio-api-staging-00072-vur` / digest `sha256:ebfecf4848170c132604e704a50da8c21a9a278ac0b830abe4c4334118fc7c98`. Reproducible code provenance. Repo policy still records plan HEAD `e17dad3` separately. |
+
+`git diff --name-only 57505d0 HEAD` is docs-only. `.dockerignore` allowlists Dockerfile + `backend/src` + `shared` only. Owner leftovers (`jobPostingSemantics.generated.js`, `frontend/landing-final-review/`) cannot enter the API image.
+
+G3 must **not** assume the production digest will equal the staging digest: a fresh production Cloud Build always mints a **new** digest (base-image/timestamp). Staging digest is **provenance of source**, not a copy target.
+
+### Image strategy
+
+**A — build a fresh image in the production Artifact Registry from `57505d0`.**
+
+Not B (copy staging digest): production/staging projects are isolated; cross-project Artifact Registry copy would add IAM; existing A03 convention is `australia-southeast1-docker.pkg.dev/taskio-v2/taskio-api/taskio-api`; CI `api-image` only `docker build`s locally and does not push.
+
+Not C: no other Taskio-supported promote-across-projects path is recorded.
+
+### Registry / tag / digest plan
+
+| Field | Plan |
+|---|---|
+| Registry | Recorded: `australia-southeast1-docker.pkg.dev/taskio-v2/taskio-api/taskio-api` (A03). **MUST RECONFIRM** repo still exists and is the active production API repo. |
+| Tag | `:57505d0` (source SHA). Cloud Run revision tag: `g3-57505d0` |
+| Digest | Unknown until G3 Cloud Build. Record **full sha256** before deploy. Do not deploy by mutable tag alone. |
+| Source verification | Cloud Build source = `57505d0`; confirm `git rev-parse HEAD` of the submitted tree is that SHA; no unstaged backend/shared changes |
+| Provenance | Record Cloud Build ID + region `australia-southeast1` + SUCCESS, matching P07F3 style |
+
+**FUTURE-RED-P07G3-ONLY (do not run in G2):**
+
+```
+# NOT EXECUTABLE IN P07G2
+# gcloud builds submit . --project=<CONFIRM_taskio-v2_AFTER_PREFLIGHT> --region=australia-southeast1 --tag=australia-southeast1-docker.pkg.dev/<CONFIRM_taskio-v2_AFTER_PREFLIGHT>/taskio-api/taskio-api:57505d0 --timeout=1200s
+```
+
+### Preserve `taskio-api-00006-puf`
+
+Recorded: 100% on `taskio-api-00006-puf`, image `sha256:f2de76fdfa00ac712446c001dbd46085b8d5e13dd2180f6d197ccc1c671c4bf6` (ABN-hardened).
+
+G3 must:
+
+1. **Not delete** `00006-puf`
+2. Deploy new revision with **`--no-traffic`** so `00006-puf` stays **100%**
+3. Tag new revision `g3-57505d0`
+4. Smoke the tagged URL at 0%
+5. Shift traffic **only after GO**
+6. Keep `00006-puf` at **0%** after success (rollback target)
+
+Cloud Run `--no-traffic --tag=` is the recorded Taskio pattern (E2B/F3). Do **not** use a one-command 100% `gcloud run deploy` without `--no-traffic`.
+
+### Production config preservation (recorded evidence only)
+
+| Item | Classification | Recorded value / note |
+|---|---|---|
+| Runtime SA | **KNOWN RECORDED VALUE** | `taskio-api-runtime@taskio-v2.iam.gserviceaccount.com` |
+| Region | **KNOWN RECORDED VALUE** | `australia-southeast1` |
+| Ingress | **KNOWN RECORDED VALUE** | `all` (IAM-private; anonymous `/health/live` Cloud Run **403**) |
+| IAM / invoker | **KNOWN RECORDED VALUE** (reconfirm) | Empty bindings; no `allUsers`; invoker check enabled. Earlier A03 public-invoker note is **superseded by P07C / ABN-hardened 00006-puf**. |
+| maxScale | **KNOWN RECORDED VALUE** | 20 |
+| concurrency | **KNOWN RECORDED VALUE** | 80 |
+| port | **KNOWN RECORDED VALUE** | 8080 |
+| CPU | **MUST RECONFIRM** | Not fully recorded |
+| memory | **MUST RECONFIRM** | Not fully recorded |
+| timeout | **MUST RECONFIRM** | Not fully recorded |
+| min instances | **MUST RECONFIRM** | Not fully recorded |
+| NODE_ENV | **EXPECTED BUT MUST CONFIRM** | Original A03 `--set-env-vars` included `production`; Dockerfile also `NODE_ENV=production` |
+| TRUST_PROXY | **KNOWN RECORDED VALUE** | `true` |
+| CORS_ORIGINS | **KNOWN RECORDED VALUE** | `https://taskio.com.au` |
+| FRONTEND_URL | **KNOWN RECORDED VALUE** | `https://taskio.com.au` |
+| STRIPE_ENABLED | **KNOWN RECORDED VALUE** — **MUST REMAIN ABSENT/OFF** as non-`true` | `false` |
+| STRIPE_EXPECTED_LIVEMODE | **MUST REMAIN ABSENT/OFF** for this promotion | P07F4: **ABSENT**. Required only if Stripe enabled. |
+| GOOGLE_CLOUD_PROJECT | **EXPECTED BUT MUST CONFIRM** | P07F4 user-env **ABSENT**; Cloud Run may inject. Do not set to staging. |
+| TASKIO_DEPLOYMENT_ENV | **MUST REMAIN ABSENT/OFF** *or* exact `production` | P07F4: **ABSENT**. Code defaults missing → `production`. Stripe validator not entered while Stripe disabled. |
+| TASKIO_PUBLIC_SIGNUP_ENABLED | **MUST REMAIN ABSENT/OFF** (not `true`) | P07C: **absent** ⇒ production Node env disables Expert register |
+| AI_DESCRIPTION_ENABLED | **MUST REMAIN ABSENT/OFF** | P07C: **absent** |
+| GEMINI_API_KEY | **MUST REMAIN ABSENT/OFF** | P07C: no Gemini secret |
+| GEMINI_MODEL / GEMINI_API_VERSION | **KNOWN RECORDED VALUE** | P07C: model set; original A03 `gemini-3.6-flash` / `v1`. Preserve; does not enable provider. |
+| ENABLE_SET_ADMIN_ENDPOINT | **MUST REMAIN ABSENT/OFF** | P07B: production false; endpoint 404 unless exact `true` |
+| TASKIO_SHOW_DEV_OTP | **MUST REMAIN ABSENT/OFF** | `validateEnv` throws if `true` in production |
+| JSON credentials / GAC | **MUST REMAIN ABSENT/OFF** | ADC only |
+| Secret `OTP_SALT` | **KNOWN RECORDED VALUE** | Mount **`:1`**. Required for production start + `/health/ready` env check. |
+| Secret `ABN_LOOKUP_GUID` | **KNOWN RECORDED VALUE** | Mount **`:1`**. Optional extra; preserve. Do not print payload. |
+| `ALERT_WEBHOOK_URL` | **NOT REQUIRED** | Resource exists with **no versions**; do not mount. Ready does not require it. |
+| Stripe / SMTP / Gemini secrets | **MUST REMAIN ABSENT/OFF** | P07C: no names in prod SM |
+
+Preserve secret **reference names and versions exactly**. No new mounts.
+
+### Fail-closed target (API promotion alone)
+
+After G3, **without** any other production change:
+
+| Surface | Expected |
+|---|---|
+| Homeowner posting | CLOSED / `canPost=false` (`pilotSettings` absent) |
+| Expert public enrollment | unavailable (`WAITLIST` + signup kill switch + Auth signup disabled) |
+| New Firebase users | still blocked (`disabledUserSignup=true`) |
+| Stripe | disabled; mutation paths `503 stripe_disabled` if reached; unauth still 401 first |
+| AI provider | off; guest tidy `{ fallback: true }` |
+| `pilotSettings` | must not be created |
+| Expertise | no auto-approve, no migration, no backfill |
+| Legacy Experts | none become launch-ready merely because API code changed |
+
+### Pilot-status expectation
+
+Code/tests (`publicPilotStatus.contract.test.js`): missing `system/pilotSettings` ⇒ HTTP 200:
+
+```
+homeownerPosting: "CLOSED"
+canPost: false
+waitlistAvailable: true
+expertOnboarding: "WAITLIST"
+canExpertApply: false
+expertWaitlistAvailable: true
+```
+
+Do **not** POST waitlist during G3 smoke.
+
+### Health / readiness
+
+| Path | Expect |
+|---|---|
+| `GET /health/live` | 200 `{ ok: true, service: "taskio-backend", env: "production" }` |
+| `GET /health/ready` | 200; `checks.firestore.ok=true`; `checks.stripe.enabled=false` and `checks.stripe.ok=true` **without** Stripe secrets; `checks.env.ok=true` |
+
+`getReadiness()`: `stripe.ok = !stripeEnabled || (secrets && ingest)`. Stripe disabled ⇒ Stripe check passes. `OTP_SALT` still required in production env check. No SMTP/Postmark in ready. No live Stripe readiness required for this promotion.
+
+Two distinct auth layers apply to every future G3 tagged/direct smoke. Do **not** collapse them.
+
+**LAYER 1 — CLOUD RUN IAM.** Production `taskio-api` is IAM-private. Completely unauthenticated requests (no Google identity) are expected to stop at Cloud Run with **403**. They never prove Express behaviour. G3 must **not** add `allUsers`, disable invoker IAM, or make the service temporarily public.
+
+Use the authorised operator identity token required to *reach* the private service. Recorded Taskio pattern (A03 application-auth boundary / dual-header harness): send the Google identity token in **`X-Serverless-Authorization: Bearer <operator identity token>`** so Cloud Run IAM is satisfied **without** occupying the application `Authorization` header. Staging F3 did not need Layer 1 because staging invoker IAM was disabled.
+
+If the tagged URL rejects the token, retry with audience = untagged service URL. **MUST RECONFIRM** the exact token/audience that currently works on `00006-puf` during G3 read-only preflight. Do not loosen IAM if the recipe is wrong — **STOP**.
+
+**LAYER 2 — TASKIO APPLICATION AUTH.** `backend/src/middleware/auth.js` `requireAuth` only inspects `Authorization: Bearer` as a **Firebase ID token**. For application-level unauthenticated-route tests, **omit** the Firebase/user bearer while **still** supplying Layer 1. Then Express sees no app token (`401 Unauthorized: No token provided`). Putting the Google identity token in `Authorization` instead would make `verifyIdToken` fail (`401 Unauthorized: Invalid token`) and is **not** the intended G3 recipe.
+
+| Request shape | Expected |
+|---|---|
+| A. Completely unauthenticated (no Layer 1) | Cloud Run **403**. Not an application CORS/auth result. |
+| B. Layer 1 only (operator identity; **no** Firebase `Authorization`) | Request reaches Express. Application status/body as in the smoke matrix. |
+
+CORS tests **must** use Layer 1 so Express CORS runs. A Cloud Run IAM 403 must **not** be recorded as the application CORS result.
+
+### Private tagged-revision access
+
+Do **not** add `allUsers`, disable invoker IAM, or temporarily public the API. Layer 1 only. See two-layer table above.
+
+### Deploy revision vs shift traffic
+
+**Step 1 — DEPLOY REVISION (0%):** image-only `gcloud run deploy taskio-api` with `--no-traffic --tag=g3-57505d0`, explicit `--project=<CONFIRM_taskio-v2_AFTER_PREFLIGHT> --region=australia-southeast1`. Do **not** pass `--set-env-vars` / `--set-secrets` / `--allow-unauthenticated` unless preflight proves config would otherwise drop (then **STOP** rather than rewrite). Optional pin: same runtime SA string.
+
+**Step 2 — SHIFT TRAFFIC (after GO only):**
+
+```
+# NOT EXECUTABLE IN P07G2
+# gcloud run services update-traffic taskio-api --to-revisions=<NEW_REVISION_ID>=100 --project=<CONFIRM_taskio-v2_AFTER_PREFLIGHT> --region=australia-southeast1
+```
+
+`00006-puf` remains listed at 0%. Do not delete it.
+
+### 0%-traffic smoke matrix (tagged URL)
+
+No job/quote/checkout/refund/transfer/email/OTP/Expert update/migration/waitlist persist.
+
+Unless noted, use **Layer 1 only** (`X-Serverless-Authorization` operator identity; **no** Firebase `Authorization`). Do not interpret Cloud Run 403 as an application result.
+
+| ID | Check | Auth layers | PASS (current route semantics) |
+|---|---|---|---|
+| A0 | Any path, e.g. `GET /health/live`, with **no** Layer 1 | none | Cloud Run **403**. Proves IAM still private. |
+| A | `GET /health/live` | Layer 1 only | Express **200** `{ ok: true, service: "taskio-backend" }` |
+| B | `GET /health/ready` | Layer 1 only | Express **200**; Firestore ok; Stripe **enabled=false** and `ok` without Stripe secrets |
+| C | `GET /api/pilot-status` | Layer 1 only (public app route) | Express **200** exact fail-safe schema above |
+| D | `GET /api/me` | Layer 1 only; omit Firebase bearer | Express **401** `{ message: "Unauthorized: No token provided" }` (`requireAuth`) |
+| D2 | `GET /api/admin/pilot-supply` | Layer 1 only; omit Firebase bearer | Express **401** same `requireAuth` (admin `403` only if a non-admin Firebase token were present — **not** used in G3) |
+| D3 | `POST /api/admin/migrate/expertise` | Layer 1 only; omit Firebase bearer | Express **401**; **migration not executed** |
+| E | CORS Origin `https://taskio.com.au` | Layer 1 **required** | Express allows; `Access-Control-Allow-Origin: https://taskio.com.au` |
+| F | Origin `https://evil.example` | Layer 1 **required** | Express **403** `CORS blocked: https://evil.example` / no ACAO. Cloud Run 403 is **not** this result. |
+| G | `POST /api/generate-description` `{ mode: "clarify" }` | Layer 1 only; guest app route (no `requireAuth`) | Express **200** `{ fallback: true }`; no Gemini |
+| H | `POST /api/users/register` | Layer 1 only; no Firebase (`requirePublicSignupEnabled` only) | Express **503** `{ message: "Signup is temporarily unavailable.", code: "signup_disabled" }` when production flag is missing/not `true` |
+| I | `POST /api/jobs/:jobId/checkout` | Layer 1 only; omit Firebase bearer | Express **401** `requireAuth` first. `503 stripe_disabled` is **not** reached without a homeowner Firebase token. Do **not** authenticate a homeowner. |
+
+Maintenance Hosting may remain. Preserving CORS `https://taskio.com.au` does **not** reopen posting.
+
+### Expertise compatibility plan
+
+No fresh broad production Expert audit. Staging F3 proved GET `/api/me` and `/api/tradie/profile` do not write approval/`updateTime`. HEAD `me.js` returns arrays; no persist-on-read.
+
+**Authenticated production GET is not mandatory.** Code provenance + F3 + F4/F5 + OPTION B are sufficient.
+
+**OPTIONAL RED ACCEPTANCE STEP (not required):** authenticated GET `/api/me` as a **synthetic** Expert only, if one already exists, to show `updateTime` unchanged. Do **not** use Prod-Expert-08 (PII / live Expert). Do **not** expand into a population scan.
+
+Prod-Expert-08: old API could grandfather approved-only; new API **fails** marketplace expertise because requested is missing. Owner **OPTION B** accepted that loss. G3 must **not** compensate (no copy approved→requested, no migrate, no auto-approve).
+
+### Rules / Auth / App Check / email / Stripe / AI
+
+| Topic | Answer |
+|---|---|
+| **CAN API BE PROMOTED SAFELY BEFORE RULES?** | **CONDITIONAL YES.** Admin SDK bypasses client rules. Hosting is maintenance; Auth signup disabled; API IAM-private; fail-closed **tightens** Expert eligibility. Client Storage `allow write` on old rules is **not** newly exposed by an API-only change. Conditions: do not restore SPA, do not enable Auth signup, do not add `allUsers`, do not create `pilotSettings`. |
+| Ordering | **API FIRST** (P07G3). Rules remain a later RED (P07-16). Not the same window. |
+| Auth `disabledUserSignup=true` | **Yes, promote.** More fail-closed. API does not flip Identity Toolkit. |
+| App Check | API IAM ≠ Firebase App Check. Promote while production App Check UNENFORCED / maintenance. |
+| Email | No SMTP in `validateEnv` / ready. Absent Postmark cannot fail this smoke. |
+| Stripe | **No G2 code defect.** `isStripeEnabled()` is exact `"true"` only. `getStripe()` throws `stripe_disabled` first. Ready healthy when disabled without secrets. Preserve `STRIPE_ENABLED=false`. |
+| AI | `AI_DESCRIPTION_ENABLED` exact `"true"` **and** key required. Absent ⇒ fallback. Model env vars do not enable calls. |
+
+**API PROMOTION CODE-READY? YES.** No local API code change required before RED promotion.
+
+### GO / NO-GO (before traffic shift)
+
+GO only if **all** true:
+
+- Source SHA `57505d0` verified
+- Production image digest immutable and recorded
+- New revision **Ready**; traffic **0%**; `00006-puf` still **100%**
+- Runtime SA unchanged; IAM unchanged/private
+- Env/secret refs preserved; Stripe disabled; AI off; Expert signup not `true`; `TASKIO_SHOW_DEV_OTP` not true
+- pilot-status fail-closed; health PASS; application-level auth guards PASS (Layer 1 + no Firebase: `/api/me` and admin **401**; register **503 signup_disabled**); CORS PASS via Layer 1 (not Cloud Run 403); bare request still Cloud Run **403**
+- no business writes; no migration; no Expert mutation; project is exactly `taskio-v2`
+
+Any failure ⇒ **NO-GO**. Do not shift.
+
+### Post-shift smoke
+
+Repeat A0 plus A–F against the **normal** production `taskio-api` URL using the same two-layer recipe. Same no-write rules. Cloud Run 403 on A0; Express results on A–F.
+
+### Rollback
+
+Immediate target: `taskio-api-00006-puf` = 100%; new revision = 0%. Repeat health + pilot-status. Do **not** roll back rules/Hosting/Auth/App Check (not in this boundary). Do **not** delete the failed new revision.
+
+### Stop conditions (before shift)
+
+Source SHA mismatch; digest/provenance uncertain; production config drifted from this plan; runtime SA mismatch; IAM would need changing; required `OTP_SALT:1` missing; Stripe would become enabled; AI would become enabled; signup/OPEN unexpectedly true; pilot-status not fail-closed; health fail; CORS permissive; migration attempted; business write; project ambiguity (`taskio-v2` not explicit).
+
+### Read-only G3 preflight (minimal)
+
+| Value | Class |
+|---|---|
+| Active revision + traffic split | **MUST RECONFIRM** |
+| Current image digest | **MUST RECONFIRM** (expect `00006-puf` / `sha256:f2de76…`) |
+| Runtime SA | **MUST RECONFIRM** (expect recorded SA) |
+| Invoker IAM still private | **MUST RECONFIRM** |
+| Ingress, maxScale, concurrency, port | **MUST RECONFIRM** |
+| CPU / memory / timeout / min instances | **MUST RECONFIRM** |
+| Safe env names/values listed above | **MUST RECONFIRM** |
+| Secret mounts `OTP_SALT:1` `ABN_LOOKUP_GUID:1` only | **MUST RECONFIRM** (names/versions; no values) |
+| Identity-token / tagged-revision access (`X-Serverless-Authorization` Layer 1; omit Firebase `Authorization` for app-unauth tests) | **MUST RECONFIRM** |
+| Production Artifact Registry path | **MUST RECONFIRM** |
+| `STRIPE_ENABLED=false` | Recorded sufficient **and** reconfirm |
+| `pilotSettings` still absent | Recorded sufficient **and** reconfirm 404 if a read-only GET is used |
+
+### Future P07G3 scope (do not execute)
+
+**P07G3 — Promote fail-closed API to production**
+
+Includes: production **read-only** preflight; production Cloud Build/push of `57505d0`; new Cloud Run revision **0%** tag `g3-57505d0`; direct smoke; traffic shift **only after GO**; post-shift smoke; rollback to `00006-puf` if required.
+
+Excludes every other P07 blocker (rules, Hosting, Auth, App Check, email, GA4, Stripe live, Functions, `helloTaskio`, Gmail Editor, Expert data).
+
+### Owner approval package (for later review; not requested in G2)
+
+**WHY.** Production still serves fail-open-era API `00006-puf`. Fail-closed expertise is staging-proven. Compatibility review complete (OPTION B). Remaining P07-25 is this narrow promotion.
+
+**WHAT CHANGES.** New `taskio-api` revision from source `57505d0`, then traffic 100% after GO. `00006-puf` retained at 0%.
+
+**WHAT DOES NOT CHANGE.** Rules, Hosting, Auth, App Check, IAM, secrets, Stripe, email, GA4, Functions, webhook, `pilotSettings`, Expert documents.
+
+**RISK.** Medium operational (new binary on private API). Known accepted product effect: Prod-Expert-08 loses approved-only grandfather (already **not** launch-ready). Mis-set env could enable Stripe/AI/signup — mitigated by image-only deploy + preflight + GO gates.
+
+**ROLLBACK.** `00006-puf` 100% / new 0%.
+
+**GO/NO-GO.** Matrix above. Fail any gate ⇒ no shift.
+
+**EXPECTED USER IMPACT.** None for the public: Hosting remains maintenance; Auth signup remains disabled; posting remains CLOSED. Exception: known legacy Expert compatibility change already accepted under OPTION B, invisible while the product is frozen.
+
+**P07G2 = PRODUCTION API PROMOTION PLAN COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. No production mutation. Future **P07G3 = RED / OWNER APPROVAL REQUIRED**.

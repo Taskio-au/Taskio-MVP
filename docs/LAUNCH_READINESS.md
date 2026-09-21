@@ -128,7 +128,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; **P07G1 remaining-blocker reconcile complete**. Expertise fail-open **FIXED + STAGING PROVEN**. Compatibility **REVIEW COMPLETE**. Canonical remainder: `docs/P07_SECURITY_CONFIG_REMEDIATION.md` §43. Auth `disabledUserSignup=true` still independently confirmed. Not PASS. | **Yes** |
+| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1 remaining-blocker reconcile complete; **P07G2 production API promotion plan complete**. Expertise fail-open **FIXED + STAGING PROVEN**. Compatibility **REVIEW COMPLETE**. Canonical remainder: `docs/P07_SECURITY_CONFIG_REMEDIATION.md` §43–§44. Auth `disabledUserSignup=true` still independently confirmed. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
@@ -144,7 +144,7 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 |---|---|
 | Objective | Prove production configuration is secure, isolated, correctly configured, and ready to serve real users. |
 | Classification | Production validation. Execution is **RED**. |
-| Current status | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; **P07G1 remaining-blocker reconcile complete** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §43). Expertise fail-open **FIXED + STAGING PROVEN**. Compatibility **REVIEW COMPLETE**. Production fail-closed API **not deployed**. **Not PASS.** |
+| Current status | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1 remaining-blocker reconcile complete; **P07G2 production API promotion plan complete** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §44). Expertise fail-open **FIXED + STAGING PROVEN**. Compatibility **REVIEW COMPLETE**. Production fail-closed API **not deployed**. Future **P07G3** is **RED / OWNER APPROVAL REQUIRED**. **Not PASS.** |
 | Dependencies | P03/P04/P05 production work; A04 / `docs/SECRETS_AND_KEY_ROTATION.md`; existing staging proofs. |
 | Approval | GREEN: checklists and audits that do not mutate production. RED: any `taskio-v2` secret, IAM, Hosting, App Check, GA4, SMTP, or Stripe live change. |
 
