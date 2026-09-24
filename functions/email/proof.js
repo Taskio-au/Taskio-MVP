@@ -29,10 +29,9 @@ const PROOF_TEXT =
   "No customer action is required.";
 
 /**
- * @param {import("express").Request} req
- * @param {import("express").Response} res
+ * @param {Object} res
  * @param {number} status
- * @param {Object<string, any>} body
+ * @param {Object} body
  * @return {void}
  */
 function sendJson(res, status, body) {
@@ -40,7 +39,7 @@ function sendJson(res, status, body) {
 }
 
 /**
- * @param {import("express").Request} req
+ * @param {Object} req
  * @return {boolean}
  */
 function hasUnexpectedInput(req) {
@@ -59,8 +58,8 @@ function hasUnexpectedInput(req) {
 /**
  * Firebase ID token with custom claim admin === true.
  * Email address and profile.role are not authorities.
- * @param {import("express").Request} req
- * @return {Promise<"ok"|"unauthenticated"|"forbidden">}
+ * @param {Object} req
+ * @return {Promise<string>}
  */
 async function authorizeProofOperator(req) {
   const header = String((req && req.get && req.get("authorization")) || "");
@@ -79,8 +78,8 @@ async function authorizeProofOperator(req) {
 
 /**
  * HTTPS handler. One fixed message. No Firestore writes.
- * @param {import("express").Request} req
- * @param {import("express").Response} res
+ * @param {Object} req
+ * @param {Object} res
  * @return {Promise<void>}
  */
 async function handleVerifyTransactionalEmail(req, res) {

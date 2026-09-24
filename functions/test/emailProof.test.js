@@ -109,7 +109,9 @@ async function invoke(extra) {
     sendMail: async (mail) => {
       calls.push(mail);
       if (extra && extra.failSend) {
-        const error = new Error("smtp user smtp-user@postmark.test password leaked");
+        const error = new Error(
+          "smtp user smtp-user@postmark.test password leaked",
+        );
         throw error;
       }
       return {messageId: "proof-mid-1", envelope: {to: [PROOF_RECIPIENT]}};
@@ -254,27 +256,30 @@ describe("proof config", () => {
 });
 
 describe("proof message", () => {
-  test("uses fixed sender, subject, body, and configured recipient", async () => {
-    setEnv(readyProofEnv({
-      CHAT_EMAIL_FROM: "Other <other@taskio.test>",
-    }));
-    const {calls} = await invoke({
-      req: {
-        headers: {authorization: "Bearer admin-token"},
-        body: {},
-      },
-    });
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].from, MAIL_FROM);
-    assert.equal(calls[0].to, PROOF_RECIPIENT);
-    assert.equal(calls[0].subject, PROOF_SUBJECT);
-    assert.equal(calls[0].subject, "Taskio production email verification");
-    assert.equal(calls[0].text, PROOF_TEXT);
-    assert.equal(calls[0].html, undefined);
-    assert.equal(calls[0].cc, undefined);
-    assert.equal(calls[0].bcc, undefined);
-    assert.equal(calls[0].attachments, undefined);
-  });
+  test(
+    "uses fixed sender, subject, body, and configured recipient",
+    async () => {
+      setEnv(readyProofEnv({
+        CHAT_EMAIL_FROM: "Other <other@taskio.test>",
+      }));
+      const {calls} = await invoke({
+        req: {
+          headers: {authorization: "Bearer admin-token"},
+          body: {},
+        },
+      });
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].from, MAIL_FROM);
+      assert.equal(calls[0].to, PROOF_RECIPIENT);
+      assert.equal(calls[0].subject, PROOF_SUBJECT);
+      assert.equal(calls[0].subject, "Taskio production email verification");
+      assert.equal(calls[0].text, PROOF_TEXT);
+      assert.equal(calls[0].html, undefined);
+      assert.equal(calls[0].cc, undefined);
+      assert.equal(calls[0].bcc, undefined);
+      assert.equal(calls[0].attachments, undefined);
+    },
+  );
 
   test("rejects caller recipient, subject, and body", async () => {
     setEnv(readyProofEnv());
@@ -315,7 +320,10 @@ describe("proof message", () => {
     assert.equal(res.statusCode, 200);
     assert.equal(calls.length, 1);
     assert.equal(getMailRuntime().enabled, false);
-    assert.equal(Object.prototype.hasOwnProperty.call(res.body, "messageId"), false);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(res.body, "messageId"),
+      false,
+    );
     assert.equal(JSON.stringify(res.body).includes(PROOF_RECIPIENT), false);
   });
 });
