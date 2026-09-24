@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 21 September 2026 (P07G3 **PRODUCTION API PROMOTION COMPLETE**)
+**Date:** 24 September 2026 (P07H1 **PRODUCTION RULES PROMOTION PLAN COMPLETE**)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1–G3 COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** on `taskio-api-00008-zir` (source `57505d0`). Legacy Expert compatibility **REVIEW COMPLETE** (OPTION B). Production Hosting still maintenance. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN** (not open-demand).
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1–G3 COMPLETE.** **P07H1 COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** on `taskio-api-00008-zir` (source `57505d0`). Compatibility **REVIEW COMPLETE** (OPTION B). Production Hosting still maintenance. Production Firestore/Storage rules still **older than HEAD**. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN** (not open-demand).
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -337,7 +337,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-13 | Hosting security headers | **P07C:** live `cffca9d87ce03901` has noindex/no-store only. P07B headers **not** deployed. Custom-domain HSTS `max-age=31556926` without includeSubDomains/preload. | C7 + HEAD | MEDIUM XSS/clickjack | Hosting deploy + browser scan later | LOCAL CONFIG COMPLETE; hosted verification pending | **GREEN** local / **AMBER** CSP / **RED** deploy | No for P07 PASS if CDN HSTS proven | Header unit test; later hosted scan | **LIVE OLDER THAN P07B** |
 | P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer remaining — **not a P07 PASS blocker** |
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
-| P07-16 | Production Firestore/Storage rules | **Staging E2A current.** **Production older:** Storage `932c4f1b…` (2025-12-24) `allow write`; Firestore `7d46b484…` (2026-04-26) predates waitlist/`system` deny. | P07C + E2A | MEDIUM overwrite / client waitlist | Deploy HEAD rules before public client writes | PRODUCTION | **RED** deploy | **Yes** before public writes | Emulator + staging proven | **PRODUCTION OLDER** |
+| P07-16 | Production Firestore/Storage rules | **P07H1 plan COMPLETE.** Staging E2A current (`28c69372…` / `a0736ecb…`). **Production older (historical; MUST RECONFIRM):** Storage `932c4f1b…` (2025-12-24) `allow write`; Firestore `7d46b484…` (2026-04-26) predates waitlist/`system` deny. HEAD sources byte-match E2A. | P07C + E2A + H1 | MEDIUM overwrite / client waitlist | Future **P07H2** RED deploy HEAD rules | PRODUCTION | **RED** deploy | **Yes** before public writes | Emulator 26/26 + staging proven | **PRODUCTION OLDER; H2 NOT APPROVED** |
 | P07-17 | Legacy Expert data | **P07F5B OPTION B.** Compatibility blocker **RESOLVED**. Fail-closed; no backfill. Future Expert reconfirmation is a **pre-launch supply** item, not an API-compatibility blocker. See §40–§42. | §40–§42 | HIGH if auto-backfilled | Leave fail-closed until reconfirmation | PRODUCTION (read) | **GREEN** decision | No for API deploy | §43 | **COMPATIBILITY REVIEW COMPLETE** |
 | P07-25 | Production fail-closed API | **P07G3 COMPLETE.** Live `taskio-api-00008-zir` 100% from `57505d0` digest `sha256:712814b0…1a771014`. Rollback `taskio-api-00006-puf` retained 0%. `STRIPE_ENABLED=false`. See §45. | P07C / F3 / G3 | — | Next: other P07 RED items | PRODUCTION | **RED COMPLETE** | Closed for API code | Tagged 0% then 100%; keep `00006-puf` | **PRODUCTION LIVE** |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
@@ -2001,7 +2001,7 @@ Repo exports: `notifyHomeownerOnQuoteSubmitted`, `notifyHomeownerOnQuoteSubmitte
 | ID | Item | Current state | Launch blocker? | Owner/code/config/deploy/ops | Dependency | Next action | Approval | Order |
 |---|---|---|---|---|---|---|---|---|
 | P07-25 | Production fail-closed API | **P07G3 COMPLETE**; live `00008-zir` from `57505d0` | Closed for API code | deploy done | G3 | Next P07: rules / Auth / App Check / P03–P05 prod | **RED COMPLETE** | 1 done |
-| P07-16 | Production Firestore + Storage rules | Staging current; production older | **Yes** before public client writes | deploy | E2A | RED deploy HEAD rules | **RED** | 2 |
+| P07-16 | Production Firestore + Storage rules | **P07H1 COMPLETE.** Staging current; production older. HEAD blobs = E2A. | **Yes** before public client writes | deploy | E2A + H1 | Future **P07H2** RED; **not approved** | **RED** | 2 |
 | P07-13 | Production Hosting / CSP | Staging CSP ENFORCED; production maintenance `cffca9d87ce03901` | SPA restore needed for real users; P07 PASS does **not** require SPA if CDN HSTS holds | deploy | P09 copy / P10 | RED with App Check frontend | **RED** | with P05 |
 | P07-03 | Production Auth signup | `disabledUserSignup=true` | **Yes** for public OPEN and P07 PASS | config | App gates stay | RED enable when OPEN intended; P10 proves journey | **RED** | late |
 | P07-06 | Production App Check | Firestore/Storage/Auth UNENFORCED; Auth enforcement **out of MVP scope** | **Yes** (P05) for public launch | config/deploy | Hosting with site key | RED P05 sequence (Hosting → Firestore → Storage) | **RED** | with Hosting |
@@ -2427,4 +2427,313 @@ Migration **NOT EXECUTED**. Expert mutation **NONE**. No jobs/quotes/OTP/email/S
 
 No public launch. Hosting maintenance; Auth signup unchanged/disabled; API **effectively IAM-private** (see etag nuance above); Stripe off; AI fallback; posting CLOSED. Prod-Expert-08 grandfather loss remains OPTION B (no compensation). Excluded unchanged: Firestore/Storage rules, Hosting, Auth settings, App Check, Functions, webhook, secret versions/content, Stripe enablement, Postmark/email, GA4, Gemini enablement, `pilotSettings`, Expert records, SPA/open-demand.
 
-**P07G3 = PRODUCTION API PROMOTION COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Remaining: production Firestore+Storage rules; Auth signup path; App Check Firestore+Storage; P03 email; P04 GA4 after P06 or explicit OFF; Stripe live when serving money.
+**P07G3 = PRODUCTION API PROMOTION COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Remaining: production Firestore+Storage rules (planned in §46; **P07H2 NOT APPROVED**); Auth signup path; App Check Firestore+Storage; P03 email; P04 GA4 after P06 or explicit OFF; Stripe live when serving money.
+
+---
+
+## 46. P07H1 production Firestore + Storage rules promotion plan (24 September 2026)
+
+GREEN local planning only. **No production query. No staging query. No rules deploy. No App Check/Auth/Hosting/API/Functions/`pilotSettings`/data/Stripe/email change. No push.**
+
+Sources: HEAD `315ef96bca352810be83f86909b3850fef3d573c` = `origin/develop` (0/0); `firestore.rules` / `storage.rules` / `firebase.json` / `.firebaserc`; `rules-tests/security.rules.test.js`; `npm run test:rules` **26/26 PASS**; frontend/backend access patterns; this file §§8/16/33/43–45; tracker E2A/P05; `docs/LAUNCH_READINESS.md`; `docs/APP_CHECK.md`. Live cloud **not** used.
+
+**P07H1 = PRODUCTION RULES PROMOTION PLAN COMPLETE.** This is **not** a production deploy approval. Future **P07H2** is **RED / OWNER APPROVAL REQUIRED**.
+
+Commands in this section are **FUTURE-RED-P07H2-ONLY** templates. Do **not** run them in H1.
+
+### Sources / deploy targets
+
+| Item | Fact |
+|---|---|
+| Firestore source | repo-root `firestore.rules` |
+| Storage source | repo-root `storage.rules` |
+| `firebase.json` | `"firestore.rules": "firestore.rules"`; `"storage.rules": "storage.rules"` |
+| Indexes | `firestore.indexes.json` exists; **out of H2 scope** (E2A used `firestore:rules` only) |
+| `.firebaserc` | alias `default` = `taskio-v2`; `staging` = `taskio-v2-staging`. **Do not `firebase use`.** |
+| Same source files | Yes. Staging and production share the files. Isolation is `--project=`. |
+| Preprocessing / generated artifacts | **None.** Tests `readFile` the same root files. |
+| Storage bucket in `firebase.json` | **Not named.** `--only storage` targets the project default bucket. H2 must record the exact storage release resource. |
+| HEAD vs E2A blobs | **MATCH.** Firestore git blob `bdc6e2bd9dfb0e53bb23d22f49e4d48ac4995894` SHA-256 `306E05BF…1A7C150`. Storage git blob `fddbc66fc46a86eaf481a7e4ff6f4b049e2b6509` SHA-256 `2BED0B0B…F6DCD5B`. No rule-source commits since E2A. |
+| Recorded staging live | Firestore `28c69372-2f82-4171-a7ad-379b0335b5a5`; Storage `a0736ecb-e3bb-4573-8608-c1bced82fab8` (historical; not re-queried). |
+| Recorded production live | Firestore `7d46b484…` (2026-04-26); Storage `932c4f1b-cb8d-46b3-bf14-b53a971bb4f4` (2025-12-24, `allow write`). **Historical only. MUST RECONFIRM in H2.** |
+
+### Firestore current semantics (HEAD)
+
+- Auth: `request.auth`; admin = custom claim `admin == true` only (profile `admin`/`role` is **not** authority).
+- `users/{uid}`: owner or admin read; **create false**; delete false; update allowlisted profile fields + `updatedAt == request.time`; cannot set `role`/`verified`/Stripe/admin; `abnVerified` may only go false; `phoneVerified=true` requires matching token phone.
+- Nested: notifications (owner read; mark read); `chatThreads` (owner read; unreadCount→0). Other user subcollections (including `users/{uid}/reviews`) unmatched ⇒ **client deny**.
+- `jobs/{jobId}`: read homeowner / `acceptedTradieUid` / `invitedTradieUids` list / admin. Create/delete false. Limited homeowner edit before accept; accepted Expert `progressStatus`; admin ops fields.
+- Job `messages`: participant/invited/admin read; create gated by chat status/frozen/closed; immutable.
+- Job `variations`: participant/admin read; **create false** (API); Expert may cancel own pending.
+- Job `adminNotes`: admin claim only.
+- `quotes`, `payments`: party/owner or admin read; writes false.
+- `reviews` (top-level): **no match** ⇒ client deny; Admin SDK only.
+- `supportTickets`: owner create (constrained); owner/admin read; admin operational update; delete false. Nested adminNotes admin-only.
+- `adminDailyChecklist`, `user_audit_logs`, `profile_change_requests`: admin read; writes false except checklist admin upsert.
+- `phone_verifications`, `deletion_tokens`, `pilotWaitlist`, `expertWaitlist`, `system/{document=**}`: **read/write false** (Admin SDK only).
+- No `request.app` / App Check predicate.
+
+### Storage current semantics (HEAD)
+
+- Default deny `/{allPaths=**}`.
+- `job-attachments/{jobId}/{messageId}/{fileName}`: chat participant or admin read; create-only; chat gates; image/PDF/HEIC; 10MB; `variation-*` extra status gate.
+- `job-posting-attachments/{jobId}/{fileName}`: posting-viewer or admin read; homeowner create-only; image; 10MB.
+- `profile-photos/{uid}/{fileName}` leftover: owner/admin read; owner create-only; image; **2MB**.
+- `profile-images/{fileName}` leftover deterministic `{uid}.jpg|.png`: owner/admin read; owner **write** (explicit replace); jpeg/png; **2MB**. Current frontend uses `profilePhotos/`, not this path.
+- `profilePhotos/{uid}/{fileName}` current: owner/admin read; owner create-only; jpeg/png/webp; **2MB**.
+- `support-tickets/{uid}/{ticketId}/{fileName}`: owner/admin read; owner create-only; 5MB.
+- Job helpers `firestore.get` the job. Missing job ⇒ deny (emulator null-value on missing posting job; test still **FAILS** the upload as intended).
+- No `request.app`.
+
+### Test coverage (`rules-tests/security.rules.test.js`, 26 tests)
+
+| Path / behaviour | Class |
+|---|---|
+| users create / privilege bootstrap | **FULLY TESTED** |
+| users allowlisted self-update; role/`quoteAccessVerified` deny | **FULLY TESTED** |
+| admin claim vs profile-admin field | **FULLY TESTED** |
+| users own-data unauthenticated | **UNTESTED** (GREEN gap) |
+| chat create homeowner / accepted / invited; spoof; pre-pay/frozen/cancel; immutable | **FULLY TESTED** |
+| paid 30-day / reopen chat | **FULLY TESTED** |
+| job document read (owner / invited / stranger) | **UNTESTED** (GREEN gap) |
+| job homeowner edit / Expert progress / admin ops | **UNTESTED** (GREEN gap) |
+| quotes / payments / reviews | **UNTESTED** (GREEN gap; writes intended false) |
+| variations / notifications / chatThreads / adminNotes / checklist / audit / change-requests / phone+deletion tokens | **UNTESTED** (GREEN gap) |
+| `system/**`, `pilotWaitlist`, `expertWaitlist` including admin claim | **FULLY TESTED** |
+| support ticket create + owner/admin/stranger read | **FULLY TESTED** |
+| Storage chat upload / deny stranger-frozen-type-oversize / variation bypass / immutability | **FULLY TESTED** |
+| posting create-only, unique second, oversize, missing job | **FULLY TESTED** |
+| profile 2MB all three path families; timestamped no-overwrite; deterministic replace; ownership/type | **FULLY TESTED** |
+| profilePhotos owner/admin/stranger read | **FULLY TESTED** |
+| Storage unauthenticated / delete / unknown prefixes | **UNTESTED** (GREEN gap) |
+
+Gaps do **not** block H2: E2A shipped these same sources with 26/26. Optional later GREEN test expansion. **No H1 source/test patch.**
+
+### Tests run (H1)
+
+`npm run test:rules` against demo project `demo-taskio-rules`: **26 tests PASS / 0 fail** (4 describes). `git diff --check` on intended docs after this section.
+
+### Legacy schema compatibility (docs/code only; no production sample)
+
+| Expression | Missing-field effect | Class |
+|---|---|---|
+| users read `auth.uid == uid` | No schema required | **COMPATIBLE** |
+| users update `abnLocked` | Missing ⇒ ABN change allowed | **COMPATIBLE** |
+| jobs read `homeownerUid` / `acceptedTradieUid` / `invitedTradieUids is list` | Missing identity fields ⇒ deny even a purported owner/invitee | **SAFE FAIL-CLOSED**; **REQUIRES RED PREFLIGHT SAMPLE** that existing jobs still have `homeownerUid` (backend always writes it now) |
+| `isInvitedTradie` list **or** `invites` map | Missing both ⇒ not invited | **SAFE FAIL-CLOSED** |
+| Job **read** does **not** honour `invites` map (nudge metadata only; invites go to `invitedTradieUids`) | Invitee-only-via-map cannot client-read job | **COMPATIBLE** with current backend |
+| chatEnabled / chatClosed on `status` | Missing/unknown status ⇒ chat create denied | **SAFE FAIL-CLOSED** |
+| Storage `chatEnabled` omits uppercase `IN_ESCROW`/`AWAITING_APPROVAL`; Firestore includes them | Backend job **status** is `FUNDED`/`COMPLETED`; `in_escrow` is **paymentState** | **COMPATIBLE** |
+| quotes/payments read `homeownerUid`/`tradieUid`/`ownerUid` | Missing ⇒ deny client read; API still works | **SAFE FAIL-CLOSED**; **REQUIRES RED PREFLIGHT SAMPLE** only if a client still reads those collections (current SPA uses API) |
+| `reviews` unmatched | Client deny | **SAFE FAIL-CLOSED** / **COMPATIBLE** (API `GET /api/tradies/:uid/reviews`) |
+| Storage unknown prefixes vs old `allow write` | Unmatched objects: client read/write deny | **UNKNOWN — RED PREFLIGHT NEEDED** (prefix inventory only; no filenames/PII) |
+| Create-only posting / profilePhotos vs old overwrite | Existing objects remain; silent replace denied | **COMPATIBLE** (intended tighten). Current posting client uses UUID filenames. |
+
+No **CODE DEFECT** requiring a pre-H2 rules patch. No data migration required for rules promotion.
+
+### Admin SDK vs client
+
+Admin SDK (API, Functions, webhook) **bypasses** rules. After H2:
+
+| Workflow | Class |
+|---|---|
+| Job/quote/payment/review create-update; waitlists; `pilotSettings`; user enrolment; OTP; email; Stripe objects; expertise migration | **backend-only** |
+| Chat messages; support ticket create; profile allowlisted update; notification/thread read-mark; posting/profile/support/chat uploads; admin notes/checklist (admin **claim**); pre-accept job edit; Expert progressStatus; variation cancel | **client-direct** |
+| Job/user/support **read**; admin job attention | **mixed** (client rules + API) |
+
+Rollback of rules does **not** restore old API behaviour. API remains `00008-zir`.
+
+### Rules before App Check
+
+Rules contain **no** App Check predicate. Production App Check remains UNENFORCED (recorded). Hosting is maintenance; Auth signup disabled; API private.
+
+**Answer: CONDITIONAL — SAFE under the current freeze.** Tightens client overwrite/waitlist/`system` vs recorded older production. Does **not** require App Check tokens. Residual: a stolen Firebase Auth session can still perform **rules-allowed** owner actions until P05. That is **not** a HIGH/CRITICAL rules defect and is **not** an H1 CODE/CONFIG BLOCKER. P07 PASS still later requires App Check enforcement (P07-06 / P05).
+
+### Ordering
+
+**RULES FIRST.**
+
+Staging App Check-then-rules is **not** the production analogue: staging already had an App Check Hosting bundle. Production Hosting is maintenance **without** App Check. App Check first would need a Hosting/site-key window (out of scope). Same RED window would expand into P07-06. §43 already ordered API then rules, Hosting+App Check later.
+
+### Bundling
+
+**A. Firestore + Storage in the SAME RED window**, sequential. Do **not** split H2/H3. Do **not** deploy both and validate only at the end.
+
+1. Deploy Firestore rules.
+2. Validate the Firestore Release/config (see propagation below) before continuing.
+3. Deploy Storage rules.
+4. Validate the Storage Release/config.
+
+If the Firestore step fails or is NO-GO: **do not** proceed to Storage. If Storage fails after a successful Firestore deploy: evaluate **Storage rollback independently**. Do **not** automatically roll Firestore back merely because Storage failed, unless the combined product state creates a material security or operational problem.
+
+### Storage-specific risk
+
+**UNKNOWN — RED PREFLIGHT NEEDED** for live prefix inventory vs the six matched prefixes. No git evidence of other current client paths. Leftover `profile-photos/` and `profile-images/` remain readable/writable under HEAD for those shapes. Old production `allow write` → create-only is an intended tighten. **No KNOWN LEGACY INCOMPATIBILITY** in repo/docs.
+
+### Firestore-specific risk
+
+Legacy documents remain readable **where identity fields still match the predicates**. Unmatched collections stay client-denied; Admin SDK continues. Waitlist/`system` become client-denied (tighten vs recorded 2026-04 production). **No rewrite required.**
+
+### Client access matrix (HEAD)
+
+Unauth = `request.auth == null`. Admin client = custom claim. Backend = Admin SDK allow.
+
+| Path | Unauth | Homeowner owner | Other homeowner | Invited Expert | Other Expert | Admin client | Backend |
+|---|---|---|---|---|---|---|---|
+| `users/{uid}` read | deny | allow self | deny | deny | deny | allow | allow |
+| `users/{uid}` create | deny | deny | deny | deny | deny | deny | allow |
+| `jobs/{id}` read | deny | allow | deny | allow if in `invitedTradieUids` | deny unless accepted | allow | allow |
+| `jobs/{id}` create/delete | deny | deny | deny | deny | deny | deny | allow |
+| `jobs/.../messages` create | deny | if chat gates | deny | if chat gates | deny | deny (unless also participant role) | allow |
+| `quotes` / `payments` / `reviews` write | deny | deny | deny | deny | deny | deny | allow |
+| `quotes`/`payments` read | deny | if party/owner field | deny | if `tradieUid` | deny | allow | allow |
+| `reviews` read | deny | deny | deny | deny | deny | deny | allow |
+| `pilotWaitlist` / `expertWaitlist` / `system/**` | deny | deny | deny | deny | deny | deny | allow |
+| `supportTickets` create | deny | allow constrained | deny other ownerUid | allow if role tradie + own uid | deny other | deny create (not in role enum as admin) | allow |
+| Storage posting | deny | owner create-only | deny | read if invited list | deny | read | allow |
+| Storage chat attach | deny | create if chat gates | deny | create if chat gates | deny | read | allow |
+| Storage `profilePhotos` | deny | owner create-only | deny | deny | deny | read | allow |
+
+### App Check non-enforcement
+
+Security during H2 still relies on Firebase Auth, rules predicates, ownership, and path/size/type constraints. A malicious **authenticated** client can only do what the matrix allows for that uid. They **cannot** create users, write waitlists/`system`, overwrite posting objects, or mint admin. **No HIGH/CRITICAL gap that stops H1.** Stolen-token residual is accepted until P05.
+
+### Ruleset vs Release
+
+**RULESET** = immutable rules source/version. **RELEASE** = named active reference that points at one Ruleset.
+
+H2 may create new immutable Rulesets and update the relevant Firestore / Storage Releases to point at them. Rollback does **not** reconstruct old rules from Git.
+
+Before mutation, H2 captures **separately** for Firestore and for Storage:
+
+- exact **Release** resource name
+- exact currently referenced **Ruleset** resource name
+- Release `updateTime`
+- full old Ruleset identity
+- source / fingerprint / hash if available
+
+Historical short IDs (`7d46b484…`, `932c4f1b…`) are search hints only. They are **not** enough.
+
+**Supported rollback:** re-point the **existing captured Release** back to the **captured previous Ruleset**. The Firebase Rules management API can update a Release's `rulesetName`. Conceptually:
+
+CURRENT RELEASE → PRE-H2 RULESET
+
+Do **not** delete the new Ruleset. Do **not** delete the old Ruleset. Do **not** recreate old rules from Git. Do **not** deploy indexes. Do **not** mutate application data. H1 contains **no** live production mutation. H2 chooses the exact authenticated Firebase Rules API / supported operator mechanism during the RED execution.
+
+### Firestore rollback
+
+Expected default-database Release form, **conceptual only**:
+
+`projects/taskio-v2/releases/cloud.firestore/(default)`
+
+The **actual** production Release resource discovered in the H2 read-only preflight is the authority. Do not treat an assumed string as the rollback target.
+
+Before mutation record: old Firestore Release, old Firestore Ruleset, old `updateTime`, full Ruleset identity, source/fingerprint if available. After deploy record: new Firestore Ruleset, the same/expected Release, new `updateTime`. Rollback: patch/re-point **that** Release to the old Ruleset.
+
+### Storage rollback
+
+`firebase.json` does **not** name the Storage bucket. H2 **must** discover and reconfirm the actual production bucket and the exact Storage Release before mutation. Ambiguous bucket or Release = **NO-GO**.
+
+Expected form, **conceptual only**:
+
+`projects/taskio-v2/releases/firebase.storage/<bucket>`
+
+The actual H2 preflight result is the authority. `932c4f1b…` remains a historical hint until reconfirmed.
+
+Before mutation record: bucket, old Storage Release, old Storage Ruleset, old `updateTime`. After deploy record: new Storage Ruleset, the expected Storage Release, new `updateTime`. Rollback: re-point **that exact** Storage Release to the old Ruleset. No object deletion. No ruleset deletion.
+
+### Propagation
+
+Firebase Security Rules Releases may take several minutes to propagate. H2 must **not** classify a deploy or a rollback as failed solely because one request still observes the prior effective rules immediately after the Release change.
+
+H2 validation order:
+
+1. Confirm the Rules API Release points at the intended Ruleset.
+2. Confirm the new Ruleset identity/source.
+3. Allow a **bounded** propagation window. No unbounded sleep.
+4. Repeat the safe validation.
+5. Only then decide PASS or that rollback is needed.
+
+If effective behaviour does not converge inside that window: **STOP / NO-GO** and assess before any further change.
+
+### Future deploy mechanism (H2 only)
+
+Explicit project flag. **Do not `firebase use`.** **Do not `gcloud config set project`.** `--project=taskio-v2` is valid on this CLI (`-P` / `--project`). Default `.firebaserc` is already `taskio-v2`; still pass `--project=taskio-v2` so the target cannot be ambiguous.
+
+```
+firebase deploy --project=taskio-v2 --only firestore:rules --non-interactive
+firebase deploy --project=taskio-v2 --only storage --non-interactive
+```
+
+Not `--only firestore` (would include indexes). Not Hosting. Confirm CLI project printback is `taskio-v2` before each command. **FUTURE-RED-P07H2-ONLY.**
+
+### RED preflight (minimum)
+
+| Item | Class |
+|---|---|
+| Project is unambiguously `taskio-v2` | **MUST RECONFIRM** |
+| Firestore Release resource + referenced Ruleset + `updateTime` + fingerprint if available | **MUST RECONFIRM** |
+| Storage bucket + Release resource + referenced Ruleset + `updateTime` + fingerprint if available | **MUST RECONFIRM** |
+| `firebase.json` / `.firebaserc` mapping; `--project=taskio-v2` printback | **MUST RECONFIRM** |
+| HEAD `firestore.rules` / `storage.rules` blobs still = E2A / this plan | **MUST RECONFIRM** |
+| `npm run test:rules` PASS on that source | **MUST RECONFIRM** |
+| Auth `disabledUserSignup=true` | **MUST RECONFIRM** |
+| Hosting still maintenance / not SPA | **MUST RECONFIRM** |
+| App Check Firestore/Storage/Auth still UNENFORCED | **MUST RECONFIRM** |
+| `pilotSettings` still absent (fail-closed posting) | **MUST RECONFIRM** |
+| Storage prefix inventory (no PII) vs matched prefixes | **MUST RECONFIRM** |
+| Sample jobs still have `homeownerUid` (count/presence only) | **MUST RECONFIRM** |
+| Recorded short IDs `7d46b484…` / `932c4f1b…` | **RECORDED SUFFICIENT** only as search hints |
+
+### NO-GO (stop before deploy)
+
+Active production rules differ materially from the recorded older baseline in an unexpected *newer* way; HEAD source ≠ tested blobs; `test:rules` fail; project/target ambiguity; Firestore or Storage Release/Ruleset cannot be identified; Storage bucket/Release ambiguous; unsafe missing-field allow; App Check ordering becomes mandatory (e.g. SPA restored); Hosting/Auth unexpectedly opens exposure; rules would need data migration first; project is not `taskio-v2`.
+
+### Post-deploy validation (H2)
+
+**CONFIG PROOF (P07-16 / H2):** Rules API Release points at the new Ruleset; Ruleset identity/source hash vs HEAD; bounded propagation window, then repeat safe checks; optional unauthenticated deny probes on `system/**` / waitlists if a public REST path exists (E2A used this on staging). **No** new users, jobs, quotes, reviews, waitlist entries, or files. Do not treat one immediate stale request as deploy failure.
+
+**P10 REAL-USER JOURNEY PROOF:** separate. Brand-new homeowner authenticate-and-post, including Storage writes.
+
+### Storage browser-write requirement
+
+**A. No.** Tracker/§43: P07-16 is production rules **matching current HEAD**. E2A closed staging rules with emulator proof and **no file upload**. P05 Storage browser write is **App Check enforcement** proof, not rules. P10 owns the production posting/upload journey.
+
+**Keep H2 write-free.** Older RED-H “named hosted upload proof” is **superseded** by E2A + this split.
+
+### Expected user impact (maintenance/frozen)
+
+No public launch; no new signup; no open posting; no Expert onboarding; no production file-upload journey on Hosting. Backend/Admin SDK workflows continue. Possible effect: any leftover authenticated **client** hitting production Firestore/Storage (not the maintenance page) loses waitlist/`system` client access and posting-object overwrite. Intended. Operator Console/Admin SDK unaffected. Custom-claim admin SPA is **not** served on maintenance Hosting.
+
+### Code-ready
+
+| Surface | Ready? |
+|---|---|
+| Firestore | **YES** |
+| Storage | **YES** |
+
+No local test-only fix required before RED.
+
+### Future RED task
+
+**P07H2 — Promote production Firestore + Storage rules**
+
+Mutation: `taskio-v2` Firestore rules from HEAD `firestore.rules`, then Storage rules from HEAD `storage.rules`, same window. Preserve prior rulesets. No App Check, Auth, Hosting, API, Functions, email, GA4, Stripe, `pilotSettings`, or data migration.
+
+### Owner approval package (H2; no request in H1)
+
+**WHY.** Production rules are older than the E2A-proven HEAD sources. Storage still recorded `allow write`. Firestore predates waitlist/`system` deny. Public client writes must not proceed on those rules.
+
+**WHAT CHANGES.** Active Firestore + Storage rulesets on `taskio-v2` to current HEAD (same files as staging E2A).
+
+**WHAT DOES NOT CHANGE.** App Check, Auth, Hosting, API (`00008-zir`), Functions, webhook, secrets, Stripe, email, GA4, Gemini, `pilotSettings`, Expert records, data, IAM bindings.
+
+**RISK.** Medium operational (client deny tighten). Low public-user impact while frozen. Residual authenticated-client abuse until P05. Unknown extra Storage prefixes fail-closed.
+
+**ROLLBACK.** Re-point each captured Release's `rulesetName` to the captured pre-H2 Ruleset. Do not delete Rulesets. Do not reconstruct old rules from Git. Do not deploy indexes. Do not mutate data.
+
+**GO/NO-GO.** Preflight table + NO-GO list. Fail any MUST RECONFIRM ⇒ no deploy.
+
+**EXPECTED USER IMPACT.** None for the public maintenance site. See matrix.
+
+**P07H1 = PRODUCTION RULES PROMOTION PLAN COMPLETE.** Future **P07H2 = RED / OWNER APPROVAL REQUIRED**. **NOT APPROVED. NOT EXECUTED.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
