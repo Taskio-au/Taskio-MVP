@@ -124,7 +124,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 |---|---|---|
 | P01 | **PASS / COMPLETE** (TEST bank payout) | No |
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
-| P03 | **STAGING PASS / PRODUCTION PENDING** — P03G1A proof function **local only**; P03G1B **NOT STARTED**; P03G2 **BLOCKED** | Yes, until production PASS |
+| P03 | **STAGING PASS / PRODUCTION PENDING** — P03G1B staging proof **PASS**; P03G2 **ELIGIBLE / NOT APPROVED** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
@@ -190,7 +190,7 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 - Production nodemailer SMTP (Postmark host), approved sender/domain authentication, production secret binding.
 - One authentic operator verification send. Customer-facing E01 stays `EMAIL_ENABLED=false` until a later decision.
 - No staging URLs and no sensitive task content in the proof email.
-- Plan: `docs/TRANSACTIONAL_EMAIL.md`. `verifyTransactionalEmail` is **implemented locally** (`EMAIL_PROOF_ENABLED`, `EMAIL_PROOF_RECIPIENT`). Not deployed. **P03G1B** staging validation is next. **P03G2** remains **BLOCKED**.
+- Plan: `docs/TRANSACTIONAL_EMAIL.md`. Staging `verifyTransactionalEmail` **P03G1B PASS** and now **INERT** (`EMAIL_PROOF_ENABLED=false`). **P03G2** is **ELIGIBLE FOR SEPARATE RED OWNER APPROVAL** and **NOT APPROVED**.
 
 **G. Firebase / Hosting / API configuration audit**
 
