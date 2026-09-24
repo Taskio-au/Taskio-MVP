@@ -138,3 +138,153 @@ E02–E05 were not hosted in this proof.
 ## Production
 
 Production SMTP / `EMAIL_ENABLED` remains **off** until a dedicated production approval. Do not copy staging secrets into `taskio-v2`.
+
+## P03G1 — production transactional-email plan (24 September 2026)
+
+**P03 production email plan: COMPLETE.** Future execution **P03G2** is **RED / OWNER APPROVAL REQUIRED**. This record is planning only. No cloud query, secret read, email send, or deploy was performed.
+
+### Provider architecture (from current code)
+
+Production email expects **nodemailer SMTP**, not a Postmark HTTP API client and not a Cloud Run mailer. Package: `nodemailer` in `functions/package.json`. Postmark is the intended SMTP host. Sender init is lazy in `getTransporter()` only when `EMAIL_ENABLED` is true and host, port, user, and pass are present. Missing config returns `not_configured` and does not throw. `EMAIL_ENABLED` defaults false. `sendTransactionalEmail` never throws. Logs record event, jobId, messageId, and error message. They do not record secret values or full recipient addresses.
+
+Secret names expected by the E01 functions: `SMTP_USER`, `SMTP_PASS` (`defineSecret`). Non-secret runtime names: `EMAIL_ENABLED`, `SMTP_HOST`, `SMTP_PORT` (465 = implicit TLS), `MAIL_FROM` (else `CHAT_EMAIL_FROM`), `TASKIO_APP_URL` (https origin only).
+
+### Email paths
+
+| Path | Trigger | Secrets bound | Staging-proven | P03 production PASS |
+|---|---|---|---|---|
+| `notifyHomeownerOnQuoteSubmitted` | Firestore create `quotes/{quoteId}` | `SMTP_USER`, `SMTP_PASS` | Yes (E01) | Required runtime, not the proof message |
+| `notifyHomeownerOnQuoteSubmittedUpdate` | Firestore update `quotes/{quoteId}` | same | Deployed with E01; the proven send was create | Required with the create function so draft→submitted cannot bypass it |
+| `notifyTradieOnEscrowFunded` | Firestore update `jobs/{jobId}` | none | No (E02–E05 local only) | Defer |
+| Chat email inside `flagRiskyJobMessages` | Firestore create `jobs/{jobId}/messages/{messageId}` | none | No | Defer |
+| OTP / welcome / waitlist / admin / support email | — | — | Not implemented | Out of P03 |
+
+There is no dedicated operator test-send function. Backend/API and webhooks do not send mail. Phone OTP is Firebase Auth, not this path.
+
+### Staging proof (docs only, 2026-09-04, `taskio-v2-staging`)
+
+E01 quote-received was exercised through the Functions trigger. Provider authentication was proven (SMTP secrets v2 enabled; log `transactional_email_sent`). Sending identity recorded as `MAIL_FROM=Taskio <admin@taskio.com.au>`. Recipient class was the operator mailbox used as the synthetic homeowner. Delivery was owner-confirmed in Outlook Inbox/Focused. Link/content rendering was the real E01 template (job ref, staging URL). A prior failed send remains as audit; retries and E02–E05 were not hosted-proven.
+
+Recorded provider account facts to reconfirm in RED, not re-query here: Postmark account approved; sender `admin@taskio.com.au` activated; DKIM verified for `taskio.com.au`; Return-Path verified. SPF and DMARC were not recorded as verified.
+
+### Production gaps
+
+| Gap | Class |
+|---|---|
+| E01 implementation | Present in repo. Not a code gap. |
+| Safe proof entrypoint that sends static copy without a quote/job/payment write | **CODE**. No such function exists. Current E01 subject is `New quote for ${jobRef}` and the body includes job title, amount, and an app link. |
+| Production `SMTP_USER` / `SMTP_PASS` | **SECRET/CONFIG**. Recorded absent. Do not copy staging. |
+| `EMAIL_ENABLED`, `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `TASKIO_APP_URL` on production Functions | **RUNTIME BINDING**. Recorded off / not P03-bound. |
+| Production sender/domain still authorised | **DOMAIN/SENDER AUTH**. Historical verification must be reconfirmed. |
+| Which production Function revisions are live | **REQUIRES RED READ-ONLY PREFLIGHT**. Last recorded list is 2026-04-11: `notifyHomeownerOnQuoteSubmitted`, `notifyTradieOnEscrowFunded`, `flagRiskyJobMessages`. `notifyHomeownerOnQuoteSubmittedUpdate` was recorded missing. Do not treat that list as current. |
+| One controlled production send and mailbox receipt | **AUTHENTIC SEND PROOF**. Pending. |
+| Provider dashboard acceptance / bounce check | **RED read-only provider proof**. |
+| E02 “funds are held” wording and real-user Postmark disclosure | **LEGAL/COPY** (P06). Does not block the operator proof. |
+| Monitoring of email failures | **OPTIONAL** for this proof. Existing logs are the signal. |
+
+### Secret / env classification
+
+| Name | Class |
+|---|---|
+| `SMTP_USER`, `SMTP_PASS` | **REQUIRED** on the functions that send |
+| `EMAIL_ENABLED`, `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `TASKIO_APP_URL` | **REQUIRED** to send. Absent or false → skip, no crash |
+| `CHAT_EMAIL_FROM` | **OPTIONAL** fallback if `MAIL_FROM` is unset |
+| Staging secret versions and legacy `taskio-staging-postmark-*` | **STAGING-ONLY**. Do not copy |
+| Postmark Server API token | **DEPRECATED** for this path (SMTP only) |
+| Exact SMTP host string and whether SPF/DMARC are already published | **UNKNOWN / MUST PREFLIGHT** |
+
+Email is lazy. Production API does not read these values. A function that declares `secrets:` fails deploy if the secret resource is missing. A function that does not declare them skips send when user/pass are empty. Startup of the API stays healthy if email is unconfigured.
+
+### MVP requirement
+
+**P03 MUST HAVE:** production nodemailer SMTP bound to the activated sender, E01 create+update functions deployed with secrets and `EMAIL_ENABLED=false` until a later real-user decision, and one authentic operator send of static verification copy through that same SMTP stack.
+
+**DEFER:** E02–E05, chat email, OTP/welcome/waitlist/admin mail. Do not deploy `notifyTradieOnEscrowFunded` or change `flagRiskyJobMessages` for this proof.
+
+### Failure behaviour
+
+Email is best-effort. Quote, job, and payment flows do not fail when SMTP fails. `sendTransactionalEmail` does not throw, so the `retry: true` trigger does not retry a swallowed SMTP error. After success, `emailSentAt` blocks a duplicate. Chat uses a 15-minute throttle. There is no dead-letter queue. No HIGH/CRITICAL product-flow blocker.
+
+### Privacy
+
+Send-path logs: **SAFE** for secrets and full addresses (unit-tested). Product templates put job title, reference, and amount in the provider message: **LOW / MEDIUM**, acceptable for later real E01, not acceptable as the production proof body. No OTP, token, Stripe ID, phone, or UID in the email bodies. Not HIGH. No code change in G1.
+
+### P06
+
+The operator proof is operational transactional mail to an owner-controlled mailbox. It is not blocked by P06 and it is not marketing. Real-user production email remains under the existing P06 APP 8 / overseas-processor note. Do not enable customer-facing `EMAIL_ENABLED` on E01 as part of the proof.
+
+### Production proof design (do not execute)
+
+No safe write-free verification entrypoint exists. Do not create a production quote, job, payment, or Auth user to prove email.
+
+**P03G2 precondition: BLOCKED** until a GREEN verification function is in the repo and has passed local and staging validation. P03G2 must not execute before that.
+
+That function is not a general-purpose admin mail endpoint. It must be:
+
+- disabled by default
+- operator/admin protected
+- fixed subject: `Taskio production email verification`
+- fixed non-sensitive body, with no customer, job, payment, or template data
+- no arbitrary sender, message body, or real-user recipient
+- recipient resolved only from controlled execution-time config or input
+- no recipient address committed to Git
+- no persistent business-state mutation
+- not a normal production product feature
+
+The production proof sends exactly one controlled verification message through the same nodemailer SMTP path, production `MAIL_FROM`, and production secrets.
+
+Success: provider accepted the message, production sender identity was used, the owner mailbox received it, no bounce/reject, and logs contain no secret or high-risk PII.
+
+### DNS / domain preflight (RED, read-only)
+
+Reconfirm sender `admin@taskio.com.au`, domain `taskio.com.au`, DKIM, SPF, Return-Path, DMARC recommendation, provider account not in a sandbox that cannot prove delivery, and that the production server token is distinct from staging. Do not query them in G1.
+
+`MAIL_FROM` candidate already recorded from staging: `Taskio <admin@taskio.com.au>`. Production `TASKIO_APP_URL` for any later product mail: `https://taskio.com.au`. The proof body must not depend on the SPA, because Hosting is maintenance.
+
+### Deployment order for P03G2
+
+1. RED read-only preflight (project `taskio-v2` only; secret **names**; Function revisions; sender/DNS; provider not sandbox).
+2. GREEN verification function, already validated locally and on staging, matching the constraints above. Not an arbitrary-email admin endpoint. No customer trigger.
+3. Create production `SMTP_USER` and `SMTP_PASS` (new values; do not copy staging).
+4. Deploy **only** that verification function plus the two E01 functions. E01: secrets bound, `EMAIL_ENABLED=false`. Verification function: secrets bound, enabled only for the one send.
+5. Confirm runtime names and Ready. No customer email.
+6. One controlled send.
+7. Mailbox plus provider acceptance.
+8. Docs. Then set the verification function back to disabled / previous revision.
+
+Do not deploy API, Hosting, Auth, App Check, rules, Stripe, GA4, or optional email functions.
+
+### Rollback
+
+Function revision and `EMAIL_ENABLED=false` roll back independently of the Postmark account, DKIM, and domain. Unbind or disable the secret version only if the owner asks. Do not delete the provider account, domain, or DKIM.
+
+### NO-GO
+
+Stop if the sender is unverified, secret names are ambiguous, the project is not `taskio-v2`, the recipient is not owner-controlled, any function would email a real user, the proof needs a real customer/job/payment write, logs would expose secrets or high-risk PII, the provider is sandbox-only, live Function state differs from the preflight, or required DNS/sender auth is incomplete.
+
+### P03 production PASS
+
+All of the following, and nothing optional:
+
+- Production SMTP provider configured on `taskio-v2`.
+- Sender/domain authorised for `admin@taskio.com.au` / `taskio.com.au`.
+- E01 functions deployed with secrets and customer send still off (`EMAIL_ENABLED=false`).
+- One authentic controlled production send of the static verification message succeeds.
+- Delivery confirmed to the owner-controlled mailbox.
+- No bounce or reject.
+- No high-risk privacy or security issue in that send.
+- Optional E02–E05 and chat email are not required.
+
+### P07
+
+P07-07 closes when P03 production PASS is recorded. P07 does not repeat the send.
+
+### P03G2 — Configure + prove production transactional email
+
+**RED / NOT APPROVED.**
+
+May include: production secret create/bind, deploy of the verification function and the two E01 functions only, provider/runtime config, one controlled send, docs.
+
+Must not include: Auth, App Check, Hosting, API, rules, Stripe, GA4, `pilotSettings`, Expert data, launch, or open-demand.
+
+**Precondition: BLOCKED** until the write-free verification function exists in the repo and has passed local and staging validation. G2 does not send via a quote and does not enable customer-facing E01 mail. Real-user transactional disclosure remains P06/P09, not this proof.

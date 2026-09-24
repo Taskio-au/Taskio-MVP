@@ -207,7 +207,7 @@ Remaining evidence: live keys in Secret Manager, webhook endpoints on live mode,
 
 P03 **STAGING PASS / PRODUCTION PENDING**. `EMAIL_ENABLED` defaults off. Staging authentic E01 verified. Production SMTP **NOT CONFIGURED**. Templates are sparse; E02 “funds are held” is a P06 wording item, not a P07 secret issue.
 
-**P03 production PASS still needs:** production Postmark server/sender, domain auth, secret binding, authentic send proof, no staging URLs in templates. Do not send production email now.
+**P03G1 plan COMPLETE** (`docs/TRANSACTIONAL_EMAIL.md`). Provider is nodemailer SMTP. P03 production PASS is an operator verification send plus E01 deployed with customer send off. **P03G2 is RED / NOT APPROVED.** P07-07 closes when that PASS is recorded. Do not send production email now.
 
 ---
 
@@ -328,7 +328,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-04 | IAM / Cloud Run invoker | **P07C:** main API invoker policy empty (no allUsers). Runtime SA matches. | C2 C3 | None for public invoke | Keep private until a named public-HTTP decision | PRODUCTION | **GREEN** verified | No | C2 C3 | **VERIFIED** |
 | P07-05 | Runtime secrets | **P07C:** `OTP_SALT:1` + `ABN_LOOKUP_GUID:1` mounted; no Stripe/Gemini/SMTP; `STRIPE_ENABLED=false` | C2 C6 | LOW (ABN optional) | Do not add Gemini/live Stripe yet | PRODUCTION | **GREEN** verified | No | C6 | **VERIFIED** |
 | P07-06 | Production App Check | **P07C:** Firestore/Storage/Auth `UNENFORCED` | C5 | HIGH bots/abuse at public launch | P05 production sequence | PRODUCTION | **RED** | **Yes** (with P05) | Token + enforcement proofs | **VERIFIED OFF; enable NOT STARTED** |
-| P07-07 | Production email | **P07C:** no SMTP/Postmark secrets in prod SM; Functions still April 2026 (no P03 bind) | C6 + Functions list | HIGH ops | P03 production config + proof | PRODUCTION | **RED** | Coupled P03 | Authentic send | **VERIFIED ABSENT; config NOT STARTED** |
+| P07-07 | Production email | **P07C:** no SMTP/Postmark secrets in prod SM; Functions still April 2026 (no P03 bind). **P03G1 plan COMPLETE**; execution not started | C6 + Functions list | HIGH ops | P03G2 | PRODUCTION | **RED / NOT APPROVED** | Coupled P03 | Authentic operator send | **PLAN COMPLETE; config NOT STARTED** |
 | P07-08 | Production GA4 | **P07C:** maintenance HTML; no gtag / measurement ID | C7 + public GET | MEDIUM (privacy) | Enable only after P06 disclosure | PRODUCTION | **RED** | Coupled P04/P06 | Console receipt | **VERIFIED OFF; enable NOT STARTED** |
 | P07-09 | Production Stripe live | **P07C:** `STRIPE_ENABLED=false`; no Stripe secret names in prod SM; no prod webhook service | C2 C6 | CRITICAL money | Separate live Stripe batch | PRODUCTION | **RED** | Before live money | Webhook + TEST-to-LIVE checklist | **VERIFIED OFF; live NOT STARTED** |
 | P07-10 | CORS / TRUST_PROXY | **P07C:** `CORS_ORIGINS=https://taskio.com.au`; `TRUST_PROXY=true` | C2 | None observed | Keep allowlist = Taskio origin only | PRODUCTION | **GREEN** verified | No | C2 redact | **VERIFIED** |
@@ -413,10 +413,10 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 
 ### RED-E — Production Postmark
 
-- **Action:** production SMTP secrets + Functions bind + authentic E01.
-- **Rollback:** `EMAIL_ENABLED=false` / unbind.
-- **Deps:** domain auth.
-- **Risk:** mail to real users if mis-aimed — use production sender only after freeze lift.
+- **Action:** now specified as **P03G2** in `docs/TRANSACTIONAL_EMAIL.md`. Production SMTP secrets + E01 bind with `EMAIL_ENABLED=false` + one static operator verification send. Not a customer quote.
+- **Rollback:** `EMAIL_ENABLED=false` and/or previous Function revision. Do not delete the Postmark domain.
+- **Deps:** domain auth reconfirmed; static proof entrypoint in repo before the send.
+- **Risk:** mail to real users if E01 is enabled. **NOT APPROVED.**
 
 ### RED-F — Production GA4
 

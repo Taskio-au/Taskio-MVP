@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 24 September 2026 (P07H2 production rules promotion)
+**Last updated:** 24 September 2026 (P03G1 production email plan)
 
 ## Active scope
 
@@ -43,7 +43,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 |---|---|---|
 | P01 | **PASS / COMPLETE** (TEST bank payout) | No |
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
-| P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
+| P03 | **STAGING PASS / PRODUCTION PENDING** — **P03G1 plan COMPLETE**; **P03G2 NOT APPROVED** (`docs/TRANSACTIONAL_EMAIL.md`) | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`); lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
@@ -67,4 +67,4 @@ Explicitly post-launch unless later required: native apps, Expert LIMITED-mode r
 
 ## Next release decision
 
-P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P07 is **OPEN / REMEDIATION IN PROGRESS** (F1–F5B **COMPLETE**; G1–G3 **COMPLETE**; **P07H2 PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE**; fail-closed API live on `taskio-api-00008-zir`; staging CSP **ENFORCED**; not PASS). Next P07 remainders: Auth signup, App Check, P03/P04/P05 production, Stripe live with P10. Overall legal pickup remains **P06**. P09 **BLOCKED BY P06**. P08/P10 are not started. READY TO OPEN remains **impossible**.
+P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P03 production email plan is **COMPLETE**; execution is **NOT APPROVED**. P07 is **OPEN / REMEDIATION IN PROGRESS** (F1–F5B **COMPLETE**; G1–G3 **COMPLETE**; **P07H2 PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE**; fail-closed API live on `taskio-api-00008-zir`; staging CSP **ENFORCED**; not PASS). Next P07 remainders: Auth signup, App Check, P03/P04/P05 production, Stripe live with P10. Overall legal pickup remains **P06**. P09 **BLOCKED BY P06**. P08/P10 are not started. READY TO OPEN remains **impossible**.

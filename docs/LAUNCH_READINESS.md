@@ -124,7 +124,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 |---|---|---|
 | P01 | **PASS / COMPLETE** (TEST bank payout) | No |
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
-| P03 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
+| P03 | **STAGING PASS / PRODUCTION PENDING** — P03G1 plan **COMPLETE**; P03G2 **NOT APPROVED** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
@@ -187,10 +187,10 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 
 **F. Production transactional email**
 
-- Production Postmark config, approved sender/domain authentication, production secret binding.
-- Authentic transactional email proof.
-- No staging URLs and no sensitive task content in email.
-- See `docs/TRANSACTIONAL_EMAIL.md`.
+- Production nodemailer SMTP (Postmark host), approved sender/domain authentication, production secret binding.
+- One authentic operator verification send. Customer-facing E01 stays `EMAIL_ENABLED=false` until a later decision.
+- No staging URLs and no sensitive task content in the proof email.
+- Plan: `docs/TRANSACTIONAL_EMAIL.md` (P03G1 **COMPLETE**). Execution **P03G2** is **RED / NOT APPROVED**.
 
 **G. Firebase / Hosting / API configuration audit**
 
