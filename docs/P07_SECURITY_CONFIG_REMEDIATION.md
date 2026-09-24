@@ -1,9 +1,9 @@
 # P07A production security / configuration readiness audit
 
-**Date:** 24 September 2026 (P07H1 **PRODUCTION RULES PROMOTION PLAN COMPLETE**)
+**Date:** 24 September 2026 (P07H2 **PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE**)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1–G3 COMPLETE.** **P07H1 COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** on `taskio-api-00008-zir` (source `57505d0`). Compatibility **REVIEW COMPLETE** (OPTION B). Production Hosting still maintenance. Production Firestore/Storage rules still **older than HEAD**. **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN** (not open-demand).
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1–G3 COMPLETE.** **P07H1–H2 COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** on `taskio-api-00008-zir` (source `57505d0`). Compatibility **REVIEW COMPLETE** (OPTION B). Production Hosting still maintenance. Production Firestore + Storage rules now match HEAD (§47). **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN** (not open-demand).
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -337,7 +337,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-13 | Hosting security headers | **P07C:** live `cffca9d87ce03901` has noindex/no-store only. P07B headers **not** deployed. Custom-domain HSTS `max-age=31556926` without includeSubDomains/preload. | C7 + HEAD | MEDIUM XSS/clickjack | Hosting deploy + browser scan later | LOCAL CONFIG COMPLETE; hosted verification pending | **GREEN** local / **AMBER** CSP / **RED** deploy | No for P07 PASS if CDN HSTS proven | Header unit test; later hosted scan | **LIVE OLDER THAN P07B** |
 | P07-14 | Functions npm audit | Safe overrides applied; nodemailer major remains | functions/package.json | HIGH supply-chain | nodemailer major separately; do not force | LOCAL | **GREEN** partial / **AMBER** nodemailer | No | Re-audit after lockfile | SAFE REMEDIATION COMPLETE (partial); nodemailer remaining — **not a P07 PASS blocker** |
 | P07-15 | Frontend CRA audit noise | Classified; no package change | frontend audit 19 Sep 2026 | Toolchain noise; axios/router residual | No CRA migration in this slice | LOCAL | **GREEN** classified | No | Manual review | CLASSIFIED; no frontend package change |
-| P07-16 | Production Firestore/Storage rules | **P07H1 plan COMPLETE.** Staging E2A current (`28c69372…` / `a0736ecb…`). **Production older (historical; MUST RECONFIRM):** Storage `932c4f1b…` (2025-12-24) `allow write`; Firestore `7d46b484…` (2026-04-26) predates waitlist/`system` deny. HEAD sources byte-match E2A. | P07C + E2A + H1 | MEDIUM overwrite / client waitlist | Future **P07H2** RED deploy HEAD rules | PRODUCTION | **RED** deploy | **Yes** before public writes | Emulator 26/26 + staging proven | **PRODUCTION OLDER; H2 NOT APPROVED** |
+| P07-16 | Production Firestore/Storage rules | **P07H2 COMPLETE.** Production Releases now point at HEAD sources. Prior Rulesets retained. See §47. | H2 | — | App Check remains a later RED | PRODUCTION | **RED COMPLETE** | Closed for rules deploy | Release/source hash | **PRODUCTION LIVE** |
 | P07-17 | Legacy Expert data | **P07F5B OPTION B.** Compatibility blocker **RESOLVED**. Fail-closed; no backfill. Future Expert reconfirmation is a **pre-launch supply** item, not an API-compatibility blocker. See §40–§42. | §40–§42 | HIGH if auto-backfilled | Leave fail-closed until reconfirmation | PRODUCTION (read) | **GREEN** decision | No for API deploy | §43 | **COMPATIBILITY REVIEW COMPLETE** |
 | P07-25 | Production fail-closed API | **P07G3 COMPLETE.** Live `taskio-api-00008-zir` 100% from `57505d0` digest `sha256:712814b0…1a771014`. Rollback `taskio-api-00006-puf` retained 0%. `STRIPE_ENABLED=false`. See §45. | P07C / F3 / G3 | — | Next: other P07 RED items | PRODUCTION | **RED COMPLETE** | Closed for API code | Tagged 0% then 100%; keep `00006-puf` | **PRODUCTION LIVE** |
 | P07-18 | `setAdmin` local script | Gitignored; broken without JSON | setAdmin.js | MEDIUM if revived | Keep ignored; do not restore JSON | LOCAL | **GREEN** | No | gitignore | OK |
@@ -2001,7 +2001,7 @@ Repo exports: `notifyHomeownerOnQuoteSubmitted`, `notifyHomeownerOnQuoteSubmitte
 | ID | Item | Current state | Launch blocker? | Owner/code/config/deploy/ops | Dependency | Next action | Approval | Order |
 |---|---|---|---|---|---|---|---|---|
 | P07-25 | Production fail-closed API | **P07G3 COMPLETE**; live `00008-zir` from `57505d0` | Closed for API code | deploy done | G3 | Next P07: rules / Auth / App Check / P03–P05 prod | **RED COMPLETE** | 1 done |
-| P07-16 | Production Firestore + Storage rules | **P07H1 COMPLETE.** Staging current; production older. HEAD blobs = E2A. | **Yes** before public client writes | deploy | E2A + H1 | Future **P07H2** RED; **not approved** | **RED** | 2 |
+| P07-16 | Production Firestore + Storage rules | **P07H2 COMPLETE.** HEAD sources live on `taskio-v2`. See §47. | Closed for this deploy | deploy done | H2 | Next: Auth / App Check / P03–P05 | **RED COMPLETE** | 2 done |
 | P07-13 | Production Hosting / CSP | Staging CSP ENFORCED; production maintenance `cffca9d87ce03901` | SPA restore needed for real users; P07 PASS does **not** require SPA if CDN HSTS holds | deploy | P09 copy / P10 | RED with App Check frontend | **RED** | with P05 |
 | P07-03 | Production Auth signup | `disabledUserSignup=true` | **Yes** for public OPEN and P07 PASS | config | App gates stay | RED enable when OPEN intended; P10 proves journey | **RED** | late |
 | P07-06 | Production App Check | Firestore/Storage/Auth UNENFORCED; Auth enforcement **out of MVP scope** | **Yes** (P05) for public launch | config/deploy | Hosting with site key | RED P05 sequence (Hosting → Firestore → Storage) | **RED** | with Hosting |
@@ -2736,4 +2736,63 @@ Mutation: `taskio-v2` Firestore rules from HEAD `firestore.rules`, then Storage 
 
 **EXPECTED USER IMPACT.** None for the public maintenance site. See matrix.
 
-**P07H1 = PRODUCTION RULES PROMOTION PLAN COMPLETE.** Future **P07H2 = RED / OWNER APPROVAL REQUIRED**. **NOT APPROVED. NOT EXECUTED.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS.
+**P07H1 = PRODUCTION RULES PROMOTION PLAN COMPLETE.** At the time of H1, **P07H2** was **NOT APPROVED**. Execution is §47.
+
+---
+
+## 47. P07H2 production Firestore + Storage rules promotion (24 September 2026)
+
+Owner-approved RED. Project **`taskio-v2`** explicit on every mutation. Operator `admin@taskio.com.au`. Default gcloud project left `taskio-v2`. No `firebase use`. No `gcloud config set project`. Staging not mutated.
+
+`npm run test:rules` on `demo-taskio-rules`: **26 / 26 PASS**. HEAD blobs unchanged: Firestore `bdc6e2bd9dfb0e53bb23d22f49e4d48ac4995894` SHA-256 `306E05BF06CFA79BEFBBBF296304F24600D8E9C40F61570F6327672301A7C150`. Storage `fddbc66fc46a86eaf481a7e4ff6f4b049e2b6509` SHA-256 `2BED0B0B6B69FEEBE7A0A089246203F155FAEE2D6C28F0F83486301EFF6DCD5B`.
+
+### Preflight (read-only)
+
+| Check | Result |
+|---|---|
+| Auth `disabledUserSignup` | **true** |
+| Hosting | live `cffca9d87ce03901`, 7 files, maintenance |
+| App Check Firestore / Storage / Auth | **UNENFORCED** |
+| `system/pilotSettings` | **404 ABSENT** |
+| API | `taskio-api-00008-zir` **100%**; `00006-puf` tagged 0% |
+| Storage buckets for rules | one Firebase bucket: `taskio-v2.firebasestorage.app` |
+| Rules releases found | **2** (Firestore + that Storage bucket). No second Storage release. |
+| Jobs `homeownerUid` | scanned **52**; present **52**; missing **0**; empty **0**. No values recorded. |
+| Storage prefixes | only `profilePhotos/` (**SUPPORTED BY HEAD RULES**). Root objects **0**. |
+
+**GO.** No data migration. Rules do not reference App Check.
+
+### Firestore
+
+Command: `firebase deploy --project=taskio-v2 --only firestore:rules --non-interactive`. Indexes were **not** deployed (`--only firestore` was not used). CLI compiled and released `firestore.rules` to `cloud.firestore`.
+
+| | Before | After |
+|---|---|---|
+| Release | `projects/taskio-v2/releases/cloud.firestore` | same Release |
+| Ruleset | `projects/taskio-v2/rulesets/7d46b484-b848-4d31-8184-18805641d86b` | `projects/taskio-v2/rulesets/27e9e017-3172-4e68-a69d-f515755aeef5` |
+| Release `updateTime` | 2026-04-26T13:09:30.672559Z | 2026-09-24T10:43:24.954633Z |
+| Ruleset `createTime` | 2026-04-26T13:09:28.832559Z | 2026-09-24T10:43:23.481551Z |
+| Source SHA-256 | `A306FDAE…EF11637A` (old) | `306E05BF…1A7C150` = HEAD |
+
+Rules API pointer matched HEAD immediately and again after a 60-second recheck. Bounded window **converged**. Config/source proof used. No document writes. Rollback **not used**.
+
+### Storage
+
+Proceeded only after Firestore PASS. Command: `firebase deploy --project=taskio-v2 --only storage --non-interactive`. Released to the preflight bucket's Release.
+
+| | Before | After |
+|---|---|---|
+| Bucket | `taskio-v2.firebasestorage.app` | same |
+| Release | `projects/taskio-v2/releases/firebase.storage/taskio-v2.firebasestorage.app` | same Release |
+| Ruleset | `projects/taskio-v2/rulesets/932c4f1b-cb8d-46b3-bf14-b53a971bb4f4` | `projects/taskio-v2/rulesets/6e5b1d16-55dc-482b-8313-a420604165d9` |
+| Release `updateTime` | 2025-12-24T14:08:50.503891Z | 2026-09-24T10:45:38.029833Z |
+| Ruleset `createTime` | 2025-12-24T14:08:48.574207Z | 2026-09-24T10:45:36.764431Z |
+| Source SHA-256 | `6F6A1D3F…E4A78819` (old) | `2BED0B0B…F6DCD5B` = HEAD |
+
+Rules API pointer matched HEAD immediately and again after a 60-second recheck. Firestore Release stayed on `27e9e017…`. Bounded window **converged**. No object writes or deletes. Rollback **not used**.
+
+### Unchanged after H2
+
+Auth signup still disabled. Hosting still `cffca9d87ce03901`. App Check still UNENFORCED. `pilotSettings` still absent. API still `taskio-api-00008-zir` 100%. Prior Rulesets retained (not deleted). Application writes: users **0**, jobs **0**, quotes **0**, reviews **0**, waitlists **0**, system docs **0**, Storage objects **0**. No App Check, Auth, Hosting, API, Functions, IAM, secrets, Stripe, email, GA4, Gemini, or migration.
+
+**P07H2 = PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Remaining: production Auth signup path; production App Check Firestore + Storage; production email / P03 production PASS; production GA4 / P04 production PASS or explicit OFF; production Stripe live when serving real money. Production still **FROZEN / NOT OPEN**.
