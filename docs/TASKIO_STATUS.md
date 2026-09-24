@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 24 September 2026 (P03G1 production email plan)
+**Last updated:** 24 September 2026 (P03G1A local email proof function)
 
 ## Active scope
 
@@ -43,7 +43,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 |---|---|---|
 | P01 | **PASS / COMPLETE** (TEST bank payout) | No |
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
-| P03 | **STAGING PASS / PRODUCTION PENDING** — **P03G1 plan COMPLETE**; **P03G2 NOT APPROVED** (`docs/TRANSACTIONAL_EMAIL.md`) | Yes, until production PASS |
+| P03 | **STAGING PASS / PRODUCTION PENDING** — P03G1 plan **COMPLETE**; **P03G1A** `verifyTransactionalEmail` **IMPLEMENTED LOCALLY** (not deployed); **P03G1B NOT STARTED**; **P03G2 BLOCKED** | Yes, until production PASS |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`); lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |

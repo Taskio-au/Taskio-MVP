@@ -42,6 +42,7 @@ const {runWithSmtpSecrets} = require("../email/smtpSecrets");
 const SECRET_PASS = "test-only-smtp-pass-not-real";
 const MAIL_ENV_KEYS = [
   "EMAIL_ENABLED",
+  "EMAIL_PROOF_ENABLED",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_USER",
@@ -361,6 +362,36 @@ describe("sendTransactionalEmail", () => {
     assert.equal(result.sent, false);
     assert.equal(result.reason, "disabled");
     assert.equal(calls, 0);
+  });
+
+  test("EMAIL_PROOF_ENABLED does not turn customer email on", async () => {
+    setMailEnv({
+      EMAIL_ENABLED: "false",
+      EMAIL_PROOF_ENABLED: "true",
+      SMTP_HOST: "smtp.test.local",
+      SMTP_PORT: "587",
+      MAIL_FROM: "Taskio <noreply@taskio.test>",
+      TASKIO_APP_URL: "https://taskio.com.au",
+    });
+    let calls = 0;
+    setTransporterFactoryForTests(() => {
+      calls += 1;
+      return {sendMail: async () => ({messageId: "should-not-send"})};
+    });
+    const result = await runWithSmtpSecrets({
+      user: "from-secret-user",
+      pass: SECRET_PASS,
+      proofRecipient: "operator@taskio.test",
+    }, () => sendTransactionalEmail({
+      event: "quote_received",
+      to: "homeowner@taskio.test",
+      subject: "New quote",
+      text: "A quote arrived.",
+    }));
+    assert.equal(result.sent, false);
+    assert.equal(result.reason, "disabled");
+    assert.equal(calls, 0);
+    assert.equal(getMailRuntime().enabled, false);
   });
 
   test("EMAIL_ENABLED false ignores bound SMTP secrets", async () => {

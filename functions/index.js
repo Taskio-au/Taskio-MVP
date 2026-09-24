@@ -2,10 +2,12 @@ const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
+const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const logger = require("firebase-functions/logger");
 const {getMailConfig} = require("./email/config");
 const {sendTransactionalEmail} = require("./email/send");
+const {handleVerifyTransactionalEmail} = require("./email/proof");
 const {resolveTrustedEmail} = require("./email/recipients");
 const {
   isQuoteSubmissionTransition,
@@ -23,7 +25,9 @@ const {
 } = require("./email/dispatch");
 const {
   smtpSecretParams,
+  proofSecretParams,
   readBoundSmtpSecrets,
+  readBoundProofRecipient,
   runWithSmtpSecrets,
 } = require("./email/smtpSecrets");
 
@@ -452,6 +456,31 @@ async function processRiskyJobMessage(event) {
     throw error;
   }
 }
+
+/**
+ * Operator SMTP proof. Not a customer email feature.
+ * EMAIL_PROOF_ENABLED must be exactly "true". Customer EMAIL_ENABLED is
+ * independent and stays false for this proof. IAM invoker is public so a
+ * Firebase ID token can be checked in-process; admin === true is required.
+ */
+exports.verifyTransactionalEmail = onRequest(
+  {
+    region: "australia-southeast1",
+    invoker: "public",
+    secrets: proofSecretParams(),
+  },
+  (req, res) => {
+    if (process.env.EMAIL_PROOF_ENABLED !== "true") {
+      return handleVerifyTransactionalEmail(req, res);
+    }
+    const smtp = readBoundSmtpSecrets();
+    return runWithSmtpSecrets({
+      user: smtp.user,
+      pass: smtp.pass,
+      proofRecipient: readBoundProofRecipient(),
+    }, () => handleVerifyTransactionalEmail(req, res));
+  },
+);
 
 exports.flagRiskyJobMessages = onDocumentCreated(
   {

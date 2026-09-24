@@ -215,9 +215,11 @@ The operator proof is operational transactional mail to an owner-controlled mail
 
 ### Production proof design (do not execute)
 
-No safe write-free verification entrypoint exists. Do not create a production quote, job, payment, or Auth user to prove email.
+Do not create a production quote, job, payment, or Auth user to prove email. The local entrypoint is `verifyTransactionalEmail`. It is not deployed.
 
-**P03G2 precondition: BLOCKED** until a GREEN verification function is in the repo and has passed local and staging validation. P03G2 must not execute before that.
+**P03G1A (local, 24 September 2026): IMPLEMENTED.** Function `verifyTransactionalEmail` (HTTPS, `australia-southeast1`). It is an operator verification tool, not a customer feature. Disabled unless `EMAIL_PROOF_ENABLED` is exactly `true`. Recipient secret name: `EMAIL_PROOF_RECIPIENT` (not created in cloud; no address in Git). Sender is `MAIL_FROM` only. Subject and body are fixed in source. Customer mail stays on `EMAIL_ENABLED`. `EMAIL_ENABLED=false` with `EMAIL_PROOF_ENABLED=true` can send the one proof message and does not send E01. No Firestore write. Not deployed.
+
+**P03G2 precondition: BLOCKED** until this function has passed staging validation (**P03G1B**, not started) as well as the local tests. P03G2 must not execute before that.
 
 That function is not a general-purpose admin mail endpoint. It must be:
 
@@ -226,7 +228,7 @@ That function is not a general-purpose admin mail endpoint. It must be:
 - fixed subject: `Taskio production email verification`
 - fixed non-sensitive body, with no customer, job, payment, or template data
 - no arbitrary sender, message body, or real-user recipient
-- recipient resolved only from controlled execution-time config or input
+- recipient resolved only from secret `EMAIL_PROOF_RECIPIENT`, never from the caller
 - no recipient address committed to Git
 - no persistent business-state mutation
 - not a normal production product feature
@@ -244,7 +246,7 @@ Reconfirm sender `admin@taskio.com.au`, domain `taskio.com.au`, DKIM, SPF, Retur
 ### Deployment order for P03G2
 
 1. RED read-only preflight (project `taskio-v2` only; secret **names**; Function revisions; sender/DNS; provider not sandbox).
-2. GREEN verification function, already validated locally and on staging, matching the constraints above. Not an arbitrary-email admin endpoint. No customer trigger.
+2. `verifyTransactionalEmail` is in the repo and has passed local tests. Staging validation is **P03G1B** and is not done. Not an arbitrary-email admin endpoint. No customer trigger.
 3. Create production `SMTP_USER` and `SMTP_PASS` (new values; do not copy staging).
 4. Deploy **only** that verification function plus the two E01 functions. E01: secrets bound, `EMAIL_ENABLED=false`. Verification function: secrets bound, enabled only for the one send.
 5. Confirm runtime names and Ready. No customer email.

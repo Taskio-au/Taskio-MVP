@@ -10,6 +10,7 @@ const {defineSecret} = require("firebase-functions/params");
 
 const smtpUser = defineSecret("SMTP_USER");
 const smtpPass = defineSecret("SMTP_PASS");
+const emailProofRecipient = defineSecret("EMAIL_PROOF_RECIPIENT");
 const smtpSecretStore = new AsyncLocalStorage();
 
 /**
@@ -17,6 +18,14 @@ const smtpSecretStore = new AsyncLocalStorage();
  */
 function smtpSecretParams() {
   return [smtpUser, smtpPass];
+}
+
+/**
+ * Proof function only. Not mounted on customer email triggers.
+ * @return {Array<{name: string, value: function(): string}>}
+ */
+function proofSecretParams() {
+  return [smtpUser, smtpPass, emailProofRecipient];
 }
 
 /**
@@ -35,6 +44,18 @@ function readBoundSmtpSecrets() {
 }
 
 /**
+ * Proof recipient from Secret Manager. Empty when unavailable. Never logged.
+ * @return {string}
+ */
+function readBoundProofRecipient() {
+  try {
+    return String(emailProofRecipient.value() || "").trim();
+  } catch (_err) {
+    return "";
+  }
+}
+
+/**
  * Handler-scoped secret overrides for getMailRuntime. Safe under concurrency.
  * @param {Object} secrets
  * @param {string=} secrets.user
@@ -43,10 +64,16 @@ function readBoundSmtpSecrets() {
  * @return {*}
  */
 function runWithSmtpSecrets(secrets, fn) {
-  return smtpSecretStore.run({
+  const stored = {
     user: String((secrets && secrets.user) || ""),
     pass: String((secrets && secrets.pass) || ""),
-  }, fn);
+  };
+  if (secrets && Object.prototype.hasOwnProperty.call(
+    secrets, "proofRecipient",
+  )) {
+    stored.proofRecipient = String(secrets.proofRecipient || "");
+  }
+  return smtpSecretStore.run(stored, fn);
 }
 
 /**
@@ -60,8 +87,11 @@ function currentSmtpSecretOverrides() {
 module.exports = {
   smtpUser,
   smtpPass,
+  emailProofRecipient,
   smtpSecretParams,
+  proofSecretParams,
   readBoundSmtpSecrets,
+  readBoundProofRecipient,
   runWithSmtpSecrets,
   currentSmtpSecretOverrides,
 };

@@ -207,7 +207,7 @@ Remaining evidence: live keys in Secret Manager, webhook endpoints on live mode,
 
 P03 **STAGING PASS / PRODUCTION PENDING**. `EMAIL_ENABLED` defaults off. Staging authentic E01 verified. Production SMTP **NOT CONFIGURED**. Templates are sparse; E02 “funds are held” is a P06 wording item, not a P07 secret issue.
 
-**P03G1 plan COMPLETE** (`docs/TRANSACTIONAL_EMAIL.md`). Provider is nodemailer SMTP. P03 production PASS is an operator verification send plus E01 deployed with customer send off. **P03G2 is RED / NOT APPROVED.** P07-07 closes when that PASS is recorded. Do not send production email now.
+**P03G1 plan COMPLETE.** **P03G1A** `verifyTransactionalEmail` is implemented locally and not deployed. Customer send stays `EMAIL_ENABLED`. Proof gate is `EMAIL_PROOF_ENABLED`. **P03G1B** staging validation is not started. **P03G2 is BLOCKED.** P07-07 closes when P03 production PASS is recorded. Do not send production email now.
 
 ---
 

@@ -22,19 +22,44 @@ function setTransporterFactoryForTests(factory) {
 /**
  * @return {any|null}
  */
-function getTransporter() {
+/**
+ * Low-level transport. Does not consult EMAIL_ENABLED.
+ * @param {Object|null} smtp
+ * @return {any|null}
+ */
+function getTransporterForSmtp(smtp) {
   if (transporterOverride) return transporterOverride();
-  const runtime = getMailRuntime();
-  if (!runtime.ready || !runtime.smtp) return null;
+  if (!smtp) return null;
   if (!cachedTransporter) {
     cachedTransporter = nodemailer.createTransport({
-      host: runtime.smtp.host,
-      port: runtime.smtp.port,
-      secure: runtime.smtp.secure,
-      auth: runtime.smtp.auth,
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.secure,
+      auth: smtp.auth,
     });
   }
   return cachedTransporter;
+}
+
+/**
+ * One SMTP message. No cc, bcc, or attachments. Does not check EMAIL_ENABLED.
+ * @param {Object<string, any>} mail
+ * @return {Promise<any>}
+ */
+async function deliverConfiguredMail(mail) {
+  const transporter = getTransporterForSmtp(mail && mail.smtp);
+  if (!transporter || typeof transporter.sendMail !== "function") {
+    const error = new Error("not_configured");
+    error.code = "not_configured";
+    throw error;
+  }
+  return transporter.sendMail({
+    from: mail.from,
+    to: mail.to,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html || undefined,
+  });
 }
 
 /**
@@ -86,17 +111,9 @@ async function sendTransactionalEmail(args) {
     return {ok: false, sent: false, reason: "missing_body"};
   }
 
-  const transporter = getTransporter();
-  if (!transporter) {
-    logger.warn("transactional_email_skipped", {
-      event,
-      reason: "not_configured",
-    });
-    return {ok: true, sent: false, reason: "not_configured"};
-  }
-
   try {
-    const info = await transporter.sendMail({
+    const info = await deliverConfiguredMail({
+      smtp: runtime.smtp,
       from: runtime.from,
       to,
       subject,
@@ -126,5 +143,6 @@ async function sendTransactionalEmail(args) {
 
 module.exports = {
   setTransporterFactoryForTests,
+  deliverConfiguredMail,
   sendTransactionalEmail,
 };

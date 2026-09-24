@@ -5,7 +5,10 @@
  * Safe default: EMAIL_ENABLED is unset/false — no network send.
  */
 
-const {currentSmtpSecretOverrides} = require("./smtpSecrets");
+const {
+  currentSmtpSecretOverrides,
+  readBoundProofRecipient,
+} = require("./smtpSecrets");
 
 /**
  * @param {string|undefined} raw
@@ -14,6 +17,16 @@ const {currentSmtpSecretOverrides} = require("./smtpSecrets");
 function parseEnabledFlag(raw) {
   const v = String(raw || "").trim().toLowerCase();
   return v === "true" || v === "1" || v === "yes";
+}
+
+/**
+ * Proof gate. Only the exact string "true" enables it.
+ * "TRUE", "1", and "yes" stay disabled.
+ * @param {string|undefined} raw
+ * @return {boolean}
+ */
+function parseExactTrue(raw) {
+  return raw === "true";
 }
 
 /**
@@ -114,6 +127,78 @@ function getMailRuntime() {
 }
 
 /**
+ * Operator proof SMTP config. Independent of EMAIL_ENABLED.
+ * Sender is MAIL_FROM only. Recipient is the bound proof secret.
+ * @return {Object}
+ */
+function getProofMailRuntime() {
+  if (!parseExactTrue(process.env.EMAIL_PROOF_ENABLED)) {
+    return {
+      enabled: false,
+      ready: false,
+      from: null,
+      to: null,
+      smtp: null,
+      skipReason: "disabled",
+    };
+  }
+
+  const host = String(process.env.SMTP_HOST || "").trim();
+  const portRaw = String(process.env.SMTP_PORT || "").trim();
+  const secretOverrides = currentSmtpSecretOverrides();
+  const user = String(
+    secretOverrides ? secretOverrides.user : (process.env.SMTP_USER || ""),
+  ).trim();
+  const pass = String(
+    secretOverrides ? secretOverrides.pass : (process.env.SMTP_PASS || ""),
+  ).trim();
+  const from = String(process.env.MAIL_FROM || "").trim();
+  const to = String(
+    secretOverrides && Object.prototype.hasOwnProperty.call(
+      secretOverrides, "proofRecipient",
+    ) ? secretOverrides.proofRecipient : readBoundProofRecipient(),
+  ).trim();
+  const port = Number(portRaw);
+
+  if (!host || !portRaw || !Number.isFinite(port) || port <= 0 || !user ||
+      !pass || !from || !to) {
+    return {
+      enabled: true,
+      ready: false,
+      from: null,
+      to: null,
+      smtp: null,
+      skipReason: "not_configured",
+    };
+  }
+  if (hasHeaderBreak(host) || hasHeaderBreak(user) || hasHeaderBreak(from) ||
+      hasHeaderBreak(pass) || hasHeaderBreak(to)) {
+    return {
+      enabled: true,
+      ready: false,
+      from: null,
+      to: null,
+      smtp: null,
+      skipReason: "not_configured",
+    };
+  }
+
+  return {
+    enabled: true,
+    ready: true,
+    from,
+    to,
+    smtp: {
+      host,
+      port,
+      secure: port === 465,
+      auth: {user, pass},
+    },
+    skipReason: null,
+  };
+}
+
+/**
  * Legacy helper used by chat email: complete SMTP config or null.
  * Also requires EMAIL_ENABLED.
  * @return {Object<string, any>|null}
@@ -133,8 +218,10 @@ function getMailConfig() {
 
 module.exports = {
   parseEnabledFlag,
+  parseExactTrue,
   parseTrustedAppUrl,
   hasHeaderBreak,
   getMailRuntime,
+  getProofMailRuntime,
   getMailConfig,
 };
