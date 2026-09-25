@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="theme-color" content="#071c25">
+    <title>Taskio App Check proof</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <p class="eyebrow">Controlled operator surface</p>
+        <h1>Production App Check proof</h1>
+        <p class="summary">Manual verification only. No operation runs automatically.</p>
+      </header>
+
+      <section class="status-grid" aria-label="Safe status summary">
+        <article><span>Firebase project</span><strong>taskio-v2</strong></article>
+        <article><span>Auth</span><strong id="auth-status">SIGNED OUT</strong></article>
+        <article><span>Admin</span><strong id="admin-status">NO</strong></article>
+        <article><span>App Check</span><strong id="appcheck-status">NOT RUN</strong></article>
+        <article><span>Firestore proof</span><strong id="firestore-status">NOT RUN</strong></article>
+        <article><span>Storage proof</span><strong id="storage-status">NOT RUN</strong></article>
+      </section>
+
+      <section class="controls" aria-label="Operator controls">
+        <button id="sign-in" type="button">1. Continue with Google</button>
+        <button id="verify-admin" type="button" disabled>2. Verify Admin Session</button>
+        <button id="acquire-appcheck" type="button" disabled>3. Acquire / Verify App Check Token</button>
+        <button id="firestore-proof" type="button" disabled>4. Firestore Proof</button>
+        <button id="storage-proof" type="button" disabled>5. Storage Proof</button>
+        <button id="sign-out" class="secondary" type="button" disabled>Sign out</button>
+      </section>
+
+      <p id="operator-message" class="message" role="status" aria-live="polite">
+        Sign in to begin. Data proof controls remain disabled for P05G2.
+      </p>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

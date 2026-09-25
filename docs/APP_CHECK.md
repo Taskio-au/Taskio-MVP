@@ -1,6 +1,6 @@
 # Taskio P05 App Check
 
-Staging frontend App Check is enabled with the registered reCAPTCHA Enterprise provider. **Firestore and Storage enforcement are ON and proven.** Authentication remains **OFF** (out of approved MVP scope). Production remains **OFF**.
+Staging frontend App Check is enabled with the registered reCAPTCHA Enterprise provider. **Firestore and Storage enforcement are ON and proven.** Authentication remains **OFF** (out of approved MVP scope). Production provider registration is now **COMPLETE**; production Firestore, Storage, and Authentication enforcement remain **OFF**.
 
 ## Classification
 
@@ -16,7 +16,8 @@ Staging frontend App Check is enabled with the registered reCAPTCHA Enterprise p
 | P05 Storage pre-enforcement traffic | **PASS** |
 | P05 Storage enforcement | **PASS** (`ENFORCED`) |
 | P05 Auth enforcement | **OFF — OUT OF APPROVED MVP SCOPE** |
-| P05 production | **OFF** |
+| P05 production provider registration | **COMPLETE** — reCAPTCHA Enterprise; enforcement still OFF |
+| P05G2 proof artifact | **PREPARED LOCALLY / NOT DEPLOYED** |
 | P05 overall | **STAGING PASS / PRODUCTION PENDING** |
 
 ## Staging frontend activation (2026-09-06)
@@ -309,11 +310,11 @@ When only one enforced service fails, disabling just that service may be suffici
 - P01 bank payout remains unproven; P06 legal review and historical production credential rotation/revocation remain pre-launch items. No production credential state was inferred.
 
 ## R. P05 classification
-Staging Firestore and Storage enforcement are **PASS**. Auth enforcement stays **OFF**. Production remains **OFF**. **P05 production App Check / SPA readiness plan: COMPLETE (25 September 2026).** Future production execution is **RED / OWNER APPROVAL REQUIRED**. Not started.
+Staging Firestore and Storage enforcement are **PASS**. Auth enforcement stays **OFF**. **P05 production App Check / SPA readiness plan: COMPLETE (25 September 2026). P05G2 provider registration: COMPLETE.** Production Firestore and Storage enforcement remain **OFF**; hosted proof is pending.
 
 ## S. Production App Check and SPA plan (25 September 2026)
 
-Planning only. No Hosting deploy, App Check change, Auth change, or cloud query in this record.
+This section records the G1 planning baseline. P05G2 later completed the provider registration and local artifact work described in section U. No Hosting deploy or enforcement change has occurred.
 
 **Provider.** Current code uses Firebase JS `initializeAppCheck` with `ReCaptchaV3Provider` or `ReCaptchaEnterpriseProvider` (`firebase` ^12). Staging proof used **reCAPTCHA Enterprise**. Production must use the same provider on `taskio-v2`, not the staging site key. `isTokenAutoRefreshEnabled` is true. Initialization runs in `frontend/src/firebase.js` after `initializeApp` and before `getAuth`, `getFirestore`, and `getStorage`. Disabled config creates no provider. A missing site key while enabled throws, and production rethrows that error.
 
@@ -323,7 +324,7 @@ Planning only. No Hosting deploy, App Check change, Auth change, or cloud query 
 
 **Production browser/API architecture blocker.** Still **OPEN** for full SPA restoration. It does **not** block P05. See section T. A production SPA still needs `REACT_APP_API_BASE_URL`. The production Cloud Run API stays IAM-private. Browser App Check does not authenticate Cloud Run IAM. Do not change IAM. Do not assume the browser can call the production API.
 
-**Config names.** Public build-time: `REACT_APP_APPCHECK_ENABLED`, `REACT_APP_APPCHECK_PROVIDER`, `REACT_APP_APPCHECK_SITE_KEY`, `REACT_APP_FIREBASE_*`, `REACT_APP_API_BASE_URL`. Debug names `REACT_APP_APPCHECK_DEBUG_TOKEN` and `FIREBASE_APPCHECK_DEBUG_TOKEN` are forbidden in production builds. GA4 stays off unless `REACT_APP_ANALYTICS_ENABLED=true`. Production Enterprise site key: **MISSING / NEEDS CREATION**. No committed production `.env`. A local production bundle was not built in G1 because `REACT_APP_API_BASE_URL` and `REACT_APP_APPCHECK_SITE_KEY` are not available as approved production values.
+**Config names.** Public build-time: `REACT_APP_APPCHECK_ENABLED`, `REACT_APP_APPCHECK_PROVIDER`, `REACT_APP_APPCHECK_SITE_KEY`, `REACT_APP_FIREBASE_*`, `REACT_APP_API_BASE_URL`. Debug names `REACT_APP_APPCHECK_DEBUG_TOKEN` and `FIREBASE_APPCHECK_DEBUG_TOKEN` are forbidden in production builds. GA4 stays off unless `REACT_APP_ANALYTICS_ENABLED=true`. Production Enterprise site key and Firebase App Check registration are **COMPLETE** under P05G2; the public key is wired only into the temporary proof artifact. No production `.env` was created. The full SPA remains out of scope and still requires the separate P10 API decision.
 
 **Order.** Do not enforce before a proven client. Do not treat “full SPA deploy, then enforcement” as the approved sequence. **P05G1A** is resolved by verification. **P05G1B** chooses a narrow proof surface and leaves the API blocker on **P10**. RED enforcement is not approved by this plan. Auth signup stays **disabled**. GA4 stays **off**.
 
@@ -331,7 +332,7 @@ Planning only. No Hosting deploy, App Check change, Auth change, or cloud query 
 
 **Proof.** P05 production PASS needs the staging shape on the narrow surface: valid App Check token, one controlled operator Storage upload plus denial without a token, and an authenticated Firestore read that fails without App Check. Delete the proof object afterward. Broader money-loop proof stays P10.
 
-**Future sequence.** **P05G1A COMPLETE.** **P05G1B plan COMPLETE.** Next RED boundaries are **P05G2–P05G6** in section T, each still needing its own approval. P07’s App Check blocker closes only when P05 production PASS is recorded. P07 itself stays open. Hosting stays maintenance. `pilotSettings` stays absent. Stripe stays disabled. Production stays **FROZEN**. Production App Check registration stays **MISSING / NEEDS CREATION**.
+**Future sequence.** **P05G1A COMPLETE.** **P05G1B plan COMPLETE.** **P05G2 COMPLETE.** The remaining RED boundaries are **P05G3–P05G6** in section T, each needing its own approval. P07’s App Check blocker closes only when P05 production PASS is recorded. P07 itself stays open. Hosting stays maintenance. `pilotSettings` stays absent. Stripe stays disabled. Production stays **FROZEN**.
 
 **NO-GO.** Wrong Firebase project, localhost or staging API, debug provider, missing production site key, CSP blocking Enterprise or App Check, enforcement before the proof surface has a valid token, GA4 turned on, or no Hosting rollback release.
 
@@ -357,7 +358,7 @@ Planning only. No Hosting deploy, IAM change, App Check registration, enforcemen
 
 **RED boundaries, each separate and not approved here:**
 
-- **P05G2:** create the production Enterprise key and prepare the proof artifact. No deploy. No enforcement.
+- **P05G2: COMPLETE (25 September 2026).** Production Enterprise key created and registered; proof artifact prepared locally. No deploy. No enforcement.
 - **P05G3:** deploy the maintenance release plus `/appcheck-proof/` only. Prove a token. No enforcement.
 - **P05G4:** enforce Firestore. Valid admin read and missing-token denial.
 - **P05G5:** enforce Storage. Controlled upload, operator delete, missing-token denial.
@@ -380,3 +381,18 @@ Planning only. No Hosting deploy, IAM change, App Check registration, enforcemen
 - Local E2E browser smoke: 4 passed; non-loopback browser network blocked.
 - Whitespace/diff checks: PASS.
 - No backend/Functions/rules code changed; their baseline CI passed. No hosted synthetic flows were executed.
+
+## U. P05G2 production provider registration and local proof artifact (25 September 2026)
+
+**Result: COMPLETE.** Explicit RED approval covered only production preflight, one production reCAPTCHA Enterprise Web key, one Firebase App Check registration, and local proof-artifact preparation.
+
+- Project `taskio-v2` (project number `848916998874`); existing active Web app **Taskio Web** matched the repo app ID exactly. No Web app was created.
+- Pre-state: Enterprise site key absent; token TTL `3600s`; minimum valid score `0.5`; Firestore, Storage, and Authentication all `UNENFORCED`; Enterprise-key inventory empty. The reCAPTCHA Enterprise API was already enabled, so no API mutation was needed.
+- Created exactly one **WEB / SCORE** key named **Taskio Production App Check**. Domain verification is enabled; allow-all-domains is false. Allowed domains are only `taskio.com.au`, `www.taskio.com.au`, `taskio-v2.web.app`, and `taskio-v2.firebaseapp.com`. No localhost, staging, preview, wildcard, checkbox, or challenge configuration was added.
+- Registered that key only on the matched production Web app. Read-back: reCAPTCHA Enterprise configured, TTL `3600s`, minimum valid score `0.5`. Firestore, Storage, and Authentication remained `UNENFORCED`.
+- Local-only artifact: `maintenance/appcheck-proof/`. Pinned Firebase 12 browser modules; Google sign-in with in-memory persistence; fresh ID-token checks for `aud=taskio-v2`, Google provider, and `admin=true`; manual Enterprise token control with auto-refresh enabled. Token contents are never displayed or stored.
+- Firestore is wired only for `getDoc(adminDailyChecklist/appcheck-proof)`. Storage is wired only for a tiny synthetic PNG at `profilePhotos/{signedInUid}/appcheck-proof.png`; no client delete workaround. Both data controls are hard-disabled for G2 and nothing runs on page load.
+- `firebase.maintenance.json` adds only a path-specific `/appcheck-proof/**` CSP based on the staging-proven policy with GA4 and Cloud Run hosts removed. Maintenance root files are byte-identical. The artifact was not deployed and no localhost token attempt was made.
+- Local validation: JavaScript syntax PASS; focused proof-artifact tests **4/4 PASS**; existing Hosting-header tests **2/2 PASS**; security scan PASS; `git diff --check` PASS. No credential, token value, debug provider/token, staging key/domain, GA measurement ID, Cloud Run URL, customer data, Firestore write, or Storage write is present.
+
+P05 remains **STAGING PASS / PRODUCTION PENDING**. Next boundary: separately approved **P05G3** to deploy the maintenance package with `/appcheck-proof/` and prove a production App Check token. No enforcement in G3.

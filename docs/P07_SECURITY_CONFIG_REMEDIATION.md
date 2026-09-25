@@ -3,7 +3,7 @@
 **Date:** 24 September 2026 (P07H2 **PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE**)
 **P07A audit date:** 14 September 2026
 **P07B local hardening:** 19 September 2026 (`10a8f5b` / `11919fa`)
-**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1–G3 COMPLETE.** **P07H1–H2 COMPLETE.** Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** on `taskio-api-00008-zir` (source `57505d0`). Compatibility **REVIEW COMPLETE** (OPTION B). Production Hosting still maintenance. Production Firestore + Storage rules now match HEAD (§47). **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN** (not open-demand).
+**Status:** **P07 OPEN / REMEDIATION IN PROGRESS** — **AMBER-E2A + E2B + E2C + D3 COMPLETE**. **P07F1–F5B COMPLETE.** **P07G1–G3 COMPLETE.** **P07H1–H2 COMPLETE.** **P05G2 COMPLETE** (production Enterprise provider registered; enforcement OFF; proof artifact local only). Staging CSP **ENFORCED.** Expert expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** on `taskio-api-00008-zir` (source `57505d0`). Compatibility **REVIEW COMPLETE** (OPTION B). Production Hosting still maintenance. Production Firestore + Storage rules now match HEAD (§47). **Not P07 PASS.** READY TO OPEN remains impossible. Production still **FROZEN** (not open-demand).
 
 This document is an audit plus approved staging-rules execution record. It does **not** rotate credentials, enable Auth signup, change IAM, enable production App Check/GA4/email/Stripe live, create `system/pilotSettings`, or push.
 
@@ -166,11 +166,13 @@ No production rule deploy in this task.
 | Env | Frontend | Firestore | Storage | Auth |
 |---|---|---|---|---|
 | Staging | ON | ENFORCED | ENFORCED | OFF (out of MVP) |
-| Production | **OFF** | OFF | OFF | OFF |
+| Production | **Provider registered; proof artifact local/not deployed** | UNENFORCED | UNENFORCED | UNENFORCED |
 
 **API:** no App Check middleware (intentional MVP).
 
-**Future production sequence (do not run now):** register prod Web app + Enterprise key → Hosting with App Check ON → prove tokens → enforce Firestore → prove → enforce Storage → prove. **Rollback:** disable enforcement **before** rolling Hosting to a bundle without App Check. Auth enforcement remains a separate decision.
+**Current production state (P05G2):** the existing production Web app is registered with one domain-restricted SCORE-based reCAPTCHA Enterprise key. The temporary proof artifact is prepared locally. No Hosting deployment or token proof occurred; Firestore, Storage, and Auth remain UNENFORCED.
+
+**Future production sequence (do not run now):** P05G3 Hosting with the narrow App Check proof surface → prove a token → enforce Firestore → prove → enforce Storage → prove. **Rollback:** disable enforcement **before** rolling Hosting to a bundle without App Check. Auth enforcement remains a separate decision.
 
 P05 remains **STAGING PASS / PRODUCTION PENDING**.
 
@@ -327,7 +329,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-03 | Auth `disabledUserSignup=true` | **P07C confirmed** on production | C4 | Blocks intended OPEN | Approved Identity Toolkit change for homeowner path only | PRODUCTION (+ staging when testing) | **RED** | **Yes** | C4 + P10 | **VERIFIED; enable NOT STARTED** |
 | P07-04 | IAM / Cloud Run invoker | **P07C:** main API invoker policy empty (no allUsers). Runtime SA matches. | C2 C3 | None for public invoke | Keep private until a named public-HTTP decision | PRODUCTION | **GREEN** verified | No | C2 C3 | **VERIFIED** |
 | P07-05 | Runtime secrets | **P07C:** `OTP_SALT:1` + `ABN_LOOKUP_GUID:1` mounted; no Stripe/Gemini/SMTP; `STRIPE_ENABLED=false` | C2 C6 | LOW (ABN optional) | Do not add Gemini/live Stripe yet | PRODUCTION | **GREEN** verified | No | C6 | **VERIFIED** |
-| P07-06 | Production App Check | **P07C:** Firestore/Storage/Auth `UNENFORCED`. **P05G1A COMPLETE**. **P05G1B plan COMPLETE**: narrow proof surface; API does not block P05. Auth enforcement out of MVP scope | C5 | HIGH bots/abuse at public launch | P05G2–P05G6 RED, not approved | PRODUCTION | **RED / NOT APPROVED** | **Yes** (with P05) | Token + Firestore/Storage enforcement proofs | **PLAN COMPLETE; ENFORCEMENT NOT STARTED** |
+| P07-06 | Production App Check | **P05G2 COMPLETE:** production Enterprise provider registered; proof artifact local/not deployed. Firestore/Storage/Auth `UNENFORCED`; Auth enforcement out of MVP scope | C5 | HIGH bots/abuse at public launch | P05G3–P05G6 require separate RED approvals | PRODUCTION | **RED IN PROGRESS** | **Yes** (with P05) | Hosted token + Firestore/Storage enforcement proofs | **REGISTRATION COMPLETE; ENFORCEMENT NOT STARTED** |
 | P07-07 | Production email | Production SMTP configured; sender/domain authorised; both E01 customer gates off; guarded proof Function active and inert | P03G2 production evidence | Closed for P07 email | None; do not enable customer email | PRODUCTION | **RED COMPLETE** | **No — closed by P03 production PASS** | One accepted operator send + owner receipt + final 404 | **PRODUCTION PASS / CLOSED** |
 | P07-08 | Production GA4 | **P07C:** maintenance HTML; no gtag / measurement ID | C7 + public GET | MEDIUM (privacy) | Enable only after P06 disclosure | PRODUCTION | **RED** | Coupled P04/P06 | Console receipt | **VERIFIED OFF; enable NOT STARTED** |
 | P07-09 | Production Stripe live | **P07C:** `STRIPE_ENABLED=false`; no Stripe secret names in prod SM; no prod webhook service | C2 C6 | CRITICAL money | Separate live Stripe batch | PRODUCTION | **RED** | Before live money | Webhook + TEST-to-LIVE checklist | **VERIFIED OFF; live NOT STARTED** |
@@ -2004,7 +2006,7 @@ Repo exports: `notifyHomeownerOnQuoteSubmitted`, `notifyHomeownerOnQuoteSubmitte
 | P07-16 | Production Firestore + Storage rules | **P07H2 COMPLETE.** HEAD sources live on `taskio-v2`. See §47. | Closed for this deploy | deploy done | H2 | Next: Auth / App Check / P04–P05 | **RED COMPLETE** | 2 done |
 | P07-13 | Production Hosting / CSP | Staging CSP ENFORCED; production maintenance `cffca9d87ce03901` | SPA restore needed for real users; P07 PASS does **not** require SPA if CDN HSTS holds | deploy | P09 copy / P10 | RED with App Check frontend | **RED** | with P05 |
 | P07-03 | Production Auth signup | `disabledUserSignup=true` | **Yes** for public OPEN and P07 PASS | config | App gates stay | RED enable when OPEN intended; P10 proves journey | **RED** | late |
-| P07-06 | Production App Check | Firestore/Storage/Auth UNENFORCED; Auth enforcement **out of MVP scope** | **Yes** (P05) for public launch | config/deploy | Hosting with site key | RED P05 sequence (Hosting → Firestore → Storage) | **RED** | with Hosting |
+| P07-06 | Production App Check | **P05G2 provider registration COMPLETE**; proof artifact local only; Firestore/Storage/Auth UNENFORCED; Auth enforcement **out of MVP scope** | **Yes** (P05) for public launch | deploy/prove/enforce | P05G3 Hosting proof next | RED P05 sequence (Hosting → Firestore → Storage) | **RED IN PROGRESS** | with Hosting |
 | P07-07 | Production email | **P03G2 PRODUCTION PASS.** SMTP configured; sender/domain authorised; guarded proof accepted and owner-received; gate restored off; E01 customer gates off | **No — CLOSED** | config complete | P03 PASS | No further send; keep customer email off | **RED COMPLETE** | done |
 | P07-08 | Production GA4 | OFF; staging proven | **Yes** for FULL LAUNCH / P04; **not** a next P07 code task | config | **P06/P09** disclosure | Hold until wording; then RED P04 | **RED** | after P06 |
 | P07-09 | Production Stripe live | `STRIPE_ENABLED=false`; no live secrets/webhook | **Yes** before real money | config | P10 live proof | Separate RED live batch | **RED** | with P10 |
@@ -2795,4 +2797,4 @@ Rules API pointer matched HEAD immediately and again after a 60-second recheck. 
 
 Auth signup still disabled. Hosting still `cffca9d87ce03901`. App Check still UNENFORCED. `pilotSettings` still absent. API still `taskio-api-00008-zir` 100%. Prior Rulesets retained (not deleted). Application writes: users **0**, jobs **0**, quotes **0**, reviews **0**, waitlists **0**, system docs **0**, Storage objects **0**. No App Check, Auth, Hosting, API, Functions, IAM, secrets, Stripe, email, GA4, Gemini, or migration.
 
-**P07H2 = PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. The production-email blocker is **CLOSED** by P03 production PASS. Remaining blockers: production Auth signup path; production App Check Firestore + Storage (P05G1B plan complete; RED execution not approved); production browser/API architecture for full SPA restoration (moved to P10, still open); production GA4 / P04 production PASS or explicit owner OFF decision; production Stripe live when serving real money. Production still **FROZEN / NOT OPEN**.
+**P07H2 = PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. The production-email blocker is **CLOSED** by P03 production PASS. P05G2 production Enterprise registration is **COMPLETE**, but the App Check blocker remains open until hosted proof and Firestore/Storage enforcement are proven. Remaining P07 blockers: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 production PASS or explicit owner OFF decision; production Stripe live when serving real money. The production browser/API architecture remains a separate P10 blocker. Production still **FROZEN / NOT OPEN**.

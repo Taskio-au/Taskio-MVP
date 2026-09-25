@@ -126,7 +126,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
 | P03 | **PRODUCTION PASS** — staging PASS; exactly one guarded production proof send returned **200**, provider accepted, owner receipt confirmed, proof gate restored off, and final admin check returned **404 `proof_disabled`** | No |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P05 | **STAGING PASS / PRODUCTION PENDING** — **P05G1A COMPLETE**. **P05G1B plan COMPLETE** (narrow proof surface; API does not block P05). RED enforcement not approved | Yes, until production PASS |
+| P05 | **STAGING PASS / PRODUCTION PENDING** — **P05G1A–G2 COMPLETE**. Production Enterprise provider registered; enforcement OFF. Narrow `/appcheck-proof/` artifact prepared locally, not deployed. P05G3 hosted token proof is the next separate RED boundary | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
 | P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **H1–H2 complete**. Production Firestore + Storage rules **LIVE**. Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE**. Compatibility **REVIEW COMPLETE**. **Production-email blocker CLOSED.** Remaining blockers: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
@@ -144,7 +144,7 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 |---|---|
 | Objective | Prove production configuration is secure, isolated, correctly configured, and ready to serve real users. |
 | Classification | Production validation. Execution is **RED**. |
-| Current status | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **P07H2 complete** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §47). Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** (`taskio-api-00008-zir`). Production Firestore + Storage rules **LIVE**. Compatibility **REVIEW COMPLETE**. Production-email blocker **CLOSED** by P03 PASS. **Not P07 PASS.** |
+| Current status | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **P07H2 complete** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §47). Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** (`taskio-api-00008-zir`). Production Firestore + Storage rules **LIVE**. Compatibility **REVIEW COMPLETE**. Production-email blocker **CLOSED**. P05G2 provider registration complete, but App Check proof/enforcement blocker remains open. **Not P07 PASS.** |
 | Dependencies | P04/P05 production work; A04 / `docs/SECRETS_AND_KEY_ROTATION.md`; existing staging proofs. P03 is complete. |
 | Approval | GREEN: checklists and audits that do not mutate production. RED: any `taskio-v2` secret, IAM, Hosting, App Check, GA4, SMTP, or Stripe live change. |
 
@@ -173,7 +173,7 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 
 **D. Production App Check**
 
-- Production provider configured; App Check-enabled frontend deployed.
+- Production provider configured in P05G2; temporary App Check proof frontend prepared locally but not deployed.
 - Valid traffic proven; Firestore enforcement proven; Storage enforcement proven.
 - Auth enforcement remains an explicit separate decision (currently out of approved MVP scope).
 - Preserve the rollback rule: disable affected enforcement first, verify OFF, then roll Hosting. See `docs/APP_CHECK.md`.
