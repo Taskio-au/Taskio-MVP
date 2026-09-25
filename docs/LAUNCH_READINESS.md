@@ -126,7 +126,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
 | P03 | **PRODUCTION PASS** — staging PASS; exactly one guarded production proof send returned **200**, provider accepted, owner receipt confirmed, proof gate restored off, and final admin check returned **404 `proof_disabled`** | No |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P05 | **STAGING PASS / PRODUCTION PENDING** — plan **COMPLETE**. **P05G1A** token readiness **RESOLVED BY VERIFICATION**. **P05G1B** browser/API plan still required before RED enforcement | Yes, until production PASS |
+| P05 | **STAGING PASS / PRODUCTION PENDING** — **P05G1A COMPLETE**. **P05G1B plan COMPLETE** (narrow proof surface; API does not block P05). RED enforcement not approved | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
 | P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **H1–H2 complete**. Production Firestore + Storage rules **LIVE**. Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE**. Compatibility **REVIEW COMPLETE**. **Production-email blocker CLOSED.** Remaining blockers: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
@@ -350,7 +350,7 @@ Verify analytics, email, logs, profile data, retention, support uploads, and job
 |---|---|
 | Objective | Prove the complete production system end-to-end before inviting launch users. |
 | Classification | **RED**. Real-money tests need explicit owner approval. |
-| Current status | **NOT STARTED** |
+| Current status | **NOT STARTED**. Full SPA browser/API architecture stays in this gate and remains open. Target is OPTION B after an Authorization-header proof. OPTION A is the staging-proven fallback. IAM is unchanged. |
 | Dependencies | **TASKIO FULL LAUNCH READY** inputs except P10 itself: P01, P02, P03–P05 production, P06, P07, P08, P09. |
 | Approval | Do not run P10 while only editing the tracker. |
 

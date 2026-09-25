@@ -321,19 +321,53 @@ Planning only. No Hosting deploy, App Check change, Auth change, or cloud query 
 
 **Coverage.** Firestore **YES**. Storage **YES**. Auth **UNENFORCED / out of MVP scope**. Browser Functions **not used**. Cloud Run stays on Firebase ID tokens and IAM.
 
-**SEPARATE PRODUCTION BROWSER/API ARCHITECTURE BLOCKER.** A production SPA requires `REACT_APP_API_BASE_URL`. The production Cloud Run API is IAM-private. Browser App Check does not authenticate Cloud Run IAM. Full production SPA restoration is not approved merely for P05. Do not change IAM. Do not assume the browser can call the production API. Resolve this in **P05G1B** before any RED App Check execution.
+**Production browser/API architecture blocker.** Still **OPEN** for full SPA restoration. It does **not** block P05. See section T. A production SPA still needs `REACT_APP_API_BASE_URL`. The production Cloud Run API stays IAM-private. Browser App Check does not authenticate Cloud Run IAM. Do not change IAM. Do not assume the browser can call the production API.
 
 **Config names.** Public build-time: `REACT_APP_APPCHECK_ENABLED`, `REACT_APP_APPCHECK_PROVIDER`, `REACT_APP_APPCHECK_SITE_KEY`, `REACT_APP_FIREBASE_*`, `REACT_APP_API_BASE_URL`. Debug names `REACT_APP_APPCHECK_DEBUG_TOKEN` and `FIREBASE_APPCHECK_DEBUG_TOKEN` are forbidden in production builds. GA4 stays off unless `REACT_APP_ANALYTICS_ENABLED=true`. Production Enterprise site key: **MISSING / NEEDS CREATION**. No committed production `.env`. A local production bundle was not built in G1 because `REACT_APP_API_BASE_URL` and `REACT_APP_APPCHECK_SITE_KEY` are not available as approved production values.
 
-**Order.** Do not enforce before a proven client. Do not treat “full SPA deploy, then enforcement” as the approved sequence. **P05G1A** is resolved by verification. RED production App Check execution remains blocked on **P05G1B**: production browser/API reachability plus a safe technical-proof surface. Auth signup stays **disabled**. GA4 stays **off**. Production `firebase.json` Hosting has security headers but **no CSP**. A real SPA would need a production CSP based on the staging policy, with production Storage/API hosts and without GA4 hosts while analytics stay off.
+**Order.** Do not enforce before a proven client. Do not treat “full SPA deploy, then enforcement” as the approved sequence. **P05G1A** is resolved by verification. **P05G1B** chooses a narrow proof surface and leaves the API blocker on **P10**. RED enforcement is not approved by this plan. Auth signup stays **disabled**. GA4 stays **off**.
 
-**Safety.** Replacing the maintenance page with the full SPA is not approved until the API path is valid and P06/P09 copy exposure is acceptable. Signup disabled, `pilotSettings` absent, the private API, and Stripe disabled stop a public new-user marketplace, but the full SPA is still the wrong proof surface for now. A later plan may use a narrow technical-proof surface, or the full SPA only after those blockers close. This record does not choose that surface.
+**Safety.** Replacing the maintenance page with the full SPA is not approved. The P05 proof surface is a separate static path. Signup disabled, `pilotSettings` absent, the private API, and Stripe disabled stay in force.
 
-**Proof.** P05 production PASS needs the staging shape: valid App Check token, one controlled operator Storage upload plus denial without a token, and an authenticated Firestore read that fails without App Check. Delete the proof object afterward. Broader money-loop proof stays P10.
+**Proof.** P05 production PASS needs the staging shape on the narrow surface: valid App Check token, one controlled operator Storage upload plus denial without a token, and an authenticated Firestore read that fails without App Check. Delete the proof object afterward. Broader money-loop proof stays P10.
 
-**Future sequence.** **P05G1A** is **RESOLVED BY VERIFICATION**. Next is **P05G1B**, a GREEN browser/API and proof-surface plan. RED enforcement is not approved until that plan passes. P05G1A does not solve Cloud Run IAM, `REACT_APP_API_BASE_URL`, Hosting restoration, production App Check registration, CSP, P06/P09, GA4, or Auth signup. P07’s App Check blocker closes only when P05 production PASS is recorded. P07 itself stays open. Hosting stays maintenance. `pilotSettings` stays absent. Stripe stays disabled. Production stays **FROZEN**. Production App Check registration stays **MISSING / NEEDS CREATION**.
+**Future sequence.** **P05G1A COMPLETE.** **P05G1B plan COMPLETE.** Next RED boundaries are **P05G2–P05G6** in section T, each still needing its own approval. P07’s App Check blocker closes only when P05 production PASS is recorded. P07 itself stays open. Hosting stays maintenance. `pilotSettings` stays absent. Stripe stays disabled. Production stays **FROZEN**. Production App Check registration stays **MISSING / NEEDS CREATION**.
 
-**NO-GO.** Wrong Firebase project, localhost or staging API, debug provider, missing production site key, CSP blocking Enterprise or App Check, enforcement before a proven SPA, GA4 turned on, or no Hosting rollback release.
+**NO-GO.** Wrong Firebase project, localhost or staging API, debug provider, missing production site key, CSP blocking Enterprise or App Check, enforcement before the proof surface has a valid token, GA4 turned on, or no Hosting rollback release.
+
+## T. P05G1B proof surface and API architecture (25 September 2026)
+
+Planning only. No Hosting deploy, IAM change, App Check registration, enforcement, Auth change, or cloud query.
+
+**API blocks P05: NO.** Firestore and Storage App Check are client-SDK proofs. The proof page must not call Cloud Run.
+
+**API blocks full SPA restoration: YES.** That blocker moves to **P10**. It is not closed.
+
+**P05 path: PATH 1.** Keep `/` as the current maintenance page. Add only a static operator page at `/appcheck-proof/` inside a future `firebase.maintenance.json` release. Hosting serves exact static files before rewrites ([Hosting priority](https://firebase.google.com/docs/hosting/full-config)), so the existing `**` → `/index.html` rewrite does not replace `/`. A Hosting release replaces the whole site, so that release must contain the current `maintenance/` root plus the proof path. Rollback release remains **`cffca9d87ce03901`**.
+
+**Proof page.** Initialize the production web app, App Check with a new production reCAPTCHA Enterprise key, and sign in an existing `admin=true` operator. Show a sanitized ready/failed result. One Firestore get of missing doc `adminDailyChecklist/appcheck-proof` (admin read; no create). One Storage create of a tiny PNG at `profilePhotos/{operatorUid}/appcheck-proof.png`, then operator delete of that exact object. Current rules allow owner create and do not allow client delete. No marketplace UI, jobs, quotes, payments, signup, API, GA4, or launch copy. Page assets may be public. Data operations stay behind admin claims and rules. Obscurity is not the control. Remove the path in P05G6 after proof. P06/P09 do not block this page.
+
+**Domains.** Prove on `https://taskio.com.au`. Register that host, plus `www.taskio.com.au`, `taskio-v2.web.app`, and `taskio-v2.firebaseapp.com`, on the new Enterprise key. Do not reuse the staging key. Do not add preview channels. CSP applies only to `/appcheck-proof/**`: staging CSP minus GA4 hosts and minus the staging API host. No `*`.
+
+**Denial proof.** After enforcement, repeat the same admin Firestore read and Storage metadata read over REST with the App Check header omitted, then with an invalid header. No production debug token and no client bypass.
+
+**Maintenance vs enforcement.** `maintenance/index.html` has no Firebase, Firestore, or Storage. Enforcement does not break `/`. Before enforcement, RED preflight must confirm no other live Firestore/Storage client. This repo shows no mobile app. The default Hosting site serves the maintenance release on the custom domain and the Firebase default hosts.
+
+**Rollback.** Turn Firestore/Storage enforcement **OFF** before restoring any Hosting release that serves an App Check-less SPA. Restoring maintenance-only Hosting is safe while enforcement stays ON, because that page does not call those products. Leave the Enterprise key registered; stop using it rather than deleting it in a rollback.
+
+**RED boundaries, each separate and not approved here:**
+
+- **P05G2:** create the production Enterprise key and prepare the proof artifact. No deploy. No enforcement.
+- **P05G3:** deploy the maintenance release plus `/appcheck-proof/` only. Prove a token. No enforcement.
+- **P05G4:** enforce Firestore. Valid admin read and missing-token denial.
+- **P05G5:** enforce Storage. Controlled upload, operator delete, missing-token denial.
+- **P05G6:** remove the proof path. Keep enforcement ON. Record evidence.
+
+**Future SPA API.** Protected routes use `Authorization: Bearer` and `admin.auth().verifyIdToken`. Admin routes add `admin` or `super_admin`. Role and ownership use the token uid, not a body uid. `verifyIdToken` is called without `checkRevoked`. Intentional public routes stay application-gated: signup returns 503 unless `TASKIO_PUBLIC_SIGNUP_ENABLED=true`; AI stays off unless `AI_DESCRIPTION_ENABLED=true`; main-API Stripe webhook returns 404 while Stripe is disabled; `/health/metrics` is admin-only. Public invocation of `taskio-api` is **not** a NO-GO for those protected routes. It is still not approved.
+
+**Hosting rewrite.** Official Hosting Cloud Run setup tells the deployer to allow unauthenticated invocations ([Firebase Hosting and Cloud Run](https://firebase.google.com/docs/hosting/cloud-run), 2026-09-24). `australia-southeast1` is a supported rewrite region. That guide does not document Hosting as an IAM-preserving proxy. **Classification B:** a `/api/**` rewrite requires public Cloud Run invocation. It is not an IAM-preserving proxy. Whether that rewrite forwards `Authorization: Bearer` to Express is **NEEDS CONTROLLED STAGING/PRODUCTION PROOF**.
+
+**Recommendation for P10, not for P05: OPTION B**, browser → `https://taskio.com.au/api/**` → public-invokable `taskio-api`, with the existing Firebase application auth. Put `/api/**` before the SPA `**` rewrite. Do not rewrite `/internal/**`. Keep Stripe webhooks on the separate webhook service. **OPTION A** (direct `run.app`, as staging already does) is the fallback if the Authorization-header proof fails. **OPTION C** is not recommended: the repo has no gateway, and a private proxy would be extra machinery after application auth is the boundary. CORS today is an exact `CORS_ORIGINS` allowlist; production evidence records `https://taskio.com.au`. Same-origin `/api/**` avoids browser CORS. Direct `run.app` still needs it. CORS is not authentication.
 
 
 ## Local verification evidence

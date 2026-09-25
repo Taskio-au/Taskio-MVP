@@ -89,10 +89,19 @@ Ordinary admin still operates jobs, invites, monitoring, users, workflow. `POST 
 
 Revert this commit on `develop` if the kill switch or metrics auth must be undone. That revert still must **not** be used as approval to open Cloud Run IAM. Runtime env `TASKIO_PUBLIC_SIGNUP_ENABLED` is unchanged by this batch; production stays fail-closed while the flag is missing.
 
+## P05G1B architecture decision (25 September 2026)
+
+Planning only. IAM was not changed.
+
+Protected Taskio routes do not rely on Cloud Run IAM alone. They require a Firebase ID token, then role, admin, or ownership checks. Intentional public routes stay application-gated (signup 503, AI off, Stripe webhook 404 while disabled). Public invocation is therefore **not** a NO-GO for those protected routes, and it is still **not approved**.
+
+**P10 target: OPTION B.** Browser calls `https://taskio.com.au/api/**`. Hosting rewrites that prefix to `taskio-api` in `australia-southeast1`. The [official Hosting Cloud Run guide](https://firebase.google.com/docs/hosting/cloud-run) requires allowing unauthenticated invocations. A rewrite is **not** an IAM-preserving proxy. Application auth stays `Authorization: Bearer` plus `verifyIdToken`. Forwarding of that header through a rewrite is **NEEDS CONTROLLED PROOF** before OPTION B is deployed. **OPTION A**, the direct `run.app` URL already used by staging, is the fallback. Do not add a gateway. Do not rewrite `/internal/**`. Keep Stripe webhooks on the webhook-only service.
+
+**API BLOCKS P05: NO. API BLOCKS FULL SPA RESTORATION: YES.**
+
 ## Next separate approvals (do not start here)
 
-1. Cloud Run public invoker / IAM for the **main API** (if Option A is chosen)
-2. Staging deploy of this revision
-3. Browser acceptance against a public API
-4. Explicit `TASKIO_PUBLIC_SIGNUP_ENABLED=true` for launch
-5. Production webhook / LIVE Stripe / public Hosting
+1. Cloud Run public invoker for the **main API**, only inside the P10 OPTION B (or OPTION A fallback) approval
+2. Controlled proof that a Hosting `/api/**` rewrite forwards `Authorization: Bearer`
+3. Explicit `TASKIO_PUBLIC_SIGNUP_ENABLED=true` for launch
+4. Production webhook / LIVE Stripe / public Hosting SPA

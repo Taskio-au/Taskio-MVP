@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 25 September 2026 (P05G1A App Check token verification)
+**Last updated:** 25 September 2026 (P05G1B App Check proof-surface plan)
 
 ## Active scope
 
@@ -45,7 +45,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
 | P03 | **PRODUCTION PASS** — staging PASS; production SMTP/sender/domain proven; exactly one guarded proof send returned **200**, provider accepted, and owner receipt was confirmed. Proof gate restored off; final **404 `proof_disabled`**. Customer emails **0**; business-data writes **0**. | No |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P05 | **STAGING PASS / PRODUCTION PENDING** — plan **COMPLETE**. **P05G1A** first-token readiness **RESOLVED BY VERIFICATION**. Still blocked on **P05G1B** browser/API proof surface before any RED enforcement. Firestore + Storage only | Yes, until production PASS |
+| P05 | **STAGING PASS / PRODUCTION PENDING** — **P05G1A COMPLETE**. **P05G1B plan COMPLETE**: narrow `/appcheck-proof/` surface; API does not block P05. RED **P05G2–P05G6** not approved. Firestore + Storage only | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`); lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
 | P07 | **OPEN / REMEDIATION IN PROGRESS** — **P07F1–F5B COMPLETE**. **P07G1–G3 COMPLETE**. **P07H1–H2 COMPLETE** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §47). Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** (`taskio-api-00008-zir` / `57505d0`). Production Firestore + Storage rules **LIVE** (HEAD). Compatibility **REVIEW COMPLETE**. **Email blocker CLOSED** by P03 production PASS. Remaining: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
