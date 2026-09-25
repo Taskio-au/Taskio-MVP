@@ -309,10 +309,27 @@ When only one enforced service fails, disabling just that service may be suffici
 - P01 bank payout remains unproven; P06 legal review and historical production credential rotation/revocation remain pre-launch items. No production credential state was inferred.
 
 ## R. P05 classification
-See the table at the top of this document. Staging Firestore and Storage enforcement are **PASS**. Production remains **OFF**.
+Staging Firestore and Storage enforcement are **PASS**. Auth enforcement stays **OFF**. Production remains **OFF**. **P05 production App Check / SPA readiness plan: COMPLETE (25 September 2026).** Future production execution is **RED / OWNER APPROVAL REQUIRED**. Not started.
 
-## S. Remaining P05 / next gate
-P05 staging App Check is **PASS**. Auth enforcement stays off (out of approved MVP scope). Production App Check remains **OFF** and needs a separate RED decision. Do not roll Hosting back while Firestore or Storage is ENFORCED. Next tracker gate is not a P05 staging action.
+## S. Production App Check and SPA plan (25 September 2026)
+
+Planning only. No Hosting deploy, App Check change, Auth change, or cloud query in this record.
+
+**Provider.** Current code uses Firebase JS `initializeAppCheck` with `ReCaptchaV3Provider` or `ReCaptchaEnterpriseProvider` (`firebase` ^12). Staging proof used **reCAPTCHA Enterprise**. Production must use the same provider on `taskio-v2`, not the staging site key. `isTokenAutoRefreshEnabled` is true. Initialization runs in `frontend/src/firebase.js` after `initializeApp` and before `getAuth`, `getFirestore`, and `getStorage`. Disabled config creates no provider. A missing site key while enabled throws, and production rethrows that error. Token acquisition itself is not awaited.
+
+**Coverage.** Firestore **YES**. Storage **YES**. Auth **UNENFORCED / out of MVP scope**. Browser Functions **not used**. Cloud Run stays on Firebase ID tokens and IAM. App Check does not make the private production API reachable.
+
+**Config names.** Public build-time: `REACT_APP_APPCHECK_ENABLED`, `REACT_APP_APPCHECK_PROVIDER`, `REACT_APP_APPCHECK_SITE_KEY`, `REACT_APP_FIREBASE_*`, `REACT_APP_API_BASE_URL`. Debug names `REACT_APP_APPCHECK_DEBUG_TOKEN` and `FIREBASE_APPCHECK_DEBUG_TOKEN` are forbidden in production builds. GA4 stays off unless `REACT_APP_ANALYTICS_ENABLED=true`. Production Enterprise site key: **MISSING / NEEDS CREATION**. No committed production `.env`. A local production bundle was not built in G1 because `REACT_APP_API_BASE_URL` and `REACT_APP_APPCHECK_SITE_KEY` are not available as approved production values.
+
+**Order.** **A.** Deploy an App-Check-capable SPA while Firestore and Storage enforcement stay off, prove a real browser token, then enforce Firestore and Storage. Do not enforce first. Auth signup stays **disabled** through all of P05. GA4 stays **off**. Production `firebase.json` Hosting has security headers but **no CSP**. The real SPA needs a production CSP based on the staging enforced policy, with production Storage/API hosts and without GA4 hosts while analytics stay off.
+
+**Safety.** Replacing maintenance Hosting with the full SPA is **CONDITIONAL**. Signup disabled, `pilotSettings` absent, private API, and Stripe disabled stop a public new-user marketplace, but existing accounts could use client Firestore/Storage, and SPA copy is not legally final while P06 is open. Prefer a technical proof that does not present unfinished launch copy as open.
+
+**Proof.** P05 production PASS needs the staging shape: valid App Check token, one controlled operator Storage upload plus denial without a token, and an authenticated Firestore read that fails without App Check. Delete the proof object afterward. Broader money-loop proof stays P10.
+
+**Future RED sequence.** P05G2 Hosting deploy and token proof. P05G3 Firestore then Storage enforcement. P05G4 post-enforcement browser checks. P07 App Check blocker closes only when P05 production PASS is recorded. P07 itself stays open.
+
+**NO-GO.** Wrong Firebase project, localhost or staging API, debug provider, missing production site key, CSP blocking Enterprise or App Check, enforcement before a proven SPA, GA4 turned on, or no Hosting rollback release.
 
 
 ## Local verification evidence
