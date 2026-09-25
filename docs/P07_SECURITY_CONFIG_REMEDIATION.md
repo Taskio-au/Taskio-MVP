@@ -205,9 +205,9 @@ Remaining evidence: live keys in Secret Manager, webhook endpoints on live mode,
 
 ## 12. Postmark / email
 
-P03 **STAGING PASS / PRODUCTION PENDING**. `EMAIL_ENABLED` defaults off. Staging authentic E01 verified. Production SMTP **NOT CONFIGURED**. Templates are sparse; E02 “funds are held” is a P06 wording item, not a P07 secret issue.
+P03 **PRODUCTION PASS**. Production SMTP is configured and the sender/domain is authorised. Exactly one guarded proof send returned HTTP 200; `transactional_email_proof_sent` was logged exactly once; provider acceptance and owner mailbox receipt were confirmed. Templates are sparse; E02 “funds are held” is a P06 wording item, not a P07 secret issue.
 
-**P03G1B PASS** on `taskio-v2-staging`. `verifyTransactionalEmail` is deployed and **INERT** (`EMAIL_PROOF_ENABLED=false`). Existing staging E01 `EMAIL_ENABLED=true` was not changed by G1B. **P03G2 is ELIGIBLE FOR SEPARATE RED OWNER APPROVAL and NOT APPROVED.** P07 email blocker: **WAITING ON P03G2 / P03 PRODUCTION PASS**. P07 remains **OPEN**. Do not send production email now.
+**P03G1B PASS** on `taskio-v2-staging`; **P03G2 PRODUCTION PASS** on `taskio-v2`. `verifyTransactionalEmail` is **ACTIVE + INERT** (`EMAIL_PROOF_ENABLED=false`) after the single approved proof. Both production E01 Functions remain active with `EMAIL_ENABLED=false`; production customer email is not enabled. Final authenticated check: **404 `proof_disabled`**. Customer emails **0**; business-data writes **0**. **P07 production-email blocker: CLOSED.** P07 remains **OPEN** for the other blockers.
 
 ---
 
@@ -328,7 +328,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 | P07-04 | IAM / Cloud Run invoker | **P07C:** main API invoker policy empty (no allUsers). Runtime SA matches. | C2 C3 | None for public invoke | Keep private until a named public-HTTP decision | PRODUCTION | **GREEN** verified | No | C2 C3 | **VERIFIED** |
 | P07-05 | Runtime secrets | **P07C:** `OTP_SALT:1` + `ABN_LOOKUP_GUID:1` mounted; no Stripe/Gemini/SMTP; `STRIPE_ENABLED=false` | C2 C6 | LOW (ABN optional) | Do not add Gemini/live Stripe yet | PRODUCTION | **GREEN** verified | No | C6 | **VERIFIED** |
 | P07-06 | Production App Check | **P07C:** Firestore/Storage/Auth `UNENFORCED` | C5 | HIGH bots/abuse at public launch | P05 production sequence | PRODUCTION | **RED** | **Yes** (with P05) | Token + enforcement proofs | **VERIFIED OFF; enable NOT STARTED** |
-| P07-07 | Production email | **P07C:** no SMTP/Postmark secrets in prod SM. Staging **P03G1B PASS**. Production execution not started | C6 + Functions list | HIGH ops | P03G2 | PRODUCTION | **RED / ELIGIBLE / NOT APPROVED** | Coupled P03 | Authentic operator send | **STAGING PROOF PASS; PROD CONFIG NOT STARTED** |
+| P07-07 | Production email | Production SMTP configured; sender/domain authorised; both E01 customer gates off; guarded proof Function active and inert | P03G2 production evidence | Closed for P07 email | None; do not enable customer email | PRODUCTION | **RED COMPLETE** | **No — closed by P03 production PASS** | One accepted operator send + owner receipt + final 404 | **PRODUCTION PASS / CLOSED** |
 | P07-08 | Production GA4 | **P07C:** maintenance HTML; no gtag / measurement ID | C7 + public GET | MEDIUM (privacy) | Enable only after P06 disclosure | PRODUCTION | **RED** | Coupled P04/P06 | Console receipt | **VERIFIED OFF; enable NOT STARTED** |
 | P07-09 | Production Stripe live | **P07C:** `STRIPE_ENABLED=false`; no Stripe secret names in prod SM; no prod webhook service | C2 C6 | CRITICAL money | Separate live Stripe batch | PRODUCTION | **RED** | Before live money | Webhook + TEST-to-LIVE checklist | **VERIFIED OFF; live NOT STARTED** |
 | P07-10 | CORS / TRUST_PROXY | **P07C:** `CORS_ORIGINS=https://taskio.com.au`; `TRUST_PROXY=true` | C2 | None observed | Keep allowlist = Taskio origin only | PRODUCTION | **GREEN** verified | No | C2 redact | **VERIFIED** |
@@ -357,7 +357,7 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 3. Confirm production runtime env: CORS, TRUST_PROXY, OTP_SALT, `STRIPE_ENABLED=false`, no Gemini mount, `TASKIO_PUBLIC_SIGNUP_ENABLED` not true.
 4. **Do not** enable Auth signup until homeowner OPEN is actually intended and P10 is scheduled; when enabling, keep Expert kill switch + WAITLIST/OPEN independent.
 5. Production App Check (P05) — Hosting first, then Firestore, then Storage; Auth off.
-6. Production email (P03) — after sender/domain ready.
+6. Production email (P03) — **COMPLETE / P03 PRODUCTION PASS**. Do not enable customer email or repeat the proof.
 7. Production analytics (P04) — **after P06 disclosure approval**.
 8. Live Stripe — separate RED; not required to “start” P07 audit close but required before real money.
 9. Optional GREEN: Functions audit overrides, Hosting headers, AI route auth, storage overwrite guard.
@@ -413,10 +413,10 @@ Do **not** run `firebase use` or `gcloud config set project`. Every command used
 
 ### RED-E — Production Postmark
 
-- **Action:** now specified as **P03G2** in `docs/TRANSACTIONAL_EMAIL.md`. Production SMTP secrets + E01 bind with `EMAIL_ENABLED=false` + one static operator verification send. Not a customer quote.
+- **Action:** **COMPLETED as P03G2** in `docs/TRANSACTIONAL_EMAIL.md`. Production SMTP secrets + E01 bind with `EMAIL_ENABLED=false` + one static operator verification send. Not a customer quote.
 - **Rollback:** `EMAIL_ENABLED=false` and/or previous Function revision. Do not delete the Postmark domain.
-- **Deps:** domain auth reconfirmed. Staging **P03G1B PASS**. **ELIGIBLE. NOT APPROVED.**
-- **Risk:** mail to real users if E01 is enabled. Do not start without a separate RED approval.
+- **Deps/status:** domain auth confirmed; staging **P03G1B PASS**; production **P03G2 PASS**. Proof gate restored off. No further send authorised.
+- **Risk:** mail to real users if E01 is enabled. Keep both E01 gates off; do not repeat the proof without a new explicit RED approval.
 
 ### RED-F — Production GA4
 
@@ -2000,12 +2000,12 @@ Repo exports: `notifyHomeownerOnQuoteSubmitted`, `notifyHomeownerOnQuoteSubmitte
 
 | ID | Item | Current state | Launch blocker? | Owner/code/config/deploy/ops | Dependency | Next action | Approval | Order |
 |---|---|---|---|---|---|---|---|---|
-| P07-25 | Production fail-closed API | **P07G3 COMPLETE**; live `00008-zir` from `57505d0` | Closed for API code | deploy done | G3 | Next P07: rules / Auth / App Check / P03–P05 prod | **RED COMPLETE** | 1 done |
-| P07-16 | Production Firestore + Storage rules | **P07H2 COMPLETE.** HEAD sources live on `taskio-v2`. See §47. | Closed for this deploy | deploy done | H2 | Next: Auth / App Check / P03–P05 | **RED COMPLETE** | 2 done |
+| P07-25 | Production fail-closed API | **P07G3 COMPLETE**; live `00008-zir` from `57505d0` | Closed for API code | deploy done | G3 | Next P07: Auth / App Check / P04–P05 prod | **RED COMPLETE** | 1 done |
+| P07-16 | Production Firestore + Storage rules | **P07H2 COMPLETE.** HEAD sources live on `taskio-v2`. See §47. | Closed for this deploy | deploy done | H2 | Next: Auth / App Check / P04–P05 | **RED COMPLETE** | 2 done |
 | P07-13 | Production Hosting / CSP | Staging CSP ENFORCED; production maintenance `cffca9d87ce03901` | SPA restore needed for real users; P07 PASS does **not** require SPA if CDN HSTS holds | deploy | P09 copy / P10 | RED with App Check frontend | **RED** | with P05 |
 | P07-03 | Production Auth signup | `disabledUserSignup=true` | **Yes** for public OPEN and P07 PASS | config | App gates stay | RED enable when OPEN intended; P10 proves journey | **RED** | late |
 | P07-06 | Production App Check | Firestore/Storage/Auth UNENFORCED; Auth enforcement **out of MVP scope** | **Yes** (P05) for public launch | config/deploy | Hosting with site key | RED P05 sequence (Hosting → Firestore → Storage) | **RED** | with Hosting |
-| P07-07 | Production email | No prod SMTP secrets; Functions not P03-bound | **Yes** — primarily **P03**; P07 tracks secrets/bind | config | P03 | RED Postmark bind + authentic send | **RED** | P03 |
+| P07-07 | Production email | **P03G2 PRODUCTION PASS.** SMTP configured; sender/domain authorised; guarded proof accepted and owner-received; gate restored off; E01 customer gates off | **No — CLOSED** | config complete | P03 PASS | No further send; keep customer email off | **RED COMPLETE** | done |
 | P07-08 | Production GA4 | OFF; staging proven | **Yes** for FULL LAUNCH / P04; **not** a next P07 code task | config | **P06/P09** disclosure | Hold until wording; then RED P04 | **RED** | after P06 |
 | P07-09 | Production Stripe live | `STRIPE_ENABLED=false`; no live secrets/webhook | **Yes** before real money | config | P10 live proof | Separate RED live batch | **RED** | with P10 |
 | P07-17b | Legacy Expert reconfirmation | OPTION B; requested unknown | Pre-**launch** supply, **not** pre-API-deploy | ops | F5B | Explicit Expert reconfirm before eligibility restore | later RED data if any | before OPEN |
@@ -2029,7 +2029,7 @@ P08: monitoring, runbooks, backup, support ops. P10: brand-new homeowner authent
 2. **P07G2** — GREEN local **plan** for production fail-closed API promotion. **COMPLETE** (this §44). Cloud mutation: **not in G2**.
 3. **P07G3** — future **RED** owner-approved production fail-closed API promotion (tagged 0%, smoke, then 100%; keep `00006-puf`). **NOT APPROVED. NOT EXECUTED.**
 4. **P06** in parallel — solicitor/insurance/accounting. Unblocks P09 and P07-08.
-5. Grouped later **RED** production batches (avoid gold-plating / extra deploys): rules (P07-16) after or in a later window than fail-closed API; Hosting+App Check frontend together (P07-13/P07-06); email bind (P07-07/P03); Auth signup last when OPEN is intended (P07-03); Stripe live with P10 (P07-09); GA4 after P06 (P07-08).
+5. Grouped later **RED** production batches (avoid gold-plating / extra deploys): Hosting+App Check frontend together (P07-13/P07-06); Auth signup last when OPEN is intended (P07-03); Stripe live with P10 (P07-09); GA4 after P06 (P07-08). Rules and production email are complete.
 
 ### Immediate next task (do not execute)
 
@@ -2795,4 +2795,4 @@ Rules API pointer matched HEAD immediately and again after a 60-second recheck. 
 
 Auth signup still disabled. Hosting still `cffca9d87ce03901`. App Check still UNENFORCED. `pilotSettings` still absent. API still `taskio-api-00008-zir` 100%. Prior Rulesets retained (not deleted). Application writes: users **0**, jobs **0**, quotes **0**, reviews **0**, waitlists **0**, system docs **0**, Storage objects **0**. No App Check, Auth, Hosting, API, Functions, IAM, secrets, Stripe, email, GA4, Gemini, or migration.
 
-**P07H2 = PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. Remaining: production Auth signup path; production App Check Firestore + Storage; production email / P03 production PASS; production GA4 / P04 production PASS or explicit OFF; production Stripe live when serving real money. Production still **FROZEN / NOT OPEN**.
+**P07H2 = PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE.** P07 **OPEN / REMEDIATION IN PROGRESS**. Not PASS. The production-email blocker is **CLOSED** by P03 production PASS. Remaining blockers: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 production PASS or explicit owner OFF decision; production Stripe live when serving real money. Production still **FROZEN / NOT OPEN**.

@@ -116,7 +116,7 @@ Existing nice-to-have IDs **N01–N03** stay post-launch / optional.
 
 **Post/pilot experiments (roadmap only — not P01–P10 unless later required for legal/safety):** more structured/comparable quotes; written variations; completion checklist/evidence; more transparent category-level verification; issue-free completion metric; rehire flow; outcome-driven price/matching intelligence.
 
-## Current launch-readiness summary (14 September 2026)
+## Current launch-readiness summary (25 September 2026)
 
 Technical staging readiness is advanced. Full production launch is **not** ready.
 
@@ -124,11 +124,11 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 |---|---|---|
 | P01 | **PASS / COMPLETE** (TEST bank payout) | No |
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
-| P03 | **STAGING PASS / PRODUCTION PENDING** — P03G1B staging proof **PASS**; P03G2 **ELIGIBLE / NOT APPROVED** | Yes, until production PASS |
+| P03 | **PRODUCTION PASS** — staging PASS; exactly one guarded production proof send returned **200**, provider accepted, owner receipt confirmed, proof gate restored off, and final admin check returned **404 `proof_disabled`** | No |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **H1–H2 complete**. Production Firestore + Storage rules **LIVE**. Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE**. Compatibility **REVIEW COMPLETE**. Canonical remainder: `docs/P07_SECURITY_CONFIG_REMEDIATION.md` §43–§47. Auth `disabledUserSignup=true` still independently confirmed. Not PASS. | **Yes** |
+| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **H1–H2 complete**. Production Firestore + Storage rules **LIVE**. Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE**. Compatibility **REVIEW COMPLETE**. **Production-email blocker CLOSED.** Remaining blockers: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
@@ -144,8 +144,8 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 |---|---|
 | Objective | Prove production configuration is secure, isolated, correctly configured, and ready to serve real users. |
 | Classification | Production validation. Execution is **RED**. |
-| Current status | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **P07H2 complete** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §47). Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** (`taskio-api-00008-zir`). Production Firestore + Storage rules **LIVE**. Compatibility **REVIEW COMPLETE**. **Not PASS.** |
-| Dependencies | P03/P04/P05 production work; A04 / `docs/SECRETS_AND_KEY_ROTATION.md`; existing staging proofs. |
+| Current status | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **P07H2 complete** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §47). Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** (`taskio-api-00008-zir`). Production Firestore + Storage rules **LIVE**. Compatibility **REVIEW COMPLETE**. Production-email blocker **CLOSED** by P03 PASS. **Not P07 PASS.** |
+| Dependencies | P04/P05 production work; A04 / `docs/SECRETS_AND_KEY_ROTATION.md`; existing staging proofs. P03 is complete. |
 | Approval | GREEN: checklists and audits that do not mutate production. RED: any `taskio-v2` secret, IAM, Hosting, App Check, GA4, SMTP, or Stripe live change. |
 
 ### Scope and tasks
@@ -190,7 +190,7 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 - Production nodemailer SMTP (Postmark host), approved sender/domain authentication, production secret binding.
 - One authentic operator verification send. Customer-facing E01 stays `EMAIL_ENABLED=false` until a later decision.
 - No staging URLs and no sensitive task content in the proof email.
-- Plan: `docs/TRANSACTIONAL_EMAIL.md`. Staging `verifyTransactionalEmail` **P03G1B PASS** and now **INERT** (`EMAIL_PROOF_ENABLED=false`). **P03G2** is **ELIGIBLE FOR SEPARATE RED OWNER APPROVAL** and **NOT APPROVED**.
+- Result: `docs/TRANSACTIONAL_EMAIL.md`. Staging **PASS** and production **PASS**. Exactly one production proof was accepted and owner-received. `verifyTransactionalEmail` is **ACTIVE + INERT** (`EMAIL_PROOF_ENABLED=false`); both E01 Functions remain `EMAIL_ENABLED=false`. Customer emails **0**; business-data writes **0**. Production customer email remains disabled.
 
 **G. Firebase / Hosting / API configuration audit**
 
@@ -500,6 +500,6 @@ Only after a stable activated cohort and supply above the operating floor: more 
 ## What this document does not do
 
 - It does not mark P07–P11 complete.
-- It does not authorise production Hosting restore, live Stripe, production email, production analytics, or production App Check.
+- It does not authorise production Hosting restore, live Stripe, customer-email enablement or another proof send, production analytics, or production App Check.
 - P01 TEST bank payout evidence is recorded in `docs/TASKIO_TRACKER.md` (2026-09-07). Staging TEST P01 PASS does not authorise production Stripe.
 - It does not start P11.

@@ -1,6 +1,6 @@
 # Taskio status
 
-**Last updated:** 24 September 2026 (P03G1B staging email proof)
+**Last updated:** 25 September 2026 (P03G2 production email proof PASS)
 
 ## Active scope
 
@@ -32,7 +32,7 @@ Taskio is **not** FULL LAUNCH READY.
 - Security rules are covered by Firestore/Storage emulator tests using demo project IDs only.
 - Cloud Functions have emulator-backed retry/idempotency tests.
 - Frontend and backend have isolated local suites. CI (Node 24) builds the production frontend, runs Playwright browser-smoke against a local mock server, rules tests, Functions tests, and API/webhook image builds.
-- Staging Cloud Run `taskio-api-staging` (closed signup, CORS for staging Hosting + localhost) and staging Hosting SPA are live. Serving API **`taskio-api-staging-00072-vur` 100%** (HEAD `57505d0`; previous `00070-dur` retained at 0%; `54aed8b` also 0%). Hosting **`b963ae61de25da7e`** (`main.068025df.js` / `main.5e46c8ad.css`; CSP **ENFORCED**; previous `fdc32b272f51d9e0` retained). B4A–G and P02A hosted journeys **PASS**. P01 TEST bank payout **PASS**. P03 authentic staging E01 **VERIFIED** (quote `EJCy55qxqQaHpZQ7iMUD`, subject `New quote for TSK-6572`). Staging SMTP cleanup **verified**: native `SMTP_USER`/`SMTP_PASS` v2 only enabled. P04 **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime receipt). P05 **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth off). Production SPA is not restored. Production SMTP remains off.
+- Staging Cloud Run `taskio-api-staging` (closed signup, CORS for staging Hosting + localhost) and staging Hosting SPA are live. Serving API **`taskio-api-staging-00072-vur` 100%** (HEAD `57505d0`; previous `00070-dur` retained at 0%; `54aed8b` also 0%). Hosting **`b963ae61de25da7e`** (`main.068025df.js` / `main.5e46c8ad.css`; CSP **ENFORCED**; previous `fdc32b272f51d9e0` retained). B4A–G and P02A hosted journeys **PASS**. P01 TEST bank payout **PASS**. P03 staging and production are **PASS**. Production SMTP is configured, but both customer-facing E01 gates remain `EMAIL_ENABLED=false`; `verifyTransactionalEmail` is active and inert with `EMAIL_PROOF_ENABLED=false`. P04 **STAGING PASS / PRODUCTION PENDING** (`G-SZ7RZDKTJY`; owner-confirmed Realtime receipt). P05 **STAGING PASS / PRODUCTION PENDING** (Firestore + Storage enforced; Auth off). Production SPA is not restored.
 - Production deployment artifacts and rollback steps are in `docs/TASKIO_RELEASE_PLAN.md`. Commands there remain **NOT EXECUTED** unless Saeed names an exact `taskio-v2` batch.
 
 ## Current launch-readiness summary
@@ -43,28 +43,28 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 |---|---|---|
 | P01 | **PASS / COMPLETE** (TEST bank payout) | No |
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
-| P03 | **STAGING PASS / PRODUCTION PENDING** — E01 staging proof already **PASS**; **P03G1B** guarded `verifyTransactionalEmail` staging proof **PASS**; production proof still required. **P03G2 ELIGIBLE / NOT APPROVED** | Yes, until production PASS |
+| P03 | **PRODUCTION PASS** — staging PASS; production SMTP/sender/domain proven; exactly one guarded proof send returned **200**, provider accepted, and owner receipt was confirmed. Proof gate restored off; final **404 `proof_disabled`**. Customer emails **0**; business-data writes **0**. | No |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P05 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED** (`docs/P06_REMEDIATION_MATRIX.md`); lean sole-trader controlled pilot as owner working plan, **subject to AU solicitor confirmation**; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot broker/solicitor review; accounting **PENDING**; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — **P07F1–F5B COMPLETE**. **P07G1–G3 COMPLETE**. **P07H1–H2 COMPLETE** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §47). Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** (`taskio-api-00008-zir` / `57505d0`). Production Firestore + Storage rules **LIVE** (HEAD). Compatibility **REVIEW COMPLETE**. Remaining P07: Auth signup, App Check, email (P03), GA4 after P06, Stripe live with P10, Hosting with SPA restore. Staging CSP **ENFORCED**. Not PASS. | **Yes** |
+| P07 | **OPEN / REMEDIATION IN PROGRESS** — **P07F1–F5B COMPLETE**. **P07G1–G3 COMPLETE**. **P07H1–H2 COMPLETE** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §47). Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** (`taskio-api-00008-zir` / `57505d0`). Production Firestore + Storage rules **LIVE** (HEAD). Compatibility **REVIEW COMPLETE**. **Email blocker CLOSED** by P03 production PASS. Remaining: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** — must prove a brand-new homeowner can authenticate and post. Existing invited/synthetic users are not enough for public OPEN. | **Yes** |
 | P11 | **BLOCKED** — **Controlled Open-Demand Pilot**. Homeowner **OPEN (code):** public supported signup/posting, no manual invitation, normal auth still required. **CLOSED / PAUSED:** new posting blocked; homeowner waitlist. Expert onboarding is **independent**: **OPEN** allows public Expert applications that stay pending review until Admin Verify; **WAITLIST** blocks new Expert accounts and uses `expertWaitlist`. Launch-ready remains derived. Local code only; **not deployed**. Current cloud `disabledUserSignup=true` still blocks brand-new Firebase users for both public account paths. P07/P10 must prove approved public account paths. Activation still requires ~15 launch-ready + category/geo coverage + other real-user gates + explicit owner OPEN. 15 does **not** auto-open. Floor ~12 → WATCH/PAUSE. P06 **OPEN**. P09 blocked. | — |
 
-Mandatory remaining before controlled launch: P06, P07, P08, P09, P10, plus P03/P04/P05 **production** PASS.
+Mandatory remaining before controlled launch: P06, P07, P08, P09, P10, plus P04/P05 **production** PASS. P03 is complete.
 
 Explicitly post-launch unless later required: native apps, Expert LIMITED-mode recruitment, advanced matching AI, advanced analytics dashboards, subscriptions, dynamic pricing, multi-city expansion, sophisticated automated disputes, major variation expansion.
 
 ## External blockers
 
 - Any `taskio-v2` production mutation requires a fresh RED approval.
-- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **STAGING PASS / PRODUCTION PENDING**; **P04** **STAGING PASS / PRODUCTION PENDING**; **P05** **STAGING PASS / PRODUCTION PENDING**; **P06** **OPEN**; **P07** **OPEN / REMEDIATION IN PROGRESS** (F1–F5B complete; G1–G3 complete; **P07H2** production rules **live**; fail-closed API **live**; CSP **ENFORCED**; not PASS); **P08 / P10** **NOT STARTED**; **P09** blocked on P06; **P11** **BLOCKED**.
+- Remaining prelaunch gates: **P01** bank payout **PASS / COMPLETE**; **P02** normal refund **PROVEN / COMPLETE** (P02B optional/not proven); **P03** **PRODUCTION PASS**; **P04** **STAGING PASS / PRODUCTION PENDING**; **P05** **STAGING PASS / PRODUCTION PENDING**; **P06** **OPEN**; **P07** **OPEN / REMEDIATION IN PROGRESS** (email blocker closed; other blockers remain; not PASS); **P08 / P10** **NOT STARTED**; **P09** blocked on P06; **P11** **BLOCKED**.
 - Legal Terms/Privacy remain drafts. P06 pack: `docs/P06_OWNER_DECISIONS.md`. Solicitor brief: `docs/P06_SOLICITOR_BRIEF.md`. Claim/processor/remediation inventory: `docs/P06_REMEDIATION_MATRIX.md`. Do not describe Taskio as a company or Pty Ltd during the sole-trader pilot. Do not treat Pty Ltd or broad insurance as automatic launch blockers. P09 stays blocked until P06 PASS.
 
 **Staging App Check rollback prerequisite:** Disable affected Firestore and/or Storage App Check enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting. Do **not** roll Hosting back while either service remains ENFORCED. Keep Auth unenforced, security rules unchanged, and production untouched. See `docs/APP_CHECK.md`.
 
 ## Next release decision
 
-P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03, P04, and P05 staging are **PASS / PRODUCTION PENDING**. P03 staging guarded proof **P03G1B PASS**. Production execution **P03G2** is **ELIGIBLE / NOT APPROVED**. P07 email blocker waits on P03 production PASS. P07 is **OPEN / REMEDIATION IN PROGRESS** (F1–F5B **COMPLETE**; G1–G3 **COMPLETE**; **P07H2 PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE**; fail-closed API live on `taskio-api-00008-zir`; staging CSP **ENFORCED**; not PASS). Next P07 remainders: Auth signup, App Check, P03/P04/P05 production, Stripe live with P10. Overall legal pickup remains **P06**. P09 **BLOCKED BY P06**. P08/P10 are not started. READY TO OPEN remains **impossible**.
+P01 and P02 staging TEST money-path proofs are **COMPLETE**. P03 is **PRODUCTION PASS**; its P07 email blocker is **CLOSED**. P04 and P05 remain **STAGING PASS / PRODUCTION PENDING**. P07 is **OPEN / REMEDIATION IN PROGRESS** (F1–F5B **COMPLETE**; G1–G3 **COMPLETE**; **P07H2 PRODUCTION FIRESTORE + STORAGE RULES PROMOTION COMPLETE**; fail-closed API live on `taskio-api-00008-zir`; staging CSP **ENFORCED**; not PASS). Remaining P07 blockers: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Overall legal pickup remains **P06**. P09 **BLOCKED BY P06**. P08/P10 are not started. READY TO OPEN remains **impossible**.
