@@ -19,7 +19,7 @@ Essential status email for the private Melbourne MVP. Not marketing, newsletters
 | P03 duplicate suppression | **PASS** — local / CI |
 | P03 failure isolation | **PASS** — local / CI |
 | P03 production delivery | **VERIFIED** (guarded operator proof, 2026-09-25) |
-| P03 overall | **PRODUCTION PASS** |
+| P03 overall | **PRODUCTION PASS / COMPLETE / CLOSED** |
 
 Production SMTP is configured and the guarded production proof is complete. Customer-facing email remains disabled on both E01 Functions (`EMAIL_ENABLED=false`); production remains frozen and is not open to real users.
 

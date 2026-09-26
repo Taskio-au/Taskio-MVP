@@ -1,6 +1,6 @@
 # Taskio product analytics (P04)
 
-Privacy-conscious product analytics for the private Melbourne MVP. Staging Hosting now loads the staging-only GA4 stream and the owner has confirmed Realtime receipt. Production analytics remain off.
+Privacy-conscious product analytics for the private Melbourne MVP. Staging Hosting loads the staging-only GA4 stream and the owner has confirmed Realtime receipt. Production analytics remain off by explicit owner decision through P06/P09. That production-OFF exception satisfies the P04/P07 readiness condition without claiming live production analytics proof.
 
 ## Classification
 
@@ -14,7 +14,8 @@ Privacy-conscious product analytics for the private Melbourne MVP. Staging Hosti
 | P04 hosted network delivery | **PASS** |
 | P04 GA4 console receipt | **PASS — OWNER CONFIRMED** |
 | P04 production | **OFF** |
-| P04 overall | **STAGING PASS / PRODUCTION PENDING** |
+| P04 owner decision | **KEEP PRODUCTION OFF THROUGH P06/P09** |
+| P04 overall | **PASS — OWNER-APPROVED PRODUCTION OFF** |
 
 ## Purpose
 
@@ -131,6 +132,7 @@ Unknown keys, nested objects, and arrays are dropped. Development may warn with 
 - `page_location` = `https://taskio-v2-staging.web.app/`. Same-origin job referrer canonicalised to `/job/:id`. External Outlook referrer origin-only (`https://outlook.live.com`).
 - **GA4 CONSOLE RECEIPT: PASS — OWNER CONFIRMED.** Taskio Staging Realtime showed 1 active user, `landing_viewed` = 1, `login_cta_clicked` = 1, and no automatic `page_view`. Normal GA4 automatic `first_visit` and `session_start` were present; they are not Taskio catalogue events and are not a failure.
 - Production analytics **OFF**. Production Hosting still maintenance (`taskio.com.au` title “Taskio is almost ready”; no gtag). No Cloud Run, Functions, Auth, App Check, Stripe, or secret mutation.
+- **Owner decision (26 September 2026):** keep production GA4 OFF through P06/P09. This closes the P04/P07 readiness condition; it is not a production GA4 proof. If analytics is later selected, enablement and console-receipt proof belong to P10 after approved privacy wording.
 
 **Staging App Check rollback prerequisite:** In `taskio-v2-staging`, disable affected Firestore/Storage enforcement FIRST and verify OFF plus rules-authorized access without App Check. Only then restore Hosting or disable frontend App Check; verify normal Auth/Firestore/Storage browser flows afterwards. A frontend restore without App Check requires BOTH services verified OFF. Keep security rules unchanged and production untouched. See `docs/APP_CHECK.md`. All cloud steps remain AMBER.
 

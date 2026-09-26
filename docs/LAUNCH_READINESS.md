@@ -22,7 +22,8 @@ This is the product-launch overlay on top of the existing P01–P06 technical ga
 - **Code semantics when OPEN:** no manual homeowner invitation; normal homeowner auth/signup; supported posting permitted. Expert applications follow independent Expert onboarding mode and stay marketplace-ineligible until verification.
 - **Current staging/production Identity Toolkit:** `disabledUserSignup=true`. Brand-new Firebase Auth users cannot be created there today. Local tests mock auth. This slice does **not** change that cloud setting.
 - That cloud constraint is acceptable while Pilot Status is **NOT READY** and nothing is deployed/opened.
-- Production must **never** be marked **READY TO OPEN** / **P07 PASS** until the production Firebase Auth configuration permits the approved public account paths (homeowner posting and, when Expert mode is OPEN, Expert application), and **P10** has proven those paths. Public `GET /api/pilot-status` must not probe this cloud setting. Enabling Auth signup does not approve an Expert.
+- The current disabled cloud setting is intentional while production is frozen. **P07 PASS** means the signup path and its application gates are security-ready; it does **not** require enabling Firebase Auth signup.
+- **P10** owns a separately approved, controlled production signup enablement, brand-new-user proof, and rollback proof. **P11** owns sustained signup availability during controlled activation. Production must not be marked **READY TO OPEN** until P10 has proven the approved path. Public `GET /api/pilot-status` must not probe this cloud setting. Enabling Auth signup does not approve an Expert.
 
 Companion records:
 
@@ -54,7 +55,7 @@ P07–P11 inherit this model. Defining a gate is GREEN. Executing its production
 | P01 | Connected-account bank payout **PASS** |
 | P02 | Pre-release full refund **PASS** (already **COMPLETE** on staging TEST) |
 | P03 | Transactional email **production PASS** |
-| P04 | Analytics **production PASS** |
+| P04 | Analytics gate **PASS**: production proof, or an explicit owner-approved production-OFF exception |
 | P05 | App Check **production PASS** (Firestore + Storage enforcement proven in production; Auth remains a separate decision) |
 | P06 | Legal/privacy review **PASS** |
 | P07 | Production security and configuration **PASS** |
@@ -70,7 +71,7 @@ P07–P11 inherit this model. Defining a gate is GREEN. Executing its production
 P02 PASS (already)
 P01 PASS (already) ────────────────────┐
 P03 staging PASS → P03 production PASS ┤
-P04 staging PASS → P04 production PASS ┤
+P04 staging PASS → production proof or owner-OFF PASS ┤
 P05 staging PASS → P05 production PASS ┤
 P06 PASS → P09 PASS ───────────────────┼→ P07 + P08 + P10 → FULL LAUNCH READY → P11
                                        │
@@ -79,7 +80,7 @@ P07 also consumes P03/P04/P05 production proof
 
 - P01 TEST bank payout is **PASS / COMPLETE** and is no longer a current launch blocker. Production live money-loop re-proof remains inside P10.
 - P06 is the **review/approval** gate. P09 **implements** P06 decisions. P09 must not invent legal conclusions.
-- P03/P04/P05 staging PASS does **not** satisfy production PASS.
+- P03/P05 staging PASS does **not** satisfy production PASS. P04 may instead close through an explicit owner-approved production-OFF exception that does not claim live analytics proof.
 - P10 is the last technical/operational acceptance gate and requires live production proof.
 - P11 is first-cohort launch, not a substitute for P10.
 
@@ -90,7 +91,7 @@ P07 also consumes P03/P04/P05 production proof
 - P01 bank payout proof (COMPLETE on Stripe TEST; production re-proof inside P10)
 - P02 refund path (already complete on staging TEST; production refund proof lives in P10)
 - P03 production email
-- P04 production analytics
+- P04 analytics gate PASS (production proof or explicit owner-OFF exception)
 - P05 production App Check
 - P06 legal/privacy review
 - P07 production security/config
@@ -116,7 +117,7 @@ Existing nice-to-have IDs **N01–N03** stay post-launch / optional.
 
 **Post/pilot experiments (roadmap only — not P01–P10 unless later required for legal/safety):** more structured/comparable quotes; written variations; completion checklist/evidence; more transparent category-level verification; issue-free completion metric; rehire flow; outcome-driven price/matching intelligence.
 
-## Current launch-readiness summary (25 September 2026)
+## Current launch-readiness summary (26 September 2026)
 
 Technical staging readiness is advanced. Full production launch is **not** ready.
 
@@ -124,11 +125,11 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 |---|---|---|
 | P01 | **PASS / COMPLETE** (TEST bank payout) | No |
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
-| P03 | **PRODUCTION PASS** — staging PASS; exactly one guarded production proof send returned **200**, provider accepted, owner receipt confirmed, proof gate restored off, and final admin check returned **404 `proof_disabled`** | No |
-| P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P05 | **PRODUCTION PASS** — Firestore and Storage `ENFORCED` and proven; missing/invalid App Check denied; exact synthetic Storage object deleted; temporary proof surface removed on Hosting `c42a0cac1cc5b789`; Auth remains Monitoring / `UNENFORCED`; `/` remains maintenance | No |
+| P03 | **PRODUCTION PASS / COMPLETE / CLOSED** — staging PASS; exactly one guarded production proof send returned **200**, provider accepted, owner receipt confirmed, proof gate restored off, and final admin check returned **404 `proof_disabled`** | No |
+| P04 | **PASS — OWNER-APPROVED PRODUCTION OFF.** Staging proof remains valid. Production GA4 stays OFF through P06/P09; no live analytics proof is claimed. If later selected, enablement/proof belongs to P10 after approved privacy wording. | No |
+| P05 | **PRODUCTION PASS / COMPLETE / CLOSED** — Firestore and Storage `ENFORCED` and proven; missing/invalid App Check denied; exact synthetic Storage object deleted; temporary proof surface removed on Hosting `c42a0cac1cc5b789`; Auth remains Monitoring / `UNENFORCED`; `/` remains maintenance | No |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **H1–H2 complete**. Production Firestore + Storage rules **LIVE**. Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE**. Compatibility **REVIEW COMPLETE**. **Production-email and App Check blockers CLOSED.** Remaining blockers: production Auth signup path; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Not PASS. | **Yes** |
+| P07 | **PASS / CLOSED.** Secrets/runtime isolation evidenced; fail-closed API live; production Firestore/Storage rules current; signup path security/readiness complete; P03 email and P05 App Check complete; owner GA4-OFF decision recorded; Stripe LIVE correctly deferred to P10 after P06/P09; legacy Expert compatibility resolved fail-closed. Final closure required **no RED production mutation**. | No |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
@@ -144,8 +145,8 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 |---|---|
 | Objective | Prove production configuration is secure, isolated, correctly configured, and ready to serve real users. |
 | Classification | Production validation. Execution is **RED**. |
-| Current status | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **P07H2 complete** (`docs/P07_SECURITY_CONFIG_REMEDIATION.md` §47). Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE** (`taskio-api-00008-zir`). Production Firestore + Storage rules **LIVE**. Compatibility **REVIEW COMPLETE**. Production-email and App Check blockers **CLOSED**. **Not P07 PASS.** |
-| Dependencies | P04 production work; A04 / `docs/SECRETS_AND_KEY_ROTATION.md`; existing staging proofs. P03 and P05 are complete. |
+| Current status | **PASS / CLOSED.** P07F1–F5B, G1–G3 and H1–H2 are complete. The fail-closed production API and current Firestore/Storage rules are live. P03 email and P05 App Check are closed. Auth signup remains intentionally disabled; GA4 remains OFF by owner decision; Stripe LIVE remains disabled for P10. Final closure required no RED production mutation. |
+| Dependencies | Satisfied for P07. P06/P09 still gate later public wording, GA4 enablement if selected, customer email activation, and LIVE Stripe acceptance. |
 | Approval | GREEN: checklists and audits that do not mutate production. RED: any `taskio-v2` secret, IAM, Hosting, App Check, GA4, SMTP, or Stripe live change. |
 
 ### Scope and tasks
@@ -180,9 +181,9 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 
 **E. Production analytics**
 
-- Production GA4 property/stream with privacy-minimised settings.
-- No advertising/personalisation, no PII / raw IDs / exact amounts.
-- Safe event-payload proof and production console receipt.
+- Owner decision: keep production GA4 **OFF through P06/P09**. This explicit production-OFF exception satisfies P07/P04 readiness without claiming live analytics proof.
+- Existing code remains fail-closed and privacy-minimised: no advertising/personalisation and no PII / raw IDs / exact amounts.
+- If production GA4 is later selected, approved P06/P09 privacy wording must precede enablement; safe event-payload and console-receipt proof then belong to P10.
 - See `docs/ANALYTICS.md`.
 
 **F. Production transactional email**
@@ -205,20 +206,21 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 
 **I. Production authentication / homeowner signup configuration**
 
-- Production Identity Toolkit must permit the **approved homeowner** authentication/signup path (currently phone OTP during post-a-task). Existing-account login is not enough for public OPEN.
-- Current staging/production fact: `disabledUserSignup=true`. That blocks brand-new Firebase Auth users. Do **not** mark P07 PASS, and do **not** mark production READY TO OPEN, until this is resolved by a separate approved ops change **and** evidenced.
+- P07 validates that the approved homeowner authentication/signup path and application gates are secure and ready. Existing-account login alone is not sufficient for P10 acceptance.
+- Current staging/production fact: `disabledUserSignup=true`. That is intentional while production is frozen and does **not** block P07 PASS.
+- P10 must perform a separately approved controlled signup enablement, prove a brand-new homeowner can authenticate and post through the accepted browser/API architecture, and prove rollback. P11 owns sustained signup availability.
 - Enabling Firebase Auth user creation for homeowners must **not** open Expert enrollment. Expert self-signup remains application-gated: frontend Expert UX flag + backend `TASKIO_PUBLIC_SIGNUP_ENABLED` / `requirePublicSignupEnabled` + Admin verification.
 - Do not probe Identity Toolkit from `GET /api/pilot-status`. This is a launch-readiness / acceptance prerequisite, not a per-request public-status check.
 
 ### Evidence required
 
 - Written audit results with redacted identifiers only.
-- Production Hosting/API/App Check/GA4/email proof artefacts (no secrets).
+- Production Hosting/API/App Check/email proof artefacts and the explicit GA4-OFF owner decision (no secrets).
 - Scan reports and IAM review notes.
 
 ### Exit criteria
 
-**P07 PASS** only when production security/configuration is independently validated, including the approved homeowner Auth signup path, and no critical/high launch blocker remains. Defining this gate does not perform that validation.
+**P07 PASS / CLOSED (26 September 2026).** Production security/configuration and signup-path readiness are independently validated and no critical/high P07 blocker remains. Actual Auth signup enablement, LIVE Stripe configuration, SPA/API acceptance, and optional later GA4 enablement remain P10 work and are not implied by P07 PASS.
 
 ---
 
@@ -362,6 +364,8 @@ A **brand-new** homeowner authenticates through the supported signup path and po
 
 Existing synthetic / previously invited homeowners are **not** sufficient proof for public OPEN. P10 cannot PASS public homeowner acquisition while production Auth still has `disabledUserSignup=true`. Enabling Auth signup for that proof must not open Expert self-signup.
 
+P10 open items remain: real SPA restoration; the production browser/API architecture; Authorization-header forwarding proof; controlled Auth enablement plus brand-new-user and rollback proof; LIVE Stripe configuration and the money loop after P06/P09; the customer-email journey if required; and GA4 proof only if production analytics is later approved.
+
 **B. Refund path**
 
 Pre-release cancellation, full refund, no Expert transfer, correct Taskio economics, correct email/state.
@@ -372,7 +376,7 @@ Failed payment, abandoned Checkout, payment succeeded but UI interrupted, email 
 
 **D. Production integrations**
 
-Stripe LIVE, Postmark production, GA4 production, App Check production, Firebase production, API production, Hosting production.
+Stripe LIVE, Postmark production, App Check production, Firebase production, API production, Hosting production, and GA4 production only if later approved after P06/P09.
 
 **E. Device/browser**
 
@@ -499,7 +503,7 @@ Only after a stable activated cohort and supply above the operating floor: more 
 
 ## What this document does not do
 
-- It does not mark P07–P11 complete.
-- It does not authorise production Hosting restore, live Stripe, customer-email enablement or another proof send, production analytics, or production App Check.
+- It records P07 as **PASS / CLOSED** but does not mark P08–P11 complete.
+- It does not authorise production Hosting restore, Auth enablement, live Stripe, customer-email enablement or another proof send, production analytics, or production App Check changes.
 - P01 TEST bank payout evidence is recorded in `docs/TASKIO_TRACKER.md` (2026-09-07). Staging TEST P01 PASS does not authorise production Stripe.
 - It does not start P11.

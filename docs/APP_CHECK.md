@@ -1,6 +1,6 @@
 # Taskio P05 App Check
 
-Staging and production frontend App Check use registered reCAPTCHA Enterprise providers. **Firestore and Storage enforcement are ON and proven in both environments.** Authentication remains **OFF / MONITORING** (out of approved MVP scope). The temporary production proof surface was removed after proof. **P05 is PRODUCTION PASS.**
+Staging and production frontend App Check use registered reCAPTCHA Enterprise providers. **Firestore and Storage enforcement are ON and proven in both environments.** Authentication remains **OFF / MONITORING** (out of approved MVP scope). The temporary production proof surface was removed after proof. **P05 is PRODUCTION PASS / COMPLETE / CLOSED.**
 
 ## Classification
 
@@ -23,7 +23,7 @@ Staging and production frontend App Check use registered reCAPTCHA Enterprise pr
 | P05G4 production Firestore | **PASS** — Firestore `ENFORCED`; missing/invalid App Check `403` |
 | P05G5 production Storage | **PASS** — Storage `ENFORCED`; valid upload/read succeeded; missing/invalid App Check `401`; proof object deleted |
 | P05G6 proof-surface removal | **PASS** — Hosting `c42a0cac1cc5b789`; maintenance-only |
-| P05 overall | **PRODUCTION PASS** |
+| P05 overall | **PRODUCTION PASS / COMPLETE / CLOSED** |
 
 ## Staging frontend activation (2026-09-06)
 

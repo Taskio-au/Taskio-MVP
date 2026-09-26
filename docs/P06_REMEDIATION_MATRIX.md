@@ -58,7 +58,7 @@ User/job management; Expert Verify / unverify; expertise approve; Enable/Disable
 |---|---|
 | Firebase Auth / Firestore / Storage / Hosting / Functions | Core platform. Staging Sydney (`australia-southeast1`) for several services; **global Google processing not attested**. |
 | Stripe / Stripe Connect | Staging TEST proven. Production live Stripe **off / frozen**. |
-| Postmark | Staging transactional email configured. Production **not configured**. |
+| Postmark | Staging and production transactional email runtime/provider proof complete. Production customer sending remains disabled. |
 | GA4 | Staging `G-SZ7RZDKTJY` **STAGING PASS**. Production analytics **OFF**. |
 | reCAPTCHA Enterprise / App Check | Staging Firestore + Storage **ENFORCED**; Auth **OFF**. Production App Check **OFF**. |
 | Gemini / AI | Code exists (`/api/generate-description`, `/api/quote-assistant`). **Intended OFF at launch** unless disclosure/config/legal review complete. Missing key returns local fallback. **Do not enable.** |
@@ -279,7 +279,7 @@ Do **not** invent destination countries. “Possible overseas processing” = pr
 |---|---|---|---|---|---|---|
 | Google / Firebase | Auth, Firestore, Storage, Hosting, Functions, logs | Account, jobs, photos, chat, waitlists, audit | Yes (core) | Unknown / verify Google terms | Not named in Privacy | Solicitor + provider location wording |
 | Stripe | Checkout, refunds, Connect transfer/payout, identity for Connect | Payment metadata, Connect account data; cards handled by Stripe | Staging TEST yes; production live **off until approved** | Unknown / verify Stripe | Stripe named for cards only | Expand if solicitor requires Connect/payout detail |
-| Postmark | Transactional email | Email address, sparse task refs | Staging yes; production **not configured** | Unknown / verify | **Not named** | APP 8 / disclosure question |
+| Postmark | Transactional email | Email address, sparse task refs | Staging and production runtime/provider proven; production customer sending **OFF** | Unknown / verify | **Not named** | APP 8 / disclosure question before customer activation |
 | Microsoft 365 / Outlook | Operator support, waitlist contact, manual verification | Email content, attachments, names | Yes (manual ops) | Unknown / verify Microsoft | **Not named** | Disclose off-platform handling |
 | Gemini | Optional description/quote assist | Job description / job fields | **Intended OFF** | Unknown / verify Google | **Not named** | Disclose only if enabled |
 | GA4 | Product funnel | Coarse events (no PII by design) | Staging on; **production OFF** | Unknown / verify Google | Generic events only; GA4 not named | Production enablement blocked on P06/P09 |

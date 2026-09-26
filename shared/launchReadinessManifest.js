@@ -6,7 +6,7 @@
  * Companion prose: docs/LAUNCH_READINESS.md, docs/TASKIO_STATUS.md.
  */
 
-const MANIFEST_VERSION = 1;
+const MANIFEST_VERSION = 2;
 const MANIFEST_UPDATED_AT = '2026-09-26';
 
 const GATE_STATUS = Object.freeze({
@@ -44,7 +44,7 @@ const launchReadinessManifest = Object.freeze({
   version: MANIFEST_VERSION,
   updatedAt: MANIFEST_UPDATED_AT,
   source: 'shared/launchReadinessManifest.js',
-  note: 'P11 is controlled-launch execution and is not required for READY TO OPEN.',
+  note: 'P07 security/configuration readiness does not activate production. P10 owns controlled production acceptance; P11 owns controlled launch execution and is not required for READY TO OPEN.',
   gates: Object.freeze([
     Object.freeze({
       id: 'P01',
@@ -74,9 +74,10 @@ const launchReadinessManifest = Object.freeze({
       group: GATE_GROUP.PRODUCTION_SERVICES,
       requiredForReadyToOpen: true,
       requiredResult: REQUIRED_RESULT.PRODUCTION_PASS,
-      status: GATE_STATUS.STAGING_PASS_PRODUCTION_PENDING,
-      evidenceSummary: 'Staging transactional email verified. Production email is not configured.',
-      lastUpdated: '2026-09-04',
+      status: GATE_STATUS.PRODUCTION_PASS,
+      evidenceSummary: 'Staging and production transactional email proofs passed; production SMTP/sender/domain are proven.',
+      lastUpdated: '2026-09-25',
+      notes: 'P03 is complete and closed. Customer-facing email remains disabled pending later approved activation.',
     }),
     Object.freeze({
       id: 'P04',
@@ -84,9 +85,10 @@ const launchReadinessManifest = Object.freeze({
       group: GATE_GROUP.PRODUCTION_SERVICES,
       requiredForReadyToOpen: true,
       requiredResult: REQUIRED_RESULT.PRODUCTION_PASS,
-      status: GATE_STATUS.STAGING_PASS_PRODUCTION_PENDING,
-      evidenceSummary: 'Staging analytics Realtime receipt confirmed. Production analytics remain off.',
-      lastUpdated: '2026-09-06',
+      status: GATE_STATUS.PASS,
+      evidenceSummary: 'Staging analytics proof passed. Owner-approved production-OFF exception satisfies this gate; production GA4 remains disabled.',
+      lastUpdated: '2026-09-26',
+      notes: 'Keep production GA4 off through P06/P09. If later selected, enablement and proof belong to P10 after approved privacy wording.',
     }),
     Object.freeze({
       id: 'P05',
@@ -97,7 +99,7 @@ const launchReadinessManifest = Object.freeze({
       status: GATE_STATUS.PRODUCTION_PASS,
       evidenceSummary: 'Production Firestore and Storage enforcement proven; temporary proof surface removed.',
       lastUpdated: '2026-09-26',
-      notes: 'Auth App Check remains unenforced and out of the approved MVP scope.',
+      notes: 'P05 is complete and closed. Auth App Check remains unenforced/monitoring and out of the approved MVP scope.',
     }),
     Object.freeze({
       id: 'P06',
@@ -115,9 +117,10 @@ const launchReadinessManifest = Object.freeze({
       group: GATE_GROUP.SECURITY,
       requiredForReadyToOpen: true,
       requiredResult: REQUIRED_RESULT.PASS,
-      status: GATE_STATUS.OPEN,
-      evidenceSummary: 'P07A audit complete. P07B local hardening in repo. P07C read-only production verification complete. Not PASS. Auth signup still disabled. See docs/P07_SECURITY_CONFIG_REMEDIATION.md.',
-      lastUpdated: '2026-09-19',
+      status: GATE_STATUS.PASS,
+      evidenceSummary: 'Fail-closed production API, current Firestore/Storage rules, P03 email, P05 App Check, and legacy Expert fail-closed compatibility are complete.',
+      lastUpdated: '2026-09-26',
+      notes: 'P07 is closed without a final RED mutation. Auth signup and Stripe LIVE remain intentionally disabled; P10 owns controlled enablement/proof after P06/P09. Production GA4 remains off by owner decision.',
     }),
     Object.freeze({
       id: 'P08',
@@ -147,8 +150,9 @@ const launchReadinessManifest = Object.freeze({
       requiredForReadyToOpen: true,
       requiredResult: REQUIRED_RESULT.PASS,
       status: GATE_STATUS.NOT_STARTED,
-      evidenceSummary: 'Production acceptance of the money loop and critical failures has not started.',
-      lastUpdated: '2026-09-06',
+      evidenceSummary: 'Production acceptance has not started: SPA/API path, Authorization forwarding, controlled Auth enablement, LIVE Stripe money loop, and critical failures remain open.',
+      lastUpdated: '2026-09-26',
+      notes: 'Customer-email journey is included if required. GA4 proof is optional only if later approved after P06/P09.',
     }),
     Object.freeze({
       id: 'P11',
@@ -157,9 +161,9 @@ const launchReadinessManifest = Object.freeze({
       requiredForReadyToOpen: false,
       requiredResult: REQUIRED_RESULT.PASS,
       status: GATE_STATUS.BLOCKED,
-      evidenceSummary: 'Execution gate. Cannot start until FULL LAUNCH READY, then explicit owner activation.',
-      lastUpdated: '2026-09-13',
-      notes: 'Not a READY TO OPEN prerequisite.',
+      evidenceSummary: 'Execution gate. Cannot start until FULL LAUNCH READY, adequate launch-ready Expert supply/coverage, and explicit owner activation.',
+      lastUpdated: '2026-09-26',
+      notes: 'Not a READY TO OPEN prerequisite. pilotSettings remain unmodified.',
     }),
   ]),
 });

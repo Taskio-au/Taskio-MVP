@@ -156,15 +156,25 @@ describe('derivePilotLaunchStatus', () => {
     expect(result.blockers.some((row) => row.id === 'SUPPLY')).toBe(true);
   });
 
-  it('uses the current reviewed manifest as NOT READY because production and legal gates are open', () => {
+  it('uses the current reviewed manifest as NOT READY while legal, operations, trust, and acceptance gates remain open', () => {
     const result = derivePilotLaunchStatus({ supply: readySupply() });
     expect(result.overallStatus).toBe(OVERALL.NOT_READY);
     expect(result.gates.find((gate) => gate.id === 'P01').decision).toBe(DECISION.SATISFIED);
     expect(result.gates.find((gate) => gate.id === 'P02').decision).toBe(DECISION.SATISFIED);
-    expect(result.gates.find((gate) => gate.id === 'P03').status).toBe(GATE_STATUS.STAGING_PASS_PRODUCTION_PENDING);
+    expect(result.gates.find((gate) => gate.id === 'P03').status).toBe(GATE_STATUS.PRODUCTION_PASS);
+    expect(result.gates.find((gate) => gate.id === 'P03').decision).toBe(DECISION.SATISFIED);
+    expect(result.gates.find((gate) => gate.id === 'P04').status).toBe(GATE_STATUS.PASS);
+    expect(result.gates.find((gate) => gate.id === 'P04').decision).toBe(DECISION.SATISFIED);
+    expect(result.gates.find((gate) => gate.id === 'P04').evidenceSummary).toMatch(/production-OFF exception/i);
     expect(result.gates.find((gate) => gate.id === 'P05').status).toBe(GATE_STATUS.PRODUCTION_PASS);
     expect(result.gates.find((gate) => gate.id === 'P05').decision).toBe(DECISION.SATISFIED);
+    expect(result.gates.find((gate) => gate.id === 'P07').status).toBe(GATE_STATUS.PASS);
+    expect(result.gates.find((gate) => gate.id === 'P07').decision).toBe(DECISION.SATISFIED);
     expect(result.gates.find((gate) => gate.id === 'P06').status).toBe(GATE_STATUS.OPEN);
     expect(result.gates.find((gate) => gate.id === 'P09').status).toBe(GATE_STATUS.BLOCKED);
+    expect(result.gates.find((gate) => gate.id === 'P10').status).toBe(GATE_STATUS.NOT_STARTED);
+    expect(result.blockers.some((row) => row.id === 'P03')).toBe(false);
+    expect(result.blockers.some((row) => row.id === 'P04')).toBe(false);
+    expect(result.blockers.some((row) => row.id === 'P07')).toBe(false);
   });
 });
