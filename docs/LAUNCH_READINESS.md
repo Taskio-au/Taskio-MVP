@@ -126,9 +126,9 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
 | P03 | **PRODUCTION PASS** — staging PASS; exactly one guarded production proof send returned **200**, provider accepted, owner receipt confirmed, proof gate restored off, and final admin check returned **404 `proof_disabled`** | No |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P05 | **STAGING PASS / PRODUCTION PENDING** — **P05G1A–G3 COMPLETE**. **P05G3 PASS** is one production App Check token on Hosting `6e7650bff70d9d48`. Firestore and Storage proofs not run. Enforcement OFF. `/` remains maintenance. Not a P05 production PASS | Yes, until production PASS |
+| P05 | **STAGING PASS / PRODUCTION PENDING** — **P05G1A–G4 COMPLETE**. **P05G4 PASS:** production Firestore App Check `ENFORCED`; missing-document read plus missing/invalid App Check **403**. Storage proof not run. Storage and Auth `UNENFORCED`. `/` remains maintenance. Not a P05 production PASS | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
-| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **H1–H2 complete**. Production Firestore + Storage rules **LIVE**. Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE**. Compatibility **REVIEW COMPLETE**. **Production-email blocker CLOSED.** Remaining blockers: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Not PASS. | **Yes** |
+| P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **H1–H2 complete**. Production Firestore + Storage rules **LIVE**. Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE**. Compatibility **REVIEW COMPLETE**. **Production-email blocker CLOSED.** Remaining blockers: production Auth signup path; production App Check Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Firestore App Check is `ENFORCED`. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
 | P09 | **NOT STARTED** (blocked on P06) | **Yes** |
 | P10 | **NOT STARTED** | **Yes** |
@@ -173,7 +173,7 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 
 **D. Production App Check**
 
-- Production provider configured in P05G2. **P05G3 PASS** acquired one production App Check token on `https://taskio.com.au/appcheck-proof/` (Hosting `6e7650bff70d9d48`). Firestore and Storage proofs were not run. Enforcement remains OFF. `/` remains maintenance.
+- Production provider configured in P05G2. **P05G4 PASS:** Firestore App Check is `ENFORCED` on `taskio-v2`. The missing-document admin read returned **MISSING**; missing and invalid App Check returned **403**. Storage proof was not run. Storage and Auth remain `UNENFORCED`. `/` remains maintenance.
 - Valid traffic proven; Firestore enforcement proven; Storage enforcement proven.
 - Auth enforcement remains an explicit separate decision (currently out of approved MVP scope).
 - Preserve the rollback rule: disable affected enforcement first, verify OFF, then roll Hosting. See `docs/APP_CHECK.md`.
