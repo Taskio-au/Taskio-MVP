@@ -18,8 +18,8 @@ Staging frontend App Check is enabled with the registered reCAPTCHA Enterprise p
 | P05 Auth enforcement | **OFF — OUT OF APPROVED MVP SCOPE** |
 | P05 production provider registration | **COMPLETE** — reCAPTCHA Enterprise; enforcement still OFF |
 | P05G2 proof artifact | **PREPARED LOCALLY** |
-| P05G3 hosted token proof | **FAILED SAFELY / ROLLED BACK** |
-| P05G3B proof-page CSP | **LOCAL FIX PREPARED / NOT DEPLOYED** |
+| P05G3 hosted token proof | **PASS** — token only; Firestore and Storage proofs not run; enforcement OFF |
+| P05G3B proof-page CSP | **DEPLOYED** with the passing retry |
 | P05 overall | **STAGING PASS / PRODUCTION PENDING** |
 
 ## Staging frontend activation (2026-09-06)
@@ -334,7 +334,7 @@ This section records the G1 planning baseline. P05G2 later completed the provide
 
 **Proof.** P05 production PASS needs the staging shape on the narrow surface: valid App Check token, one controlled operator Storage upload plus denial without a token, and an authenticated Firestore read that fails without App Check. Delete the proof object afterward. Broader money-loop proof stays P10.
 
-**Future sequence.** **P05G1A COMPLETE.** **P05G1B plan COMPLETE.** **P05G2 COMPLETE.** The remaining RED boundaries are **P05G3–P05G6** in section T, each needing its own approval. P07’s App Check blocker closes only when P05 production PASS is recorded. P07 itself stays open. Hosting stays maintenance. `pilotSettings` stays absent. Stripe stays disabled. Production stays **FROZEN**.
+**Future sequence.** **P05G1A COMPLETE.** **P05G1B plan COMPLETE.** **P05G2 COMPLETE.** **P05G3 PASS** for the production token only. The remaining RED boundaries are **P05G4–P05G6** in section T, each needing its own approval. P07’s App Check blocker closes only when P05 production PASS is recorded. P07 itself stays open. `/` stays maintenance. `pilotSettings` stays absent. Stripe stays disabled. Production stays **FROZEN**.
 
 **NO-GO.** Wrong Firebase project, localhost or staging API, debug provider, missing production site key, CSP blocking Enterprise or App Check, enforcement before the proof surface has a valid token, GA4 turned on, or no Hosting rollback release.
 
@@ -361,9 +361,8 @@ Planning only. No Hosting deploy, IAM change, App Check registration, enforcemen
 **RED boundaries, each separate and not approved here:**
 
 - **P05G2: COMPLETE (25 September 2026).** Production Enterprise key created and registered; proof artifact prepared locally. No deploy. No enforcement.
-- **P05G3: FAILED SAFELY / ROLLED BACK (26 September 2026).** Not PASS. The proof release was deployed, Google sign-in never opened, and Hosting was restored to maintenance version `cffca9d87ce03901`. Firebase Auth returned `auth/internal-error` because the proof-page CSP blocked `https://apis.google.com/js/api.js` (`script-src-elem`). No Firestore or Storage proof. Enforcement stayed OFF.
-- **P05G3B:** local proof-page `script-src` also permits `https://apis.google.com`. Not deployed. `https://accounts.google.com` was not added.
-- **P05G4:** enforce Firestore. Valid admin read and missing-token denial.
+- **P05G3: PASS (26 September 2026), token only.** The first proof release failed because the proof-page CSP blocked `https://apis.google.com/js/api.js` and was rolled back to `cffca9d87ce03901`. After **P05G3B** added that host to proof-page `script-src`, the retry release `6e7650bff70d9d48` acquired one production App Check token. Admin session verified. Firestore and Storage proofs were not run. Enforcement stayed OFF. The operator signed out. `https://accounts.google.com` was not added.
+- **P05G4:** enforce Firestore. Valid admin read and missing-token denial. Not started.
 - **P05G5:** enforce Storage. Controlled upload, operator delete, missing-token denial.
 - **P05G6:** remove the proof path. Keep enforcement ON. Record evidence.
 
@@ -400,13 +399,25 @@ Planning only. No Hosting deploy, IAM change, App Check registration, enforcemen
 
 P05 remains **STAGING PASS / PRODUCTION PENDING**.
 
-## V. P05G3 rollback and P05G3B local CSP fix (26 September 2026)
+## V. First P05G3 attempt: rollback (26 September 2026)
 
-**P05G3: FAILED SAFELY / ROLLED BACK. Not PASS.**
+**Historical result of the first attempt: FAILED SAFELY / ROLLED BACK.** Section W is the current result.
 
 - A Hosting-only proof release served `/appcheck-proof/` while `/` stayed maintenance. Continue with Google called `signInWithPopup` directly and returned `auth/internal-error`. The browser blocked `https://apis.google.com/js/api.js` under `script-src-elem`. No popup, no account chooser, and no request to `accounts.google.com`.
 - Firestore and Storage proofs were not run. Firestore, Storage, and Auth enforcement stayed `UNENFORCED`.
 - Hosting was rolled back to maintenance-only version `cffca9d87ce03901` (release `1790403428645000`, type `ROLLBACK`, `2026-09-26T06:17:08.645Z`). Live `/` and `/appcheck-proof/` both serve “Taskio is almost ready” with no proof-page CSP.
 - **P05G3B** adds only `https://apis.google.com` to the proof-page `script-src`. Root maintenance headers are unchanged. The staging-proven CSP does not include `https://accounts.google.com`, so production policy was not expanded for that host. The fix is local only and is not deployed.
 
-Production Hosting is maintenance-only. A fresh P05G3 retry requires a separate approval after commit, push, and CI.
+That rollback was the state before the retry in section W.
+
+## W. P05G3 production token proof (26 September 2026)
+
+**P05G3: PASS for token acquisition only. Not a P05 production PASS.**
+
+- Source commit `048ef1a` (`fix(app-check): allow Google auth script in proof CSP`). CI [36225482223](https://github.com/Taskio-au/Taskio-MVP/actions/runs/36225482223) **SUCCESS**. One Hosting deploy of `firebase.maintenance.json` to `taskio-v2`. Live version **`6e7650bff70d9d48`**, release `1790406359037000`, `2026-09-26T07:05:59.037Z`. Eight maintenance files. No other cloud change.
+- `https://taskio.com.au/` stayed the maintenance page, title “Taskio is almost ready”, with no proof-page CSP. `https://taskio.com.au/appcheck-proof/` served the proof page. Its `script-src` includes `https://apis.google.com`.
+- The existing production admin signed in with Google. The page verified a fresh token for project `taskio-v2`, provider `google.com`, and `admin=true`, then showed **Admin YES**. Token contents were not displayed or stored.
+- **Acquire / Verify App Check Token** completed. The page showed **App Check READY** and “App Check is ready. Data proof controls remain disabled for P05G2.” That status is set only when a token is returned. The token value was not recorded.
+- Firestore proof **NOT RUN**. Storage proof **NOT RUN**. Those controls stayed disabled.
+- After the operator signed out, Firestore, Storage, and Auth enforcement were re-read as **`UNENFORCED`**.
+- `/appcheck-proof/` remains deployed for a later P05G4/P05G5 approval. P05 remains **STAGING PASS / PRODUCTION PENDING**. Next boundary: separately approved **P05G4**. Not started.
