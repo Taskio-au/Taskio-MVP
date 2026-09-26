@@ -48,10 +48,19 @@ test('proof artifact has a path-specific restrictive CSP', () => {
   assert.ok(block);
   const policy = block.headers.find((header) => header.key === 'Content-Security-Policy')?.value;
   assert.ok(policy);
+  assert.match(policy, /script-src [^;]*https:\/\/apis\.google\.com/);
   assert.doesNotMatch(policy, /\*/);
+  assert.doesNotMatch(policy, /unsafe-eval/);
   assert.doesNotMatch(policy, /google-analytics|googletagmanager|a\.run\.app/);
+  assert.doesNotMatch(policy, /taskio-v2-staging|localhost/);
+  assert.doesNotMatch(policy, /accounts\.google\.com/);
   assert.match(policy, /content-firebaseappcheck\.googleapis\.com/);
   assert.match(policy, /taskio-v2\.firebaseapp\.com/);
+  const root = config.hosting.headers.find((entry) => entry.source === '**');
+  assert.deepEqual(root.headers, [
+    { key: 'Cache-Control', value: 'no-store, max-age=0' },
+    { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+  ]);
 });
 
 test('proof artifact excludes disallowed integrations and bypasses', () => {

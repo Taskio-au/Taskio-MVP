@@ -17,7 +17,9 @@ Staging frontend App Check is enabled with the registered reCAPTCHA Enterprise p
 | P05 Storage enforcement | **PASS** (`ENFORCED`) |
 | P05 Auth enforcement | **OFF — OUT OF APPROVED MVP SCOPE** |
 | P05 production provider registration | **COMPLETE** — reCAPTCHA Enterprise; enforcement still OFF |
-| P05G2 proof artifact | **PREPARED LOCALLY / NOT DEPLOYED** |
+| P05G2 proof artifact | **PREPARED LOCALLY** |
+| P05G3 hosted token proof | **FAILED SAFELY / ROLLED BACK** |
+| P05G3B proof-page CSP | **LOCAL FIX PREPARED / NOT DEPLOYED** |
 | P05 overall | **STAGING PASS / PRODUCTION PENDING** |
 
 ## Staging frontend activation (2026-09-06)
@@ -359,7 +361,8 @@ Planning only. No Hosting deploy, IAM change, App Check registration, enforcemen
 **RED boundaries, each separate and not approved here:**
 
 - **P05G2: COMPLETE (25 September 2026).** Production Enterprise key created and registered; proof artifact prepared locally. No deploy. No enforcement.
-- **P05G3:** deploy the maintenance release plus `/appcheck-proof/` only. Prove a token. No enforcement.
+- **P05G3: FAILED SAFELY / ROLLED BACK (26 September 2026).** Not PASS. The proof release was deployed, Google sign-in never opened, and Hosting was restored to maintenance version `cffca9d87ce03901`. Firebase Auth returned `auth/internal-error` because the proof-page CSP blocked `https://apis.google.com/js/api.js` (`script-src-elem`). No Firestore or Storage proof. Enforcement stayed OFF.
+- **P05G3B:** local proof-page `script-src` also permits `https://apis.google.com`. Not deployed. `https://accounts.google.com` was not added.
 - **P05G4:** enforce Firestore. Valid admin read and missing-token denial.
 - **P05G5:** enforce Storage. Controlled upload, operator delete, missing-token denial.
 - **P05G6:** remove the proof path. Keep enforcement ON. Record evidence.
@@ -395,4 +398,15 @@ Planning only. No Hosting deploy, IAM change, App Check registration, enforcemen
 - `firebase.maintenance.json` adds only a path-specific `/appcheck-proof/**` CSP based on the staging-proven policy with GA4 and Cloud Run hosts removed. Maintenance root files are byte-identical. The artifact was not deployed and no localhost token attempt was made.
 - Local validation: JavaScript syntax PASS; focused proof-artifact tests **4/4 PASS**; existing Hosting-header tests **2/2 PASS**; security scan PASS; `git diff --check` PASS. No credential, token value, debug provider/token, staging key/domain, GA measurement ID, Cloud Run URL, customer data, Firestore write, or Storage write is present.
 
-P05 remains **STAGING PASS / PRODUCTION PENDING**. Next boundary: separately approved **P05G3** to deploy the maintenance package with `/appcheck-proof/` and prove a production App Check token. No enforcement in G3.
+P05 remains **STAGING PASS / PRODUCTION PENDING**.
+
+## V. P05G3 rollback and P05G3B local CSP fix (26 September 2026)
+
+**P05G3: FAILED SAFELY / ROLLED BACK. Not PASS.**
+
+- A Hosting-only proof release served `/appcheck-proof/` while `/` stayed maintenance. Continue with Google called `signInWithPopup` directly and returned `auth/internal-error`. The browser blocked `https://apis.google.com/js/api.js` under `script-src-elem`. No popup, no account chooser, and no request to `accounts.google.com`.
+- Firestore and Storage proofs were not run. Firestore, Storage, and Auth enforcement stayed `UNENFORCED`.
+- Hosting was rolled back to maintenance-only version `cffca9d87ce03901` (release `1790403428645000`, type `ROLLBACK`, `2026-09-26T06:17:08.645Z`). Live `/` and `/appcheck-proof/` both serve “Taskio is almost ready” with no proof-page CSP.
+- **P05G3B** adds only `https://apis.google.com` to the proof-page `script-src`. Root maintenance headers are unchanged. The staging-proven CSP does not include `https://accounts.google.com`, so production policy was not expanded for that host. The fix is local only and is not deployed.
+
+Production Hosting is maintenance-only. A fresh P05G3 retry requires a separate approval after commit, push, and CI.

@@ -126,7 +126,7 @@ Technical staging readiness is advanced. Full production launch is **not** ready
 | P02 | **COMPLETE** (staging TEST refund) | No (production refund re-proof is inside P10) |
 | P03 | **PRODUCTION PASS** — staging PASS; exactly one guarded production proof send returned **200**, provider accepted, owner receipt confirmed, proof gate restored off, and final admin check returned **404 `proof_disabled`** | No |
 | P04 | **STAGING PASS / PRODUCTION PENDING** | Yes, until production PASS |
-| P05 | **STAGING PASS / PRODUCTION PENDING** — **P05G1A–G2 COMPLETE**. Production Enterprise provider registered; enforcement OFF. Narrow `/appcheck-proof/` artifact prepared locally, not deployed. P05G3 hosted token proof is the next separate RED boundary | Yes, until production PASS |
+| P05 | **STAGING PASS / PRODUCTION PENDING** — **P05G1A–G2 COMPLETE**. **P05G3 FAILED SAFELY / ROLLED BACK** after the proof CSP blocked `https://apis.google.com/js/api.js` (`auth/internal-error`). **P05G3B** local script-src fix is not deployed. Enforcement OFF. Live Hosting is maintenance-only. Not P05G3 PASS | Yes, until production PASS |
 | P06 | **OPEN** — owner facts **COMPLETE**; P06A reconciliation **PREPARED**; lean sole-trader controlled pilot as owner working plan, subject to AU solicitor confirmation; Pty Ltd **not** an automatic launch blocker; company conversion deferred unless advised before pilot; insurance = focused minimum-pilot review; remediation **matrix prepared / implementation not started**. Not PASS. | **Yes — current pickup** |
 | P07 | **OPEN / REMEDIATION IN PROGRESS** — P07F1–F5B complete; G1–G3 complete; **H1–H2 complete**. Production Firestore + Storage rules **LIVE**. Expertise fail-open **FIXED + STAGING PROVEN + PRODUCTION LIVE**. Compatibility **REVIEW COMPLETE**. **Production-email blocker CLOSED.** Remaining blockers: production Auth signup path; production App Check Firestore + Storage; production GA4 / P04 PASS or explicit owner OFF; production Stripe live when serving real money. Not PASS. | **Yes** |
 | P08 | **NOT STARTED** | **Yes** |
@@ -173,7 +173,7 @@ Do not start P11. Do not infer a launch percentage. Do not mark **TASKIO FULL LA
 
 **D. Production App Check**
 
-- Production provider configured in P05G2; temporary App Check proof frontend prepared locally but not deployed.
+- Production provider configured in P05G2. P05G3 proof Hosting **FAILED SAFELY / ROLLED BACK**. P05G3B permits `https://apis.google.com` in the local proof-page `script-src` only; that fix is not deployed. Live Hosting is maintenance-only.
 - Valid traffic proven; Firestore enforcement proven; Storage enforcement proven.
 - Auth enforcement remains an explicit separate decision (currently out of approved MVP scope).
 - Preserve the rollback rule: disable affected enforcement first, verify OFF, then roll Hosting. See `docs/APP_CHECK.md`.
