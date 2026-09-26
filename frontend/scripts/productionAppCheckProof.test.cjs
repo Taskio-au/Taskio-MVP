@@ -12,6 +12,7 @@ const script = readFileSync(path.join(proofRoot, 'app.js'), 'utf8');
 const config = JSON.parse(readFileSync(path.join(ROOT, 'firebase.maintenance.json'), 'utf8'));
 
 test('production proof artifact is manual, scoped, and inert for P05G2', () => {
+  assert.match(html, /id="sign-in" type="button" disabled/);
   assert.match(html, /Continue with Google/);
   assert.match(html, /Verify Admin Session/);
   assert.match(html, /Acquire \/ Verify App Check Token/);
@@ -24,6 +25,16 @@ test('production proof artifact is manual, scoped, and inert for P05G2', () => {
   assert.match(script, /inMemoryPersistence/);
   assert.match(script, /ReCaptchaEnterpriseProvider/);
   assert.match(script, /isTokenAutoRefreshEnabled: true/);
+  assert.match(script, /auth\/popup-blocked/);
+  const clickFn = script.slice(
+    script.indexOf('function continueWithGoogle'),
+    script.indexOf('async function verifyAdminSession'),
+  );
+  assert.equal(clickFn.includes('await '), false);
+  assert.match(clickFn, /signInWithPopup\(auth, googleProvider\)/);
+  const startup = script.slice(script.indexOf('resetProofState();\nsetMessage'));
+  assert.match(startup, /setPersistence\(auth, inMemoryPersistence\)/);
+  assert.doesNotMatch(clickFn, /setPersistence/);
 });
 
 test('future data proofs use only the approved exact paths', () => {

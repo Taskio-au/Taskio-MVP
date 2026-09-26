@@ -34,6 +34,7 @@ const googleProvider = new GoogleAuthProvider();
 let operator = null;
 let appCheck = null;
 let appCheckReady = false;
+let persistenceReady = false;
 
 const controls = {
   signIn: document.querySelector('#sign-in'),
@@ -70,24 +71,38 @@ function resetProofState() {
   controls.firestoreProof.disabled = true;
   controls.storageProof.disabled = true;
   controls.signOut.disabled = true;
-  controls.signIn.disabled = false;
+  controls.signIn.disabled = !persistenceReady;
 }
 
-async function continueWithGoogle() {
+function signInFailureMessage(error) {
+  const code = error && error.code;
+  if (code === 'auth/popup-blocked') {
+    return 'Google sign-in was blocked. Allow popups for this site and try again.';
+  }
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+    return 'Google sign-in was cancelled.';
+  }
+  if (code === 'auth/unauthorized-domain') {
+    return 'Google sign-in is not authorized for this site.';
+  }
+  return 'Google sign-in failed.';
+}
+
+function continueWithGoogle() {
+  if (!persistenceReady) return;
   controls.signIn.disabled = true;
   setMessage('Opening Google sign-in.');
-  try {
-    await setPersistence(auth, inMemoryPersistence);
-    const result = await signInWithPopup(auth, googleProvider);
+  const popupResult = signInWithPopup(auth, googleProvider);
+  popupResult.then((result) => {
     operator = result.user;
     statuses.auth.textContent = 'SIGNED IN';
     controls.verifyAdmin.disabled = false;
     controls.signOut.disabled = false;
     setMessage('Signed in. Verify the fresh admin session next.');
-  } catch {
+  }).catch((error) => {
     resetProofState();
-    setMessage('Google sign-in failed or was cancelled.');
-  }
+    setMessage(signInFailureMessage(error));
+  });
 }
 
 async function verifyAdminSession() {
@@ -182,3 +197,13 @@ controls.storageProof.addEventListener('click', runStorageProof);
 controls.signOut.addEventListener('click', endSession);
 
 resetProofState();
+setMessage('Preparing Google sign-in. Data proof controls remain disabled.');
+setPersistence(auth, inMemoryPersistence).then(() => {
+  persistenceReady = true;
+  controls.signIn.disabled = false;
+  setMessage('Sign in to begin. Data proof controls remain disabled.');
+}).catch(() => {
+  persistenceReady = false;
+  controls.signIn.disabled = true;
+  setMessage('Google sign-in could not be prepared.');
+});
