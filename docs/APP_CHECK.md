@@ -1,6 +1,6 @@
 # Taskio P05 App Check
 
-Staging frontend App Check is enabled with the registered reCAPTCHA Enterprise provider. **Firestore and Storage enforcement are ON and proven.** Authentication remains **OFF** (out of approved MVP scope). Production provider registration is now **COMPLETE**; production Firestore, Storage, and Authentication enforcement remain **OFF**.
+Staging and production frontend App Check use registered reCAPTCHA Enterprise providers. **Firestore and Storage enforcement are ON and proven in both environments.** Authentication remains **OFF / MONITORING** (out of approved MVP scope). The temporary production proof surface was removed after proof. **P05 is PRODUCTION PASS.**
 
 ## Classification
 
@@ -16,12 +16,14 @@ Staging frontend App Check is enabled with the registered reCAPTCHA Enterprise p
 | P05 Storage pre-enforcement traffic | **PASS** |
 | P05 Storage enforcement | **PASS** (`ENFORCED`) |
 | P05 Auth enforcement | **OFF — OUT OF APPROVED MVP SCOPE** |
-| P05 production provider registration | **COMPLETE** — reCAPTCHA Enterprise; enforcement still OFF |
-| P05G2 proof artifact | **PREPARED LOCALLY** |
+| P05 production provider registration | **COMPLETE** — reCAPTCHA Enterprise |
+| P05G2 proof artifact | **REMOVED after proof** |
 | P05G3 hosted token proof | **PASS** — token only |
-| P05G3B proof-page CSP | **DEPLOYED** with the passing retry |
-| P05G4 production Firestore | **PASS** — Firestore `ENFORCED`; Storage and Auth `UNENFORCED` |
-| P05 overall | **STAGING PASS / PRODUCTION PENDING** |
+| P05G3B proof-page CSP | **REMOVED with the proof surface** |
+| P05G4 production Firestore | **PASS** — Firestore `ENFORCED`; missing/invalid App Check `403` |
+| P05G5 production Storage | **PASS** — Storage `ENFORCED`; valid upload/read succeeded; missing/invalid App Check `401`; proof object deleted |
+| P05G6 proof-surface removal | **PASS** — Hosting `c42a0cac1cc5b789`; maintenance-only |
+| P05 overall | **PRODUCTION PASS** |
 
 ## Staging frontend activation (2026-09-06)
 
@@ -335,7 +337,7 @@ This section records the G1 planning baseline. P05G2 later completed the provide
 
 **Proof.** P05 production PASS needs the staging shape on the narrow surface: valid App Check token, one controlled operator Storage upload plus denial without a token, and an authenticated Firestore read that fails without App Check. Delete the proof object afterward. Broader money-loop proof stays P10.
 
-**Future sequence.** **P05G1A COMPLETE.** **P05G1B plan COMPLETE.** **P05G2 COMPLETE.** **P05G3 PASS** for the production token only. **P05G4 PASS** for production Firestore enforcement. The remaining RED boundaries are **P05G5–P05G6** in section T, each needing its own approval. P07’s App Check blocker closes only when P05 production PASS is recorded. P07 itself stays open. `/` stays maintenance. `pilotSettings` stays absent. Stripe stays disabled. Production stays **FROZEN**.
+**Sequence complete.** **P05G1A–G2 COMPLETE. P05G3–G6 PASS.** Production Firestore and Storage are enforced and proven; the temporary proof surface is removed. P07’s App Check blocker is closed, but P07 itself stays open. `/` stays maintenance. `pilotSettings` stays absent. Stripe stays disabled. Production stays **FROZEN**.
 
 **NO-GO.** Wrong Firebase project, localhost or staging API, debug provider, missing production site key, CSP blocking Enterprise or App Check, enforcement before the proof surface has a valid token, GA4 turned on, or no Hosting rollback release.
 
@@ -364,8 +366,8 @@ Planning only. No Hosting deploy, IAM change, App Check registration, enforcemen
 - **P05G2: COMPLETE (25 September 2026).** Production Enterprise key created and registered; proof artifact prepared locally. No deploy. No enforcement.
 - **P05G3: PASS (26 September 2026), token only.** The first proof release failed because the proof-page CSP blocked `https://apis.google.com/js/api.js` and was rolled back to `cffca9d87ce03901`. After **P05G3B** added that host to proof-page `script-src`, the retry release `6e7650bff70d9d48` acquired one production App Check token. Admin session verified. Firestore and Storage proofs were not run. Enforcement stayed OFF. The operator signed out. `https://accounts.google.com` was not added.
 - **P05G4: PASS (26 September 2026).** Firestore App Check `ENFORCED` at `2026-09-26T07:34:22.237215Z`. Valid admin read of missing `adminDailyChecklist/appcheck-proof` returned MISSING. Missing App Check **403**. Invalid App Check **403**. No document was created. Storage and Auth stayed `UNENFORCED`. Storage proof was not run. The operator signed out.
-- **P05G5:** enforce Storage. Controlled upload, operator delete, missing-token denial.
-- **P05G6:** remove the proof path. Keep enforcement ON. Record evidence.
+- **P05G5: PASS (26 September 2026).** Storage `ENFORCED`; one controlled upload and valid metadata read succeeded; missing and invalid App Check were denied with `401`; the exact synthetic object was deleted and verified absent.
+- **P05G6: PASS (26 September 2026).** The proof assets and path-specific CSP were removed. Hosting release `c42a0cac1cc5b789` is maintenance-only. Firestore and Storage remain `ENFORCED`; Auth remains `UNENFORCED` / Monitoring.
 
 **Future SPA API.** Protected routes use `Authorization: Bearer` and `admin.auth().verifyIdToken`. Admin routes add `admin` or `super_admin`. Role and ownership use the token uid, not a body uid. `verifyIdToken` is called without `checkRevoked`. Intentional public routes stay application-gated: signup returns 503 unless `TASKIO_PUBLIC_SIGNUP_ENABLED=true`; AI stays off unless `AI_DESCRIPTION_ENABLED=true`; main-API Stripe webhook returns 404 while Stripe is disabled; `/health/metrics` is admin-only. Public invocation of `taskio-api` is **not** a NO-GO for those protected routes. It is still not approved.
 
@@ -432,3 +434,28 @@ That rollback was the state before the retry in section W.
 - The valid read of absent `adminDailyChecklist/appcheck-proof` returned **MISSING**. The same read with the App Check header omitted returned **403**. The same read with an invalid App Check header returned **403**. No document was created.
 - Storage proof was **NOT RUN**. The operator signed out.
 - Firestore remains `ENFORCED`. Storage and Auth remain `UNENFORCED`. Next boundary: separately approved **P05G5**. Not started.
+
+## Y. P05G5 production Storage enforcement proof (26 September 2026)
+
+**P05G5: PASS. Not yet a P05 production PASS at this checkpoint.**
+
+- Project `taskio-v2`. Storage App Check was already `ENFORCED` at `2026-09-26T08:13:51.422063Z`. Firestore remained `ENFORCED`; Auth remained `UNENFORCED` / Monitoring. Hosting stayed `6e7650bff70d9d48`; `/` stayed maintenance.
+- The existing Google/Firebase admin signed in on the live proof page. Fresh-token checks confirmed project `taskio-v2`, provider `google.com`, and `admin=true`. App Check reported **READY**. No token value was displayed or persisted externally.
+- The exact object path did not exist before the proof. Exactly one 68-byte synthetic PNG was uploaded through the Firebase Storage SDK to `profilePhotos/4wX3ROz5O4RVtAK59puGGxrqS813/appcheck-proof.png` with content type `image/png`.
+- Valid App Check metadata read: **SUCCESS**; path, content type, and size matched.
+- The same authenticated metadata request without `X-Firebase-AppCheck` returned **401**. With `X-Firebase-AppCheck: invalid`, it returned **401**.
+- Operator cleanup used the existing authorised `admin@taskio.com.au` gcloud context to delete exactly that synthetic object. Exact-path verification returned **404 / not found**. No bucket listing or other object operation occurred.
+- The browser operator signed out. No Firestore write, customer/business-data interaction, rules change, Auth change, IAM/API/Functions change, Stripe/GA4 change, or rollback occurred.
+- Post-proof Console state: Firestore and Storage **Enforced**; Authentication **Monitoring**.
+
+## Z. P05G6 production proof-surface removal and P05 finalisation (26 September 2026)
+
+**P05G6: PASS. P05: PRODUCTION PASS.**
+
+- Removed only `maintenance/appcheck-proof/{index.html,styles.css,app.js}` and the `/appcheck-proof/**` CSP block from `firebase.maintenance.json`. Added a permanent focused test that rejects any restored proof directory, route/header reference, proof controls, or Firebase runtime in the maintenance artifact.
+- Root maintenance assets were byte-identical before and after the edit. The release contained exactly five files. No `appcheck-proof`, Firebase JS, App Check, Firestore, or Storage runtime reference remained in the deploy artifact.
+- Local verification: proof-removal tests **4/4 PASS**; launch-status derivation tests **12/12 PASS**; Hosting JSON parsed; `git diff --check` passed.
+- One Hosting-only deploy targeted the default `taskio-v2` site with `firebase.maintenance.json`. Version **`c42a0cac1cc5b789`**; release **`1790412206562000`**; release time **`2026-09-26T08:43:26.562Z`**. Five maintenance files; no other Firebase/GCP resource deployed.
+- Live verification on `taskio.com.au`, `taskio-v2.web.app`, and `taskio-v2.firebaseapp.com`: `/appcheck-proof/` and `/appcheck-proof/app.js` now return the same maintenance HTML and ETag as `/`; no proof text, Firebase runtime, or proof-specific CSP remains.
+- Final Console state: Cloud Firestore **Enforced**; Storage **Enforced**; Authentication **Monitoring** / `UNENFORCED`. The Enterprise provider remains registered. The synthetic proof object remains absent.
+- P07’s production App Check blocker is **CLOSED** by P05 production PASS. P07 itself remains **OPEN / REMEDIATION IN PROGRESS** for other blockers. P10 browser/API work remains separate. Production remains **FROZEN / NOT OPEN**.

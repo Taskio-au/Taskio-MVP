@@ -162,6 +162,8 @@ describe('derivePilotLaunchStatus', () => {
     expect(result.gates.find((gate) => gate.id === 'P01').decision).toBe(DECISION.SATISFIED);
     expect(result.gates.find((gate) => gate.id === 'P02').decision).toBe(DECISION.SATISFIED);
     expect(result.gates.find((gate) => gate.id === 'P03').status).toBe(GATE_STATUS.STAGING_PASS_PRODUCTION_PENDING);
+    expect(result.gates.find((gate) => gate.id === 'P05').status).toBe(GATE_STATUS.PRODUCTION_PASS);
+    expect(result.gates.find((gate) => gate.id === 'P05').decision).toBe(DECISION.SATISFIED);
     expect(result.gates.find((gate) => gate.id === 'P06').status).toBe(GATE_STATUS.OPEN);
     expect(result.gates.find((gate) => gate.id === 'P09').status).toBe(GATE_STATUS.BLOCKED);
   });

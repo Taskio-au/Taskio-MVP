@@ -7,7 +7,7 @@
  */
 
 const MANIFEST_VERSION = 1;
-const MANIFEST_UPDATED_AT = '2026-09-19';
+const MANIFEST_UPDATED_AT = '2026-09-26';
 
 const GATE_STATUS = Object.freeze({
   PASS: 'PASS',
@@ -94,10 +94,10 @@ const launchReadinessManifest = Object.freeze({
       group: GATE_GROUP.PRODUCTION_SERVICES,
       requiredForReadyToOpen: true,
       requiredResult: REQUIRED_RESULT.PRODUCTION_PASS,
-      status: GATE_STATUS.STAGING_PASS_PRODUCTION_PENDING,
-      evidenceSummary: 'Staging Firestore and Storage enforcement proven. Production App Check is pending.',
-      lastUpdated: '2026-09-06',
-      notes: 'Auth App Check remains out of MVP scope.',
+      status: GATE_STATUS.PRODUCTION_PASS,
+      evidenceSummary: 'Production Firestore and Storage enforcement proven; temporary proof surface removed.',
+      lastUpdated: '2026-09-26',
+      notes: 'Auth App Check remains unenforced and out of the approved MVP scope.',
     }),
     Object.freeze({
       id: 'P06',
