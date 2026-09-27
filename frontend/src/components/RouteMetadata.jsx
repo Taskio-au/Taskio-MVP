@@ -12,7 +12,7 @@ const PUBLIC_METADATA = {
   '/login': ['Log in | Taskio', 'Log in securely to manage your Taskio tasks, quotes, messages, and payments.'],
   '/privacy': ['Privacy Policy | Taskio', 'Read how Taskio handles personal information and privacy requests.'],
   '/terms': ['Terms of Use | Taskio', 'Read the terms that govern use of the Taskio marketplace.'],
-  '/tradie/signup': ['Join as an Expert | Taskio', 'Create a Taskio Expert account. Marketplace access stays pending until Taskio reviews and verifies you.'],
+  '/expert/signup': ['Join as an Expert | Taskio', 'Create a Taskio Expert account. Marketplace access stays pending until Taskio reviews and verifies you.'],
 };
 
 function upsertMeta(selector, attributes) {

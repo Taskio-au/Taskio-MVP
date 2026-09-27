@@ -35,7 +35,7 @@ Local product code on `develop`. Staging/production Auth remains `disabledUserSi
 
 | Flow | Current behaviour |
 |---|---|
-| Public signup when Expert onboarding **OPEN** | New Expert may create an account (also requires `TASKIO_PUBLIC_SIGNUP_ENABLED`). Starts `verified=false`, `expertise` = requested Phase 1 keys, `expertiseApproved=[]`. Cannot quote/invite until eligibility + Admin Verify. |
+| Public signup when Expert onboarding **OPEN** | New Expert may create an account (also requires `TASKIO_PUBLIC_SIGNUP_ENABLED`). Signup collects canonical `expertise[]` and `serviceAreas[]`, while retaining the first selected area in legacy primary-location fields. Starts `verified=false`, `expertiseApproved=[]`, `acceptingJobs=false`. Cannot quote/invite until eligibility + Admin Verify. |
 | Waitlist when **WAITLIST** | New Expert account creation blocked. Public CTA → `/expert-waitlist` (`POST /api/expert-waitlist` → `expertWaitlist`). Existing/pending Experts may still log in and complete onboarding. Missing/invalid mode fail-safes to WAITLIST. |
 | Profile | Display name, phone, DOB (18+ gate), bio, photo, ABN/business fields, service areas, `acceptingJobs`. |
 | Requested vs approved expertise | `expertise` = self-selected. `expertiseApproved` = Admin-approved subset. Signup never writes approved expertise. Removing a requested category drops it from effective eligibility. |
@@ -201,7 +201,7 @@ Regulated/high-risk work remains **outside** the intended pilot unless specifica
 
 **Collection:** `expertWaitlist` (separate from `pilotWaitlist`). Client Firestore denied.
 
-**Fields stored:** normalized email; optional canonical Phase 1 expertise key; optional canonical Inner Melbourne suburb; `source`; timestamps; `consentVersion=expert-waitlist-contact-v1`; `consentAcceptedAt`.
+**Fields stored:** normalized email; one or more canonical Phase 1 keys in `expertise[]`; one or more canonical Inner Melbourne areas in `serviceAreas[]`; first selected area in legacy-compatible `suburb`; `source`; timestamps; `consentVersion=expert-waitlist-contact-v1`; `consentAcceptedAt`.
 
 **Consent meaning (product):** contact about **becoming a Taskio Expert**. **Not** general marketing consent.
 

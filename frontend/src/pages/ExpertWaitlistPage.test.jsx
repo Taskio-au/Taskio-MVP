@@ -35,16 +35,34 @@ describe('ExpertWaitlistPage', () => {
     mockPost.mockResolvedValue({ data: { ok: true } });
     render(<ExpertWaitlistPage />);
     fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: 'expert@example.com' } });
+    fireEvent.click(screen.getByLabelText(/install shelves/i));
+    fireEvent.click(screen.getByLabelText(/tv mounting/i));
+    fireEvent.click(screen.getByLabelText(/^melbourne cbd$/i));
+    fireEvent.click(screen.getByLabelText(/^carlton$/i));
     fireEvent.click(screen.getByLabelText(/i agree to be contacted about becoming a taskio expert/i));
     fireEvent.click(screen.getByRole('button', { name: /join expert waitlist/i }));
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/api/expert-waitlist', {
       email: 'expert@example.com',
-      expertise: '',
-      suburb: '',
+      expertise: ['mounting_shelves', 'mounting_tv'],
+      serviceAreas: ['Melbourne', 'Carlton'],
       source: 'expert-waitlist',
       consentAccepted: true,
     }));
     expect(await screen.findByText(/we'll be in touch about becoming a taskio expert/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /log in/i })).toHaveAttribute('href', '/login');
+  });
+
+  it('uses waitlist copy and requires expertise and service-area coverage', () => {
+    render(<ExpertWaitlistPage />);
+    expect(screen.getByText(/^expert waitlist$/i)).toBeInTheDocument();
+    expect(screen.getByText(/this does not create an account/i)).toBeInTheDocument();
+    expect(screen.getByText(/when expert onboarding is available/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^melbourne cbd$/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^melbourne$/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: 'expert@example.com' } });
+    fireEvent.click(screen.getByLabelText(/i agree to be contacted about becoming a taskio expert/i));
+    fireEvent.click(screen.getByRole('button', { name: /join expert waitlist/i }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/select at least one area of expertise/i);
   });
 });

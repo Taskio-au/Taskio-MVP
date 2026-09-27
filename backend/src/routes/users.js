@@ -11,10 +11,26 @@ const { classifyUserProfile, sendAccountNotActive, sendAccountStateInvalid } = r
 const { isNonEmptyString, isStringMax } = require('../utils/validation');
 const { phase1KeysSet } = require('../shared/expertiseCatalog');
 const { applySelfSelectedExpertise, signupExpertiseFields } = require('../utils/expertExpertise');
+const { parseServiceAreasInput } = require('../utils/pilotOperationalFields');
 const { isSupportedMelbournePilotLocation, INNER_MELBOURNE_LAUNCH_MESSAGE } = require('../../../shared/auLocations');
+const { PASSWORD_ISSUE_MESSAGES, expertPasswordIssue } = require('../../../shared/passwordPolicy');
 const { logger } = require('../observability/logger');
 
 const router = express.Router();
+
+const PASSWORD_TOO_SHORT_MESSAGE = PASSWORD_ISSUE_MESSAGES.password_too_short;
+const REGISTRATION_UNAVAILABLE_MESSAGE = "We couldn't create your account right now. Please try again.";
+
+// Admin SDK codes that describe the Auth backend or credentials, not the applicant's details.
+const REGISTRATION_SERVICE_ERROR_CODES = new Set([
+  'auth/project-not-found',
+  'auth/configuration-not-found',
+  'auth/insufficient-permission',
+  'auth/internal-error',
+  'auth/operation-not-allowed',
+  'auth/quota-exceeded',
+  'auth/invalid-credential',
+]);
 
 function registrationErrorResponse(error, requestId) {
   const code = String(error?.code || '');
@@ -22,7 +38,7 @@ function registrationErrorResponse(error, requestId) {
     return {
       status: 400,
       body: {
-        message: 'This email is already registered. Please log in or use a different email address.',
+        message: 'An account already exists with this email.',
         code,
         requestId: requestId || null,
       },
@@ -37,15 +53,23 @@ function registrationErrorResponse(error, requestId) {
   if (code === 'auth/invalid-password' || code === 'auth/weak-password') {
     return {
       status: 400,
-      body: { message: 'The password does not meet the account security requirements.', code, requestId: requestId || null },
+      body: { message: PASSWORD_TOO_SHORT_MESSAGE, code, requestId: requestId || null },
+    };
+  }
+  if (code.startsWith('auth/') && !REGISTRATION_SERVICE_ERROR_CODES.has(code)) {
+    return {
+      status: 400,
+      body: {
+        message: 'We could not create the account with those details.',
+        requestId: requestId || null,
+      },
     };
   }
   return {
-    status: code.startsWith('auth/') ? 400 : 500,
+    status: REGISTRATION_SERVICE_ERROR_CODES.has(code) || code.startsWith('app/') ? 503 : 500,
     body: {
-      message: code.startsWith('auth/')
-        ? 'We could not create the account with those details.'
-        : 'Error creating user. Please try again.',
+      message: REGISTRATION_UNAVAILABLE_MESSAGE,
+      code: 'registration_unavailable',
       requestId: requestId || null,
     },
   };
@@ -61,6 +85,7 @@ const authLimiter = rateLimit({
 
 function validateTradieSignupPayload({
   expertise,
+  serviceAreas,
   serviceLocation,
   primaryServiceSuburb,
   primaryServicePostcode,
@@ -101,6 +126,16 @@ function validateTradieSignupPayload({
     }
   }
 
+  const serviceAreasResult = parseServiceAreasInput(
+    Array.isArray(serviceAreas) ? serviceAreas : [suburb]
+  );
+  if (!serviceAreasResult.ok || serviceAreasResult.value.length === 0) {
+    return { error: serviceAreasResult.message || 'Select at least one service area.' };
+  }
+  if (!serviceAreasResult.value.includes(suburb)) {
+    return { error: 'Primary service suburb must be included in service areas.' };
+  }
+
   return {
     location: {
       label,
@@ -110,6 +145,7 @@ function validateTradieSignupPayload({
       country,
     },
     expertise: normalizedTradieExpertise,
+    serviceAreas: serviceAreasResult.value,
   };
 }
 
@@ -119,6 +155,7 @@ function buildTradieUserData({
   lastName,
   normalizedTradieLocation,
   normalizedTradieExpertise,
+  normalizedServiceAreas,
 }, { includeCreatedAt = true } = {}) {
   const payload = {
     email: String(email || '').trim().toLowerCase(),
@@ -133,6 +170,8 @@ function buildTradieUserData({
     phone: '',
     phoneVerified: false,
     profileCompleted: false,
+    acceptingJobs: false,
+    serviceAreas: normalizedServiceAreas,
     ...signupExpertiseFields(normalizedTradieExpertise),
     expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     expertiseChangeLog: [
@@ -150,6 +189,7 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
       password,
       role,
       expertise,
+      serviceAreas,
       firstName,
       lastName,
       serviceLocation,
@@ -170,8 +210,9 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
     if (!isNonEmptyString(email) || !isStringMax(email, 320)) {
       return res.status(400).send({ message: 'A valid email is required.' });
     }
-    if (!isNonEmptyString(password) || password.length < 8 || password.length > 128) {
-      return res.status(400).send({ message: 'Password must be between 8 and 128 characters.' });
+    const passwordIssue = isNonEmptyString(password) ? expertPasswordIssue(password) : 'password_too_short';
+    if (passwordIssue) {
+      return res.status(400).send({ message: PASSWORD_ISSUE_MESSAGES[passwordIssue], code: passwordIssue });
     }
     if (!isNonEmptyString(firstName) || !isStringMax(firstName, 80)) {
       return res.status(400).send({ message: 'First name is required and must be under 80 characters.' });
@@ -187,10 +228,12 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
 
     let normalizedTradieLocation = null;
     let normalizedTradieExpertise = [];
+    let normalizedServiceAreas = [];
 
     if (role === 'tradie') {
       const normalized = validateTradieSignupPayload({
         expertise,
+        serviceAreas,
         serviceLocation,
         primaryServiceSuburb,
         primaryServicePostcode,
@@ -200,6 +243,7 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
       }
       normalizedTradieLocation = normalized.location;
       normalizedTradieExpertise = normalized.expertise;
+      normalizedServiceAreas = normalized.serviceAreas;
     }
 
     const userRecord = await admin.auth().createUser({
@@ -228,6 +272,7 @@ router.post('/api/users/register', authLimiter, requirePublicSignupEnabled, asyn
       lastName,
       normalizedTradieLocation,
       normalizedTradieExpertise,
+      normalizedServiceAreas,
     }));
 
     await db.collection('users').doc(userRecord.uid).set(userData);
@@ -250,6 +295,7 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, async
       firstName,
       lastName,
       expertise,
+      serviceAreas,
       serviceLocation,
       primaryServiceSuburb,
       primaryServicePostcode,
@@ -264,6 +310,7 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, async
 
     const normalized = validateTradieSignupPayload({
       expertise,
+      serviceAreas,
       serviceLocation,
       primaryServiceSuburb,
       primaryServicePostcode,
@@ -315,6 +362,7 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, async
             lastName: String(lastName).trim(),
             normalizedTradieLocation: normalized.location,
             normalizedTradieExpertise: normalized.expertise,
+            normalizedServiceAreas: normalized.serviceAreas,
           }));
         } else {
           const existing = snap.data() || {};
@@ -326,6 +374,7 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, async
             serviceLocation: normalized.location,
             primaryServiceSuburb: normalized.location.suburb,
             primaryServicePostcode: normalized.location.postcode,
+            serviceAreas: normalized.serviceAreas,
             expertise: nextExpertise.requested,
             expertiseApproved: nextExpertise.approved,
             expertiseUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -385,7 +434,5 @@ router.post('/api/users/register/expert-google', authLimiter, requireAuth, async
 });
 
 module.exports = router;
-
-
 
 

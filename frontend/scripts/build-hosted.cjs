@@ -10,8 +10,11 @@ try {
   });
 } catch (error) {
   // Do not print configuration values or errors from environment-file loading.
-  console.error(error.code === 'TASKIO_APPCHECK_DEBUG_BUILD'
-    ? '[hosted-build] App Check debug configuration is forbidden.'
-    : '[hosted-build] Could not prepare the hosted build. Check environment and build configuration.');
+  const messages = {
+    TASKIO_APPCHECK_DEBUG_BUILD: '[hosted-build] App Check debug configuration is forbidden.',
+    TASKIO_EMULATOR_BUILD: '[hosted-build] Firebase emulator configuration is forbidden.',
+  };
+  console.error(messages[error.code]
+    || '[hosted-build] Could not prepare the hosted build. Check environment and build configuration.');
   process.exitCode = 1;
 }

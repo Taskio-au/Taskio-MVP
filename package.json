@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "test:rules": "firebase emulators:exec --project demo-taskio-rules --only firestore,storage \"node --test --test-concurrency=1 rules-tests/security.rules.test.js\"",
-    "test:functions": "firebase emulators:exec --project demo-taskio-functions --only firestore \"npm --prefix functions test\""
+    "test:functions": "firebase emulators:exec --project demo-taskio-functions --only firestore \"npm --prefix functions test\"",
+    "dev:local": "firebase emulators:exec --project demo-taskio-local --only auth,firestore \"node scripts/dev-local.cjs\"",
+    "test:local-dev": "node --test scripts/localDevEnv.test.cjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.1",

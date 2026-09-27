@@ -15,6 +15,14 @@ This is the product-launch overlay on top of the existing P01–P06 technical ga
 - **Expert OPEN:** public Expert applications; new accounts stay pending review / marketplace-ineligible until Admin Verify; self-selected categories are requested only (`expertise`); Taskio-approved categories (`expertiseApproved`) are written by Admin Verify or a later expertise-approve action; launch-ready remains derived and does not count unreviewed categories.
 - **Expert WAITLIST:** new Expert signup blocked; Expert waitlist available; existing and pending Experts continue.
 
+**Approved pilot sequence:** while Taskio is building supply, homeowner demand remains capacity-gated and Expert onboarding is intended to be **OPEN**. Expert signup collects multiple requested expertise areas and multiple canonical `serviceAreas[]`, while `verified=false`, `expertiseApproved=[]`, and `acceptingJobs=false` keep every new account marketplace-ineligible. Once supply is sufficient, the owner may switch Expert onboarding to **WAITLIST** as a capacity-control mechanism. That later mode is not the required default for the early pilot. In local development only, an absent Expert mode resolves to OPEN so the early-pilot journey can be exercised; explicit modes always win and every non-local runtime remains fail-closed.
+
+The canonical service-area identifier `Melbourne` is retained in API and stored data. Expert-facing selectors present that area as `Melbourne CBD` to distinguish the pilot locality from greater Melbourne.
+
+The canonical public Expert signup route is `/expert/signup`. The legacy `/tradie/signup` path is a client-side redirect (`Navigate replace`, query string preserved) to `/expert/signup` so existing recruitment links keep working. Both routes use the same OPEN/WAITLIST gate; internal `tradie` role values, fields, API paths and dashboard routes are unchanged.
+
+Expert email/password signup accepts 10–128 characters with no mandatory uppercase, number or symbol rule. The shared `shared/passwordPolicy.js` rates passwords Weak / Fair / Strong. Weak (common words such as "password" or "taskio", repeated characters, alphabet/keyboard/digit sequences) is rejected by both the signup page and `POST /api/users/register`; Fair and Strong are accepted. This does not change the Firebase Auth password policy of any project: production Auth activation and the production password-policy review remain P10.
+
 `REACT_APP_PUBLIC_ACQUISITION_ENABLED` is deprecated and must not override homeowner or Expert eligibility. New Expert signup also requires `TASKIO_PUBLIC_SIGNUP_ENABLED`. Still **not deployed**. Do not create the settings document in staging or production without a separate approval.
 
 **Code vs current cloud Auth (do not confuse):**

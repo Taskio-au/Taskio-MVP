@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
-import { melbournePilotLocations } from '../../shared/auLocations';
+import { melbournePilotLocations, pilotServiceAreaDisplayName } from '../../shared/auLocations';
 import './ExpertPilotAvailabilityPanel.css';
 
 function canonicalPilotAreas() {
@@ -126,7 +126,7 @@ export default function ExpertPilotAvailabilityPanel({ profile, api, onSaved }) 
                     checked={serviceAreas.includes(area)}
                     onChange={() => toggleArea(area)}
                   />
-                  <span>{area}</span>
+                  <span>{pilotServiceAreaDisplayName(area)}</span>
                 </label>
               </li>
             );

@@ -48,6 +48,16 @@ jest.mock('../src/firebaseAdmin', () => ({
           error.code = 'auth/internal-error';
           throw error;
         }
+        if (payload.email === 'project-not-found@example.com') {
+          const error = new Error('No Firebase project was found for the provided credential.');
+          error.code = 'auth/project-not-found';
+          throw error;
+        }
+        if (payload.email === 'unexpected-auth@example.com') {
+          const error = new Error('Invalid display name detail');
+          error.code = 'auth/invalid-display-name';
+          throw error;
+        }
         mockState.createdUsers.push(payload);
         return {
           uid: 'tradie-1',
@@ -124,9 +134,12 @@ jest.mock('../src/firebaseAdmin', () => ({
   },
 }));
 
-const userRoutes = require('../src/routes/users');
-
 function buildApp() {
+  // Fresh router per app so the module-level auth rate limiter does not leak across tests.
+  let userRoutes;
+  jest.isolateModules(() => {
+    userRoutes = require('../src/routes/users');
+  });
   const app = express();
   app.use(express.json());
   app.use(userRoutes);
@@ -150,7 +163,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'jane@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -160,7 +173,8 @@ describe('tradie registration contracts', () => {
         },
         primaryServiceSuburb: 'Richmond',
         primaryServicePostcode: '3121',
-        expertise: ['mounting_shelves'],
+        serviceAreas: ['Richmond', 'Carlton'],
+        expertise: ['mounting_shelves', 'mounting_tv'],
       });
 
     expect(response.status).toBe(201);
@@ -174,7 +188,9 @@ describe('tradie registration contracts', () => {
       phone: '',
       phoneVerified: false,
       profileCompleted: false,
-      expertise: ['mounting_shelves'],
+      acceptingJobs: false,
+      serviceAreas: ['Richmond', 'Carlton'],
+      expertise: ['mounting_shelves', 'mounting_tv'],
       expertiseApproved: [],
       serviceLocation: {
         label: 'Richmond VIC 3121',
@@ -194,7 +210,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'jane@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -220,7 +236,7 @@ describe('tradie registration contracts', () => {
         firstName: '',
         lastName: '',
         email: 'jane@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -246,7 +262,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'duplicate@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -261,34 +277,112 @@ describe('tradie registration contracts', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe('auth/email-already-exists');
-    expect(response.body.message).toMatch(/already registered/i);
+    expect(response.body.message).toBe('An account already exists with this email.');
   });
 
-  it('does not expose Firebase internals in registration errors', async () => {
+  function buildTradiePayload(overrides = {}) {
+    return {
+      role: 'tradie',
+      firstName: 'Safe',
+      lastName: 'Error',
+      email: 'jane@example.com',
+      password: 'quiet harbour lamp',
+      serviceLocation: {
+        label: 'Richmond VIC 3121',
+        suburb: 'Richmond',
+        state: 'VIC',
+        postcode: '3121',
+        country: 'AU',
+      },
+      primaryServiceSuburb: 'Richmond',
+      primaryServicePostcode: '3121',
+      expertise: ['mounting_shelves'],
+      ...overrides,
+    };
+  }
+
+  it('rejects passwords shorter than 10 characters before creating an Auth user', async () => {
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .send(buildTradiePayload({ password: 'ninechars' }));
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: 'Use at least 10 characters for your password.',
+      code: 'password_too_short',
+    });
+    expect(mockState.createdUsers).toHaveLength(0);
+  });
+
+  it('accepts a 10 character password without composition rules', async () => {
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .send(buildTradiePayload({ password: 'tenletters' }));
+
+    expect(response.status).toBe(201);
+    expect(mockState.createdUsers).toHaveLength(1);
+  });
+
+  it('rejects passwords longer than 128 characters before creating an Auth user', async () => {
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .send(buildTradiePayload({ password: `quiet harbour ${'lamp'.repeat(30)}` }));
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      message: 'Use no more than 128 characters for your password.',
+      code: 'password_too_long',
+    });
+    expect(mockState.createdUsers).toHaveLength(0);
+  });
+
+  it.each(['password1234', 'taskio1234', '1234567890', 'aaaaaaaaaa', 'qwerty12345'])(
+    'rejects the predictable password %p even though it is long enough',
+    async (password) => {
+      const response = await request(buildApp())
+        .post('/api/users/register')
+        .send(buildTradiePayload({ password }));
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        message: 'Choose a less predictable password.',
+        code: 'password_too_weak',
+      });
+      expect(mockState.createdUsers).toHaveLength(0);
+    },
+  );
+
+  it('maps Auth service and credential failures to a retryable message without internals', async () => {
     const response = await request(buildApp())
       .post('/api/users/register')
       .set('x-request-id', 'registration-test-request')
-      .send({
-        role: 'tradie',
-        firstName: 'Safe',
-        lastName: 'Error',
-        email: 'unsafe-error@example.com',
-        password: 'hunter22',
-        serviceLocation: {
-          label: 'Richmond VIC 3121',
-          suburb: 'Richmond',
-          state: 'VIC',
-          postcode: '3121',
-          country: 'AU',
-        },
-        primaryServiceSuburb: 'Richmond',
-        primaryServicePostcode: '3121',
-        expertise: ['mounting_shelves'],
-      });
+      .send(buildTradiePayload({ email: 'unsafe-error@example.com' }));
+
+    expect(response.status).toBe(503);
+    expect(response.body.code).toBe('registration_unavailable');
+    expect(response.body.message).toBe("We couldn't create your account right now. Please try again.");
+    expect(JSON.stringify(response.body)).not.toMatch(/tenant|credential|Firebase internal/i);
+  });
+
+  it('treats a missing Auth project (local Auth not on the emulator) as a service failure', async () => {
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .send(buildTradiePayload({ email: 'project-not-found@example.com' }));
+
+    expect(response.status).toBe(503);
+    expect(response.body.code).toBe('registration_unavailable');
+    expect(JSON.stringify(response.body)).not.toMatch(/project|credential/i);
+    expect(mockState.storedUsers.size).toBe(0);
+  });
+
+  it('keeps a safe generic message for other Auth rejections', async () => {
+    const response = await request(buildApp())
+      .post('/api/users/register')
+      .send(buildTradiePayload({ email: 'unexpected-auth@example.com' }));
 
     expect(response.status).toBe(400);
     expect(response.body.message).toBe('We could not create the account with those details.');
-    expect(JSON.stringify(response.body)).not.toMatch(/tenant|credential|Firebase internal/i);
+    expect(response.body.code).toBeUndefined();
   });
 
   it('rejects homeowner registration and directs the caller to the posting flow', async () => {
@@ -299,7 +393,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Stage',
         lastName: 'Homeowner',
         email: 'homeowner@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
       });
 
     expect(response.status).toBe(400);
@@ -314,7 +408,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Stage',
         lastName: 'Homeowner',
         email: 'homeowner@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
       });
 
     expect(mockState.createdUsers).toHaveLength(0);
@@ -330,7 +424,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Stage',
         lastName: 'Homeowner',
         email: 'quote-access@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
         quoteAccessVerified: true,
       });
 
@@ -350,7 +444,7 @@ describe('tradie registration contracts', () => {
           firstName: 'Stage',
           lastName: 'Unknown',
           email: 'unknown-role@example.com',
-          password: 'hunter22',
+          password: 'quiet harbour lamp',
         });
 
       expect(response.status).toBe(400);
@@ -376,7 +470,8 @@ describe('tradie registration contracts', () => {
         },
         primaryServiceSuburb: 'Richmond',
         primaryServicePostcode: '3121',
-        expertise: ['mounting_shelves'],
+        serviceAreas: ['Richmond', 'Carlton'],
+        expertise: ['mounting_shelves', 'mounting_tv'],
       });
 
     expect(response.status).toBe(200);
@@ -386,7 +481,9 @@ describe('tradie registration contracts', () => {
       email: 'google.expert@example.com',
       firstName: 'Jane',
       lastName: 'Expert',
-      expertise: ['mounting_shelves'],
+      acceptingJobs: false,
+      serviceAreas: ['Richmond', 'Carlton'],
+      expertise: ['mounting_shelves', 'mounting_tv'],
       expertiseApproved: [],
     }));
   });
@@ -510,6 +607,7 @@ describe('tradie registration contracts', () => {
       role: 'tradie',
       firstName: 'Jane',
       lastName: 'Expert',
+      serviceAreas: ['Richmond'],
     }));
   });
 
@@ -618,7 +716,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'jane@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -646,7 +744,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'jane@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -669,7 +767,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'second@example.com',
-        password: 'hunter22',
+        password: 'quiet harbour lamp',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -761,7 +859,7 @@ describe('tradie registration contracts', () => {
       firstName: 'Jane',
       lastName: 'Expert',
       email: 'jane@example.com',
-      password: 'hunter22',
+      password: 'quiet harbour lamp',
       serviceLocation: {
         label: 'Richmond VIC 3121',
         suburb: 'Richmond',

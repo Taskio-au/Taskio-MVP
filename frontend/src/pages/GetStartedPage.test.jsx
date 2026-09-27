@@ -67,7 +67,7 @@ describe('GetStartedPage', () => {
     };
     render(<GetStartedPage />);
     expect(screen.getByRole('link', { name: /join waitlist/i })).toHaveAttribute('href', '/waitlist');
-    expect(screen.getByRole('link', { name: /become an expert/i })).toHaveAttribute('href', '/tradie/signup');
+    expect(screen.getByRole('link', { name: /become an expert/i })).toHaveAttribute('href', '/expert/signup');
     expect(screen.getByRole('link', { name: /^log in$/i })).toHaveAttribute('href', '/login');
   });
 });

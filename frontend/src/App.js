@@ -1,6 +1,6 @@
 // src/App.js
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from './firebase';
 import { getE2EAuthUser } from './e2e/authBypass';
@@ -57,6 +57,11 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const LegacyExpertSignupRedirect = () => {
+  const { search, hash } = useLocation();
+  return <Navigate to={{ pathname: '/expert/signup', search, hash }} replace />;
+};
+
 function App() {
   return (
     <BrowserRouter>
@@ -75,7 +80,8 @@ function App() {
           <Route path="/expert-waitlist" element={<ExpertWaitlistPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
-          <Route path="/tradie/signup" element={<ExpertSignUpRoute />} />
+          <Route path="/expert/signup" element={<ExpertSignUpRoute />} />
+          <Route path="/tradie/signup" element={<LegacyExpertSignupRedirect />} />
           <Route path="/post-job" element={<JobPostingForm />} />
           <Route path="/account/deletion/confirm" element={<DeletionConfirmPage />} />
 

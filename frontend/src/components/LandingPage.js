@@ -244,10 +244,12 @@ function LandingPage() {
               <p className="landing-launch-copy">
                 {postingOpen
                   ? 'Homeowners can create an account and post a supported indoor job. Experts apply separately and remain marketplace-ineligible until Taskio verifies them.'
-                  : 'Homeowner posting is closed while Taskio prepares the Melbourne pilot. Experts can apply or register interest independently.'}
+                  : expert.canApply
+                    ? 'Homeowner posting is closed while Taskio prepares the Melbourne pilot. Taskio is recruiting Experts for Inner Melbourne; applicants complete onboarding and Taskio reviews them before marketplace access.'
+                    : 'Homeowner posting is closed while Taskio prepares the Melbourne pilot. Experts can register interest and Taskio will share when onboarding is available.'}
               </p>
               <Link className="landing-inline-link" to={expertEntry}>
-                {expert.canApply ? 'How Expert applications work' : 'Join the Expert waitlist'}
+                {expert.shortLabel}
               </Link>
             </div>
             <dl className="landing-launch-facts">

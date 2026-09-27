@@ -18,6 +18,37 @@ const EXPERT_WAITLIST_ERROR = Object.freeze({
 const ENROLLMENT_SAFETY_WARNING =
   'New Expert applications are also blocked by the server enrollment safety switch.';
 
+function isLocalDevelopmentRuntime(env = process.env) {
+  if ((env.NODE_ENV || 'development') !== 'development') return false;
+  if (String(env.TASKIO_DEPLOYMENT_ENV || '').trim()) return false;
+  return !(
+    env.K_SERVICE
+    || env.FUNCTION_TARGET
+    || env.GAE_ENV
+    || env.GOOGLE_CLOUD_PROJECT
+    || env.GCLOUD_PROJECT
+  );
+}
+
+/**
+ * Early-pilot convenience for a local backend with no pilotSettings Expert mode.
+ * Explicit stored values always win. Invalid values and every non-local runtime
+ * remain fail-closed. This only resolves the business mode; the independent
+ * enrollment safety switch must still be enabled before signup is allowed.
+ */
+function resolveRuntimeExpertOnboardingMode(settings, env = process.env) {
+  const stored = settings && settings.expertOnboardingMode != null
+    ? String(settings.expertOnboardingMode).trim()
+    : '';
+  if (stored === EXPERT_ONBOARDING_MODES.OPEN || stored === EXPERT_ONBOARDING_MODES.WAITLIST) {
+    return stored;
+  }
+  if (!stored && isLocalDevelopmentRuntime(env)) {
+    return EXPERT_ONBOARDING_MODES.OPEN;
+  }
+  return EXPERT_ONBOARDING_MODES.WAITLIST;
+}
+
 function serializeEffectiveExpertOnboarding({ persistedMode, safetyEnabled }) {
   const persistedOpen = persistedMode === EXPERT_ONBOARDING_MODES.OPEN;
   const canExpertApply = persistedOpen && safetyEnabled === true;
@@ -41,7 +72,7 @@ async function readExpertOnboardingAccess(db, env = process.env) {
   try {
     const settings = await readPilotSettings(db);
     return serializeEffectiveExpertOnboarding({
-      persistedMode: settings.effectiveExpertOnboardingMode,
+      persistedMode: resolveRuntimeExpertOnboardingMode(settings, env),
       safetyEnabled: isPublicSignupEnabled(env),
     });
   } catch (_) {
@@ -72,6 +103,8 @@ function adminExpertEnrollmentSafetyFields(settings, env = process.env) {
 module.exports = {
   EXPERT_WAITLIST_ERROR,
   ENROLLMENT_SAFETY_WARNING,
+  isLocalDevelopmentRuntime,
+  resolveRuntimeExpertOnboardingMode,
   serializeEffectiveExpertOnboarding,
   readExpertOnboardingAccess,
   assertNewExpertSignupAllowed,

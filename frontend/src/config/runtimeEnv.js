@@ -14,6 +14,15 @@ export function firebaseEnvFromProcess() {
   };
 }
 
+export function firebaseEmulatorEnvFromProcess() {
+  return {
+    NODE_ENV: process.env.NODE_ENV,
+    REACT_APP_USE_FIREBASE_EMULATORS: process.env.REACT_APP_USE_FIREBASE_EMULATORS,
+    REACT_APP_FIREBASE_AUTH_EMULATOR_HOST: process.env.REACT_APP_FIREBASE_AUTH_EMULATOR_HOST,
+    REACT_APP_FIRESTORE_EMULATOR_HOST: process.env.REACT_APP_FIRESTORE_EMULATOR_HOST,
+  };
+}
+
 export function apiEnvFromProcess() {
   return {
     NODE_ENV: process.env.NODE_ENV,

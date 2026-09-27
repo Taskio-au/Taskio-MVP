@@ -24,9 +24,13 @@ npm run e2e
 
 `npm run e2e` starts a local mock API and a frontend configured only with the Firebase demo project ID `demo-taskio-e2e`. The browser harness blocks non-local network requests.
 
+## Local emulator stack
+
+From the repository root, `npm run dev:local` starts the Firebase Auth (port 9099) and Firestore (port 8080) emulators for the demo project `demo-taskio-local`, then the API on port 8000 and this app on port 3000. The API and the browser app both use the same emulators and demo project, so local signup never reaches staging or production Auth. The script overrides the staging values in `backend/.env` and `frontend/.env` for its own child processes only; emulator data is discarded when it stops. `REACT_APP_USE_FIREBASE_EMULATORS` is honoured only in development bundles for a `demo-` project, and hosted builds refuse it. Plain `npm start` behaves as before.
+
 ## Generated shared files
 
-`src/shared/auLocations.js`, `src/shared/expertiseCatalog.js`, and `src/shared/jobStatusesConstants.generated.js` are generated from the repository-level `shared/` source files. The `prestart`, `pretest`, and `prebuild` scripts run `scripts/syncShared.js`; do not edit generated copies directly.
+`src/shared/auLocations.js`, `src/shared/expertiseCatalog.js`, `src/shared/jobStatusesConstants.generated.js`, and `src/shared/passwordPolicy.generated.js` are generated from the repository-level `shared/` source files. The `prestart`, `pretest`, and `prebuild` scripts run `scripts/syncShared.js`; do not edit generated copies directly.
 
 ## Production build safety
 

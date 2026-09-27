@@ -52,6 +52,33 @@ jest.mock('../utils/upsertUserProfileFromAuth', () => ({
 
 const ExpertSignUpPage = require('./ExpertSignUpPage').default;
 
+const VALID_PASSWORD = 'quiet harbour lamp';
+
+function fillAccountStep(password = VALID_PASSWORD, confirmPassword = password) {
+  fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jane' } });
+  fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Expert' } });
+  fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'jane@example.com' } });
+  fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: password } });
+  fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: confirmPassword } });
+}
+
+async function reachPreferencesStep(password) {
+  fillAccountStep(password);
+  fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+  expect(await screen.findByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument();
+}
+
+function choosePreferences() {
+  fireEvent.click(screen.getByRole('checkbox', { name: /^melbourne cbd$/i }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /^shelves$/i }));
+}
+
+function apiError(status, data) {
+  const error = new Error(`Request failed with status code ${status}`);
+  error.response = { status, data };
+  return error;
+}
+
 describe('ExpertSignUpPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -87,14 +114,18 @@ describe('ExpertSignUpPage', () => {
     fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jane' } });
     fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Expert' } });
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'jane@example.com' } });
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'hunter22' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'hunter22' } });
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: VALID_PASSWORD } });
+    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: VALID_PASSWORD } });
     fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument();
     expect(screen.getByText(/mounting & installation/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^shelves$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^mirrors$/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /^shelves$/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /^mirrors$/i })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /service areas/i })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /areas of expertise/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /^melbourne cbd$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /^melbourne$/i })).not.toBeInTheDocument();
   });
 
   it('submits structured location and expertise, then shows the readiness prompt', async () => {
@@ -103,29 +134,32 @@ describe('ExpertSignUpPage', () => {
     fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jane' } });
     fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Expert' } });
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'jane@example.com' } });
-    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'hunter22' } });
-    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'hunter22' } });
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: VALID_PASSWORD } });
+    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: VALID_PASSWORD } });
     fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/primary service suburb/i), { target: { value: 'Richmond|3121' } });
-    fireEvent.click(screen.getByRole('button', { name: /^shelves$/i }));
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^melbourne cbd$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^carlton$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^shelves$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^tv mounting$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /i agree to taskio/i }));
     fireEvent.click(screen.getByRole('button', { name: /create expert account/i }));
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1));
     expect(mockPost).toHaveBeenCalledWith('/api/users/register', expect.objectContaining({
       role: 'tradie',
-      primaryServiceSuburb: 'Richmond',
-      primaryServicePostcode: '3121',
-      expertise: ['mounting_shelves'],
+      primaryServiceSuburb: 'Melbourne',
+      primaryServicePostcode: '3000',
+      serviceAreas: ['Melbourne', 'Carlton'],
+      expertise: ['mounting_shelves', 'mounting_tv'],
       serviceLocation: expect.objectContaining({
-        suburb: 'Richmond',
-        postcode: '3121',
+        suburb: 'Melbourne',
+        postcode: '3000',
       }),
     }));
-    await waitFor(() => expect(screen.getByText(/verify your email to finish setup/i)).toBeInTheDocument());
+    expect(await screen.findByText(/verify your email to finish setup/i)).toBeInTheDocument();
     expect(screen.getAllByText(/add and verify your phone number/i).length).toBeGreaterThan(0);
   });
 
@@ -135,11 +169,13 @@ describe('ExpertSignUpPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
 
     await waitFor(() => expect(mockSignInWithPopup).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/primary service suburb/i), { target: { value: 'Richmond|3121' } });
-    fireEvent.click(screen.getByRole('button', { name: /^shelves$/i }));
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^richmond$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^carlton$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^shelves$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /^tv mounting$/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /i agree to taskio/i }));
     fireEvent.click(screen.getByRole('button', { name: /create expert account/i }));
 
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/api/users/register/expert-google', expect.objectContaining({
@@ -147,9 +183,171 @@ describe('ExpertSignUpPage', () => {
       lastName: 'Expert',
       primaryServiceSuburb: 'Richmond',
       primaryServicePostcode: '3121',
-      expertise: ['mounting_shelves'],
+      serviceAreas: ['Richmond', 'Carlton'],
+      expertise: ['mounting_shelves', 'mounting_tv'],
     })));
     expect(mockUpsertUserProfileFromAuth).not.toHaveBeenCalled();
-    await waitFor(() => expect(screen.getByText(/finish expert readiness/i)).toBeInTheDocument());
+    expect(await screen.findByText(/finish expert readiness/i)).toBeInTheDocument();
+  });
+
+  describe('password rules', () => {
+    it('uses the 10 character minimum copy without composition rules', () => {
+      render(<ExpertSignUpPage />);
+      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute('placeholder', 'Use at least 10 characters');
+      const guidance = screen.getByRole('status');
+      expect(guidance).toHaveTextContent('Use at least 10 characters. Avoid common or easy-to-guess passwords.');
+      expect(guidance).not.toHaveTextContent(/uppercase|number|symbol/i);
+    });
+
+    it('rejects a password shorter than 10 characters on step one', () => {
+      render(<ExpertSignUpPage />);
+      fillAccountStep('ninechars');
+      fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+
+      expect(screen.getByText('Use at least 10 characters for your password.')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /create your expert account/i })).toBeInTheDocument();
+    });
+
+    it.each(['password1234', 'taskio1234', '1234567890', 'aaaaaaaaaa'])(
+      'blocks the Weak password %p on step one with actionable guidance',
+      (weakPassword) => {
+        render(<ExpertSignUpPage />);
+        fillAccountStep(weakPassword);
+        const meter = screen.getByRole('status');
+        expect(meter).toHaveTextContent('Password strength: Weak');
+        expect(meter).toHaveTextContent('Choose a less predictable password.');
+
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        expect(screen.getAllByRole('alert').map((alert) => alert.textContent))
+          .toContain('Choose a less predictable password.');
+        expect(screen.getByRole('heading', { name: /create your expert account/i })).toBeInTheDocument();
+      },
+    );
+
+    it.each([['tenletters', 'Fair'], ['BlueHouse27', 'Fair'], ['quiet river table', 'Strong']])(
+      'lets %p (%s) continue without uppercase, number or symbol rules',
+      async (password, label) => {
+        render(<ExpertSignUpPage />);
+        fillAccountStep(password);
+        expect(screen.getByRole('status')).toHaveTextContent(`Password strength: ${label}`);
+
+        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+        expect(await screen.findByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument();
+      },
+    );
+
+    it('rejects a password longer than 128 characters on step one', () => {
+      render(<ExpertSignUpPage />);
+      fillAccountStep(`quiet harbour ${'lamp'.repeat(30)}`);
+      fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+      expect(screen.getByText('Use no more than 128 characters for your password.')).toBeInTheDocument();
+    });
+
+    it('updates a live, text-based strength label as the password changes', () => {
+      render(<ExpertSignUpPage />);
+      const password = screen.getByLabelText(/^password$/i);
+      const meter = screen.getByRole('status');
+
+      expect(meter).toHaveAttribute('aria-live', 'polite');
+      expect(meter).toHaveAttribute('id', 'expert-password-strength');
+      expect(password).toHaveAttribute('aria-describedby', expect.stringContaining('expert-password-strength'));
+      expect(meter).toHaveTextContent(/use at least 10 characters/i);
+
+      fireEvent.change(password, { target: { value: 'short' } });
+      expect(meter).toHaveTextContent('Password strength: Weak');
+      expect(meter).toHaveTextContent(/use at least 10 characters/i);
+
+      fireEvent.change(password, { target: { value: 'tidyshelf7' } });
+      expect(meter).toHaveTextContent('Password strength: Fair');
+
+      fireEvent.change(password, { target: { value: 'quiet harbour lamp' } });
+      expect(meter).toHaveTextContent('Password strength: Strong');
+    });
+  });
+
+  describe('terms gate', () => {
+    it('keeps Create expert account disabled until Terms are accepted', async () => {
+      render(<ExpertSignUpPage />);
+      await reachPreferencesStep();
+      choosePreferences();
+
+      const createButton = screen.getByRole('button', { name: /create expert account/i });
+      expect(createButton).toBeDisabled();
+      expect(createButton).toHaveAttribute('aria-describedby', 'expert-create-account-hint');
+      expect(screen.getByText(/accept the terms of use and privacy policy to create your account/i)).toBeInTheDocument();
+
+      fireEvent.click(createButton);
+      fireEvent.submit(createButton);
+      expect(await screen.findByText(/correct the highlighted work preference fields/i)).toBeInTheDocument();
+      expect(mockPost).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('checkbox', { name: /i agree to taskio/i }));
+      expect(createButton).toBeEnabled();
+      expect(createButton).not.toHaveAttribute('aria-describedby');
+    });
+
+    it('does not let Google signup create an Expert without Terms', async () => {
+      render(<ExpertSignUpPage />);
+      fireEvent.click(screen.getByRole('button', { name: /continue with google/i }));
+      expect(await screen.findByRole('heading', { name: /set your work preferences/i })).toBeInTheDocument();
+      choosePreferences();
+
+      const createButton = screen.getByRole('button', { name: /create expert account/i });
+      expect(createButton).toBeDisabled();
+      fireEvent.click(createButton);
+      fireEvent.submit(createButton);
+      expect(mockPost).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('checkbox', { name: /i agree to taskio/i }));
+      fireEvent.click(createButton);
+      await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/api/users/register/expert-google', expect.any(Object)));
+    });
+  });
+
+  describe('signup failure messages', () => {
+    async function submitWithFailure(error) {
+      mockPost.mockRejectedValueOnce(error);
+      render(<ExpertSignUpPage />);
+      await reachPreferencesStep();
+      choosePreferences();
+      fireEvent.click(screen.getByRole('checkbox', { name: /i agree to taskio/i }));
+      fireEvent.click(screen.getByRole('button', { name: /create expert account/i }));
+      await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1));
+    }
+
+    it('shows a retryable message when the Auth service is unavailable (diagnosed local failure)', async () => {
+      await submitWithFailure(apiError(503, {
+        message: "We couldn't create your account right now. Please try again.",
+        code: 'registration_unavailable',
+      }));
+      expect(await screen.findByText("We couldn't create your account right now. Please try again.")).toBeInTheDocument();
+    });
+
+    it('shows the same retryable message on a network failure', async () => {
+      await submitWithFailure(new Error('Network Error'));
+      expect(await screen.findByText("We couldn't create your account right now. Please try again.")).toBeInTheDocument();
+    });
+
+    it('shows the duplicate email message', async () => {
+      await submitWithFailure(apiError(400, { message: 'server wording may change', code: 'auth/email-already-exists' }));
+      expect(await screen.findByText('An account already exists with this email.')).toBeInTheDocument();
+    });
+
+    it('returns to the password field when the server rejects a short password', async () => {
+      await submitWithFailure(apiError(400, { message: 'server wording may change', code: 'password_too_short' }));
+      expect(await screen.findAllByText('Use at least 10 characters for your password.')).not.toHaveLength(0);
+      expect(screen.getByRole('heading', { name: /create your expert account/i })).toBeInTheDocument();
+    });
+
+    it('returns to the password field when the server rejects a predictable password', async () => {
+      await submitWithFailure(apiError(400, { message: 'server wording may change', code: 'password_too_weak' }));
+      expect(await screen.findAllByText('Choose a less predictable password.')).not.toHaveLength(0);
+      expect(screen.getByRole('heading', { name: /create your expert account/i })).toBeInTheDocument();
+    });
+
+    it('keeps a safe generic message for an unexpected failure without a message', async () => {
+      await submitWithFailure(apiError(400, {}));
+      expect(await screen.findByText('We could not create the account with those details.')).toBeInTheDocument();
+    });
   });
 });

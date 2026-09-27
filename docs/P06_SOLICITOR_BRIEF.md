@@ -205,7 +205,7 @@ Please advise Privacy disclosure, retention, access/deletion, marketing distinct
 
 Public `POST /api/expert-waitlist` → `expertWaitlist` (separate collection). Same strict consent and Firestore deny pattern.
 
-Stored: normalized email; optional canonical Phase 1 category; optional canonical Inner Melbourne suburb; source; timestamps; `consentVersion=expert-waitlist-contact-v1`; `consentAcceptedAt`.
+Stored: normalized email; canonical Phase 1 selections in `expertise[]`; canonical Inner Melbourne selections in `serviceAreas[]`; first selected area in the legacy-compatible `suburb` field; source; timestamps; `consentVersion=expert-waitlist-contact-v1`; `consentAcceptedAt`.
 
 **Consent meaning:** contact about **becoming a Taskio Expert**. Keep this purpose distinct from the homeowner waitlist.
 

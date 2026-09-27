@@ -7,7 +7,7 @@ describe('resolveExpertOnboarding', () => {
       status: { canExpertApply: true, expertOnboarding: 'OPEN' },
     })).toEqual(expect.objectContaining({
       canApply: true,
-      path: '/tradie/signup',
+      path: '/expert/signup',
     }));
   });
 

@@ -281,13 +281,13 @@ describe('public pilot status and waitlist', () => {
     expect(rows[0].consentAcceptedAt).toBe('first-consent-ts');
   });
 
-  it('accepts Expert waitlist email with strict consent and canonical optional fields', async () => {
+  it('accepts Expert waitlist email with strict consent and canonical selection arrays', async () => {
     const res = await request(app)
       .post('/api/expert-waitlist')
       .send({
         email: '  Expert@Example.com ',
-        expertise: 'mounting_shelves',
-        suburb: 'Richmond',
+        expertise: ['mounting_shelves', 'mounting_tv'],
+        serviceAreas: ['Richmond', 'Carlton'],
         source: 'landing',
         consentAccepted: true,
         role: 'admin',
@@ -299,7 +299,8 @@ describe('public pilot status and waitlist', () => {
     const stored = mockGetCollectionStore('expertWaitlist').get(id);
     expect(stored).toEqual(expect.objectContaining({
       email: 'expert@example.com',
-      expertise: 'mounting_shelves',
+      expertise: ['mounting_shelves', 'mounting_tv'],
+      serviceAreas: ['Richmond', 'Carlton'],
       suburb: 'Richmond',
       source: 'landing',
       consentVersion: EXPERT_CONSENT_VERSION,
@@ -307,6 +308,24 @@ describe('public pilot status and waitlist', () => {
     }));
     expect(stored.role).toBeUndefined();
     expect(mockGetCollectionStore('pilotWaitlist').size).toBe(0);
+  });
+
+  it('normalizes legacy single Expert waitlist values into canonical arrays', async () => {
+    const res = await request(app)
+      .post('/api/expert-waitlist')
+      .send({
+        email: 'legacy.expert@example.com',
+        expertise: 'mounting_shelves',
+        suburb: 'Richmond',
+        consentAccepted: true,
+      });
+    expect(res.status).toBe(200);
+    const stored = mockGetCollectionStore('expertWaitlist').get(
+      expertWaitlistDocId('legacy.expert@example.com')
+    );
+    expect(stored.expertise).toEqual(['mounting_shelves']);
+    expect(stored.serviceAreas).toEqual(['Richmond']);
+    expect(stored.suburb).toBe('Richmond');
   });
 
   it.each([
@@ -320,14 +339,22 @@ describe('public pilot status and waitlist', () => {
     expect(mockGetCollectionStore('expertWaitlist').size).toBe(0);
   });
 
-  it('rejects non-canonical Expert waitlist expertise and suburb', async () => {
+  it('rejects missing or non-canonical Expert waitlist selections', async () => {
+    const missingExpertise = await request(app)
+      .post('/api/expert-waitlist')
+      .send({ email: 'expert@example.com', serviceAreas: ['Richmond'], consentAccepted: true });
+    expect(missingExpertise.status).toBe(400);
+    const missingServiceArea = await request(app)
+      .post('/api/expert-waitlist')
+      .send({ email: 'expert@example.com', expertise: ['mounting_tv'], consentAccepted: true });
+    expect(missingServiceArea.status).toBe(400);
     const badCategory = await request(app)
       .post('/api/expert-waitlist')
-      .send({ email: 'expert@example.com', expertise: 'electrical', consentAccepted: true });
+      .send({ email: 'expert@example.com', expertise: ['electrical'], serviceAreas: ['Richmond'], consentAccepted: true });
     expect(badCategory.status).toBe(400);
     const badSuburb = await request(app)
       .post('/api/expert-waitlist')
-      .send({ email: 'expert@example.com', suburb: 'Sydney', consentAccepted: true });
+      .send({ email: 'expert@example.com', expertise: ['mounting_tv'], serviceAreas: ['Sydney'], consentAccepted: true });
     expect(badSuburb.status).toBe(400);
     expect(mockGetCollectionStore('expertWaitlist').size).toBe(0);
   });
@@ -335,7 +362,12 @@ describe('public pilot status and waitlist', () => {
   it('upserts Expert waitlist duplicates without enumeration', async () => {
     const first = await request(app)
       .post('/api/expert-waitlist')
-      .send({ email: '  Repeat.Expert@Example.com ', consentAccepted: true });
+      .send({
+        email: '  Repeat.Expert@Example.com ',
+        expertise: ['mounting_shelves'],
+        serviceAreas: ['Richmond'],
+        consentAccepted: true,
+      });
     expect(first.status).toBe(200);
     const id = expertWaitlistDocId('repeat.expert@example.com');
     mockGetCollectionStore('expertWaitlist').get(id).consentAcceptedAt = 'first-consent-ts';
@@ -343,8 +375,8 @@ describe('public pilot status and waitlist', () => {
       .post('/api/expert-waitlist')
       .send({
         email: 'repeat.expert@example.com',
-        expertise: 'mounting_tv',
-        suburb: 'Carlton',
+        expertise: ['mounting_tv', 'mounting_mirrors'],
+        serviceAreas: ['Carlton', 'South Yarra'],
         source: 'get-started',
         consentAccepted: true,
       });
@@ -353,7 +385,8 @@ describe('public pilot status and waitlist', () => {
     expect(JSON.stringify(second.body)).not.toMatch(/already|exists|registered/i);
     const rows = Array.from(mockGetCollectionStore('expertWaitlist').values());
     expect(rows).toHaveLength(1);
-    expect(rows[0].expertise).toBe('mounting_tv');
+    expect(rows[0].expertise).toEqual(['mounting_tv', 'mounting_mirrors']);
+    expect(rows[0].serviceAreas).toEqual(['Carlton', 'South Yarra']);
     expect(rows[0].suburb).toBe('Carlton');
     expect(rows[0].consentAcceptedAt).toBe('first-consent-ts');
   });

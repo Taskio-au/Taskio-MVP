@@ -7,7 +7,10 @@
 
 const { isPublicSignupEnabled } = require('../config/publicSignup');
 const { OPERATIONAL_STATES, EXPERT_ONBOARDING_MODES } = require('./pilotSettingsDerive');
-const { serializeEffectiveExpertOnboarding } = require('./expertOnboardingAccess');
+const {
+  resolveRuntimeExpertOnboardingMode,
+  serializeEffectiveExpertOnboarding,
+} = require('./expertOnboardingAccess');
 const { readPilotSettings } = require('./pilotSettingsService');
 
 function publicPostingClosedError(state) {
@@ -73,7 +76,10 @@ async function assertPilotPostingOpen(db) {
 async function readPublicPilotStatus(db, env = process.env) {
   try {
     const settings = await readPilotSettings(db);
-    return serializePublicPilotStatus(settings, {
+    return serializePublicPilotStatus({
+      ...settings,
+      effectiveExpertOnboardingMode: resolveRuntimeExpertOnboardingMode(settings, env),
+    }, {
       expertSignupSafetyEnabled: isPublicSignupEnabled(env),
     });
   } catch (_) {

@@ -49,6 +49,11 @@ export const auLocations = [
 
 export const melbournePilotSuburbNames = ["Melbourne","Southbank","Docklands","South Yarra","Prahran","St Kilda","Richmond","Carlton"];
 export const melbournePilotLocations = auLocations.filter((item) => item.state === "VIC" && melbournePilotSuburbNames.includes(item.suburb));
+export const pilotServiceAreaDisplayNames = Object.freeze({"Melbourne":"Melbourne CBD"});
+export function pilotServiceAreaDisplayName(value) {
+  const canonical = String(value || "").trim();
+  return pilotServiceAreaDisplayNames[canonical] || canonical;
+}
 
 export function searchAuLocations(query, limit = 10) {
   const q = String(query || "").trim().toLowerCase();

@@ -4,15 +4,15 @@ import PublicPageHeader from '../components/PublicPageHeader';
 import { Button, Card, PageHeader } from '../design/components';
 import { createApiClient } from '../api/createApiClient';
 import { phase1ExpertiseCatalog } from '../shared/expertiseCatalog';
-import { melbournePilotSuburbNames } from '../shared/auLocations';
+import { melbournePilotSuburbNames, pilotServiceAreaDisplayName } from '../shared/auLocations';
 import '../styles/publicPageHeader.css';
 
 const api = createApiClient();
 
 export default function ExpertWaitlistPage() {
   const [email, setEmail] = useState('');
-  const [expertise, setExpertise] = useState('');
-  const [suburb, setSuburb] = useState('');
+  const [expertise, setExpertise] = useState([]);
+  const [serviceAreas, setServiceAreas] = useState([]);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -25,12 +25,20 @@ export default function ExpertWaitlistPage() {
       setError('Please confirm we can contact you about becoming a Taskio Expert.');
       return;
     }
+    if (expertise.length === 0) {
+      setError('Select at least one area of expertise.');
+      return;
+    }
+    if (serviceAreas.length === 0) {
+      setError('Select at least one service area.');
+      return;
+    }
     setBusy(true);
     try {
       await api.post('/api/expert-waitlist', {
         email,
         expertise,
-        suburb,
+        serviceAreas,
         source: 'expert-waitlist',
         consentAccepted: true,
       });
@@ -45,15 +53,24 @@ export default function ExpertWaitlistPage() {
     }
   }
 
+  function toggleSelection(setter, value) {
+    setter((previous) => (
+      previous.includes(value)
+        ? previous.filter((item) => item !== value)
+        : [...previous, value]
+    ));
+    setError('');
+  }
+
   return (
     <div>
       <PublicPageHeader homeTo="/" />
       <main style={{ padding: '48px 24px' }}>
         <Card tone="elevated" style={{ display: 'grid', gap: 18, maxWidth: 560, margin: '0 auto' }}>
           <PageHeader
-            eyebrow="Expert applications"
+            eyebrow="Expert waitlist"
             title="Join the Expert waitlist"
-            description="Register your interest in becoming a Taskio Expert. This is not an application and does not create an account."
+            description="Register your interest in becoming a Taskio Expert. This does not create an account. We'll let you know when Expert onboarding is available."
           />
           {done ? (
             <p style={{ margin: 0, color: '#374151', lineHeight: 1.6 }}>
@@ -72,32 +89,50 @@ export default function ExpertWaitlistPage() {
                   style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #D1D5DB' }}
                 />
               </label>
-              <label style={{ display: 'grid', gap: 6, fontSize: 14, color: '#111827' }}>
-                Primary expertise (optional)
-                <select
-                  value={expertise}
-                  onChange={(event) => setExpertise(event.target.value)}
-                  style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #D1D5DB' }}
-                >
-                  <option value="">Select a category</option>
+              <fieldset style={styles.fieldset} aria-describedby="expert-waitlist-expertise-help">
+                <legend style={styles.legend}>Areas of expertise</legend>
+                <p id="expert-waitlist-expertise-help" style={styles.help}>Select all that apply.</p>
+                <div style={styles.optionGrid}>
                   {phase1ExpertiseCatalog.map((item) => (
-                    <option key={item.key} value={item.key}>{item.expertLabel || item.label}</option>
+                    <label
+                      key={item.key}
+                      style={{
+                        ...styles.option,
+                        ...(expertise.includes(item.key) ? styles.optionSelected : {}),
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={expertise.includes(item.key)}
+                        onChange={() => toggleSelection(setExpertise, item.key)}
+                      />
+                      <span>{item.expertLabel || item.label}</span>
+                    </label>
                   ))}
-                </select>
-              </label>
-              <label style={{ display: 'grid', gap: 6, fontSize: 14, color: '#111827' }}>
-                Primary service area (optional)
-                <select
-                  value={suburb}
-                  onChange={(event) => setSuburb(event.target.value)}
-                  style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #D1D5DB' }}
-                >
-                  <option value="">Select a suburb</option>
+                </div>
+              </fieldset>
+              <fieldset style={styles.fieldset} aria-describedby="expert-waitlist-service-areas-help">
+                <legend style={styles.legend}>Service areas</legend>
+                <p id="expert-waitlist-service-areas-help" style={styles.help}>Select all Inner Melbourne pilot areas you can cover.</p>
+                <div style={styles.serviceAreaGrid}>
                   {melbournePilotSuburbNames.map((name) => (
-                    <option key={name} value={name}>{name}</option>
+                    <label
+                      key={name}
+                      style={{
+                        ...styles.option,
+                        ...(serviceAreas.includes(name) ? styles.optionSelected : {}),
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={serviceAreas.includes(name)}
+                        onChange={() => toggleSelection(setServiceAreas, name)}
+                      />
+                      <span>{pilotServiceAreaDisplayName(name)}</span>
+                    </label>
                   ))}
-                </select>
-              </label>
+                </div>
+              </fieldset>
               <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, color: '#374151' }}>
                 <input
                   type="checkbox"
@@ -109,7 +144,7 @@ export default function ExpertWaitlistPage() {
                   <Link to="/privacy">Privacy Policy</Link> applies.
                 </span>
               </label>
-              {error ? <p style={{ margin: 0, color: '#DC3545', fontSize: 14 }}>{error}</p> : null}
+              {error ? <p role="alert" aria-live="assertive" style={{ margin: 0, color: '#DC3545', fontSize: 14 }}>{error}</p> : null}
               <div>
                 <Button type="submit" disabled={busy}>
                   {busy ? 'Joining…' : 'Join Expert waitlist'}
@@ -125,3 +160,58 @@ export default function ExpertWaitlistPage() {
     </div>
   );
 }
+
+const styles = {
+  fieldset: {
+    display: 'grid',
+    gap: 8,
+    minWidth: 0,
+    margin: 0,
+    padding: 0,
+    border: 0,
+  },
+  legend: {
+    padding: 0,
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#111827',
+  },
+  help: {
+    margin: 0,
+    color: '#6B7280',
+    fontSize: 13,
+    lineHeight: 1.5,
+  },
+  optionGrid: {
+    display: 'grid',
+    gap: 8,
+    maxHeight: 300,
+    overflowY: 'auto',
+    padding: 2,
+  },
+  serviceAreaGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: 8,
+  },
+  option: {
+    minHeight: 44,
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '10px 12px',
+    border: '1px solid #D1D5DB',
+    borderRadius: 10,
+    color: '#374151',
+    backgroundColor: '#FFFFFF',
+    cursor: 'pointer',
+    fontSize: 14,
+    lineHeight: 1.4,
+  },
+  optionSelected: {
+    borderColor: '#14C5C5',
+    backgroundColor: '#ECFEFF',
+    color: '#0F766E',
+  },
+};

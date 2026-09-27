@@ -12,13 +12,15 @@ describe('ExpertPilotAvailabilityPanel', () => {
     );
     expect(screen.getByLabelText('Accepting new Taskio jobs')).not.toBeChecked();
     expect(screen.getByLabelText('Richmond')).not.toBeChecked();
+    expect(screen.getByLabelText('Melbourne CBD')).not.toBeChecked();
+    expect(screen.queryByLabelText('Melbourne')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save availability' })).toBeDisabled();
   });
 
   it('saves accepting jobs and selected service areas', async () => {
     const put = jest.fn().mockResolvedValue({
       data: {
-        profile: { acceptingJobs: true, serviceAreas: ['Richmond'] },
+        profile: { acceptingJobs: true, serviceAreas: ['Melbourne', 'Richmond'] },
       },
     });
     render(
@@ -30,13 +32,14 @@ describe('ExpertPilotAvailabilityPanel', () => {
     );
 
     fireEvent.click(screen.getByLabelText('Accepting new Taskio jobs'));
+    fireEvent.click(screen.getByLabelText('Melbourne CBD'));
     fireEvent.click(screen.getByLabelText('Richmond'));
     fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
 
     await waitFor(() => {
       expect(put).toHaveBeenCalledWith('/api/me/profile', {
         acceptingJobs: true,
-        serviceAreas: ['Richmond'],
+        serviceAreas: ['Melbourne', 'Richmond'],
       });
     });
     expect(await screen.findByRole('status')).toHaveTextContent('Availability saved.');

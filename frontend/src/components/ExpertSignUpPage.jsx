@@ -1,22 +1,22 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, MapPin, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 import { sendEmailVerification, signInWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
 import { createApiClient } from '../api/createApiClient';
 import { auth, googleProvider } from '../firebase';
-import { expertCategoryOrder, phase1ExpertiseCatalog } from '../shared/expertiseCatalog';
-import { getCanonicalJobTypeLabel } from '../constants/taskTaxonomy';
 import { melbournePilotLocations } from '../shared/auLocations';
 import PublicPageHeader from './PublicPageHeader';
 import BenefitsCard from './tradie-signup/BenefitsCard';
+import ExpertSignupSelections from './tradie-signup/ExpertSignupSelections';
+import PasswordStrengthMeter from './tradie-signup/PasswordStrengthMeter';
 import LegalNotice from './LegalNotice';
 import { GoogleActionButton } from './profile/GoogleBrand';
+import { PASSWORD_ISSUE_MESSAGES, PASSWORD_MIN_LENGTH, expertPasswordIssue } from '../utils/passwordStrength';
+import { expertSignupErrorMessage } from '../utils/expertSignupErrorMessage';
+
+const PASSWORD_MESSAGES = new Set(Object.values(PASSWORD_ISSUE_MESSAGES));
 
 const api = createApiClient();
-
-function toLocationValue(location) {
-  return `${location.suburb}|${location.postcode}`;
-}
 
 function buildServiceLocation(location) {
   if (!location) return null;
@@ -45,19 +45,6 @@ function splitFullName(value) {
   };
 }
 
-function groupExpertiseOptions(items) {
-  const order = Array.isArray(expertCategoryOrder) && expertCategoryOrder.length > 0
-    ? expertCategoryOrder
-    : [...new Set(items.map((item) => item.expertCategory || item.category))];
-
-  return order
-    .map((title) => ({
-      title,
-      items: items.filter((item) => (item.expertCategory || item.category) === title),
-    }))
-    .filter((group) => group.items.length > 0);
-}
-
 export default function ExpertSignUpPage() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
@@ -68,6 +55,7 @@ export default function ExpertSignUpPage() {
     password: '',
     confirmPassword: '',
     serviceLocation: null,
+    serviceAreas: [],
     primaryServiceSuburb: '',
     primaryServicePostcode: '',
     expertise: [],
@@ -82,25 +70,29 @@ export default function ExpertSignUpPage() {
   const [createdAccountEmail, setCreatedAccountEmail] = useState('');
   const [signupMethod, setSignupMethod] = useState('email');
 
-  const groupedExpertise = useMemo(() => groupExpertiseOptions(phase1ExpertiseCatalog), []);
-  const selectedLocationValue = formData.serviceLocation ? toLocationValue(formData.serviceLocation) : '';
-  const selectedCount = formData.expertise.length;
-
   const handleFieldChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setFieldErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
-  const handleLocationChange = (event) => {
-    const nextLocation = melbournePilotLocations.find((item) => toLocationValue(item) === event.target.value) || null;
-    setFormData((prev) => ({
-      ...prev,
-      serviceLocation: buildServiceLocation(nextLocation),
-      primaryServiceSuburb: nextLocation?.suburb || '',
-      primaryServicePostcode: nextLocation?.postcode || '',
-    }));
-    setFieldErrors((prev) => ({ ...prev, serviceLocation: '' }));
+  const handleServiceAreaToggle = (suburb) => {
+    setFormData((prev) => {
+      const nextServiceAreas = prev.serviceAreas.includes(suburb)
+        ? prev.serviceAreas.filter((item) => item !== suburb)
+        : [...prev.serviceAreas, suburb];
+      const primaryLocation = melbournePilotLocations.find(
+        (item) => item.suburb === nextServiceAreas[0]
+      ) || null;
+      return {
+        ...prev,
+        serviceAreas: nextServiceAreas,
+        serviceLocation: buildServiceLocation(primaryLocation),
+        primaryServiceSuburb: primaryLocation?.suburb || '',
+        primaryServicePostcode: primaryLocation?.postcode || '',
+      };
+    });
+    setFieldErrors((prev) => ({ ...prev, serviceAreas: '' }));
   };
 
   const handleExpertiseToggle = (key) => {
@@ -126,7 +118,8 @@ export default function ExpertSignUpPage() {
     if (!lastName) errors.lastName = 'Last name is required.';
     if (!email || !isValidEmail(email)) errors.email = 'Enter a valid email address.';
     if (signupMethod !== 'google') {
-      if (password.length < 8) errors.password = 'Password must be at least 8 characters.';
+      const passwordIssue = expertPasswordIssue(password);
+      if (passwordIssue) errors.password = PASSWORD_ISSUE_MESSAGES[passwordIssue];
       if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match. Please re-enter them.';
     }
     setFieldErrors(errors);
@@ -143,7 +136,7 @@ export default function ExpertSignUpPage() {
 
   const validatePreferencesStep = () => {
     const errors = {};
-    if (!formData.serviceLocation?.postcode) errors.serviceLocation = 'Choose your primary service suburb.';
+    if (formData.serviceAreas.length === 0) errors.serviceAreas = 'Select at least one service area.';
     if (formData.expertise.length === 0) errors.expertise = 'Select at least one type of job.';
     if (!acceptedLegal) errors.legal = 'Accept the Terms of Use and Privacy Policy to continue.';
     setFieldErrors(errors);
@@ -220,6 +213,7 @@ export default function ExpertSignUpPage() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           serviceLocation: formData.serviceLocation,
+          serviceAreas: formData.serviceAreas,
           primaryServiceSuburb: formData.primaryServiceSuburb,
           primaryServicePostcode: formData.primaryServicePostcode,
           expertise: formData.expertise,
@@ -232,6 +226,7 @@ export default function ExpertSignUpPage() {
           email: formData.email,
           password: formData.password,
           serviceLocation: formData.serviceLocation,
+          serviceAreas: formData.serviceAreas,
           primaryServiceSuburb: formData.primaryServiceSuburb,
           primaryServicePostcode: formData.primaryServicePostcode,
           expertise: formData.expertise,
@@ -254,16 +249,12 @@ export default function ExpertSignUpPage() {
       setCreatedAccountEmail(formData.email);
       setSignupComplete(true);
     } catch (err) {
-      const errorMessage = err?.response?.data?.message;
-      const errorCode = err?.response?.data?.code || err?.code;
-
-      if (errorCode === 'auth/email-already-exists' || /already exists|already registered|already in use/i.test(errorMessage || '')) {
-        setError('This email is already registered. Please log in or use a different email.');
-      } else if (errorMessage) {
-        setError(errorMessage);
-      } else {
-        setError('Registration failed. Please try again or contact support if the problem persists.');
+      const message = expertSignupErrorMessage(err);
+      if (PASSWORD_MESSAGES.has(message) && signupMethod !== 'google') {
+        setFieldErrors((prev) => ({ ...prev, password: message }));
+        setCurrentStep(1);
       }
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -371,11 +362,11 @@ export default function ExpertSignUpPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={handleFieldChange}
-                placeholder="Minimum 8 characters"
+                placeholder={`Use at least ${PASSWORD_MIN_LENGTH} characters`}
                 style={{ ...styles.input, ...styles.passwordInput }}
                 autoComplete="new-password"
                 aria-invalid={Boolean(fieldErrors.password)}
-                aria-describedby={fieldErrors.password ? 'expert-password-error' : undefined}
+                aria-describedby={fieldErrors.password ? 'expert-password-strength expert-password-error' : 'expert-password-strength'}
               />
               <button
                 type="button"
@@ -386,6 +377,7 @@ export default function ExpertSignUpPage() {
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
+            <PasswordStrengthMeter id="expert-password-strength" password={formData.password} />
             {fieldErrors.password ? <div id="expert-password-error" role="alert" style={styles.fieldError}>{fieldErrors.password}</div> : null}
           </div>
 
@@ -419,7 +411,7 @@ export default function ExpertSignUpPage() {
       )}
 
       <div style={styles.actionsRow}>
-        <button type="button" onClick={handleContinue} style={styles.primaryButton}>
+        <button type="button" onClick={handleContinue} style={styles.primaryButton} className="expert-signup-primary">
           Continue
           <ChevronRight size={18} />
         </button>
@@ -449,65 +441,16 @@ export default function ExpertSignUpPage() {
       <div style={styles.sectionHeader}>
         <div style={styles.sectionEyebrow}>Step 2</div>
         <h2 style={styles.sectionTitle}>Set your work preferences</h2>
-        <p style={styles.sectionDescription}>Choose your suburb and the jobs you want.</p>
+        <p style={styles.sectionDescription}>Choose all the service areas you cover and the work you do.</p>
       </div>
 
-      <div style={styles.inputWrapper}>
-        <label style={styles.label} htmlFor="expert-service-location">Primary service suburb</label>
-        <div style={styles.selectWrap}>
-          <MapPin size={16} style={styles.selectIcon} />
-          <select
-            id="expert-service-location"
-            value={selectedLocationValue}
-            onChange={handleLocationChange}
-            style={styles.select}
-            aria-invalid={Boolean(fieldErrors.serviceLocation)}
-            aria-describedby={fieldErrors.serviceLocation ? 'expert-service-location-error' : undefined}
-          >
-            <option value="">Choose a suburb and postcode</option>
-            {melbournePilotLocations.map((location) => (
-              <option key={toLocationValue(location)} value={toLocationValue(location)}>
-                {location.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        {fieldErrors.serviceLocation ? <div id="expert-service-location-error" role="alert" style={styles.fieldError}>{fieldErrors.serviceLocation}</div> : null}
-      </div>
-
-      <div style={styles.expertiseSection}>
-        <div style={styles.expertiseHeader}>
-          <div>
-            <label style={styles.label}>What jobs do you want to get hired for?</label>
-          </div>
-          {selectedCount > 0 ? <div style={styles.selectionBadge}>{selectedCount} selected</div> : null}
-        </div>
-
-        {groupedExpertise.map((group) => (
-          <div key={group.title} style={styles.expertiseGroup}>
-            <h3 style={styles.expertiseGroupTitle}>{group.title}</h3>
-            <div style={styles.expertiseGrid} className="expert-signup-expertiseGrid">
-              {group.items.map((option) => {
-                const isSelected = formData.expertise.includes(option.key);
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => handleExpertiseToggle(option.key)}
-                    style={{
-                      ...styles.expertiseChip,
-                      ...(isSelected ? styles.expertiseChipSelected : {}),
-                    }}
-                  >
-                    <span>{getCanonicalJobTypeLabel(option.key) || option.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-        {fieldErrors.expertise ? <div role="alert" style={styles.fieldError}>{fieldErrors.expertise}</div> : null}
-      </div>
+      <ExpertSignupSelections
+        expertise={formData.expertise}
+        serviceAreas={formData.serviceAreas}
+        fieldErrors={fieldErrors}
+        onExpertiseToggle={handleExpertiseToggle}
+        onServiceAreaToggle={handleServiceAreaToggle}
+      />
 
       <div style={styles.readinessNote}>
         <ShieldCheck size={16} />
@@ -524,13 +467,24 @@ export default function ExpertSignUpPage() {
         style={{ marginTop: 8 }}
       />
       {fieldErrors.legal ? <div role="alert" style={styles.fieldError}>{fieldErrors.legal}</div> : null}
+      {!acceptedLegal ? (
+        <div id="expert-create-account-hint" style={styles.submitHint}>
+          Accept the Terms of Use and Privacy Policy to create your account.
+        </div>
+      ) : null}
 
       <div style={styles.actionsRow}>
         <button type="button" onClick={() => setCurrentStep(1)} style={styles.secondaryButton}>
           <ChevronLeft size={18} />
           Back
         </button>
-        <button type="submit" disabled={loading} style={{ ...styles.primaryButton, ...(loading ? styles.primaryButtonDisabled : {}) }}>
+        <button
+          type="submit"
+          disabled={loading || !acceptedLegal}
+          aria-describedby={!acceptedLegal ? 'expert-create-account-hint' : undefined}
+          className="expert-signup-primary"
+          style={{ ...styles.primaryButton, ...(loading || !acceptedLegal ? styles.primaryButtonDisabled : {}) }}
+        >
           {loading ? 'Creating expert account...' : 'Create expert account'}
         </button>
       </div>
@@ -557,7 +511,7 @@ export default function ExpertSignUpPage() {
         <div style={styles.successChecklistItem}>{signupMethod === 'google' ? '2.' : '3.'} Complete expert verification and payout setup when prompted.</div>
       </div>
       <div style={styles.actionsRow}>
-        <button type="button" style={styles.primaryButton} onClick={() => navigate('/tradie/dashboard')}>
+        <button type="button" style={styles.primaryButton} className="expert-signup-primary" onClick={() => navigate('/tradie/dashboard')}>
           Go to dashboard
         </button>
         <button type="button" style={styles.secondaryButton} onClick={() => navigate('/login')}>
@@ -570,6 +524,20 @@ export default function ExpertSignUpPage() {
   return (
     <div style={styles.page}>
       <style>{`
+        .expert-signup-primary:not(:disabled):hover {
+          background-color: #0EA5A5 !important;
+        }
+
+        .expert-signup-primary:not(:disabled):active {
+          transform: translateY(1px);
+          box-shadow: none !important;
+        }
+
+        .expert-signup-primary:focus-visible {
+          outline: 3px solid #0F766E;
+          outline-offset: 3px;
+        }
+
         @media (max-width: 980px) {
           .expert-signup-layout {
             grid-template-columns: 1fr !important;
@@ -578,7 +546,8 @@ export default function ExpertSignUpPage() {
 
         @media (max-width: 720px) {
           .expert-signup-inputRow,
-          .expert-signup-expertiseGrid {
+          .expert-signup-expertiseGrid,
+          .expert-signup-serviceAreasGrid {
             grid-template-columns: 1fr !important;
           }
         }
@@ -732,12 +701,12 @@ const styles = {
   stepIndicatorBadgeActive: {
     color: '#FFFFFF',
     backgroundColor: '#14C5C5',
-    borderColor: '#14C5C5',
+    border: '1px solid #14C5C5',
   },
   stepIndicatorBadgeComplete: {
     color: '#0F766E',
     backgroundColor: '#ECFEFF',
-    borderColor: '#99F6E4',
+    border: '1px solid #99F6E4',
   },
   stepIndicatorText: {
     fontSize: 13,
@@ -840,33 +809,6 @@ const styles = {
     cursor: 'pointer',
     padding: 8,
   },
-  selectWrap: {
-    position: 'relative',
-  },
-  selectIcon: {
-    position: 'absolute',
-    top: '50%',
-    left: 14,
-    transform: 'translateY(-50%)',
-    color: '#6B7280',
-    pointerEvents: 'none',
-  },
-  select: {
-    width: '100%',
-    boxSizing: 'border-box',
-    borderRadius: 14,
-    border: '1px solid #D1D5DB',
-    backgroundColor: '#FFFFFF',
-    padding: '14px 16px 14px 42px',
-    fontSize: 15,
-    color: '#111827',
-    appearance: 'none',
-  },
-  helperText: {
-    fontSize: 13,
-    lineHeight: 1.6,
-    color: '#6B7280',
-  },
   googleConnectedNote: {
     display: 'flex',
     alignItems: 'center',
@@ -899,60 +841,6 @@ const styles = {
     width: '100%',
     boxShadow: '0 2px 10px rgba(17, 24, 39, 0.06)',
   },
-  expertiseSection: {
-    display: 'grid',
-    gap: 18,
-  },
-  expertiseHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 12,
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-  },
-  selectionBadge: {
-    borderRadius: 999,
-    backgroundColor: '#ECFEFF',
-    color: '#0F766E',
-    border: '1px solid #A5F3FC',
-    fontSize: 12,
-    fontWeight: 800,
-    padding: '7px 12px',
-    whiteSpace: 'nowrap',
-  },
-  expertiseGroup: {
-    display: 'grid',
-    gap: 12,
-  },
-  expertiseGroupTitle: {
-    margin: 0,
-    fontSize: 15,
-    fontWeight: 800,
-    color: '#111827',
-  },
-  expertiseGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: 12,
-  },
-  expertiseChip: {
-    borderRadius: 16,
-    border: '1px solid #D1D5DB',
-    backgroundColor: '#FFFFFF',
-    color: '#111827',
-    textAlign: 'left',
-    fontSize: 14,
-    fontWeight: 600,
-    lineHeight: 1.5,
-    padding: '14px 16px',
-    cursor: 'pointer',
-  },
-  expertiseChipSelected: {
-    borderColor: '#14C5C5',
-    backgroundColor: '#ECFEFF',
-    color: '#0F766E',
-    boxShadow: '0 0 0 1px rgba(20, 197, 197, 0.2)',
-  },
   readinessNote: {
     display: 'flex',
     alignItems: 'flex-start',
@@ -975,7 +863,7 @@ const styles = {
     border: 'none',
     borderRadius: 14,
     backgroundColor: '#14C5C5',
-    color: '#FFFFFF',
+    color: '#222222',
     padding: '15px 22px',
     fontSize: 15,
     fontWeight: 800,
@@ -985,11 +873,18 @@ const styles = {
     gap: 8,
     cursor: 'pointer',
     boxShadow: '0 10px 24px rgba(20, 197, 197, 0.24)',
+    transition: 'background-color 180ms ease, transform 80ms ease',
   },
   primaryButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: '#BDBDBD',
+    color: '#424242',
     boxShadow: 'none',
     cursor: 'not-allowed',
+  },
+  submitHint: {
+    fontSize: 13,
+    lineHeight: 1.4,
+    color: '#4B5563',
   },
   secondaryButton: {
     border: '1px solid #D1D5DB',

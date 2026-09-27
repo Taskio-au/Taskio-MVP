@@ -1,13 +1,14 @@
 // src/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { connectAuthEmulator, getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider, ReCaptchaV3Provider } from 'firebase/app-check';
 import { resolveFirebaseConfig } from './config/firebaseConfig';
 import { resolveAppCheckConfig } from './config/appCheckConfig';
 import { initializeTaskioAppCheck } from './config/appCheckInit';
-import { appCheckEnvFromProcess, firebaseEnvFromProcess } from './config/runtimeEnv';
+import { resolveFirebaseEmulatorConfig } from './config/firebaseEmulators';
+import { appCheckEnvFromProcess, firebaseEmulatorEnvFromProcess, firebaseEnvFromProcess } from './config/runtimeEnv';
 
 const productionFirebaseFallback =
   process.env.REACT_APP_FIREBASE_EXPECTED_PROJECT_ID === 'taskio-v2-staging'
@@ -26,6 +27,12 @@ const productionFirebaseFallback =
 const firebaseConfig = resolveFirebaseConfig(firebaseEnvFromProcess(), productionFirebaseFallback);
 
 const app = initializeApp(firebaseConfig);
+
+// Local emulator stack (`npm run dev:local` at the repo root). NODE_ENV is inlined at build
+// time, so hosted bundles drop this branch; hostedBuildGuard.cjs also rejects the settings.
+const firebaseEmulators = process.env.NODE_ENV === 'production'
+  ? null
+  : resolveFirebaseEmulatorConfig(firebaseEmulatorEnvFromProcess(), firebaseConfig.projectId);
 
 // Optional App Check. Safe default is disabled (no provider). See docs/APP_CHECK.md.
 // Enable with:
@@ -52,6 +59,9 @@ try {
 }
 
 export const auth = getAuth(app);
+if (firebaseEmulators) {
+  connectAuthEmulator(auth, firebaseEmulators.authUrl);
+}
 
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, '__TASKIO_PHONE_RECAPTCHA_TESTING_BYPASS__', {
@@ -74,6 +84,9 @@ if (
 }
 
 export const db = getFirestore(app);
+if (firebaseEmulators) {
+  connectFirestoreEmulator(db, firebaseEmulators.firestore.host, firebaseEmulators.firestore.port);
+}
 
 // Storage:
 // IMPORTANT: Always use the default bucket from firebaseConfig (`storageBucket`).

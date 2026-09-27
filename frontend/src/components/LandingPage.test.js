@@ -95,7 +95,7 @@ describe('LandingPage', () => {
       screen.getByRole('heading', { name: /private early access in inner melbourne/i })
     ).toBeInTheDocument();
     expect(screen.getByText(/homeowner posting closed — join the waitlist/i)).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /join the expert waitlist/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /join expert waitlist/i }).length).toBeGreaterThan(0);
   });
 
   it('keeps public acquisition closed in every landing call to action', () => {
@@ -200,7 +200,13 @@ describe('LandingPage', () => {
         <LandingPage />
       </MemoryRouter>
     );
-    expect(screen.getAllByRole('link', { name: /become an expert/i })[0]).toHaveAttribute('href', '/tradie/signup');
+    const expertLinks = screen.getAllByRole('link', { name: /become an expert/i });
+    expect(expertLinks.length).toBeGreaterThan(1);
+    expertLinks.forEach((link) => expect(link).toHaveAttribute('href', '/expert/signup'));
+    expect(document.querySelector('a[href="/tradie/signup"]')).toBeNull();
+    expect(screen.queryByRole('link', { name: /join expert waitlist/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/taskio is recruiting experts for inner melbourne/i)).toBeInTheDocument();
+    expect(screen.getByText(/taskio reviews them before marketplace access/i)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /join waitlist/i }).length).toBeGreaterThan(0);
     unmount();
     mockPilotStatus.value = {

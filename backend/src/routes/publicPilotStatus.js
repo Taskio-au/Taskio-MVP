@@ -79,6 +79,7 @@ router.post('/api/expert-waitlist', waitlistLimiter, async (req, res) => {
     const result = await addExpertWaitlistSignup(db, {
       email: req.body && req.body.email,
       expertise: req.body && req.body.expertise,
+      serviceAreas: req.body && req.body.serviceAreas,
       suburb: req.body && req.body.suburb,
       source: req.body && req.body.source,
       consentAccepted: req.body && req.body.consentAccepted,

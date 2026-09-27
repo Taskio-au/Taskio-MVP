@@ -5,6 +5,7 @@ const STATIC_PATHS = new Set([
   '/get-started',
   '/privacy',
   '/terms',
+  '/expert/signup',
   '/tradie/signup',
   '/post-job',
   '/auth/action',

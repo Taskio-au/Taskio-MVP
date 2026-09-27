@@ -78,6 +78,15 @@ const melbournePilotSuburbNames = Object.freeze([
 
 const melbournePilotSuburbs = new Set(melbournePilotSuburbNames);
 
+const pilotServiceAreaDisplayNames = Object.freeze({
+  Melbourne: 'Melbourne CBD',
+});
+
+function pilotServiceAreaDisplayName(value) {
+  const canonical = String(value || '').trim();
+  return pilotServiceAreaDisplayNames[canonical] || canonical;
+}
+
 const INNER_MELBOURNE_LAUNCH_MESSAGE = "We're currently launching in inner Melbourne. We'll be in your area soon.";
 
 const melbournePilotLocations = auLocations.filter(
@@ -137,6 +146,8 @@ module.exports = {
   melbournePilotSuburbNames,
   melbournePilotSuburbs,
   melbournePilotLocations,
+  pilotServiceAreaDisplayNames,
+  pilotServiceAreaDisplayName,
   searchMelbournePilotLocations,
   isSupportedMelbournePilotLocation,
   normalizeLocationLabel,

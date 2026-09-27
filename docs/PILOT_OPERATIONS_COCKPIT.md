@@ -85,6 +85,8 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. P06A reconci
 - Public Expert applications when OPEN **and** `TASKIO_PUBLIC_SIGNUP_ENABLED` allows enrollment
 - New Experts stay `verified=false` / marketplace-ineligible until Admin Verify; launch-ready remains derived
 - Signup stores requested categories on `expertise` and leaves `expertiseApproved=[]`. Taskio approval is Admin Verify (approves currently requested categories) or later `PUT /api/admin/users/:uid/expertise/approve`. Experts cannot self-expand approved eligibility
+- Signup collects multiple canonical service areas in `serviceAreas[]`, keeps the first selected area in the existing primary-location fields, and starts `acceptingJobs=false`; legacy single-location signup payloads derive a one-area array
+- `Melbourne` remains the canonical API/stored service-area identifier and is displayed to Experts as `Melbourne CBD`
 - Homeowner `PUT .../state` and Expert `PUT .../expert-onboarding` merge-write only their own fields; they must not clobber each other
 - WAITLIST blocks **new** Expert account creation only; public CTA uses `expertWaitlist` (not `pilotWaitlist`)
 - LIMITED mode is **not** implemented
@@ -95,7 +97,7 @@ P06 remains **OPEN**. P09 remains **blocked** for legal/trust copy. P06A reconci
 |---|---|---|
 | **Homeowner OPEN** | Public supported signup/posting. No manual homeowner invitation. Normal authentication still required. | Unchanged. Expert applications follow Expert onboarding mode. |
 | **Homeowner CLOSED / PAUSED** | New job posting blocked. Public demand CTA is waitlist / register interest. Existing login still works. | Recruitment/onboarding may continue when Expert mode is OPEN. |
-| **Expert onboarding OPEN** | Unchanged. | Public Expert application/account creation. Applicants complete onboarding and remain pending review until Taskio verifies them. |
+| **Expert onboarding OPEN** | Unchanged. | Public Expert application/account creation at `/expert/signup` (legacy `/tradie/signup` redirects there). Applicants complete onboarding and remain pending review until Taskio verifies them. |
 | **Expert onboarding WAITLIST** | Unchanged. | New Expert signup blocked. Public CTA is Expert waitlist. Existing and pending Experts continue login/onboarding. |
 
 Expected independent combinations: homeowner **CLOSED** + Expert **OPEN** (supply-building); later homeowner **OPEN** + Expert **WAITLIST** (enough supply).
@@ -110,9 +112,11 @@ Expected independent combinations: homeowner **CLOSED** + Expert **OPEN** (suppl
 
 **Known production limitation (not changed in this slice):** Identity Toolkit `disabledUserSignup=true` on staging/production still blocks **new Firebase Auth users**. Enabling Auth signup later does **not** approve an Expert. Application-level Expert mode + kill switch + manual verification still apply. **P07/P10** must prove both approved public account paths as applicable. Do not probe Identity Toolkit from `GET /api/pilot-status`. Local tests mock auth.
 
-**Waitlist:** homeowner `pilotWaitlist` and Expert `expertWaitlist` are separate Admin SDK collections. Expert consent is `expert-waitlist-contact-v1` (“contacted about becoming a Taskio Expert”). Not marketing consent. P06 remains OPEN.
+**Waitlist:** homeowner `pilotWaitlist` and Expert `expertWaitlist` are separate Admin SDK collections. Expert entries store canonical `expertise[]` and `serviceAreas[]` selections without creating an Auth account. Expert consent is `expert-waitlist-contact-v1` (“contacted about becoming a Taskio Expert”). Not marketing consent. P06 remains OPEN.
 
 **Public status failure:** posting fail-closes. Expert applications fail-safe to WAITLIST. Waitlist routes remain advertised because writes do not read `system/pilotSettings`. If the whole API is down, waitlist submit still fails safely.
+
+**Local early-pilot development:** when `expertOnboardingMode` is absent, a local backend with `NODE_ENV` absent (the repository start-script default) or set to `development` resolves Expert onboarding to OPEN. Explicit OPEN/WAITLIST values take precedence; invalid values, API/read failures, deployment-marked runtimes, staging, test, and production remain WAITLIST. This does not write `pilotSettings` and does not bypass `TASKIO_PUBLIC_SIGNUP_ENABLED`.
 
 **NOT YET IMPLEMENTED**
 
@@ -541,7 +545,7 @@ Demote `/admin/monitoring` and `/admin/daily-checklist` to links under Overview 
 | True service-area coverage | **B** | Field implemented | `serviceAreas[]` allowlisted multi-select. Do **not** default-copy `serviceLocation` | Data yes |
 | Accepting jobs | **B** | Field implemented | `acceptingJobs` boolean (no calendar) | Data yes |
 | Posting CLOSED/OPEN/PAUSED | **C** | No config | Audited config doc + confirm UI | Yes before OPEN |
-| Waitlist records | **C** | Local `pilotWaitlist` + `expertWaitlist` (email, optional suburb/category, source, consent evidence). Not deployed | Admin SDK writes. Client access denied. Distinct consent purposes. | Pre-activation UX. P06 review item — see `docs/P06_REMEDIATION_MATRIX.md` §6–§7 |
+| Waitlist records | **C** | Local `pilotWaitlist` plus `expertWaitlist` (email, canonical `expertise[]` / `serviceAreas[]`, source, consent evidence). Not deployed | Admin SDK writes. Client access denied. Distinct consent purposes. | Pre-activation UX. P06 review item — see `docs/P06_REMEDIATION_MATRIX.md` §6–§7 |
 | Attention 60m / 3h / invite count | **B** | Thresholds differ from 6h/24h | Extend `adminOps` + quote/invite meta | Yes |
 | ≥1 / ≥2 / zero-quote % | **B** | — | Same quote meta, bounded | Yes |
 | Funnel | **B** then **C** if slow | Client aggregation on full job list | Server summary if > few hundred jobs | Yes (simple) |

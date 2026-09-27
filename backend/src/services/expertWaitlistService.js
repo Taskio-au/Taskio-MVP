@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Minimal Expert-interest waitlist. Email plus optional canonical category/suburb.
+ * Minimal Expert-interest waitlist. Email plus canonical expertise/service-area arrays.
  * Separate from homeowner pilotWaitlist. Admin SDK writes only.
  */
 
@@ -29,22 +29,46 @@ function normalizeWaitlistEmail(value) {
   return email;
 }
 
-function normalizeOptionalExpertise(value) {
-  if (value == null || value === '') return { ok: true, value: '' };
-  const key = String(value).trim();
-  if (!phase1KeysSet.has(key)) {
-    return { ok: false, error: 'Choose a supported task category.' };
+function normalizeExpertiseSelection(value) {
+  const raw = Array.isArray(value) ? value : (value == null || value === '' ? [] : [value]);
+  const seen = new Set();
+  const expertise = [];
+  for (const item of raw) {
+    const key = String(item || '').trim();
+    if (!phase1KeysSet.has(key)) {
+      return { ok: false, error: 'Choose supported areas of expertise.' };
+    }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    expertise.push(key);
   }
-  return { ok: true, value: key };
+  if (expertise.length === 0) {
+    return { ok: false, error: 'Choose at least one area of expertise.' };
+  }
+  return { ok: true, value: expertise };
 }
 
-function normalizeOptionalSuburb(value) {
-  if (value == null || value === '') return { ok: true, value: '' };
-  const suburb = String(value).replace(/\s+/g, ' ').trim();
-  if (!PILOT_SUBURBS.has(suburb)) {
-    return { ok: false, error: 'Choose a supported Inner Melbourne suburb.' };
+function normalizeServiceAreaSelection(value, legacySuburb) {
+  const raw = Array.isArray(value)
+    ? value
+    : (value == null || value === ''
+      ? (legacySuburb == null || legacySuburb === '' ? [] : [legacySuburb])
+      : [value]);
+  const seen = new Set();
+  const serviceAreas = [];
+  for (const item of raw) {
+    const suburb = String(item || '').replace(/\s+/g, ' ').trim();
+    if (!PILOT_SUBURBS.has(suburb)) {
+      return { ok: false, error: 'Choose supported Inner Melbourne service areas.' };
+    }
+    if (seen.has(suburb)) continue;
+    seen.add(suburb);
+    serviceAreas.push(suburb);
   }
-  return { ok: true, value: suburb };
+  if (serviceAreas.length === 0) {
+    return { ok: false, error: 'Choose at least one service area.' };
+  }
+  return { ok: true, value: serviceAreas };
 }
 
 function normalizeWaitlistSource(value) {
@@ -67,6 +91,7 @@ function isExplicitWaitlistConsent(value) {
 async function addExpertWaitlistSignup(db, {
   email,
   expertise,
+  serviceAreas,
   suburb,
   source,
   consentAccepted,
@@ -87,13 +112,13 @@ async function addExpertWaitlistSignup(db, {
     };
   }
 
-  const expertiseResult = normalizeOptionalExpertise(expertise);
+  const expertiseResult = normalizeExpertiseSelection(expertise);
   if (!expertiseResult.ok) {
     return { ok: false, status: 400, error: { message: expertiseResult.error } };
   }
-  const suburbResult = normalizeOptionalSuburb(suburb);
-  if (!suburbResult.ok) {
-    return { ok: false, status: 400, error: { message: suburbResult.error } };
+  const serviceAreasResult = normalizeServiceAreaSelection(serviceAreas, suburb);
+  if (!serviceAreasResult.ok) {
+    return { ok: false, status: 400, error: { message: serviceAreasResult.error } };
   }
 
   const now = admin.firestore.FieldValue.serverTimestamp();
@@ -101,13 +126,14 @@ async function addExpertWaitlistSignup(db, {
   const snap = await ref.get();
   const nextSource = normalizeWaitlistSource(source);
   const nextExpertise = expertiseResult.value;
-  const nextSuburb = suburbResult.value;
+  const nextServiceAreas = serviceAreasResult.value;
+  const nextSuburb = nextServiceAreas[0];
 
   if (snap.exists) {
-    const previous = snap.data() || {};
     await ref.set({
-      expertise: nextExpertise || String(previous.expertise || ''),
-      suburb: nextSuburb || String(previous.suburb || ''),
+      expertise: nextExpertise,
+      serviceAreas: nextServiceAreas,
+      suburb: nextSuburb,
       source: nextSource,
       updatedAt: now,
     }, { merge: true });
@@ -115,6 +141,7 @@ async function addExpertWaitlistSignup(db, {
     await ref.set({
       email: normalizedEmail,
       expertise: nextExpertise,
+      serviceAreas: nextServiceAreas,
       suburb: nextSuburb,
       source: nextSource,
       consentVersion: CONSENT_VERSION,
@@ -133,8 +160,8 @@ module.exports = {
   CONSENT_VERSION,
   ALLOWED_SOURCES,
   normalizeWaitlistEmail,
-  normalizeOptionalExpertise,
-  normalizeOptionalSuburb,
+  normalizeExpertiseSelection,
+  normalizeServiceAreaSelection,
   normalizeWaitlistSource,
   waitlistDocId,
   publicWaitlistSuccess,

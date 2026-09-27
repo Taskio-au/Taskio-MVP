@@ -76,6 +76,11 @@ function main() {
     '',
     `export const melbournePilotSuburbNames = ${JSON.stringify(Array.isArray(loc.melbournePilotSuburbNames) ? loc.melbournePilotSuburbNames : ['Melbourne', 'Southbank', 'Docklands', 'South Yarra', 'Prahran', 'St Kilda', 'Richmond', 'Carlton'])};`,
     'export const melbournePilotLocations = auLocations.filter((item) => item.state === "VIC" && melbournePilotSuburbNames.includes(item.suburb));',
+    `export const pilotServiceAreaDisplayNames = Object.freeze(${JSON.stringify(loc.pilotServiceAreaDisplayNames || { Melbourne: 'Melbourne CBD' })});`,
+    'export function pilotServiceAreaDisplayName(value) {',
+    '  const canonical = String(value || "").trim();',
+    '  return pilotServiceAreaDisplayNames[canonical] || canonical;',
+    '}',
     '',
     'export function searchAuLocations(query, limit = 10) {',
     '  const q = String(query || "").trim().toLowerCase();',
@@ -172,6 +177,26 @@ function main() {
   ].join('\n');
   writeFile(postingSemanticsDest, postingSemanticsOut);
   console.log('[syncShared] generated', path.relative(root, postingSemanticsDest));
+
+  // Password policy is copied verbatim (CommonJS → ESM) so API and signup page share one rule set.
+  const passwordPolicyPath = path.join(root, 'shared', 'passwordPolicy.js');
+  const passwordPolicySource = fs.readFileSync(passwordPolicyPath, 'utf8').replace(/\r\n/g, '\n');
+  const exportsFooter = /\nmodule\.exports = \{[^}]*\};\n*$/;
+  if (/\brequire\(/.test(passwordPolicySource) || !exportsFooter.test(passwordPolicySource)) {
+    console.error('[syncShared] shared/passwordPolicy.js must stay dependency-free and end with module.exports.');
+    process.exit(1);
+  }
+  // eslint-disable-next-line import/no-dynamic-require, global-require
+  const passwordPolicyExports = Object.keys(require(passwordPolicyPath));
+  const passwordPolicyDest = path.join(__dirname, '..', 'src', 'shared', 'passwordPolicy.generated.js');
+  const passwordPolicyOut = [
+    '// AUTO-GENERATED from shared/passwordPolicy.js — do not edit',
+    passwordPolicySource.replace(/^'use strict';\n/, '').replace(exportsFooter, ''),
+    `export { ${passwordPolicyExports.join(', ')} };`,
+    '',
+  ].join('\n');
+  writeFile(passwordPolicyDest, passwordPolicyOut);
+  console.log('[syncShared] generated', path.relative(root, passwordPolicyDest));
 }
 
 main();

@@ -14,6 +14,19 @@ describe('pilotPostingAccess', () => {
     expertWaitlistAvailable: true,
   };
 
+  function settingsDb(data = null) {
+    return {
+      collection: () => ({
+        doc: () => ({
+          get: async () => ({
+            exists: data !== null,
+            data: () => data,
+          }),
+        }),
+      }),
+    };
+  }
+
   it('serializes OPEN as canPost true and waitlist off', () => {
     expect(serializePublicPilotStatus({ effectiveState: OPERATIONAL_STATES.OPEN })).toEqual({
       homeownerPosting: 'OPEN',
@@ -94,5 +107,49 @@ describe('pilotPostingAccess', () => {
       { effectiveState: OPERATIONAL_STATES.OPEN, effectiveExpertOnboardingMode: 'OPEN' },
       { expertSignupSafetyEnabled: false }
     ).canExpertApply).toBe(false);
+  });
+
+  it('uses OPEN for missing Expert mode only in local development', async () => {
+    await expect(readPublicPilotStatus(settingsDb(), {})).resolves.toEqual({
+      homeownerPosting: 'CLOSED',
+      canPost: false,
+      waitlistAvailable: true,
+      expertOnboarding: 'OPEN',
+      canExpertApply: true,
+      expertWaitlistAvailable: false,
+    });
+  });
+
+  it.each([
+    ['production', { NODE_ENV: 'production' }],
+    ['test', { NODE_ENV: 'test' }],
+    ['staging deployment', { NODE_ENV: 'development', TASKIO_DEPLOYMENT_ENV: 'staging' }],
+    ['managed runtime', { NODE_ENV: 'development', K_SERVICE: 'taskio-api' }],
+  ])('keeps missing Expert mode fail-closed in %s', async (_label, env) => {
+    await expect(readPublicPilotStatus(settingsDb(), env)).resolves.toEqual({
+      homeownerPosting: 'CLOSED',
+      canPost: false,
+      waitlistAvailable: true,
+      ...expertWaitlist,
+    });
+  });
+
+  it('preserves explicit WAITLIST and invalid values in local development', async () => {
+    const env = { NODE_ENV: 'development' };
+    await expect(readPublicPilotStatus(settingsDb({
+      state: 'CLOSED',
+      expertOnboardingMode: 'WAITLIST',
+    }), env)).resolves.toEqual(expect.objectContaining(expertWaitlist));
+    await expect(readPublicPilotStatus(settingsDb({
+      state: 'CLOSED',
+      expertOnboardingMode: 'UNKNOWN',
+    }), env)).resolves.toEqual(expect.objectContaining(expertWaitlist));
+  });
+
+  it('still applies the enrollment safety switch to local OPEN fallback', async () => {
+    await expect(readPublicPilotStatus(settingsDb(), {
+      NODE_ENV: 'development',
+      TASKIO_PUBLIC_SIGNUP_ENABLED: 'false',
+    })).resolves.toEqual(expect.objectContaining(expertWaitlist));
   });
 });
