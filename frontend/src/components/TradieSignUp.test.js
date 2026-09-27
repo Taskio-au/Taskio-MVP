@@ -52,7 +52,7 @@ jest.mock('../utils/upsertUserProfileFromAuth', () => ({
 
 const ExpertSignUpPage = require('./ExpertSignUpPage').default;
 
-const VALID_PASSWORD = 'quiet harbour lamp';
+const VALID_PASSWORD = 'quiet harbour lamp 7';
 
 function fillAccountStep(password = VALID_PASSWORD, confirmPassword = password) {
   fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Jane' } });
@@ -191,24 +191,47 @@ describe('ExpertSignUpPage', () => {
   });
 
   describe('password rules', () => {
-    it('uses the 10 character minimum copy without composition rules', () => {
+    it('states the 12 character letter and number hint', () => {
       render(<ExpertSignUpPage />);
-      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute('placeholder', 'Use at least 10 characters');
+      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute(
+        'placeholder',
+        'Use at least 12 characters, including a letter and a number.',
+      );
       const guidance = screen.getByRole('status');
-      expect(guidance).toHaveTextContent('Use at least 10 characters. Avoid common or easy-to-guess passwords.');
-      expect(guidance).not.toHaveTextContent(/uppercase|number|symbol/i);
+      expect(guidance).toHaveTextContent(
+        'Use at least 12 characters, including a letter and a number. Avoid common or easy-to-guess passwords.',
+      );
+      expect(guidance).not.toHaveTextContent(/uppercase|symbol/i);
     });
 
-    it('rejects a password shorter than 10 characters on step one', () => {
+    it('rejects an 11-character password on step one', () => {
       render(<ExpertSignUpPage />);
-      fillAccountStep('ninechars');
+      fillAccountStep('BlueHouse27');
       fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
 
-      expect(screen.getByText('Use at least 10 characters for your password.')).toBeInTheDocument();
+      expect(screen.getByText('Use at least 12 characters for your password.')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: /create your expert account/i })).toBeInTheDocument();
     });
 
-    it.each(['password1234', 'taskio1234', '1234567890', 'aaaaaaaaaa'])(
+    it('rejects letters without a number', () => {
+      render(<ExpertSignUpPage />);
+      fillAccountStep('quiet river table');
+      fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+
+      expect(screen.getByText('Include at least one number.')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /create your expert account/i })).toBeInTheDocument();
+    });
+
+    it('rejects numbers without a letter', () => {
+      render(<ExpertSignUpPage />);
+      fillAccountStep('123456789012');
+      fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+
+      expect(screen.getByText('Include at least one letter.')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /create your expert account/i })).toBeInTheDocument();
+    });
+
+    it.each(['password1234', 'password12345', 'taskio2026abc'])(
       'blocks the Weak password %p on step one with actionable guidance',
       (weakPassword) => {
         render(<ExpertSignUpPage />);
@@ -224,8 +247,13 @@ describe('ExpertSignUpPage', () => {
       },
     );
 
-    it.each([['tenletters', 'Fair'], ['BlueHouse27', 'Fair'], ['quiet river table', 'Strong']])(
-      'lets %p (%s) continue without uppercase, number or symbol rules',
+    it.each([
+      ['bluehouse277', 'Fair'],
+      ['BLUEHOUSE2026', 'Fair'],
+      ['quiet river 7 table', 'Strong'],
+      ['BlueHouse2026', 'Strong'],
+    ])(
+      'lets %p (%s) continue without a required symbol or required letter case',
       async (password, label) => {
         render(<ExpertSignUpPage />);
         fillAccountStep(password);
@@ -251,16 +279,16 @@ describe('ExpertSignUpPage', () => {
       expect(meter).toHaveAttribute('aria-live', 'polite');
       expect(meter).toHaveAttribute('id', 'expert-password-strength');
       expect(password).toHaveAttribute('aria-describedby', expect.stringContaining('expert-password-strength'));
-      expect(meter).toHaveTextContent(/use at least 10 characters/i);
+      expect(meter).toHaveTextContent(/use at least 12 characters, including a letter and a number/i);
 
       fireEvent.change(password, { target: { value: 'short' } });
       expect(meter).toHaveTextContent('Password strength: Weak');
-      expect(meter).toHaveTextContent(/use at least 10 characters/i);
+      expect(meter).toHaveTextContent(/use at least 12 characters/i);
 
-      fireEvent.change(password, { target: { value: 'tidyshelf7' } });
+      fireEvent.change(password, { target: { value: 'bluehouse277' } });
       expect(meter).toHaveTextContent('Password strength: Fair');
 
-      fireEvent.change(password, { target: { value: 'quiet harbour lamp' } });
+      fireEvent.change(password, { target: { value: 'quiet harbour lamp 7' } });
       expect(meter).toHaveTextContent('Password strength: Strong');
     });
   });
@@ -335,7 +363,7 @@ describe('ExpertSignUpPage', () => {
 
     it('returns to the password field when the server rejects a short password', async () => {
       await submitWithFailure(apiError(400, { message: 'server wording may change', code: 'password_too_short' }));
-      expect(await screen.findAllByText('Use at least 10 characters for your password.')).not.toHaveLength(0);
+      expect(await screen.findAllByText('Use at least 12 characters for your password.')).not.toHaveLength(0);
       expect(screen.getByRole('heading', { name: /create your expert account/i })).toBeInTheDocument();
     });
 

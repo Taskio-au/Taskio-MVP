@@ -163,7 +163,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'jane@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -210,7 +210,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'jane@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -236,7 +236,7 @@ describe('tradie registration contracts', () => {
         firstName: '',
         lastName: '',
         email: 'jane@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -262,7 +262,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'duplicate@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -286,7 +286,7 @@ describe('tradie registration contracts', () => {
       firstName: 'Safe',
       lastName: 'Error',
       email: 'jane@example.com',
-      password: 'quiet harbour lamp',
+      password: 'quiet harbour lamp 7',
       serviceLocation: {
         label: 'Richmond VIC 3121',
         suburb: 'Richmond',
@@ -301,23 +301,44 @@ describe('tradie registration contracts', () => {
     };
   }
 
-  it('rejects passwords shorter than 10 characters before creating an Auth user', async () => {
+  it('rejects passwords shorter than 12 characters before creating an Auth user', async () => {
     const response = await request(buildApp())
       .post('/api/users/register')
-      .send(buildTradiePayload({ password: 'ninechars' }));
+      .send(buildTradiePayload({ password: 'BlueHouse27' }));
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
-      message: 'Use at least 10 characters for your password.',
+      message: 'Use at least 12 characters for your password.',
       code: 'password_too_short',
     });
     expect(mockState.createdUsers).toHaveLength(0);
   });
 
-  it('accepts a 10 character password without composition rules', async () => {
+  it('rejects a missing number and a missing letter before creating an Auth user', async () => {
+    const missingNumber = await request(buildApp())
+      .post('/api/users/register')
+      .send(buildTradiePayload({ password: 'quiet river table' }));
+    expect(missingNumber.status).toBe(400);
+    expect(missingNumber.body).toEqual({
+      message: 'Include at least one number.',
+      code: 'password_missing_number',
+    });
+
+    const missingLetter = await request(buildApp())
+      .post('/api/users/register')
+      .send(buildTradiePayload({ password: '123456789012' }));
+    expect(missingLetter.status).toBe(400);
+    expect(missingLetter.body).toEqual({
+      message: 'Include at least one letter.',
+      code: 'password_missing_letter',
+    });
+    expect(mockState.createdUsers).toHaveLength(0);
+  });
+
+  it('accepts a 12 character letter and number password', async () => {
     const response = await request(buildApp())
       .post('/api/users/register')
-      .send(buildTradiePayload({ password: 'tenletters' }));
+      .send(buildTradiePayload({ password: 'bluehouse277' }));
 
     expect(response.status).toBe(201);
     expect(mockState.createdUsers).toHaveLength(1);
@@ -336,8 +357,8 @@ describe('tradie registration contracts', () => {
     expect(mockState.createdUsers).toHaveLength(0);
   });
 
-  it.each(['password1234', 'taskio1234', '1234567890', 'aaaaaaaaaa', 'qwerty12345'])(
-    'rejects the predictable password %p even though it is long enough',
+  it.each(['password1234', 'password12345', 'taskio2026abc', 'qwerty123456'])(
+    'rejects the predictable password %p even though it has a letter and a number',
     async (password) => {
       const response = await request(buildApp())
         .post('/api/users/register')
@@ -393,7 +414,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Stage',
         lastName: 'Homeowner',
         email: 'homeowner@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
       });
 
     expect(response.status).toBe(400);
@@ -408,7 +429,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Stage',
         lastName: 'Homeowner',
         email: 'homeowner@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
       });
 
     expect(mockState.createdUsers).toHaveLength(0);
@@ -424,7 +445,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Stage',
         lastName: 'Homeowner',
         email: 'quote-access@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
         quoteAccessVerified: true,
       });
 
@@ -444,7 +465,7 @@ describe('tradie registration contracts', () => {
           firstName: 'Stage',
           lastName: 'Unknown',
           email: 'unknown-role@example.com',
-          password: 'quiet harbour lamp',
+          password: 'quiet harbour lamp 7',
         });
 
       expect(response.status).toBe(400);
@@ -716,7 +737,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'jane@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -744,7 +765,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'jane@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -767,7 +788,7 @@ describe('tradie registration contracts', () => {
         firstName: 'Jane',
         lastName: 'Expert',
         email: 'second@example.com',
-        password: 'quiet harbour lamp',
+        password: 'quiet harbour lamp 7',
         serviceLocation: {
           label: 'Richmond VIC 3121',
           suburb: 'Richmond',
@@ -859,7 +880,7 @@ describe('tradie registration contracts', () => {
       firstName: 'Jane',
       lastName: 'Expert',
       email: 'jane@example.com',
-      password: 'quiet harbour lamp',
+      password: 'quiet harbour lamp 7',
       serviceLocation: {
         label: 'Richmond VIC 3121',
         suburb: 'Richmond',

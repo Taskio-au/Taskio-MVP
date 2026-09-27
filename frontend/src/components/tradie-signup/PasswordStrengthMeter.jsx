@@ -1,5 +1,11 @@
 import React from 'react';
-import { PASSWORD_ISSUE_MESSAGES, PASSWORD_MIN_LENGTH, PASSWORD_STRENGTH_LABELS, passwordStrength } from '../../utils/passwordStrength';
+import {
+  PASSWORD_ISSUE_MESSAGES,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_REQUIREMENTS_HINT,
+  PASSWORD_STRENGTH_LABELS,
+  passwordStrength,
+} from '../../utils/passwordStrength';
 
 const LEVELS = ['weak', 'fair', 'strong'];
 
@@ -42,7 +48,7 @@ export default function PasswordStrengthMeter({ id, password }) {
         </>
       ) : (
         <span style={styles.text}>
-          Use at least {PASSWORD_MIN_LENGTH} characters. Avoid common or easy-to-guess passwords.
+          {PASSWORD_REQUIREMENTS_HINT} Avoid common or easy-to-guess passwords.
         </span>
       )}
     </div>

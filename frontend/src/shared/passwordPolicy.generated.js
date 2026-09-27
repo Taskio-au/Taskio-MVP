@@ -3,7 +3,7 @@
 // Expert email/password signup policy, enforced by the API and mirrored by the signup page.
 // Keep this file dependency-free: frontend/scripts/syncShared.js copies it verbatim as ESM.
 
-const PASSWORD_MIN_LENGTH = 10;
+const PASSWORD_MIN_LENGTH = 12;
 const PASSWORD_MAX_LENGTH = 128;
 
 const PASSWORD_STRENGTH_LABELS = Object.freeze({
@@ -12,9 +12,13 @@ const PASSWORD_STRENGTH_LABELS = Object.freeze({
   strong: 'Strong',
 });
 
+const PASSWORD_REQUIREMENTS_HINT = `Use at least ${PASSWORD_MIN_LENGTH} characters, including a letter and a number.`;
+
 const PASSWORD_ISSUE_MESSAGES = Object.freeze({
   password_too_short: `Use at least ${PASSWORD_MIN_LENGTH} characters for your password.`,
   password_too_long: `Use no more than ${PASSWORD_MAX_LENGTH} characters for your password.`,
+  password_missing_letter: 'Include at least one letter.',
+  password_missing_number: 'Include at least one number.',
   password_too_weak: 'Choose a less predictable password.',
 });
 
@@ -70,7 +74,8 @@ function predictableMask(lower) {
   return mask;
 }
 
-// Weak / Fair / Strong without composition rules. Weak blocks signup; Fair and Strong pass.
+// Weak / Fair / Strong from length and predictability. A letter or a number does not
+// raise this rating, and a Strong rating does not waive the letter/number rule below.
 function passwordStrength(password) {
   const value = typeof password === 'string' ? password : '';
   if (value.length < PASSWORD_MIN_LENGTH) return 'weak';
@@ -93,8 +98,10 @@ function expertPasswordIssue(password) {
   const value = typeof password === 'string' ? password : '';
   if (value.length < PASSWORD_MIN_LENGTH) return 'password_too_short';
   if (value.length > PASSWORD_MAX_LENGTH) return 'password_too_long';
+  if (!/[A-Za-z]/.test(value)) return 'password_missing_letter';
+  if (!/\d/.test(value)) return 'password_missing_number';
   if (passwordStrength(value) === 'weak') return 'password_too_weak';
   return null;
 }
 
-export { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_STRENGTH_LABELS, PASSWORD_ISSUE_MESSAGES, passwordStrength, expertPasswordIssue };
+export { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_STRENGTH_LABELS, PASSWORD_REQUIREMENTS_HINT, PASSWORD_ISSUE_MESSAGES, passwordStrength, expertPasswordIssue };

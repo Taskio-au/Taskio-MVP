@@ -11,7 +11,7 @@ import ExpertSignupSelections from './tradie-signup/ExpertSignupSelections';
 import PasswordStrengthMeter from './tradie-signup/PasswordStrengthMeter';
 import LegalNotice from './LegalNotice';
 import { GoogleActionButton } from './profile/GoogleBrand';
-import { PASSWORD_ISSUE_MESSAGES, PASSWORD_MIN_LENGTH, expertPasswordIssue } from '../utils/passwordStrength';
+import { PASSWORD_ISSUE_MESSAGES, PASSWORD_REQUIREMENTS_HINT, expertPasswordIssue } from '../utils/passwordStrength';
 import { expertSignupErrorMessage } from '../utils/expertSignupErrorMessage';
 
 const PASSWORD_MESSAGES = new Set(Object.values(PASSWORD_ISSUE_MESSAGES));
@@ -362,7 +362,7 @@ export default function ExpertSignUpPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={handleFieldChange}
-                placeholder={`Use at least ${PASSWORD_MIN_LENGTH} characters`}
+                placeholder={PASSWORD_REQUIREMENTS_HINT}
                 style={{ ...styles.input, ...styles.passwordInput }}
                 autoComplete="new-password"
                 aria-invalid={Boolean(fieldErrors.password)}
