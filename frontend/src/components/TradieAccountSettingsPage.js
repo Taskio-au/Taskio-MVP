@@ -29,40 +29,52 @@ export default function TradieAccountSettingsPage() {
   const [claimsIsAdmin, setClaimsIsAdmin] = useState(false);
   const [saved, setSaved] = useState('');
   const [error, setError] = useState('');
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate('/login');
   }, [loading, navigate, user]);
 
   useEffect(() => {
+    let cancelled = false;
     const run = async () => {
       if (!user) return;
       setError('');
       try {
         const tokenResult = await user.getIdTokenResult();
+        if (cancelled) return;
         setClaimsIsAdmin(Boolean(tokenResult?.claims?.admin));
         const token = tokenResult?.token || await user.getIdToken();
         const config = { headers: { Authorization: `Bearer ${token}` } };
         const meRes = await api.get('/api/me', config);
+        if (cancelled) return;
         const data = meRes?.data || {};
         setProfile(data.profile || {});
         setFoundingFeeProfile(data.foundingExpertFeeProfile ?? null);
         setFeeProfileUnavailable(false);
       } catch (e) {
+        if (cancelled) return;
         try {
           const snap = await getDoc(doc(db, 'users', user.uid));
+          if (cancelled) return;
           setProfile(snap.exists() ? snap.data() : {});
           setFoundingFeeProfile(null);
           setFeeProfileUnavailable(true);
         } catch (_) {
+          if (cancelled) return;
           setProfile({});
           setFoundingFeeProfile(null);
           setFeeProfileUnavailable(true);
           setError('We could not load your account right now. Please refresh and try again.');
         }
+      } finally {
+        if (!cancelled) setProfileLoaded(true);
       }
     };
     run();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const role = useMemo(() => {
@@ -81,9 +93,9 @@ export default function TradieAccountSettingsPage() {
 
   const pageHeaderEmail = profile?.email || user?.email || '';
 
-  if (loading || !user) {
+  if (loading || !user || !profileLoaded) {
     return (
-      <PageLoadingShell message="Loading account settings…" detail="Getting your Expert account and security options." />
+      <PageLoadingShell message="Loading account and security…" detail="Getting your Expert account and security options." />
     );
   }
 
@@ -94,13 +106,13 @@ export default function TradieAccountSettingsPage() {
   return (
     <>
       <AppHeader userRole="tradie" userName={pageHeaderName} userEmail={pageHeaderEmail} />
-      <PageMain label="Expert account settings">
+      <PageMain label="Account & security">
       <div style={styles.page}>
         <div style={styles.container}>
           <div style={styles.pageHeader}>
-            <h1 style={styles.pageTitle}>Account settings</h1>
+            <h1 style={styles.pageTitle}>Account & security</h1>
             <p style={styles.pageSubtitle}>
-              Deactivate your Expert account or request permanent deletion. For profile details and verification, use{' '}
+              Manage your Expert account, security and account status. For public profile details and verification, use{' '}
               <Link to="/profile" style={{ color: '#0f766e', fontWeight: 700 }}>
                 My Profile
               </Link>

@@ -34,6 +34,8 @@ const firebaseEmulators = process.env.NODE_ENV === 'production'
   ? null
   : resolveFirebaseEmulatorConfig(firebaseEmulatorEnvFromProcess(), firebaseConfig.projectId);
 
+export const usingFirebaseEmulators = Boolean(firebaseEmulators);
+
 // Optional App Check. Safe default is disabled (no provider). See docs/APP_CHECK.md.
 // Enable with:
 // - REACT_APP_APPCHECK_ENABLED=true

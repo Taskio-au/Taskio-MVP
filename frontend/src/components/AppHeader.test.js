@@ -62,16 +62,19 @@ describe('AppHeader', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
 
-    expect(screen.getByText(/account settings/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^account settings$/i })).toHaveAttribute('href', '/settings');
+    expect(screen.queryByRole('link', { name: /account & security/i })).not.toBeInTheDocument();
   });
 
-  it('routes experts to tradie account settings from the menu', () => {
+  it('labels the Expert account page Account & security and keeps My Profile', () => {
     render(<AppHeader userRole="tradie" userName="Sam Tradie" userEmail="sam@example.com" />);
 
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
 
-    const link = screen.getByRole('link', { name: /account settings/i });
+    expect(screen.getByRole('link', { name: /^my profile$/i })).toHaveAttribute('href', '/profile');
+    const link = screen.getByRole('link', { name: /^account & security$/i });
     expect(link).toHaveAttribute('href', '/tradie/account-settings');
+    expect(screen.queryByRole('link', { name: /^account settings$/i })).not.toBeInTheDocument();
   });
 
   it('shows password management in the admin menu', () => {
@@ -79,7 +82,9 @@ describe('AppHeader', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
 
+    expect(screen.getByRole('link', { name: /^my profile$/i })).toHaveAttribute('href', '/admin/profile');
     expect(screen.getByText(/^password$/i)).toBeInTheDocument();
-    expect(screen.queryByText(/account settings/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^account settings$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /account & security/i })).not.toBeInTheDocument();
   });
 });

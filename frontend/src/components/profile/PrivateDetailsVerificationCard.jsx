@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { auth } from '../../firebase';
+import { auth, usingFirebaseEmulators } from '../../firebase';
 import { sendEmailVerification } from 'firebase/auth';
+import {
+  EMAIL_VERIFICATION_SENT,
+  LOCAL_PROFILE_EMAIL_GUIDANCE,
+  emailVerificationResendMessage,
+} from '../../utils/emailVerificationMessage';
 import { getUserProfile, updateUserProfile } from '../../services/userProfile';
 import { clearRecaptchaVerifier, ensureOfficialRecaptchaVerifier, normalizeAuMobileToE164, requestPhoneOtp, confirmPhoneOtp } from '../../services/phoneVerification';
 
@@ -168,9 +173,13 @@ export default function PrivateDetailsVerificationCard({ onProfileRefresh, varia
     setEmailBusy(true);
     try {
       await sendEmailVerification(user);
-      setEmailMsg('Verification email sent. Please check your inbox.');
-    } catch (e) {
-      setEmailMsg(e?.message || 'Failed to send verification email.');
+      setEmailMsg(usingFirebaseEmulators ? LOCAL_PROFILE_EMAIL_GUIDANCE : EMAIL_VERIFICATION_SENT);
+    } catch (error) {
+      const code = typeof error?.code === 'string' ? error.code : '';
+      if (process.env.NODE_ENV !== 'production' && code) {
+        console.error('email verification resend failed', code);
+      }
+      setEmailMsg(emailVerificationResendMessage(error));
     } finally {
       setEmailBusy(false);
     }
@@ -306,14 +315,26 @@ export default function PrivateDetailsVerificationCard({ onProfileRefresh, varia
           style={styles.readOnlyInput}
           aria-label="Email"
         />
+        {!emailVerified && usingFirebaseEmulators ? (
+          <p id="local-email-verification-note" style={{ ...styles.helperText, color: '#4B5563' }}>
+            {LOCAL_PROFILE_EMAIL_GUIDANCE}
+          </p>
+        ) : null}
         {!emailVerified && (
           <div style={styles.hintRow}>
-            <button type="button" style={styles.linkBtn} onClick={resendVerification} disabled={emailBusy} className="link-btn">
+            <button
+              type="button"
+              style={styles.linkBtn}
+              onClick={resendVerification}
+              disabled={emailBusy}
+              className="link-btn"
+              aria-describedby={!emailVerified && usingFirebaseEmulators ? 'local-email-verification-note' : undefined}
+            >
               {emailBusy ? 'Sending…' : 'Resend verification email'}
             </button>
           </div>
         )}
-        {emailMsg ? <div style={styles.inlineMsg}>{emailMsg}</div> : null}
+        {emailMsg ? <div style={styles.inlineMsg} role="status">{emailMsg}</div> : null}
       </div>
     </div>
   );

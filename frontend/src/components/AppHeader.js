@@ -72,7 +72,7 @@ function AppHeader({ userRole = 'homeowner', userName = '', userEmail = '' }) {
       ...(userRole === 'homeowner' ? [{ label: 'Account Settings', path: '/settings', icon: Settings }] : []),
       ...(userRole === 'tradie' ? [
         { label: 'Reviews & ratings', path: '/tradie/reviews', icon: Star },
-        { label: 'Account Settings', path: '/tradie/account-settings', icon: Settings },
+        { label: 'Account & security', path: '/tradie/account-settings', icon: Settings },
       ] : []),
       { label: 'Help & Support', path: '/support', icon: CircleHelp }
     ];

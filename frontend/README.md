@@ -26,7 +26,7 @@ npm run e2e
 
 ## Local emulator stack
 
-From the repository root, `npm run dev:local` starts the Firebase Auth (port 9099) and Firestore (port 8080) emulators for the demo project `demo-taskio-local`, then the API on port 8000 and this app on port 3000. The API and the browser app both use the same emulators and demo project, so local signup never reaches staging or production Auth. The script overrides the staging values in `backend/.env` and `frontend/.env` for its own child processes only; emulator data is discarded when it stops. `REACT_APP_USE_FIREBASE_EMULATORS` is honoured only in development bundles for a `demo-` project, and hosted builds refuse it. Plain `npm start` behaves as before.
+From the repository root, `npm run dev:local` starts the Firebase Auth (port 9099) and Firestore (port 8080) emulators for the demo project `demo-taskio-local`, then the API on port 8000 and this app on port 3000. The API and the browser app both use the same emulators and demo project, so local signup never reaches staging or production Auth. The script overrides the staging values in `backend/.env` and `frontend/.env` for its own child processes only; emulator data is discarded when it stops. `REACT_APP_USE_FIREBASE_EMULATORS` is honoured only in development bundles for a `demo-` project, and hosted builds refuse it. Plain `npm start` behaves as before. The Auth emulator does not deliver verification email to a real inbox; local signup and profile screens say so and point to the emulator-generated action link. Hosted environments keep the normal Firebase Auth verification email.
 
 ## Generated shared files
 
