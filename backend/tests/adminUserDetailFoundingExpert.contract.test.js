@@ -121,7 +121,7 @@ describe('GET /api/admin/users/:uid — Founding Expert fields', () => {
       activeProgramId: testProgramId,
       zeroFeeTaskLimit: 3,
       reducedFeeBps: 750,
-      standardFeeBpsAfter: 1000,
+      standardFeeBpsAfter: 1500,
       testResetAllowed: true,
     });
   });

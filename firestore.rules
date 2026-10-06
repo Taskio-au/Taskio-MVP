@@ -168,7 +168,7 @@ service cloud.firestore {
           'stripeRequirements',
           'stripeUpdatedAt'
         ]))
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name',
           'displayName',
           'phone',
@@ -305,7 +305,7 @@ service cloud.firestore {
       allow update: if (
         // Admin-only operational fields
         (isAdmin()
-          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'chatFrozen',
             'requiresAdminAttention',
             'reviewedAt',
@@ -351,7 +351,7 @@ service cloud.firestore {
         (isAcceptedTradie(jobId)
           && !chatFrozen(jobId)
           && !chatClosed(jobId)
-          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'progressStatus',
             'progressStatusUpdatedAt'
           ])
@@ -362,7 +362,7 @@ service cloud.firestore {
         (isSignedIn()
           && resource.data.homeownerUid == request.auth.uid
           && (resource.data.acceptedTradieUid == null)
-          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'title',
             'description',
             'location',
@@ -459,7 +459,7 @@ service cloud.firestore {
             && resource.data.createdByUid == request.auth.uid
             && request.resource.data.status == 'cancelled'
             && request.resource.data.updatedAt == request.time
-            && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'updatedAt'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
         );
 
         allow delete: if false;

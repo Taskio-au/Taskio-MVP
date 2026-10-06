@@ -9,6 +9,7 @@
 const { JOB_STATUSES, normalizeStatus } = require('../constants/jobStatuses');
 const { validateJobTransitionOrThrow } = require('./jobStatusUpdates');
 const { computeBaseJobFundingFeeSnapshotTx } = require('./jobFeeSnapshotService');
+const { validCustomerPricing } = require('../../../shared/bookingPricing');
 
 function mapPaymentStateFromIntentStatus(status) {
   if (status === 'succeeded') return 'in_escrow';
@@ -58,6 +59,11 @@ async function evaluateBaseFundingTxnBody(tx, admin, db, jobRef, jobData, pi, ev
   const currency = typeof pi?.currency === 'string' ? pi.currency : null;
 
   if (!paymentIntentId || !status) return { applied: false, reason: 'missing_pi_fields' };
+
+  if (jobData.customerPricing && (
+    !validCustomerPricing(jobData.customerPricing) || jobData.customerPricing.previousTaskCents != null
+    || amount !== jobData.customerPricing.customerTotalCents || currency !== 'aud'
+  )) return { applied: false, reason: 'booking_price_mismatch' };
 
   if (jobData.paymentIntentId && jobData.paymentIntentId !== paymentIntentId) {
     return { applied: false, reason: 'payment_intent_mismatch' };

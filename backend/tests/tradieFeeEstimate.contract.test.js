@@ -162,21 +162,21 @@ describe('POST /api/tradie/fee-estimate', () => {
     });
   });
 
-  it('returns 10% estimate for standard Experts', async () => {
+  it('returns 15% estimate for standard Experts', async () => {
     seedUser({});
     const res = await request(app).post('/api/tradie/fee-estimate').send({ grossAmountCents: 15000 });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
-      taskioFeeCents: 1500,
-      expertReceivesCents: 13500,
-      expertFeeBps: 1000,
+      taskioFeeCents: 2250,
+      expertReceivesCents: 12750,
+      expertFeeBps: 1500,
       stage: 'standard_launch',
       benefitLabel: 'Standard launch fee',
     });
   });
 
-  it('removed founding uses 10%', async () => {
+  it('removed founding uses 15%', async () => {
     seedUser({
       foundingExpert: {
         status: 'removed',
@@ -187,11 +187,11 @@ describe('POST /api/tradie/fee-estimate', () => {
     const res = await request(app).post('/api/tradie/fee-estimate').send({ grossAmountCents: 15000 });
 
     expect(res.status).toBe(200);
-    expect(res.body.expertFeeBps).toBe(1000);
-    expect(res.body.taskioFeeCents).toBe(1500);
+    expect(res.body.expertFeeBps).toBe(1500);
+    expect(res.body.taskioFeeCents).toBe(2250);
   });
 
-  it('test_reset founding uses 10%', async () => {
+  it('test_reset founding uses 15%', async () => {
     seedUser({
       foundingExpert: {
         status: 'test_reset',
@@ -202,7 +202,7 @@ describe('POST /api/tradie/fee-estimate', () => {
     const res = await request(app).post('/api/tradie/fee-estimate').send({ grossAmountCents: 15000 });
 
     expect(res.status).toBe(200);
-    expect(res.body.expertFeeBps).toBe(1000);
+    expect(res.body.expertFeeBps).toBe(1500);
   });
 
   it('rejects invalid grossAmountCents', async () => {

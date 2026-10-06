@@ -1454,6 +1454,7 @@ function JobPostingForm() {
                         fontFamily: 'Inter, sans-serif'
                     }}>
                         Free to post • No obligation • Only pay if you accept a quote
+                        <span style={{ display: 'block' }}>A Taskio service fee of 5% is added to the task price (A$4.99 minimum, A$19.99 maximum per booking). Your total is shown before acceptance.</span>
                     </p>
                     <p style={{ fontSize: '13px', color: '#666', margin: '8px 0 0', fontFamily: 'Inter, sans-serif' }}>
                         Currently available for small indoor jobs across inner Melbourne only.

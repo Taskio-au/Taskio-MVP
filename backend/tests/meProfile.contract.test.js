@@ -504,7 +504,7 @@ describe('GET /api/me foundingExpertFeeProfile', () => {
     expect(JSON.stringify(fep)).not.toMatch(/approvedBy|removedBy/);
   });
 
-  it('removed status returns standard 10%', async () => {
+  it('removed status returns standard 15%', async () => {
     seedUser({
       foundingExpert: {
         status: 'removed',
@@ -519,7 +519,7 @@ describe('GET /api/me foundingExpertFeeProfile', () => {
     expect(res.status).toBe(200);
     const fep = res.body.foundingExpertFeeProfile;
     expect(fep.stage).toBe('standard_launch');
-    expect(fep.expertFeeBps).toBe(1000);
+    expect(fep.expertFeeBps).toBe(1500);
     expect(fep.benefitLabel).toBe('Standard launch fee');
     expect(fep.badgeLabel).toBeNull();
     expect(fep.zeroFeeSlotsUsed).toBeNull();
@@ -535,7 +535,7 @@ describe('GET /api/me foundingExpertFeeProfile', () => {
     expect(res.status).toBe(200);
     const fep = res.body.foundingExpertFeeProfile;
     expect(fep.stage).toBe('standard_launch');
-    expect(fep.expertFeeBps).toBe(1000);
+    expect(fep.expertFeeBps).toBe(1500);
     expect(fep.enrolled).toBe(false);
     expect(fep.status).toBeNull();
     expect(fep.programId).toBeNull();

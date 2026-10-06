@@ -223,16 +223,16 @@ function PaymentBreakdownModal({ row, onClose }) {
             <ModalKvRow label="Base Taskio fee">{formatAud(baseResolvedTf / 100)}</ModalKvRow>
             <ModalKvRow label="Variation Taskio fee">{formatAud(varResolvedTf / 100)}</ModalKvRow>
             <ModalKvRow label="Total Taskio fee" emphasis>{formatAud(totalTfCents / 100)}</ModalKvRow>
+            {b.customerServiceFeeCents > 0 && <ModalKvRow label="Includes client service fee (not deducted from you)">{formatAud(b.customerServiceFeeCents / 100)}</ModalKvRow>}
             <div className="pp-pay-modal-kv-row pp-pay-modal-kv-row--block">
               <span className="pp-pay-modal-kv-value pp-pay-modal-kv-value--block" style={{ fontWeight: 600 }}>
                 {formatTaskioFeeWithBenefitLine(totalTfCents, feeBenefit || null, formatAud)}
               </span>
             </div>
             <ModalKvRow label="Stripe charges">
-              <span className="pp-pay-muted">See your Stripe Dashboard for card processing.</span>
+              <span className="pp-pay-muted">{b.customerServiceFeeCents > 0 ? 'Standard card processing is covered by Taskio.' : 'See your Stripe Dashboard for card processing.'}</span>
             </ModalKvRow>
           </section>
-
           <section className="pp-pay-modal-section" aria-labelledby="pp-pay-modal-h-payout">
             <h3 id="pp-pay-modal-h-payout" className="pp-pay-modal-section-title">
               Your payout

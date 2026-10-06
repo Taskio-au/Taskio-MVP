@@ -187,6 +187,7 @@ async function buildAdminPaymentFeeSummary(jobRef, job) {
     baseClientPaidCents: null,
     variationClientPaidCents: null,
     taskioFeeCents: null,
+    customerServiceFeeCents: (j.customerPricing?.customerFeeCents || 0) + (j.securedCustomerVariationFeesCents || 0),
     baseTaskioFeeCents: null,
     variationTaskioFeeCents: null,
     expertReleasedCents: null,
@@ -223,10 +224,10 @@ async function buildAdminPaymentFeeSummary(jobRef, job) {
       const v = nonNegInt(j.variationGrossReleasedCents);
       if (b != null || v != null) clientPaid = (b || 0) + (v || 0);
     }
-    if (clientPaid == null) clientPaid = basePayCents;
+    if (clientPaid == null) clientPaid = basePayCents == null ? null : basePayCents - (j.customerPricing?.customerFeeCents || 0);
 
     let baseCli = nonNegInt(j.baseAmountReleasedCents);
-    if (baseCli == null) baseCli = basePayCents ?? 0;
+    if (baseCli == null) baseCli = (basePayCents ?? 0) - (j.customerPricing?.customerFeeCents || 0);
 
     let varCli = nonNegInt(j.variationGrossReleasedCents);
     if (varCli == null && clientPaid != null) varCli = Math.max(0, clientPaid - baseCli);
@@ -262,12 +263,12 @@ async function buildAdminPaymentFeeSummary(jobRef, job) {
       || (taskio != null && taskio > 0)
       || (expert != null && expert > 0)
       || isReleased;
-    out.clientPaidCents = clientPaid;
-    out.baseClientPaidCents = baseCli;
-    out.variationClientPaidCents = varCli ?? 0;
-    out.taskioFeeCents = taskio;
-    out.baseTaskioFeeCents = baseTaskio;
-    out.variationTaskioFeeCents = varTaskio ?? 0;
+    out.clientPaidCents = clientPaid == null ? null : clientPaid + out.customerServiceFeeCents;
+    out.baseClientPaidCents = baseCli + (j.customerPricing?.customerFeeCents || 0);
+    out.variationClientPaidCents = (varCli ?? 0) + (j.securedCustomerVariationFeesCents || 0);
+    out.taskioFeeCents = taskio == null ? null : taskio + out.customerServiceFeeCents;
+    out.baseTaskioFeeCents = baseTaskio == null ? null : baseTaskio + (j.customerPricing?.customerFeeCents || 0);
+    out.variationTaskioFeeCents = (varTaskio ?? 0) + (j.securedCustomerVariationFeesCents || 0);
     out.expertReleasedCents = expert;
     out.baseExpertReleasedCents = baseExpert;
     out.variationExpertReleasedCents = varExpert ?? 0;
@@ -277,6 +278,7 @@ async function buildAdminPaymentFeeSummary(jobRef, job) {
 
   if (mode === 'secured') {
     const baseCli = basePayCents ?? 0;
+    const baseTask = baseCli - (j.customerPricing?.customerFeeCents || 0);
     const baseSnapshotTf = nonNegInt(fs?.taskioFeeCents);
     const baseSnapshotExpert = nonNegInt(fs?.expertNetCents);
 
@@ -285,21 +287,22 @@ async function buildAdminPaymentFeeSummary(jobRef, job) {
 
     const pctFallback = Number(j.platformFeePercent);
     if (baseCli > 0) {
-      if (bTf != null && bEx == null) bEx = Math.max(0, baseCli - bTf);
-      else if (bTf == null && bEx != null) bTf = Math.max(0, baseCli - bEx);
+      if (bTf != null && bEx == null) bEx = Math.max(0, baseTask - bTf);
+      else if (bTf == null && bEx != null) bTf = Math.max(0, baseTask - bEx);
       else if (
         (bTf == null || bEx == null)
         && Number.isFinite(pctFallback)
       ) {
-        const estTf = Math.round((baseCli * pctFallback) / 100);
+        const estTf = Math.round((baseTask * pctFallback) / 100);
         bTf = bTf ?? (nonNegInt(estTf) ?? 0);
-        bEx = bEx ?? Math.max(0, baseCli - bTf);
+        bEx = bEx ?? Math.max(0, baseTask - bTf);
       }
     }
 
-    const vG = securedRoll.grossCents;
-    const vTf = securedRoll.taskioFeeCents;
+    const vG = securedRoll.grossCents + (j.securedCustomerVariationFeesCents || 0);
+    const vTf = securedRoll.taskioFeeCents + (j.securedCustomerVariationFeesCents || 0);
     const vPr = securedRoll.providerCents;
+    if (bTf != null) bTf += j.customerPricing?.customerFeeCents || 0;
 
     const totalClient = baseCli + vG;
     const totalTf = (bTf ?? 0) + vTf;

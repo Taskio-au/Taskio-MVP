@@ -126,7 +126,9 @@ describe('ExpertFeeProgramCard', () => {
     expect(
       expertFeeProgramPaymentsBlurb({
         stage: 'standard_launch',
+        expertFeeBps: 1500,
       })
-    ).toMatch(/Standard launch fee — 10%/);
+    ).toMatch(/Standard launch fee — 15%/);
+    expect(expertFeeProgramPaymentsBlurb({ stage: 'standard_launch' })).toMatch(/rate unavailable/);
   });
 });

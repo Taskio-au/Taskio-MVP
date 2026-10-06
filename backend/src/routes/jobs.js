@@ -19,6 +19,8 @@ const { updateJobStatus, validateJobTransitionOrThrow } = require('../services/j
 const { phase1ExpertiseCatalog } = require('../shared/expertiseCatalog');
 const { melbournePilotLocations, isSupportedMelbournePilotLocation, normalizeLocationLabel, INNER_MELBOURNE_LAUNCH_MESSAGE } = require('../../../shared/auLocations');
 const { defaultPlatformFeePercentFromEnv } = require('../../../shared/feePlans');
+const { PRICING_VERSION, calculateCustomerPricing, validCustomerPricing } = require('../../../shared/bookingPricing');
+const { createPricedVariation, closePricedVariation, publishVariationCheckout } = require('../services/variationCustomerPricing');
 const { getExpertRatingAggregate } = require('../services/reviewAggregationService');
 const { detectPII } = require('../utils/eligibility');
 const { hasVerifiedPhone } = require('../utils/verifiedPhone');
@@ -659,6 +661,10 @@ router.get('/api/jobs/:jobId/quotes', requireAuth, requireEnrolledProfile({
       tradieUid: q.tradieUid || null,
       amount: q.amount,
       amountCents: q.amountCents,
+      customerPricing: jobDoc.data().acceptedQuoteId === q.id
+        ? jobDoc.data().customerPricing || null
+        : q.pricingVersion === PRICING_VERSION
+          ? calculateCustomerPricing(q.amountCents ?? Math.round(Number(q.amount) * 100)) : null,
       message: q.message || '',
       status: q.status,
       version: q.version || 1,
@@ -947,6 +953,7 @@ router.post(
           homeownerUid: jobNow.homeownerUid || null,
           amount: amt,
           amountCents,
+          pricingVersion: PRICING_VERSION,
           message: message.trim(),
           status: 'submitted',
           version,
@@ -994,6 +1001,7 @@ router.post(
         homeownerUid: jobData.homeownerUid || null,
         amount: amt,
         amountCents,
+        pricingVersion: PRICING_VERSION,
         message: message.trim(),
         status: 'submitted',
         version: 1,
@@ -1321,6 +1329,17 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
         throw err;
       }
 
+      // A previously accepted booking retains its original monetary snapshot.
+      const newPricing = !jobData.acceptedQuoteId && quoteData.pricingVersion === PRICING_VERSION
+        ? calculateCustomerPricing(computedAmountInCents)
+        : jobData.customerPricing || null;
+      const amountToCollect = newPricing ? newPricing.customerTotalCents : computedAmountInCents;
+      if (newPricing && (!validCustomerPricing(newPricing) || newPricing.previousTaskCents != null)) {
+        const err = new Error('bad_amount');
+        err.code = 'bad_amount';
+        throw err;
+      }
+
       const acceptedTradieUid = quoteData.tradieUid;
       if (!acceptedTradieUid) {
         const err = new Error('missing_tradie');
@@ -1332,7 +1351,7 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
       // The job and quote are already in the correct state — no transition needed.
       // Return the existing session ID so the outer code can reuse or recreate it.
       if (currentJobStatus === JOB_STATUSES.AWAITING_FUNDING && jobData.acceptedQuoteId === quoteId) {
-        return { amountInCents: computedAmountInCents };
+        return { amountInCents: amountToCollect };
       }
 
       validateJobTransitionOrThrow(currentJobStatus, JOB_STATUSES.AWAITING_FUNDING, { jobId });
@@ -1342,6 +1361,7 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
         status: JOB_STATUSES.AWAITING_FUNDING,
         acceptedQuoteId: quoteId,
         acceptedTradieUid,
+        ...(newPricing ? { customerPricing: newPricing } : {}),
         paymentState: jobData.paymentState || 'pending_payment',
         paymentStatus: jobData.paymentStatus || 'requires_payment_method',
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1350,7 +1370,7 @@ router.post('/api/jobs/:jobId/checkout', requireAuth, requireRole('homeowner'), 
         tx.update(quoteRef, { status: 'accepted', updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       }
 
-      return { amountInCents: computedAmountInCents };
+      return { amountInCents: amountToCollect };
     });
 
     const reco = await reconcileBaseQuoteStripeBeforeNewCheckout(jobRef);
@@ -1944,7 +1964,7 @@ router.post('/api/jobs/:jobId/variations', requireAuth, requireRole('tradie'), a
 
     // --- Create variation via Admin SDK ---
     const variationRef = db.collection('jobs').doc(jobId).collection('variations').doc();
-    await variationRef.set({
+    const variationPayload = {
       createdByUid: tradieUid,
       createdByRole: 'tradie',
       title,
@@ -1955,7 +1975,9 @@ router.post('/api/jobs/:jobId/variations', requireAuth, requireRole('tradie'), a
       attachments: safeAttachments,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+    if (job.customerPricing) await createPricedVariation(db, jobRef, variationRef, variationPayload);
+    else await variationRef.set(variationPayload);
 
     await logJobEvent({
       jobId,
@@ -1969,6 +1991,7 @@ router.post('/api/jobs/:jobId/variations', requireAuth, requireRole('tradie'), a
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error('POST /api/jobs/:jobId/variations error:', e);
+    if (e.statusCode) return res.status(e.statusCode).send({ message: e.message });
     return res.status(500).send({ message: 'Failed to create variation. Please try again.' });
   }
 });
@@ -2009,12 +2032,14 @@ router.post(
         return res.status(409).send({ message: 'Cannot modify variations for a cancelled or refunded task.' });
       }
 
-      await varRef.update({
+      const declinePatch = {
         status: 'declined',
         declinedByUid: homeownerUid,
         declinedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+      if (variation.customerPricing) await closePricedVariation(db, varRef, variation, declinePatch);
+      else await varRef.update(declinePatch);
       await logJobEvent({
         jobId,
         actorId: homeownerUid,
@@ -2026,6 +2051,7 @@ router.post(
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('POST variation/decline error:', e);
+      if (e.statusCode) return res.status(e.statusCode).send({ message: e.message });
       return res.status(500).send({ message: 'Failed to decline variation. Please try again.' });
     }
   }
@@ -2064,8 +2090,10 @@ async function createPaidVariationCheckoutSession({
   const { createCheckoutSession } = require('../services/stripe');
   const amountInCents = Math.max(0, Math.floor(Number(variation.priceChangeCents || 0)));
   const urls = variationCheckoutUrls(jobId, variationId);
+  if (job.customerPricing && (!validCustomerPricing(variation.customerPricing)
+    || variation.customerPricing.taskPriceCents !== amountInCents)) throw new Error('Invalid variation pricing.');
   return createCheckoutSession({
-    amountInCents,
+    amountInCents: variation.customerPricing?.customerTotalCents ?? amountInCents,
     currency: 'aud',
     name: 'Approved variation payment',
     description: `Variation: ${(variation.title || '').slice(0, 80)}`,
@@ -2234,7 +2262,7 @@ router.post(
         generation,
       });
 
-      await varRef.update({
+      await publishVariationCheckout(db, varRef, claimed.variation, {
         status: 'awaiting_payment',
         checkoutSessionId: session.id,
         paymentCheckoutGeneration: generation,
@@ -2347,7 +2375,7 @@ router.post(
         generation,
       });
 
-      await varRef.update({
+      await publishVariationCheckout(db, varRef, variation, {
         checkoutSessionId: retrySession.id,
         paymentCheckoutGeneration: generation,
         paymentCheckoutReplacementFor: null,
@@ -2362,7 +2390,7 @@ router.post(
       if (sendIfStripeDisabled(res, e)) return;
       // eslint-disable-next-line no-console
       console.error('POST variation/checkout error:', e);
-      return res.status(500).send({ message: 'Failed to start payment. Please try again.' });
+      return res.status(e?.code === 'not_pending' ? 409 : 500).send({ message: 'Failed to start payment. Please refresh and try again.' });
     }
   }
 );
@@ -2470,12 +2498,14 @@ router.post(
         return res.status(409).send({ message: 'Only pending variations can be cancelled.' });
       }
 
-      await varRef.update({
+      const cancelPatch = {
         status: 'cancelled',
         cancelledByUid: tradieUid,
         cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+      if (variation.customerPricing) await closePricedVariation(db, varRef, variation, cancelPatch);
+      else await varRef.update(cancelPatch);
       await logJobEvent({
         jobId,
         actorId: tradieUid,
@@ -2487,6 +2517,7 @@ router.post(
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('POST variation/cancel error:', e);
+      if (e.statusCode) return res.status(e.statusCode).send({ message: e.message });
       return res.status(500).send({ message: 'Failed to cancel variation. Please try again.' });
     }
   }

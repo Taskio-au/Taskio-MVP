@@ -1,6 +1,6 @@
 'use strict';
 
-const { STANDARD_LAUNCH_FEE_BPS } = require('../../../shared/feePlans');
+const LEGACY_STANDARD_FEE_BPS = 1000;
 const {
   BASE_FUNDING_SOURCE,
   lockedAtPresent,
@@ -92,7 +92,7 @@ function resolveInheritedBaseJobFeeRule(job, jobId) {
 function standardRule(inherited, baseLocked) {
   return {
     inheritedFromBaseJobFeeSnapshot: inherited,
-    expertFeeBps: STANDARD_LAUNCH_FEE_BPS,
+    expertFeeBps: LEGACY_STANDARD_FEE_BPS,
     stage: STANDARD_STAGE,
     benefitLabel: BENEFIT_STANDARD_FALLBACK,
     programId: null,
@@ -228,7 +228,7 @@ function deriveVariationReleaseSlice(job, jobId, variationEntryId, variationData
     };
   }
 
-  const pctFallback = STANDARD_LAUNCH_FEE_BPS / 100;
+  const pctFallback = LEGACY_STANDARD_FEE_BPS / 100;
   const platformFeeCents = Math.round((grossCents * pctFallback) / 100);
   return {
     variationId: variationEntryId,
@@ -237,7 +237,7 @@ function deriveVariationReleaseSlice(job, jobId, variationEntryId, variationData
     platformFeeCents,
     providerCents: grossCents - platformFeeCents,
     variationFeeSource: VARIATION_FEE_SOURCE_STANDARD_FALLBACK,
-    expertFeeBps: STANDARD_LAUNCH_FEE_BPS,
+    expertFeeBps: LEGACY_STANDARD_FEE_BPS,
   };
 }
 

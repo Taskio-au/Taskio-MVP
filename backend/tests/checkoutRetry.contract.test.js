@@ -253,6 +253,28 @@ describe('POST /api/jobs/:jobId/checkout', () => {
   });
 
   describe('First-time checkout', () => {
+    it('retains the accepted customer total when replacing an expired checkout', async () => {
+      const { calculateCustomerPricing } = require('../../shared/bookingPricing');
+      seedAwaitingFundingJob({ customerPricing: calculateCustomerPricing(17500) });
+      mockRetrieveCheckoutSession.mockResolvedValue({ id: 'cs_existing_123', status: 'expired', payment_status: 'unpaid' });
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_priced_retry'));
+      const res = await request(app).post('/api/jobs/job-1/checkout').send({ quoteId: 'quote-1' });
+      expect(res.status).toBe(200);
+      expect(mockCreateCheckoutSession.mock.calls[0][0].amountInCents).toBe(18375);
+    });
+    it('charges the server-calculated customer fee and preserves the task price', async () => {
+      const { PRICING_VERSION } = require('../../shared/bookingPricing');
+      seedQuotedJobAndQuote();
+      seedDoc('quotes', 'quote-1', { jobId: 'job-1', tradieUid: 'tradie-1', status: 'submitted',
+        amount: 175, amountCents: 17500, pricingVersion: PRICING_VERSION });
+      mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_priced'));
+      const res = await request(app).post('/api/jobs/job-1/checkout')
+        .send({ quoteId: 'quote-1', customerTotalCents: 1 });
+      expect(res.status).toBe(200);
+      expect(mockCreateCheckoutSession.mock.calls[0][0].amountInCents).toBe(18375);
+      expect(readDoc('jobs', 'job-1').customerPricing).toMatchObject({ taskPriceCents: 17500,
+        customerFeeCents: 875, customerTotalCents: 18375 });
+    });
     it('transitions QUOTED job to AWAITING_FUNDING and returns a new session ID', async () => {
       seedQuotedJobAndQuote();
       mockCreateCheckoutSession.mockResolvedValue(stripeCheckoutSession('cs_new_abc', { payment_intent: 'pi_new_abc' }));

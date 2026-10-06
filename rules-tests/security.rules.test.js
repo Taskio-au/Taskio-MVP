@@ -7,6 +7,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   serverTimestamp,
@@ -135,6 +136,19 @@ after(async () => {
 });
 
 describe('Firestore user and admin authorization', () => {
+  test('allows Expert progress updates but denies adding server-owned pricing fields', async () => {
+    const db = firestoreFor('tradie-1');
+    const ref = doc(db, 'jobs/job-funded');
+    const progress = { progressStatus: 'work_started', progressStatusUpdatedAt: serverTimestamp() };
+    await assertSucceeds(updateDoc(ref, progress));
+    await assertFails(updateDoc(ref, { ...progress, customerPricing: { taskPriceCents: 1 } }));
+    await assertFails(updateDoc(ref, { ...progress, securedCustomerVariationFeesCents: 99999 }));
+    await seedFirestore([
+      ['jobs/job-priced', job({ customerPricing: { taskPriceCents: 17500, customerFeeCents: 875, customerTotalCents: 18375 } })],
+    ]);
+    await assertFails(updateDoc(doc(db, 'jobs/job-priced'), { ...progress, customerPricing: deleteField() }));
+  });
+
   test('denies client creation of user profiles, including homeowner bootstrap', async () => {
     const db = firestoreFor('new-homeowner', { email: 'owner@example.test' });
     await assertFails(setDoc(doc(db, 'users/new-homeowner'), {
@@ -207,6 +221,18 @@ describe('Firestore user and admin authorization', () => {
     }));
   });
 
+  test('denies adding a Founding Expert fee rate during a profile edit', async () => {
+    await seedFirestore([
+      ['users/expert-1', { role: 'tradie', status: 'active', bio: 'old bio' }],
+    ]);
+    const db = firestoreFor('expert-1');
+    await assertFails(updateDoc(doc(db, 'users/expert-1'), {
+      bio: 'updated bio',
+      updatedAt: serverTimestamp(),
+      foundingExpert: { status: 'active', zeroFeeSlotsUsed: 0, standardFeeBpsAfter: 0 },
+    }));
+  });
+
   test('does not trust admin fields stored in a user profile', async () => {
     await seedFirestore([
       ['users/profile-admin', { role: 'admin', admin: true }],
@@ -224,6 +250,49 @@ describe('Firestore user and admin authorization', () => {
 
     const db = firestoreFor('claims-admin', { admin: true });
     await assertSucceeds(getDoc(doc(db, 'users/another-user')));
+  });
+});
+
+describe('Firestore variation pricing protection', () => {
+  test('allows a pending variation cancel but denies added pricing fields', async () => {
+    await seedFirestore([
+      ['jobs/job-funded/variations/var-ok', {
+        status: 'pending',
+        createdByUid: 'tradie-1',
+        priceChangeCents: 2500,
+      }],
+      ['jobs/job-funded/variations/var-priced', {
+        status: 'pending',
+        createdByUid: 'tradie-1',
+        priceChangeCents: 2500,
+        customerPricing: { customerFeeCents: 125, customerTotalCents: 2625 },
+      }],
+      ['jobs/job-funded/variations/var-add', {
+        status: 'pending',
+        createdByUid: 'tradie-1',
+        priceChangeCents: 2500,
+      }],
+    ]);
+    const db = firestoreFor('tradie-1');
+    await assertSucceeds(updateDoc(doc(db, 'jobs/job-funded/variations/var-ok'), {
+      status: 'cancelled',
+      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(db, 'jobs/job-funded/variations/var-add'), {
+      status: 'cancelled',
+      updatedAt: serverTimestamp(),
+      feeSnapshot: { expertFeeBps: 0, expertNetCents: 2500 },
+    }));
+    await assertFails(updateDoc(doc(db, 'jobs/job-funded/variations/var-priced'), {
+      status: 'cancelled',
+      updatedAt: serverTimestamp(),
+      customerPricing: { customerFeeCents: 0, customerTotalCents: 2500 },
+    }));
+    await assertFails(updateDoc(doc(db, 'jobs/job-funded/variations/var-priced'), {
+      status: 'cancelled',
+      updatedAt: serverTimestamp(),
+      customerPricing: deleteField(),
+    }));
   });
 });
 

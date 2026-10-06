@@ -102,6 +102,10 @@ async function retrieveCheckoutSession(sessionId) {
   });
 }
 
+async function expireCheckoutSession(sessionId) {
+  return getStripe().checkout.sessions.expire(sessionId);
+}
+
 async function createExpressAccount({ taskioUid, email, idempotencyKey }) {
   const stripe = getStripe();
   const account = await stripe.accounts.create(
@@ -250,6 +254,7 @@ module.exports = {
   createCheckoutSession,
   retrievePaymentIntent,
   retrieveCheckoutSession,
+  expireCheckoutSession,
   createExpressAccount,
   retrieveAccount,
   createAccountLink,

@@ -289,13 +289,22 @@ export default function QuotesSection({
                 <div style={styles.quoteDivider} />
 
                 <div style={styles.quoteHeader} className="homeowner-quote-card-header">
-                  <div style={styles.quoteAmount} className="homeowner-quote-amount">{formatQuoteAmount(quote.amount)}</div>
+                  <div style={styles.quoteAmount} className="homeowner-quote-amount">
+                    {quote.customerPricing ? `Total: ${formatQuoteAmount(quote.customerPricing.customerTotalCents / 100)}` : formatQuoteAmount(quote.amount)}
+                  </div>
                   {isAcceptedQuote && (
                   <div className="homeowner-quote-badges">
                     <div style={styles.acceptedBadge} className="homeowner-quote-accepted-badge">Accepted</div>
                   </div>
                   )}
                 </div>
+                {quote.customerPricing && (
+                  <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 12 }}>
+                    <div>Task price: {formatQuoteAmount(quote.customerPricing.taskPriceCents / 100)}</div>
+                    <div>Taskio service fee: {formatQuoteAmount(quote.customerPricing.customerFeeCents / 100)}</div>
+                    <div>5% of the task price, minimum A$4.99 and maximum A$19.99 per booking.</div>
+                  </div>
+                )}
                 <p style={styles.quoteMessage} className="homeowner-quote-message">{quote.message}</p>
                 {revisionRequests.some((r) => r.id === quote.tradieUid && r.status === 'open') && (
                   <div style={styles.revisionPill} className="homeowner-quote-revision-pill">Revision requested</div>

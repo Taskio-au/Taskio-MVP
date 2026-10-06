@@ -2,6 +2,7 @@
 
 const { admin } = require('../firebaseAdmin');
 const { buildVariationPaymentFeeSnapshot } = require('./variationFeeSnapshotService');
+const { validCustomerPricing } = require('../../../shared/bookingPricing');
 
 /**
  * Idempotently mark a variation as paid / secured in escrow after Stripe Checkout or PaymentIntent success.
@@ -48,8 +49,17 @@ async function applyVariationPaymentSuccess(db, {
     }
 
     const expected = Math.floor(Number(variation.priceChangeCents || 0));
+    const price = variation.customerPricing;
+    if (jobPayload.customerPricing && (!validCustomerPricing(price) || price.taskPriceCents !== expected
+      || price.customerTotalCents !== amountReceived || currency !== 'aud'
+      || !['pending', 'awaiting_payment'].includes(variation.status))) {
+      tx.update(varRef, { requiresAdminAttention: true, flagNote: 'Variation payment does not match the approved pricing or state.',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      return;
+    }
+    const expectedPayment = price ? price.customerTotalCents : expected;
     if (expected > 0 && amountReceived !== null && typeof amountReceived === 'number') {
-      if (Math.abs(amountReceived - expected) > 1) {
+      if (Math.abs(amountReceived - expectedPayment) > 1) {
         tx.update(varRef, {
           requiresAdminAttention: true,
           flagNote: `Amount mismatch: expected ${expected}, received ${amountReceived}`,
@@ -72,7 +82,7 @@ async function applyVariationPaymentSuccess(db, {
     if (checkoutSessionId) update.checkoutSessionId = checkoutSessionId;
     if (amountReceived !== null && typeof amountReceived === 'number') {
       update.amountPaidCents = amountReceived;
-      grossApplied = Math.round(Number(amountReceived));
+      grossApplied = price ? expected : Math.round(Number(amountReceived));
     }
     if (currency) update.paymentCurrency = String(currency).toLowerCase();
 
@@ -83,6 +93,11 @@ async function applyVariationPaymentSuccess(db, {
       variationGrossCents: grossApplied,
       now: new Date(),
     });
+    if (price && !snap?.inheritedFromBaseJobFeeSnapshot) {
+      tx.update(varRef, { requiresAdminAttention: true, flagNote: 'Base Expert fee snapshot needs review.',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      return;
+    }
     if (snap) update.feeSnapshot = snap;
 
     tx.update(varRef, update);
@@ -92,6 +107,8 @@ async function applyVariationPaymentSuccess(db, {
     tx.update(jobRef, {
       variationTotalInCents: increment,
       securedVariationTotalInCents: increment,
+      ...(price ? { securedCustomerVariationFeesCents: admin.firestore.FieldValue.increment(price.customerFeeCents),
+        activePricedVariationId: null } : {}),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 

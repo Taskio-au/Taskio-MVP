@@ -2,7 +2,6 @@
 
 const { admin, db } = require('../firebaseAdmin');
 const { validateBaseJobFeeSnapshotForRelease } = require('./jobFeeSnapshotService');
-const { STANDARD_LAUNCH_FEE_BPS } = require('../../../shared/feePlans');
 const {
   deriveVariationReleaseSlice,
   VARIATION_FEE_SOURCE_LEGACY_PERCENT,
@@ -29,7 +28,7 @@ function shouldIncludeVariationInExpertRelease(v) {
 }
 
 function computeFeeSlice(grossCents, platformFeePercent) {
-  const pctFallback = STANDARD_LAUNCH_FEE_BPS / 100;
+  const pctFallback = 10; // Unversioned legacy release; new bookings require a snapshot.
   const pct = Number.isFinite(platformFeePercent) ? platformFeePercent : pctFallback;
   const platformFeeCents = Math.round((grossCents * pct) / 100);
   const providerCents = grossCents - platformFeeCents;
@@ -140,6 +139,9 @@ async function createExpertReleaseStripeTransfers({
   const variationEntries = await loadEligibleVariationEntriesForRelease(jobRef);
 
   const snapValidation = validateBaseJobFeeSnapshotForRelease(job, jobId);
+  if (job.customerPricing && !snapValidation.ok) {
+    return { error: { httpStatus: 409, code: 'invalid_pricing_snapshot', message: 'Payment pricing needs review before release.' } };
+  }
   let planOptions;
   if (snapValidation.ok) {
     planOptions = {

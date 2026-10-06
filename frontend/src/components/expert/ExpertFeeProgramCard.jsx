@@ -46,7 +46,8 @@ export function expertFeeProgramPaymentsBlurb(foundingExpertFeeProfile) {
     return `Reduced Founding Expert fee — 7.5% Taskio fee`;
   }
   if (stage === 'standard_launch') {
-    return `Standard launch fee — 10% Taskio fee on completed paid tasks`;
+    if (typeof f.expertFeeBps !== 'number' || !Number.isFinite(f.expertFeeBps)) return 'Standard launch fee — rate unavailable';
+    return `Standard launch fee — ${bpsToPercentLabel(f.expertFeeBps)} Taskio fee on completed paid tasks`;
   }
   return null;
 }
@@ -129,7 +130,7 @@ export default function ExpertFeeProgramCard({
     subline = end ? `7.5% Taskio fee until ${end}` : '7.5% Taskio fee on completed paid tasks';
   } else {
     headline = 'Standard launch fee';
-    subline = '10% Taskio fee on completed paid tasks';
+    subline = `${feeLine} Taskio fee on completed paid tasks`;
   }
 
   return (

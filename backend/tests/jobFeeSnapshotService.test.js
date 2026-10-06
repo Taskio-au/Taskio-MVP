@@ -109,6 +109,19 @@ describe('jobFeeSnapshotService.computeBaseJobFundingFeeSnapshotTx', () => {
     expect(r.userWrite).toBeNull();
   });
 
+  it.each([false, true])('excludes the customer fee from Expert commission and proceeds (founding=%s)', async founding => {
+    const { calculateBookingPricing } = require('../../shared/bookingPricing');
+    const jobData = { ...baseJob, customerPricing: calculateBookingPricing(17500) };
+    const users = { [expertUid]: founding ? expertFounding({ zeroFeeSlotsUsed: 0 }) : { role: 'tradie' } };
+    const r = await computeBaseJobFundingFeeSnapshotTx(makeTx(jobData, users), admin, makeDb(), {
+      jobRef: jobRefMock(), jobData, nextJobPatch: { ...fundingPatch, paymentAmountCents: 18375 },
+      grossAmountCents: 18375, now,
+    });
+    expect(r.feeSnapshot.grossAmountCents).toBe(17500);
+    expect(r.feeSnapshot.taskioFeeCents).toBe(founding ? 0 : 2625);
+    expect(r.feeSnapshot.expertNetCents).toBe(founding ? 17500 : 14875);
+  });
+
   it('B: founding first slot consumes one zero-fee slot', async () => {
     const jobData = { ...baseJob };
     const users = { [expertUid]: expertFounding({ zeroFeeSlotsUsed: 0 }) };

@@ -7,6 +7,7 @@ const {
 } = require('./expertFeeProgram');
 
 const BASE_FUNDING_SOURCE = 'base_job_funding';
+const { validCustomerPricing } = require('../../../shared/bookingPricing');
 
 /**
  * Inside an existing Firestore transaction: compute and persist base-job funding fee snapshot + optional slot consumption.
@@ -44,10 +45,16 @@ async function computeBaseJobFundingFeeSnapshotTx(tx, admin, db, params) {
     return {};
   }
 
-  const gross =
+  const collectedGross =
     grossInput != null && Number.isFinite(Number(grossInput)) && Number(grossInput) > 0
       ? Math.round(Number(grossInput))
       : Math.round(Number(nextJobPatch.paymentAmountCents ?? jobData.paymentAmountCents));
+  const gross = jobData.customerPricing?.taskPriceCents ?? collectedGross;
+  if (jobData.customerPricing && (!validCustomerPricing(jobData.customerPricing)
+    || jobData.customerPricing.previousTaskCents != null
+    || collectedGross !== jobData.customerPricing.customerTotalCents)) {
+    throw new Error('Booking price does not reconcile with collected payment.');
+  }
 
   if (!Number.isFinite(gross) || gross <= 0) {
     return {};
@@ -74,6 +81,15 @@ async function computeBaseJobFundingFeeSnapshotTx(tx, admin, db, params) {
     jobId,
     now,
   });
+
+  // Unversioned bookings predate the two-sided model. Preserve their standard
+  // 10% rate, or an explicit existing rate, without rewriting locked snapshots.
+  if (!jobData.customerPricing && snapshotCore.stage === STAGE.STANDARD_LAUNCH) {
+    const bps = Number.isFinite(jobData.platformFeePercent) ? jobData.platformFeePercent * 100 : 1000;
+    snapshotCore.expertFeeBps = bps;
+    snapshotCore.taskioFeeCents = Math.round(gross * bps / 10000);
+    snapshotCore.expertNetCents = gross - snapshotCore.taskioFeeCents;
+  }
 
   const consumeSlot = snapshotCore.stage === STAGE.FOUNDING_FIRST_THREE;
 
@@ -199,6 +215,9 @@ function validateBaseJobFeeSnapshotForRelease(job, jobId) {
   }
 
   const fs = job.feeSnapshot;
+  if (job.customerPricing && (!validCustomerPricing(job.customerPricing) || job.customerPricing.previousTaskCents != null)) {
+    return { ok: false, reason: 'customer_pricing_invalid' };
+  }
   if (!fs || typeof fs !== 'object') {
     return { ok: false, reason: 'fee_snapshot_missing' };
   }
@@ -235,7 +254,7 @@ function validateBaseJobFeeSnapshotForRelease(job, jobId) {
     return { ok: false, reason: 'fee_snapshot_fee_parts_sum_mismatch' };
   }
 
-  const paymentGross = Math.round(Number(job.paymentAmountCents));
+  const paymentGross = Math.round(Number(job.paymentAmountCents)) - (job.customerPricing?.customerFeeCents || 0);
   if (!Number.isFinite(paymentGross) || paymentGross <= 0 || grossAmountCents !== paymentGross) {
     return { ok: false, reason: 'fee_snapshot_gross_payment_mismatch' };
   }

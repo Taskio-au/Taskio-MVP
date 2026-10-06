@@ -426,7 +426,8 @@ export default function VariationPanel({ jobId, job, onPendingVariationPayment }
                 <div style={statusPillStyle(v.status, v.paymentState)}>{variationPillLabel(v)}</div>
               </div>
               <div style={styles.meta}>
-                <div><strong>Price:</strong> {centsToAud(v.priceChangeCents)}</div>
+                <div><strong>{v.customerPricing ? 'Total additional payment:' : 'Price:'}</strong> {centsToAud(v.customerPricing?.customerTotalCents ?? v.priceChangeCents)}</div>
+                {v.customerPricing && <div>Additional work: {centsToAud(v.priceChangeCents)} · Taskio service fee adjustment: {centsToAud(v.customerPricing.customerFeeCents)}. The booking fee cap applies across approved changes.</div>}
                 <div><strong>Time:</strong> {v.timeImpact || '\u2014'}</div>
               </div>
               <div style={styles.desc}>{v.description}</div>

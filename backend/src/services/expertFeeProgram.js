@@ -176,7 +176,8 @@ function getFoundingExpertStage(expertProfileOrDoc, nowInput) {
 
   return {
     stage: STAGE.STANDARD_LAUNCH,
-    expertFeeBps: STANDARD_LAUNCH_FEE_BPS,
+    expertFeeBps: Number.isInteger(fe.standardFeeBpsAfter) && fe.standardFeeBpsAfter >= 0 && fe.standardFeeBpsAfter <= 10000
+      ? fe.standardFeeBpsAfter : STANDARD_LAUNCH_FEE_BPS,
     benefitLabel: BENEFIT_STANDARD,
     effectiveReducedFeeEndsAt: reducedEnds,
     derivedReducedFeeEndsAt,
@@ -221,7 +222,7 @@ function formatAuCurrencyFromCents(cents) {
   }).format(n / 100);
 }
 
-function expertFeeProfileDisplayCopy({ stage, effectiveReducedEndsAt }) {
+function expertFeeProfileDisplayCopy({ stage, effectiveReducedEndsAt, expertFeeBps = STANDARD_LAUNCH_FEE_BPS }) {
   if (stage === STAGE.FOUNDING_FIRST_THREE) {
     return '0% Taskio fee on your first 3 funded tasks.';
   }
@@ -239,7 +240,7 @@ function expertFeeProfileDisplayCopy({ stage, effectiveReducedEndsAt }) {
       ? `7.5% Taskio fee until ${endLabel}.`
       : '7.5% Taskio fee during your founding reduced period.';
   }
-  return '10% Taskio fee.';
+  return `${expertFeeBps / 100}% Taskio fee.`;
 }
 
 /**
@@ -312,6 +313,7 @@ function buildExpertFoundingFeeProfile(expertProfileOrDoc, nowInput) {
     badgeLabel: badgeEligible ? 'Founding Expert' : null,
     displayCopy: expertFeeProfileDisplayCopy({
       stage: stageInfo.stage,
+      expertFeeBps: stageInfo.expertFeeBps,
       effectiveReducedEndsAt: stageInfo.effectiveReducedFeeEndsAt,
     }),
     estimateOnly: true,

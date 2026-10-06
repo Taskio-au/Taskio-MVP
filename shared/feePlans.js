@@ -21,9 +21,9 @@ const foundingExpertZeroFeeBps = 0;
 const foundingExpertReducedFeeBps = 750;
 const foundingExpertReducedFeeMonths = 3;
 
-const standardLaunchFeeBps = 1000;
+const standardLaunchFeeBps = 1500;
 
-/** Percent points for standard launch (= basis points ÷ 100). Current launch default is 10%. */
+/** Percent points for new standard launch quotes (= basis points ÷ 100). */
 function standardLaunchFeePercent() {
   return standardLaunchFeeBps / 100;
 }
@@ -32,16 +32,16 @@ function standardLaunchFeePercent() {
  * Resolved default Taskio fee percent when `job.platformFeePercent` is unset.
  *
  * If `PLATFORM_FEE_PERCENT` is set to a finite number in [0,100], it still overrides this.
- * Missing or invalid env falls back to {@link standardLaunchFeePercent}.
+ * Legacy jobs without a locked fee retain the previous 10% default.
  */
 function defaultPlatformFeePercentFromEnv(env = process.env) {
   const raw = env.PLATFORM_FEE_PERCENT;
   if (raw === undefined || raw === null || String(raw).trim() === '') {
-    return standardLaunchFeePercent();
+    return 10;
   }
   const p = Number(raw);
   if (!Number.isFinite(p) || p < 0 || p > 100) {
-    return standardLaunchFeePercent();
+    return 10;
   }
   return p;
 }

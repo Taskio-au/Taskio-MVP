@@ -118,6 +118,12 @@ export default function PaymentFeeBreakdownPanel({ summary, styles: S }) {
           <span style={rowSx.label}>Taskio fee</span>
           <span style={rowSx.value}>{formatMoneyCents(summary.taskioFeeCents)}</span>
         </div>
+        {summary.customerServiceFeeCents > 0 && (
+          <div style={rowSx.row}>
+            <span style={rowSx.label}> · Includes customer service fees</span>
+            <span style={rowSx.value}>{formatMoneyCents(summary.customerServiceFeeCents)}</span>
+          </div>
+        )}
         {variationPaid ? (
           <>
             <div style={{ ...rowSx.row, opacity: 0.92 }}>

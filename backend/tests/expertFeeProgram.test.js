@@ -17,6 +17,12 @@ const {
 } = require('../../shared/feePlans');
 
 describe('calculateFeeCents', () => {
+  it('honours an existing Founding Expert post-offer rate', () => {
+    const profile = { foundingExpert: { status: 'active', zeroFeeSlotsUsed: 3,
+      reducedFeeEndsAt: '2026-01-01T00:00:00.000Z', standardFeeBpsAfter: 1000 } };
+    expect(getFoundingExpertStage(profile, new Date('2026-10-05')).expertFeeBps).toBe(1000);
+    expect(buildExpertFoundingFeeProfile(profile, new Date('2026-10-05')).displayCopy).toBe('10% Taskio fee.');
+  });
   it('0% fee returns 0', () => {
     expect(calculateFeeCents(10000, 0)).toBe(0);
   });
@@ -63,7 +69,7 @@ describe('getFoundingExpertStage', () => {
   const pastEnd = new Date('2020-01-01T00:00:00.000Z');
   const mid2030 = new Date('2030-03-15T12:00:00.000Z');
 
-  it('non-founding Expert (no foundingExpert) uses standard_launch at 10%', () => {
+  it('non-founding Expert (no foundingExpert) uses standard_launch at 15%', () => {
     const r = getFoundingExpertStage({}, mid2030);
     expect(r.stage).toBe(STAGE.STANDARD_LAUNCH);
     expect(r.expertFeeBps).toBe(STANDARD_LAUNCH_FEE_BPS);
@@ -77,7 +83,7 @@ describe('getFoundingExpertStage', () => {
         mid2030
       );
       expect(r.stage).toBe(STAGE.STANDARD_LAUNCH);
-      expect(r.expertFeeBps).toBe(1000);
+      expect(r.expertFeeBps).toBe(1500);
     }
   });
 
@@ -126,7 +132,7 @@ describe('getFoundingExpertStage', () => {
       mid2030
     );
     expect(r.stage).toBe(STAGE.STANDARD_LAUNCH);
-    expect(r.expertFeeBps).toBe(1000);
+    expect(r.expertFeeBps).toBe(1500);
     expect(r.benefitLabel).toBe('Standard launch fee');
   });
 
@@ -170,7 +176,7 @@ describe('getFoundingExpertStage', () => {
 describe('calculateExpertFeeSnapshot', () => {
   const now = new Date('2030-05-01T10:00:00.000Z');
 
-  it('non-founding profile produces standard_launch snapshot with 10% fee math', () => {
+  it('non-founding profile produces standard_launch snapshot with 15% fee math', () => {
     const snap = calculateExpertFeeSnapshot({
       expertProfile: {},
       grossAmountCents: 20000,
@@ -180,10 +186,10 @@ describe('calculateExpertFeeSnapshot', () => {
     expect(snap.programId).toBeNull();
     expect(snap.jobId).toBe('job-a');
     expect(snap.stage).toBe(STAGE.STANDARD_LAUNCH);
-    expect(snap.expertFeeBps).toBe(1000);
+    expect(snap.expertFeeBps).toBe(1500);
     expect(snap.grossAmountCents).toBe(20000);
-    expect(snap.taskioFeeCents).toBe(2000);
-    expect(snap.expertNetCents).toBe(18000);
+    expect(snap.taskioFeeCents).toBe(3000);
+    expect(snap.expertNetCents).toBe(17000);
     expect(snap.benefitLabel).toBe('Standard launch fee');
     expect(snap.calculatedAt).toBe(now.toISOString());
     expect(snap.lockedAt).toBeNull();
@@ -301,10 +307,10 @@ describe('estimateExpertFeeForGross', () => {
     expect(e.expertReceivesCents).toBe(13875);
   });
 
-  it('10% standard', () => {
+  it('15% standard', () => {
     const e = estimateExpertFeeForGross({ grossAmountCents: 15000, expertProfile: {}, now: now2030Early });
-    expect(e.taskioFeeCents).toBe(1500);
-    expect(e.expertReceivesCents).toBe(13500);
+    expect(e.taskioFeeCents).toBe(2250);
+    expect(e.expertReceivesCents).toBe(12750);
     expect(e.benefitLabel).toBe('Standard launch fee');
   });
 

@@ -136,6 +136,13 @@ function renderQuotesSection(quoteOverrides = {}, extraProps = {}) {
 }
 
 describe('QuotesSection', () => {
+  it('shows the all-in total and fee breakdown before acceptance', () => {
+    renderQuotesSection({ amount: 175, customerPricing: {
+      taskPriceCents: 17500, customerFeeCents: 875, customerTotalCents: 18375,
+    } });
+    expect(screen.getByText('Total: $183.75')).toBeInTheDocument();
+    expect(screen.getByText('Taskio service fee: $8.75')).toBeInTheDocument();
+  });
   // -----------------------------------------------------------------------
   // Regression: existing behaviour must not break
   // -----------------------------------------------------------------------

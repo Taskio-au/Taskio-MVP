@@ -22,7 +22,6 @@ const {
 const { getShortJobRef } = require('../../../shared/taskReference');
 const { paymentDisplayTaskTitle } = require('../../../shared/paymentDisplayTaskTitle');
 const { admin } = require('../firebaseAdmin');
-const { standardLaunchFeePercent } = require('../../../shared/feePlans');
 const { expressAccountIdempotencyKey } = require('../services/stripeIdempotency');
 const { isStripeEnabled, sendStripeDisabled, sendIfStripeDisabled } = require('../config/stripeEnabled');
 const {
@@ -39,7 +38,7 @@ const {
 
 const router = express.Router();
 
-const DEFAULT_PLATFORM_FEE_PERCENT = standardLaunchFeePercent();
+const DEFAULT_PLATFORM_FEE_PERCENT = 10; // Historical jobs without persisted fees.
 
 /** When true, Experts UI may show itemised Taskio platform fee; otherwise show fee as not itemised in payments views. */
 function paymentsPlatformFeeLineExplicit() {
@@ -55,6 +54,7 @@ function timestampToMillis(ts) {
 }
 
 function providerCentsForTradieJob(job) {
+  if (job.customerPricing && job.feeSnapshot && !job.totalProviderReleasedCents) return job.feeSnapshot.expertNetCents;
   if (Number.isFinite(job.totalProviderReleasedCents) && job.totalProviderReleasedCents > 0) {
     return Math.round(job.totalProviderReleasedCents);
   }
@@ -69,6 +69,7 @@ function providerCentsForTradieJob(job) {
 }
 
 function platformFeeCentsForTradieJob(job) {
+  if (job.customerPricing && job.feeSnapshot && job.totalPlatformFeeReleasedCents == null) return job.feeSnapshot.taskioFeeCents;
   if (Number.isFinite(job.totalPlatformFeeReleasedCents) && job.totalPlatformFeeReleasedCents >= 0) {
     return Math.round(job.totalPlatformFeeReleasedCents);
   }
@@ -449,11 +450,14 @@ router.get('/api/tradie/payment-activity', requireAuth, requireRole('tradie'), a
           ? j.baseAmountReleasedCents
           : (Number.isFinite(j.paymentAmountCents) ? j.paymentAmountCents : 0);
         const variationClientPaid = Number.isFinite(j.variationGrossReleasedCents) ? j.variationGrossReleasedCents : 0;
-        const taskioFeeCents = platformFeeCentsForTradieJob(j);
+        const baseCustomerFee = j.customerPricing?.customerFeeCents || 0;
+        const variationCustomerFee = j.securedCustomerVariationFeesCents || 0;
+        const customerServiceFeeCents = baseCustomerFee + variationCustomerFee;
+        const taskioFeeCents = platformFeeCentsForTradieJob(j) + customerServiceFeeCents;
         const feeParts = granularReleasedPlatformFees(j);
         const feeBenefitLabel =
           deriveReleasedFeeBenefitLabel(j, {
-            taskioFeeCents,
+            taskioFeeCents: taskioFeeCents - customerServiceFeeCents,
             grossReleasedCents: grossTotal,
           }) || null;
         const statusReleased = 'Released to Stripe';
@@ -484,7 +488,8 @@ router.get('/api/tradie/payment-activity', requireAuth, requireRole('tradie'), a
           platformFeeAmountCents: taskioFeeCents,
           grossPaymentCents: Number.isFinite(j.paymentAmountCents) ? j.paymentAmountCents : 0,
           totalGrossReleasedCents: grossTotal,
-          clientPaidCents: grossTotal,
+          clientPaidCents: grossTotal + customerServiceFeeCents,
+          customerServiceFeeCents,
           feesTotalCents: taskioFeeCents,
           currency: (j.paymentCurrency && String(j.paymentCurrency).toLowerCase()) || 'aud',
           transferId: j.transferId || null,
@@ -497,15 +502,17 @@ router.get('/api/tradie/payment-activity', requireAuth, requireRole('tradie'), a
             taskDisplayReference: displayReference,
             releasedAtMs: timestampToMillis(j.releasedAt),
             statusLabel: statusReleased,
-            baseJobClientPaidCents: baseClientPaid,
-            variationClientPaidCents: variationClientPaid,
-            totalClientPaidCents: grossTotal,
+            baseJobClientPaidCents: baseClientPaid + baseCustomerFee,
+            variationClientPaidCents: variationClientPaid + variationCustomerFee,
+            totalClientPaidCents: grossTotal + customerServiceFeeCents,
+            customerServiceFeeCents,
             stripeProcessingFeeCents: null,
             stripeProcessingNote:
-              'Card processing is handled by Stripe. See balances and fees in your Stripe Express Dashboard.',
+              j.customerPricing ? 'Standard card processing is covered by Taskio.'
+                : 'Card processing is handled by Stripe. See balances and fees in your Stripe Express Dashboard.',
             taskioPlatformFeeCents: taskioFeeCents,
-            baseTaskioFeeCents: feeParts.baseTaskioFeeCents,
-            variationTaskioFeeCents: feeParts.variationTaskioFeeCents,
+            baseTaskioFeeCents: feeParts.baseTaskioFeeCents == null ? null : feeParts.baseTaskioFeeCents + baseCustomerFee,
+            variationTaskioFeeCents: feeParts.variationTaskioFeeCents == null ? null : feeParts.variationTaskioFeeCents + variationCustomerFee,
             baseExpertReleasedCents: br.baseProviderReleasedCents,
             variationExpertReleasedCents: br.variationProviderReleasedCents,
             feeBenefitLabel,

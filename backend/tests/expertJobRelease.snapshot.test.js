@@ -91,6 +91,21 @@ describe('createExpertReleaseStripeTransfers feeSnapshot base slice', () => {
     );
   });
 
+  it('never transfers the customer service fee to the Expert', async () => {
+    const { calculateCustomerPricing } = require('../../shared/bookingPricing');
+    const job = { paymentIntentId: 'pi_1', paymentAmountCents: 18375, acceptedTradieUid: 'tradie-1',
+      customerPricing: calculateCustomerPricing(17500), feeSnapshot: feeSnap({ grossAmountCents: 17500,
+        expertFeeBps: 1500, taskioFeeCents: 2625, expertNetCents: 14875 }) };
+    const r = await createExpertReleaseStripeTransfers({ jobId: 'job-snap', job, ...deps });
+    expect(r.error).toBeUndefined();
+    expect(deps.createTransfer).toHaveBeenCalledWith(expect.objectContaining({ amountInCents: 14875 }));
+    deps.createTransfer.mockClear();
+    delete job.feeSnapshot;
+    const missing = await createExpertReleaseStripeTransfers({ jobId: 'job-snap', job, ...deps });
+    expect(missing.error.code).toBe('invalid_pricing_snapshot');
+    expect(deps.createTransfer).not.toHaveBeenCalled();
+  });
+
   it('falls back to legacy base slice when snapshot jobId mismatches', async () => {
     const job = {
       paymentIntentId: 'pi_1',

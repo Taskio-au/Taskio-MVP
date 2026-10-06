@@ -37,7 +37,7 @@ function statusTone(status) {
 function feeStageReadable(stage) {
   if (stage === 'founding_first_three') return 'First 3 jobs — 0%';
   if (stage === 'founding_reduced' || stage === 'founding_reduced_fee') return 'Reduced fee — 7.5%';
-  if (stage === 'standard_launch') return 'Standard launch — 10%';
+  if (stage === 'standard_launch') return 'Standard launch';
   if (!stage || String(stage).trim() === '') return null;
   return String(stage).replace(/_/g, ' ');
 }

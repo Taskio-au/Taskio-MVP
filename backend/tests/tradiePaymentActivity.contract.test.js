@@ -191,6 +191,20 @@ describe('GET /api/tradie/payment-activity', () => {
     expect(row.breakdown.title).toBe('Hang mirrors in Docklands');
   });
 
+  it('reconciles client fees separately from the Expert released amount', async () => {
+    const { calculateCustomerPricing } = require('../../shared/bookingPricing');
+    seedDoc('jobs', 'priced', { acceptedTradieUid: 'tradie-1', paymentState: 'released',
+      title: 'Assemble furniture', paymentAmountCents: 18375, customerPricing: calculateCustomerPricing(17500),
+      totalGrossReleasedCents: 17500, baseAmountReleasedCents: 17500, totalProviderReleasedCents: 14875,
+      totalPlatformFeeReleasedCents: 2625, basePlatformFeeReleasedCents: 2625, baseProviderReleasedCents: 14875,
+      releasedAt: { _seconds: 1000 }, transferId: 'tr_priced' });
+    const res = await request(app).get('/api/tradie/payment-activity');
+    expect(res.status).toBe(200);
+    expect(res.body.released[0]).toMatchObject({ clientPaidCents: 18375, taskioFeeCents: 3500,
+      customerServiceFeeCents: 875, providerAmountCents: 14875,
+      breakdown: { totalClientPaidCents: 18375, customerServiceFeeCents: 875 } });
+  });
+
   it('uses catalogue expertLabel for hanging_picture_frames with title-cased locality', async () => {
     seedDoc('jobs', 'job-pf', {
       acceptedTradieUid: 'tradie-1',
