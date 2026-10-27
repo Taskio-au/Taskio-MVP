@@ -1,18 +1,28 @@
 import {
+  Armchair,
   BadgeCheck,
-  Camera,
+  Blinds,
+  ClipboardList,
+  CreditCard,
+  Droplet,
   FileText,
+  Frame,
+  KeyRound,
   LifeBuoy,
   ListChecks,
-  Lock,
-  MapPin,
   MessageSquareText,
+  PaintRoller,
   ShieldCheck,
+  ThumbsUp,
+  Tv,
+  UserCheck,
+  Wrench,
 } from 'lucide-react';
 
 /**
  * Public landing copy, product-preview sample data, and local image map.
- * Photos are temporary Unsplash stand-ins (indoor apartment mood).
+ * Photos are temporary Unsplash stand-ins (indoor apartment mood); swap files in
+ * /public/landing without code changes.
  * Every quote, price, and suburb here is illustrative — never real customer activity.
  */
 export const LANDING_HERO = {
@@ -22,153 +32,164 @@ export const LANDING_HERO = {
   alt: 'Bright apartment living room with newly installed timber floating shelves on the wall',
 };
 
-/** Illustrative Taskio product state shown over the hero photo. */
+/** Illustrative Taskio Client view shown over the hero photo. Sample data only. */
 export const LANDING_HERO_PREVIEW = {
   category: 'Mounting',
-  title: 'Install floating shelves in living room',
+  title: 'Install two floating shelves',
   suburb: 'Richmond, VIC',
-  quotes: '3 quotes',
-  range: '$180 – $260',
-  expertStatus: 'Verified Expert ready',
-  paymentStatus: 'Payment released after you approve',
+  quotes: [
+    { expert: 'Expert A', price: '$185', selected: true },
+    { expert: 'Expert B', price: '$220' },
+  ],
+  expertStatus: 'Checked by Taskio',
+  paymentStatus: 'Paid through Taskio · released after you approve',
 };
 
-export const LANDING_PROOF = [
-  { label: 'Verified Experts', detail: 'Verified by Taskio before quoting', icon: BadgeCheck },
-  { label: 'Compare quotes', detail: 'One thread, side by side', icon: ListChecks },
-  { label: 'Payment through Taskio', detail: 'Released after you approve', icon: ShieldCheck },
-  { label: 'Inner Melbourne', detail: 'Small indoor jobs only', icon: MapPin },
+/** Short job list in the hero so visitors see the scope within seconds. */
+export const LANDING_HERO_JOBS = [
+  'Shelves & TVs',
+  'Flat-pack assembly',
+  'Curtains & blinds',
+  'Picture hanging',
+  'Wall patching',
+  'Make-good',
+];
+
+export const LANDING_PILLARS = [
+  {
+    title: 'Clearer job details',
+    description:
+      'A short, structured brief with photos, so every Expert quotes on the same scope with less back-and-forth.',
+    icon: FileText,
+  },
+  {
+    title: 'Suitable Experts, checked by Taskio',
+    description:
+      'Experts apply and Taskio reviews them before they can quote. It is not an open directory anyone can join.',
+    icon: BadgeCheck,
+  },
+  {
+    title: 'A simple quote-to-payment flow',
+    description:
+      'Compare quotes, book and pay through Taskio in one place. Payment is released to the Expert after you approve the completed job.',
+    icon: ListChecks,
+  },
+];
+
+export const LANDING_STEPS = [
+  {
+    title: 'Tell us about the job',
+    description: 'Answer a few short questions and add photos.',
+    icon: ClipboardList,
+  },
+  {
+    title: 'Receive quotes',
+    description: 'Experts checked by Taskio can quote and ask questions on the job.',
+    icon: MessageSquareText,
+  },
+  {
+    title: 'Choose your Expert',
+    description: 'Compare price and details, then pick the quote that suits you.',
+    icon: UserCheck,
+  },
+  {
+    title: 'Pay through Taskio',
+    description: 'Pay by card through Stripe when you book. Your total is shown before you accept.',
+    icon: CreditCard,
+  },
+  {
+    title: 'Approve the work',
+    description: 'When the job is done, you approve it and Taskio releases payment to the Expert.',
+    icon: ThumbsUp,
+  },
 ];
 
 export const LANDING_SERVICES = [
   {
     name: 'Mounting',
-    description: 'TVs, shelves, and mirrors',
+    description: 'Shelves, TVs and mirrors',
     image: '/landing/cat-mounting.webp',
+    icon: Tv,
   },
   {
-    name: 'Assembly',
-    description: 'Flat-pack furniture, beds, desks, wardrobes',
+    name: 'Furniture assembly',
+    description: 'Flat-pack beds, desks and wardrobes',
     image: '/landing/cat-assembly.webp',
+    icon: Armchair,
   },
   {
-    name: 'Small Fixture Repairs',
-    description: 'Hinges, cabinet alignment, handle replacement',
+    name: 'Minor repairs',
+    description: 'Hinges, handles and cabinet doors',
     image: '/landing/cat-repairs.webp',
+    icon: Wrench,
   },
   {
-    name: 'Hanging',
-    description: 'Picture frames and artwork',
+    name: 'Picture hanging',
+    description: 'Frames and artwork',
     image: '/landing/cat-hanging.webp',
+    icon: Frame,
   },
   {
-    name: 'Curtains & Blinds',
-    description: 'Rods, blinds, and minor window-treatment fixes',
+    name: 'Curtains & blinds',
+    description: 'Rods, blinds and small fixes',
     image: '/landing/cat-curtains.webp',
+    icon: Blinds,
   },
   {
-    name: 'Wall Fixes',
-    description: 'Small holes and minor cosmetic wall repairs',
+    name: 'Wall patching',
+    description: 'Small holes and cosmetic touch-ups',
     image: '/landing/cat-walls.webp',
+    icon: PaintRoller,
   },
   {
-    name: 'Silicone Touch-ups',
-    description: 'Kitchen and bathroom edges',
+    name: 'Silicone touch-ups',
+    description: 'Cosmetic edges in kitchens and bathrooms',
     image: '/landing/cat-silicone.webp',
+    icon: Droplet,
   },
   {
-    name: 'Make-Good',
-    description: 'Apartment make-good before handover',
+    name: 'Apartment make-good',
+    description: 'Small fixes before you hand back the keys',
     image: '/landing/cat-makegood.webp',
+    icon: KeyRound,
   },
 ];
 
-/**
- * Three product stages. `preview` drives the mini Taskio UI in each stage,
- * so the section shows the product instead of describing a marketplace.
- */
-export const LANDING_JOURNEY = [
+/** Real platform mechanics only — no insurance, licensing, background-check or guarantee claims. */
+export const LANDING_TRUST = [
   {
-    index: '01',
-    stage: 'Post',
-    title: 'One structured brief',
-    description: 'Answer the same short questions every time, so Experts quote the same job.',
-    preview: {
-      kind: 'brief',
-      heading: 'Job brief',
-      rows: [
-        { label: 'Category', value: 'Mounting' },
-        { label: 'Job', value: 'Mount 65" TV on plasterboard' },
-        { label: 'Suburb', value: 'Richmond, VIC' },
-        { label: 'Access', value: 'Weekday evenings' },
-      ],
-      footnote: { icon: Camera, text: '3 photos attached' },
-    },
-  },
-  {
-    index: '02',
-    stage: 'Compare',
-    title: 'Quotes side by side',
-    description: 'Verified Experts reply in one thread. You compare and choose who to book.',
-    preview: {
-      kind: 'quotes',
-      heading: 'Quotes received',
-      quotes: [
-        { expert: 'Expert A', meta: 'Verified · Richmond', price: '$185', selected: true },
-        { expert: 'Expert B', meta: 'Verified · Abbotsford', price: '$220' },
-        { expert: 'Expert C', meta: 'Verified · Hawthorn', price: '$260' },
-      ],
-      footnote: { icon: MessageSquareText, text: 'Questions stay in the same thread' },
-    },
-  },
-  {
-    index: '03',
-    stage: 'Approve',
-    title: 'Pay when you approve',
-    description:
-      'Pay securely through Taskio. Payment is released to the Expert after you approve the completed job.',
-    preview: {
-      kind: 'payment',
-      heading: 'Payment status',
-      states: [
-        { text: 'Payment set up through Taskio', done: true },
-        { text: 'Expert completes the job', done: true },
-        { text: 'You approve the work', done: false },
-        { text: 'Payment released to the Expert', done: false },
-      ],
-      footnote: { icon: Lock, text: 'Payment is released only after you approve' },
-    },
-  },
-];
-
-export const LANDING_PILLARS = [
-  {
-    title: 'Clear job briefs',
-    description: 'A structured brief replaces long message threads, so quotes describe the same work.',
-    icon: FileText,
-  },
-  {
-    title: 'Verified Experts',
-    description: 'Experts are invited and verified by Taskio — not an open directory anyone can join.',
+    title: 'Experts are reviewed before quoting',
+    description: 'Experts apply and complete onboarding. Taskio reviews each one before they can quote.',
     icon: BadgeCheck,
   },
   {
-    title: 'Quotes in one place',
-    description: 'Compare Expert quotes and messages on one job instead of chasing separate replies.',
-    icon: ListChecks,
+    title: 'Card payment through Stripe',
+    description: 'You pay through Taskio using Stripe checkout when you book an Expert.',
+    icon: CreditCard,
   },
   {
-    title: 'Payment you control',
-    description:
-      'Pay securely through Taskio. Payment is released to the Expert after you approve the completed job.',
+    title: 'Released after you approve',
+    description: 'Taskio releases payment to the Expert after you approve the completed job.',
     icon: ShieldCheck,
   },
   {
-    title: 'Human support in private launch',
-    description: 'Early access is small on purpose, so a person at Taskio can help when something is unclear.',
+    title: 'Everything on one job record',
+    description: 'Quotes, messages and agreed changes stay together in Taskio.',
+    icon: MessageSquareText,
+  },
+  {
+    title: 'A person to help',
+    description: 'During the pilot, someone at Taskio can help when something is unclear.',
     icon: LifeBuoy,
   },
 ];
+
+export const LANDING_FEE = {
+  summary:
+    'Clients pay a 5% Taskio service fee, with a minimum of A$4.99 and a maximum of A$19.99 per booking.',
+  expertNote: "Expert fees are deducted from the Expert's quote and are not added again to your booking.",
+  totalNote: 'Your total, including the service fee, is shown before you accept a quote.',
+};
 
 export function landingLaunchFacts({ postingOpen = false, canExpertApply = false } = {}) {
   return [
@@ -190,27 +211,3 @@ export function landingLaunchFacts({ postingOpen = false, canExpertApply = false
 }
 
 export const LANDING_LAUNCH_FACTS = landingLaunchFacts();
-
-export const LANDING_EXAMPLES = [
-  {
-    title: 'Mount a wall shelf unit',
-    suburb: 'Richmond, VIC',
-    detail: 'Quoted in one thread, paid after approval',
-    image: '/landing/example-shelves.webp',
-    alt: 'Wall-mounted timber shelving unit holding folded towels and toiletries',
-  },
-  {
-    title: 'Curtain rod install',
-    suburb: 'South Yarra, VIC',
-    detail: 'Three Expert quotes, one conversation',
-    image: '/landing/example-curtains.webp',
-    alt: 'Full-length curtains beside a window in a bright living room',
-  },
-  {
-    title: 'Flat-pack furniture assembly',
-    suburb: 'Carlton, VIC',
-    detail: 'Payment released after approval',
-    image: '/landing/example-assembly.webp',
-    alt: 'Assembled leather sectional sofa and timber coffee table in a living room',
-  },
-];
