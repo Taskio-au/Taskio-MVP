@@ -97,7 +97,7 @@ jobs:
       - run: npm run test:functions
 
   browser-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
