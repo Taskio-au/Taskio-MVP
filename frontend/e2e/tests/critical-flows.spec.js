@@ -58,7 +58,7 @@ test('public launch page labels examples and exposes route metadata without fict
 
   await expect(page).toHaveTitle(/Taskio/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://taskio.com.au');
-  await expect(page.getByText('Illustrative example').first()).toBeVisible();
+  await expect(page.getByText('Illustrative preview', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Clients and Experts in their own words/i })).toHaveCount(0);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   expect(overflow).toBe(false);
