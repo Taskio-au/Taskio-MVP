@@ -430,8 +430,8 @@
 
 .landing-preview-card {
   position: absolute;
-  left: -20px;
-  bottom: -28px;
+  left: -6px;
+  bottom: -18px;
   width: min(330px, 78%);
   padding: 16px;
   border-radius: 18px;
@@ -1129,7 +1129,6 @@
   }
 
   .landing-preview-card {
-    left: -16px;
     width: min(310px, 74%);
   }
 }
